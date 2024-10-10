@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { User } from "../api/interfaces/user";
+import { User } from "../../../src/backend/interfaces/user";
 
 export default function userHandler (
     req: NextApiRequest,
@@ -7,16 +7,16 @@ export default function userHandler (
   ) {
     const { query, method } = req;
     const id = parseInt(query.id as string, 10);
-  
+
     switch (method) {
-        case "POST": 
+        case "POST":
 
         break;
       case "GET":
         res.status(200).json({
             id: id,
             firstName: "",
-            lastname: "",
+            lastName: "",
             username: ""
         });
         break;
@@ -24,7 +24,7 @@ export default function userHandler (
         res.status(200).json({
             id: id,
             firstName: "",
-            lastname: "",
+            lastName: "",
             username: ""
         });
         break;

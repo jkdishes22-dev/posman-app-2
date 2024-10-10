@@ -1,15 +1,30 @@
-import withPWA from 'next-pwa';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import path from 'path';
+import withPWA from 'next-pwa'
 
-/** @type {import('next').NextConfig} */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const nextConfig = {
-  // Add your existing configuration here if needed
-    dest: 'public',
-    // disable: process.env.NODE_ENV === 'development',
-  register: true,
-  skipWaiting: true,
-  // scope: '/app',
-  sw: 'sw.js',
-  //...
+    webpack: (config) => {
+        config.resolve.alias['@entities'] = path.resolve(__dirname, 'src/backend/entities');
+        config.resolve.alias['@services'] = path.resolve(__dirname, 'src/backend/service');
+        return config;
+    }
 };
 
-export default withPWA(nextConfig);
+export default withPWA({
+    dest: 'public',
+    register: true,
+    skipWaiting: true,
+    runtimeCaching: [
+        {
+            urlPattern: /^\/api\/.*$/,
+            handler: 'NetworkFirst',
+            options: {
+                networkTimeoutSeconds: 10,
+            },
+        }
+    ]
+})(nextConfig);
