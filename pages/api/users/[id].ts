@@ -1,35 +1,12 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { User } from "../../../src/backend/interfaces/user";
+import { authMiddleware } from "../../../src/backend/middleware/auth";
+import { UserService } from "@services/user-service";
 
-export default function userHandler (
-    req: NextApiRequest,
-    res: NextApiResponse<User>,
-  ) {
-    const { query, method } = req;
-    const id = parseInt(query.id as string, 10);
+const userService = new UserService();
 
-    switch (method) {
-        case "POST":
+const handler = async (req: NextApiRequest, res: NextApiResponse) => {
+  const users = await userService.getUserById(Number(req.query.id));
+  res.status(200).json(users);
+};
 
-        break;
-      case "GET":
-        res.status(200).json({
-            id: id,
-            firstName: "",
-            lastName: "",
-            username: ""
-        });
-        break;
-      case "PUT":
-        res.status(200).json({
-            id: id,
-            firstName: "",
-            lastName: "",
-            username: ""
-        });
-        break;
-      default:
-        res.setHeader("Allow", ["GET", "PUT"]);
-        res.status(405).end(`Method ${method} Not Allowed`);
-    }
-}
+export default authMiddleware(handler);

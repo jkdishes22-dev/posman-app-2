@@ -1,57 +1,105 @@
 "use client";
 import Image from "next/image";
 import DashboardLayout from "../../shared/DashboardLayout";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 export default function UsersPage() {
   const [showModal, setShowModal] = useState(false);
-
-  const handleClose = () => setShowModal(false);
-  const handleShow = () => setShowModal(true);
-
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-
+  const [users, setUsers] = useState([]);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
 
-  async function handleCreateUser(): Promise<void> {
-    if (!password || !confirmPassword) {
-      if (password !== confirmPassword) {
-        setError("passwords do not match");
-        return;
-      }
+  const handleClose = async () => {
+    setShowModal(false);
+    resetForm();
+    await fetchUsers(); // Update users when modal is closed
+  };
+
+  const handleShow = () => {
+    resetForm();
+    setShowModal(true);
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  async function fetchUsers() {
+    const token = localStorage.getItem("token");
+    const response = await fetch("/api/users", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      setUsers(data);
     } else {
-      const formData = {
-        firstName,
-        lastName,
-        username,
-        password,
-      };
-
-      // try {
-        const response = await fetch("/api/users", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(formData),
-        });
-
-        if (!response.ok) {
-          setError("User registration failed");
-        }
-
-     /* } catch (err) {
-        setError(err.message);
-      }*/
+      console.error("Failed to fetch users");
     }
   }
+
+  function resetForm() {
+    setFirstName("");
+    setLastName("");
+    setUsername("");
+    setPassword("");
+    setConfirmPassword("");
+    setError("");
+  }
+
+  async function handleCreateUser(): Promise<void> {
+    setError("");
+
+    if (!username || !password) {
+      setError("Please fill in all fields");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    const formData = {
+      firstName,
+      lastName,
+      username,
+      password,
+    };
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.status === 201) {
+        setError("");
+        const newUser = await response.json();
+        setUsers((prevUsers) => [...prevUsers, newUser]);
+        handleClose();
+      } else {
+        setError("User registration failed");
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   return (
     <DashboardLayout>
-      <div>
+      <div className="container-fluid">
         <button
           type="button"
           className="btn btn-primary d-flex align-items-center"
@@ -67,14 +115,35 @@ export default function UsersPage() {
           Add User
         </button>
       </div>
+      <div className="container-fluid">
+        <table className="table mt-3">
+          <thead>
+            <tr>
+              <th scope="col">First Name</th>
+              <th scope="col">Last Name</th>
+              <th scope="col">Username</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((user) => (
+              <tr key={user.id}>
+                <td>{user.firstName}</td>
+                <td>{user.lastName}</td>
+                <td>{user.username}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {showModal && (
         <div
-          className="modal-dialog modal-dialog-centered modal-dialog-scrollable modal show d-block"
+          className="modal fade show d-block"
           tabIndex={-1}
           role="dialog"
+          style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
         >
-          <div className="modal-dialog" role="document">
+          <div className="modal-dialog modal-dialog-centered" role="document">
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Add new user</h5>
@@ -96,6 +165,7 @@ export default function UsersPage() {
                         id="firstName"
                         name="firstName"
                         placeholder="First name"
+                        value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                       />
                     </div>
@@ -114,6 +184,7 @@ export default function UsersPage() {
                         id="lastName"
                         name="lastName"
                         placeholder="Last name"
+                        value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                       />
                     </div>
@@ -133,6 +204,7 @@ export default function UsersPage() {
                         name="username"
                         placeholder="Username"
                         autoComplete="Username"
+                        value={username}
                         onChange={(e) => setUsername(e.target.value)}
                       />
                     </div>
@@ -153,6 +225,7 @@ export default function UsersPage() {
                         name="password"
                         placeholder="password"
                         autoComplete="new-password"
+                        value={password}
                         onChange={(e) => setPassword(e.target.value)}
                       />
                     </div>
@@ -173,6 +246,7 @@ export default function UsersPage() {
                         name="confirmPassword"
                         placeholder="confirm Password"
                         autoComplete="new-password"
+                        value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                       />
                     </div>

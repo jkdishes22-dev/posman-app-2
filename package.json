@@ -11,26 +11,39 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "bootstrap": "^5.3.3",
+    "dotenv": "^16.4.5",
     "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.11.3",
-    "next": "14.2.13",
+    "next": "^14.2.15",
+    "next-connect": "^1.0.0-next.4",
     "next-pwa": "^5.6.0",
-    "react": "^18",
-    "react-dom": "^18",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "reflect-metadata": "^0.2.2",
     "typedi": "^0.10.0",
     "typeorm": "^0.3.20",
-    "typescript": "^5.6.0"
+    "workbox-webpack-plugin": "^7.1.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/bootstrap": "^5.2.10",
     "@types/express": "^5.0.0",
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-dom": "^18",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/next": "^9.0.0",
+    "@types/node": "^18.19.55",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.8.1",
+    "@typescript-eslint/parser": "^8.8.1",
     "eslint": "^8",
     "eslint-config-next": "14.2.13",
-    "typescript": "^5"
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-react": "^7.37.1",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
   }
 }

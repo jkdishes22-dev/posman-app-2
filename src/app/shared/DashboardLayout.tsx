@@ -1,7 +1,8 @@
-"use client"; // Ensure this component runs on the client side
-import Image from "next/image"; 
+"use client";
+import Image from "next/image";
 
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function DashboardLayout({
   children,
@@ -9,38 +10,44 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/");
+    }
+  }, [router]);
 
   const handleLogout = () => {
-    console.log("Logging out, redirecting to /");
-    router.push("/"); // Navigate back to root, where the login form is
+    localStorage.removeItem("token");
+    router.push("/");
   };
 
   const viewUsers = () => {
     console.log("Navigating to Users page");
-    router.push("/users/view"); // Navigate to the Users page
+    router.push("/users/view");
   };
 
-  const rolesAndPermisions = () => {
+  const rolesAndPermissions = () => {
     console.log("Navigating to Users page");
-    router.push("/users/permission"); // Navigate to the Users page
-  }
+    router.push("/users/permission");
+  };
 
   const dashboardPage = () => {
-    router.push("/dashboard")
-  }
+    router.push("/dashboard");
+  };
 
   return (
     <div className="container-fluid">
       <nav className="navbar navbar-expand-lg navbar-light bg-light mb-2">
         <a className="navbar-brand" href="#" onClick={dashboardPage}>
           JK Posman
-          <Image 
-      src="/icons/JKlogo.png" 
-      alt="Add user" 
-      width={64} 
-      height={32} 
-      className="m-2"
-    />
+          <Image
+            src="/icons/JKlogo.png"
+            alt="Add user"
+            width={64}
+            height={32}
+            className="m-2"
+          />
         </a>
 
         <div className="collapse navbar-collapse" id="navbarTogglerDemo02">
@@ -62,8 +69,20 @@ export default function DashboardLayout({
                 className="dropdown-menu dropdown-menu-dark"
                 aria-labelledby="navbarDarkDropdownMenuLink"
               >
-                <li><a className="dropdown-item" href="#" onClick={viewUsers}>View</a></li>
-                <li><a className="dropdown-item" href="#" onClick={rolesAndPermisions}>Roles and Permissions</a></li>
+                <li>
+                  <a className="dropdown-item" href="#" onClick={viewUsers}>
+                    View
+                  </a>
+                </li>
+                <li>
+                  <a
+                    className="dropdown-item"
+                    href="#"
+                    onClick={rolesAndPermissions}
+                  >
+                    Roles and Permissions
+                  </a>
+                </li>
               </ul>
             </li>
 
@@ -82,12 +101,13 @@ export default function DashboardLayout({
                 className="dropdown-menu dropdown-menu-dark"
                 aria-labelledby="navbarDarkDropdownMenuLink"
               >
-                <li><a className="dropdown-item" href="#">Station</a></li>
                 <li>
-                  <a
-                    className="dropdown-item"
-                    href="#"
-                  >
+                  <a className="dropdown-item" href="#">
+                    Station
+                  </a>
+                </li>
+                <li>
+                  <a className="dropdown-item" href="#">
                     Staff
                   </a>
                 </li>
@@ -109,13 +129,18 @@ export default function DashboardLayout({
                 className="dropdown-menu dropdown-menu-dark"
                 aria-labelledby="navbarDarkDropdownMenuLink"
               >
-                 <li><a className="dropdown-item" href="#">Billing</a></li>
-                <li><a className="dropdown-item" href="#">Production</a></li>
                 <li>
-                  <a
-                    className="dropdown-item"
-                    href="#"
-                  >
+                  <a className="dropdown-item" href="#">
+                    Billing
+                  </a>
+                </li>
+                <li>
+                  <a className="dropdown-item" href="#">
+                    Production
+                  </a>
+                </li>
+                <li>
+                  <a className="dropdown-item" href="#">
                     Issuing
                   </a>
                 </li>
@@ -134,17 +159,44 @@ export default function DashboardLayout({
               >
                 Menu & Pricing
               </a>
-              <ul className="dropdown-menu dropdown-menu-dark" aria-labelledby="menuAndPricing">
-                <li><a className="dropdown-item" href="#">Items</a></li>
-                <li><a className="dropdown-item" href="#">Pricelist</a></li>
+              <ul
+                className="dropdown-menu dropdown-menu-dark"
+                aria-labelledby="menuAndPricing"
+              >
+                <li>
+                  <a className="dropdown-item" href="#">
+                    Items
+                  </a>
+                </li>
+                <li>
+                  <a className="dropdown-item" href="#">
+                    Pricelist
+                  </a>
+                </li>
               </ul>
             </li>
 
             {/* Other Nav Items */}
-            <li className="nav-item"><a className="nav-link" href="#">Financials</a></li>
-            <li className="nav-item"><a className="nav-link" href="#">Inventory</a></li>
-            <li className="nav-item"><a className="nav-link" href="#">Suppliers</a></li>
-            <li className="nav-item"><a className="nav-link" href="#">Reports</a></li>
+            <li className="nav-item">
+              <a className="nav-link" href="#">
+                Financials
+              </a>
+            </li>
+            <li className="nav-item">
+              <a className="nav-link" href="#">
+                Inventory
+              </a>
+            </li>
+            <li className="nav-item">
+              <a className="nav-link" href="#">
+                Suppliers
+              </a>
+            </li>
+            <li className="nav-item">
+              <a className="nav-link" href="#">
+                Reports
+              </a>
+            </li>
           </ul>
 
           {/* Right-aligned Profile Dropdown */}
@@ -158,9 +210,18 @@ export default function DashboardLayout({
             >
               Profile
             </button>
-            <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userActionsDropdown">
-              <li><a className="dropdown-item" href="#">Settings</a></li>
-              <li><hr className="dropdown-divider" /></li>
+            <ul
+              className="dropdown-menu dropdown-menu-end"
+              aria-labelledby="userActionsDropdown"
+            >
+              <li>
+                <a className="dropdown-item" href="#">
+                  Settings
+                </a>
+              </li>
+              <li>
+                <hr className="dropdown-divider" />
+              </li>
               <li>
                 <button className="dropdown-item" onClick={handleLogout}>
                   Logout
