@@ -1,8 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { UserService } from "@services/UserService";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { UserService } from "@services/user-service";
-import { User } from "@entities/User";
 import * as process from "process";
 
 const userService = new UserService();

@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import DashboardLayout from "../../shared/DashboardLayout";
+import AdminLayout from "../../../shared/AdminLayout";
 import React, { useState, useEffect } from "react";
 
 export default function UsersPage() {
@@ -13,10 +13,9 @@ export default function UsersPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleClose = async () => {
+  const handleClose = () => {
     setShowModal(false);
     resetForm();
-    await fetchUsers(); // Update users when modal is closed
   };
 
   const handleShow = () => {
@@ -35,12 +34,11 @@ export default function UsersPage() {
         Authorization: `Bearer ${token}`,
       },
     });
-
     if (response.ok) {
       const data = await response.json();
       setUsers(data);
     } else {
-      console.error("Failed to fetch users");
+      console.error("Failed to fetch users" + response);
     }
   }
 
@@ -55,24 +53,20 @@ export default function UsersPage() {
 
   async function handleCreateUser(): Promise<void> {
     setError("");
-
     if (!username || !password) {
       setError("Please fill in all fields");
       return;
     }
-
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-
     const formData = {
       firstName,
       lastName,
       username,
       password,
     };
-
     try {
       const token = localStorage.getItem("token");
       const response = await fetch("/api/users", {
@@ -83,7 +77,6 @@ export default function UsersPage() {
         },
         body: JSON.stringify(formData),
       });
-
       if (response.status === 201) {
         setError("");
         const newUser = await response.json();
@@ -94,11 +87,13 @@ export default function UsersPage() {
       }
     } catch (err) {
       setError(err.message);
+    } finally {
+      await fetchUsers();
     }
   }
 
   return (
-    <DashboardLayout>
+    <AdminLayout>
       <div className="container-fluid">
         <button
           type="button"
@@ -108,14 +103,12 @@ export default function UsersPage() {
           <Image
             src="/icons/person-add.svg"
             alt="Add user"
-            width={16}
-            height={16}
+            width={12}
+            height={12}
             className="m-2"
           />
-          Add User
+          Add
         </button>
-      </div>
-      <div className="container-fluid">
         <table className="table mt-3">
           <thead>
             <tr>
@@ -135,7 +128,6 @@ export default function UsersPage() {
           </tbody>
         </table>
       </div>
-
       {showModal && (
         <div
           className="modal fade show d-block"
@@ -209,7 +201,6 @@ export default function UsersPage() {
                       />
                     </div>
                   </div>
-
                   <div className="form-group row m-2">
                     <label
                       htmlFor="password"
@@ -230,7 +221,6 @@ export default function UsersPage() {
                       />
                     </div>
                   </div>
-
                   <div className="form-group row m-2">
                     <label
                       htmlFor="confirmPassword"
@@ -273,6 +263,6 @@ export default function UsersPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </AdminLayout>
   );
 }

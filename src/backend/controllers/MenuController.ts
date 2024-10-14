@@ -1,0 +1,57 @@
+import { NextApiRequest, NextApiResponse } from "next";
+import { MenuService } from "@services/MenuService";
+
+const menuService = new MenuService();
+
+export const createCategoryHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const { name } = req.body;
+  try {
+    const newCategory = await menuService.createCategory(name);
+    res.status(201).json(newCategory);
+  } catch (error) {
+    console.error("Error creating category:", error);
+    res.status(500).json({ error: "Error creating category" + error });
+  }
+};
+
+export const fetchCategoriesHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  try {
+    const categories = await menuService.fetchCategories();
+    res.status(200).json(categories);
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    return [];
+  }
+};
+
+export const fetchItemsHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  try {
+    const { category } = req.query;
+    const items = await menuService.fetchItems(category);
+    res.status(200).json(items);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch items", error });
+  }
+};
+
+export const createItemHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  try {
+    const newItem = req.body;
+    const item = await menuService.createItem(newItem);
+    res.status(201).json(item);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to create item", error });
+  }
+};

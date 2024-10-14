@@ -1,12 +1,12 @@
-import DashboardLayout from "../../shared/DashboardLayout";
+import AdminLayout from "../../../shared/AdminLayout";
 
 export default function UsersPage() {
   return (
-    <DashboardLayout>
+    <AdminLayout>
       <div>
         <h1>Users Register</h1>
         {/* Users page content */}
       </div>
-    </DashboardLayout>
+    </AdminLayout>
   );
 }

@@ -1,6 +1,10 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { authMiddleware } from "../../../src/backend/middleware/auth";
-import { UserService } from "@services/user-service";
+import {
+  authMiddleware,
+  authorize,
+} from "@backend/middleware/auth";
+import { UserService } from "@services/UserService";
+import permissions from "@backend/config/managed-roles";
 
 const userService = new UserService();
 
@@ -9,4 +13,4 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   res.status(200).json(users);
 };
 
-export default authMiddleware(handler);
+export default authMiddleware(authorize([permissions.CAN_VIEW_USER])(handler));

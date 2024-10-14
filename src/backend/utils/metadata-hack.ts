@@ -6,6 +6,8 @@ export const ensureMetadata = async (entity: EntityTarget<any>) => {
     console.log(
       `Metadata for ${entity} not found. Initializing AppDataSource...`,
     );
-    await AppDataSource.initialize();
+    if (!AppDataSource.isInitialized) {
+      await AppDataSource.initialize();
+    }
   }
 };

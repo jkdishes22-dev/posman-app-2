@@ -25,6 +25,9 @@
       }
     ],
     "paths": {
+      "@backend/*": [
+        "src/backend/*"
+      ],
       "@entities/*": [
         "src/backend/entities/*"
       ],

@@ -1,5 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, BeforeInsert } from "typeorm";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  BeforeInsert,
+  JoinTable,
+  ManyToMany,
+} from "typeorm";
 import bcrypt from "bcryptjs";
+import { Role } from "@entities/Role";
 
 @Entity()
 export class User {
@@ -17,6 +25,20 @@ export class User {
 
   @Column()
   password!: string;
+
+  @ManyToMany(() => Role, (role) => role.users)
+  @JoinTable({
+    name: "user_roles",
+    joinColumn: {
+      name: "user_id",
+      referencedColumnName: "id",
+    },
+    inverseJoinColumn: {
+      name: "role_id",
+      referencedColumnName: "id",
+    },
+  })
+  roles: Role[];
 
   @BeforeInsert()
   async hashPassword() {

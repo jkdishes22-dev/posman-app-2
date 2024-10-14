@@ -1,29 +1,36 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { authMiddleware } from "../../../src/backend/middleware/auth";
+import { authMiddleware, authorize } from "@backend/middleware/auth";
 import {
   createUserHandler,
   getUsersHandler,
-} from "@controllers/user-controller";
-
+} from "@controllers/UserController";
 import { config } from "dotenv";
 import * as process from "process";
+import { ensureMetadata } from "@backend/utils/metadata-hack";
+import permissions from "@backend/config/managed-roles";
 
 config();
-
 const isAuthEnabled = process.env.AUTH_ENABLED || "false";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
+  await ensureMetadata("User");
+  await ensureMetadata("Role");
+  await ensureMetadata("Permission");
+  await ensureMetadata("UserRole");
+  await ensureMetadata("RolePermission");
+
   if (req.method === "POST") {
-    console.log("isAuthEnabled:", isAuthEnabled);
-    if (isAuthEnabled) {
-      console.log("authenticated call");
-      await authMiddleware(createUserHandler)(req, res);
+    if (isAuthEnabled === "true") {
+      await authMiddleware(
+        authorize([permissions.CAN_ADD_USER])(createUserHandler),
+      )(req, res);
     } else {
-      console.log("first time create");
       await createUserHandler(req, res);
     }
   } else if (req.method === "GET") {
-    await authMiddleware(getUsersHandler)(req, res);
+    await authMiddleware(
+      authorize([permissions.CAN_VIEW_USER])(getUsersHandler),
+    )(req, res);
   } else {
     res.setHeader("Allow", ["GET", "POST"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);
