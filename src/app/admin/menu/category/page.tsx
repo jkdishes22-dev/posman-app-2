@@ -1,19 +1,24 @@
 "use client";
+
 import SecureRoute from "../../../components/SecureRoute";
 import AdminLayout from "../../../shared/AdminLayout";
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
+import CategoryItems from "./components/category-items";
+import Categories from "./components/categories";
 
-const CategoryPage = () => {
+const CategoryPage: React.FC = () => {
   const [name, setName] = useState("");
   const [formError, setFormError] = useState("");
   const [fetchError, setFetchError] = useState("");
   const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [items, setItems] = useState([]);
   const [itemError, setItemError] = useState("");
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) {
       setFormError("Please fill in all fields");
@@ -33,16 +38,16 @@ const CategoryPage = () => {
       if (response.status === 201) {
         setFormError("");
         const newCategory = await response.json();
-        setCategories([...categories, newCategory]);
+        setCategories((prevCategories) => [...prevCategories, newCategory]);
       } else {
         setFormError("Failed to create category");
       }
     } catch (e) {
-      setFormError("Login failed" + e);
+      setFormError("Login failed: " + e.message);
     }
   };
 
-  const fetchItems = async (categoryId) => {
+  const fetchItems = async (categoryId: string) => {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(`/api/menu/items?category=${categoryId}`, {
@@ -61,7 +66,7 @@ const CategoryPage = () => {
     }
   };
 
-  const handleCategoryClick = (category) => {
+  const handleCategoryClick = (category: { id: string; name: string }) => {
     setSelectedCategory(category);
     fetchItems(category.id);
   };
@@ -116,73 +121,22 @@ const CategoryPage = () => {
                 </form>
               </div>
             </div>
+
             <div className="col-8">
-              <div className="p-2 border bg-light">
-                {fetchError && <p style={{ color: "red" }}>{fetchError}</p>}
-                <div className="row">
-                  {categories.map((category) => (
-                    <div
-                      key={category.id}
-                      className="col-sm-3 mb-1"
-                      onClick={() => handleCategoryClick(category)}
-                      style={{ cursor: "pointer" }}
-                    >
-                      <div className="card">
-                        <div className="card-body">
-                          <h5 className="card-title">{category.name}</h5>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <Categories
+                categories={categories}
+                onCategoryClick={handleCategoryClick}
+                fetchError={fetchError}
+              />
             </div>
           </div>
           <div className="row px-1">
-            <div className="col mt-2">
-              <div className="p-3 border bg-light">
-                <div className="row">
-                  <div className="col-10">
-                    {selectedCategory
-                      ? `${selectedCategory.name} Items`
-                      : "Category items section"}
-                  </div>
-                  <div className="col border bg-primary-subtle border-1 border-primary-subtle">
-                    <Image
-                      src="/icons/plus-circle.svg"
-                      alt="Add Item"
-                      width={24}
-                      height={24}
-                      className="m-2"
-                    />{" "}
-                    Add item
-                  </div>
-                </div>
-                {itemError && <p style={{ color: "red" }}>{itemError}</p>}
-                <table className="table mt-3 stripped">
-                  <thead>
-                    <tr>
-                      <th scope="col">Item name</th>
-                      <th>Item code</th>
-                      <th>Category</th>
-                      <th>Item Type</th>
-                      <th>Item price</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item) => (
-                      <tr key={item.id}>
-                        <td>{item.name}</td>
-                        <td>{item.code}</td>
-                        <td>{item.category.name}</td>
-                        <td>{item.itemType.name}</td>
-                        <td></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <CategoryItems
+              selectedCategory={selectedCategory}
+              items={items}
+              itemError={itemError}
+              fetchItems={fetchItems}
+            />
           </div>
         </div>
       </AdminLayout>

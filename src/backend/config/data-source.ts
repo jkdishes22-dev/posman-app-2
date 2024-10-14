@@ -10,6 +10,7 @@ import { Category } from "@entities/Category";
 import { Item } from "@entities/Item";
 import { ItemType } from "@entities/ItemType";
 import { PermissionScope } from "@entities/PermissionScope";
+import { ItemGroup } from "@entities/ItemGroup";
 
 export const AppDataSource = new DataSource({
   type: "mysql",
@@ -24,9 +25,7 @@ export const AppDataSource = new DataSource({
     Permission,
     UserRole,
     RolePermission,
-    Category,
-    Item,
-    ItemType,
+    Item, ItemGroup, Category, ItemType,
     PermissionScope,
   ],
   synchronize: false,

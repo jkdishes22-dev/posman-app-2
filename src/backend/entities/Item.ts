@@ -3,10 +3,12 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
-  JoinColumn
+  JoinColumn,
+  ManyToMany,
+  JoinTable,
 } from "typeorm";
-import { Category } from "./Category";
-import { ItemType } from "./ItemType";
+import { Category } from "@entities/Category";
+import { ItemType } from "@entities/ItemType";
 
 @Entity()
 export class Item {
@@ -19,6 +21,9 @@ export class Item {
   @Column()
   code: string;
 
+  @Column()
+  price: number;
+
   @ManyToOne(() => Category)
   @JoinColumn({ name: "item_category_id" })
   category: Category;
@@ -29,4 +34,21 @@ export class Item {
 
   @Column({ nullable: true, name: "default_unit_id" })
   defaultUnitId: number;
+
+  @Column({ nullable: true, name: "is_group" })
+  isGroup: boolean;
+
+  @ManyToMany(() => Item)
+  @JoinTable({
+    name: "item_group",
+    joinColumn: {
+      name: "item_id",
+      referencedColumnName: "id",
+    },
+    inverseJoinColumn: {
+      name: "sub_item_id",
+      referencedColumnName: "id",
+    }
+  })
+  subItems: Item[];
 }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import AdminLayout from "../../../shared/AdminLayout";
+import Image from "next/image";
 
 type ErrorState = {
   message: string;
@@ -38,8 +39,7 @@ export default function UsersPage() {
         setError(null);
       }
     } catch (error) {
-      console.error(error);
-      setError({ message: "An unexpected error occurred." });
+      setError({ message: "An unexpected error occurred." + error.message });
     }
   };
 
@@ -57,18 +57,15 @@ export default function UsersPage() {
       } else {
         const data = await response.json();
         setScopes(data);
-
         const emptyPermissionsByScope = data.reduce((acc, scope) => {
           acc[scope.name] = [];
           return acc;
         }, {});
         setPermissionsByScope(emptyPermissionsByScope);
-
         setError(null);
       }
     } catch (error) {
-      console.error(error);
-      setError({ message: "An unexpected error occurred." });
+      setError({ message: "An unexpected error occurred." + error.message });
     }
   };
 
@@ -87,12 +84,10 @@ export default function UsersPage() {
       } else {
         const permissions = await response.json();
         setError(null);
-
         const updatedPermissionsByScope = scopes.reduce((acc, scope) => {
           acc[scope.name] = [];
           return acc;
         }, {});
-
         permissions.forEach((perm) => {
           const scopeName = perm.scope || "Unscoped";
           if (!updatedPermissionsByScope[scopeName]) {
@@ -103,22 +98,47 @@ export default function UsersPage() {
         setPermissionsByScope(updatedPermissionsByScope);
       }
     } catch (error) {
-      console.error(error);
-      setError({ message: "An unexpected error occurred." });
+      setError({ message: "An unexpected error occurred." + error.message });
     }
   };
 
   const displayPermissionsByScope = (scope) => {
     const permissions = permissionsByScope[scope] || [];
     return (
-      <div key={scope}>
-        <ul>
-          {permissions.length > 0 ? (
-            permissions.map((perm) => <li key={perm}>{perm}</li>)
-          ) : (
-            <li>No permissions added</li>
-          )}
-        </ul>
+      <div key={scope} className="card mb-3">
+        <div className="card-header">
+          <h3>Scope: {scope}</h3>
+        </div>
+        <div className="card-body">
+          <ul className="list-unstyled">
+            {permissions.length > 0 ? (
+              permissions.map((perm) => (
+                <li key={perm} className="p-1">
+                  <span>{perm}</span>
+                  <Image
+                    src="/icons/x-circle.svg"
+                    alt="Add Item"
+                    width={24}
+                    height={24}
+                    className="m-2"
+                  />{" "}
+                </li>
+              ))
+            ) : (
+              <li>No permissions added</li>
+            )}
+          </ul>
+          <div className="col border bg-primary-subtle border-1 border-primary-subtle w-25">
+            <Image
+              src="/icons/plus-circle.svg"
+              alt="Add Item"
+              width={24}
+              height={24}
+              className="m-2"
+            />{" "}
+            Add Permission
+          </div>
+        </div>
       </div>
     );
   };
@@ -141,7 +161,7 @@ export default function UsersPage() {
         <div className="container">
           <div className="row">
             <div className="col-4">
-              <h2>Roles</h2>
+              <h3>Roles</h3>
               <ul className="list-group">
                 {roles.map((role) => (
                   <li
@@ -155,7 +175,7 @@ export default function UsersPage() {
               </ul>
             </div>
             <div className="col-8">
-              <h2>Role: {selectedRole && selectedRole.name}</h2>
+              <h3>Role: {selectedRole && selectedRole.name}</h3>
               <ul className="nav nav-underline">
                 {scopes.map((scope) => (
                   <li key={scope.name} className="nav-item">

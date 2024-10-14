@@ -36,9 +36,12 @@ export const fetchItemsHandler = async (
 ) => {
   try {
     const { category } = req.query;
+    console.log("Fetching Items:", category);
     const items = await menuService.fetchItems(category);
+
     res.status(200).json(items);
   } catch (error) {
+    console.log("Error fetching items:", error);
     res.status(500).json({ message: "Failed to fetch items", error });
   }
 };
@@ -53,5 +56,30 @@ export const createItemHandler = async (
     res.status(201).json(item);
   } catch (error) {
     res.status(500).json({ message: "Failed to create item", error });
+  }
+};
+
+export const createItemTypeHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  try {
+    const newItemType = req.body;
+    const item = await menuService.createItemType(newItemType);
+    res.status(201).json(item);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to create item type", error });
+  }
+};
+
+export const fetchItemTypesHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  try {
+    const itemTypes = await menuService.fetchItemTypes();
+    res.status(201).json(itemTypes);
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching item types" + error });
   }
 };
