@@ -57,7 +57,13 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
 
   const handleItemSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!itemName || !itemCode || !itemPrice || !itemType || !selectedCategory) {
+    if (
+      !itemName ||
+      !itemCode ||
+      !itemPrice ||
+      !itemType ||
+      !selectedCategory
+    ) {
       setAddItemError("Please fill in all fields");
       return;
     }
@@ -177,7 +183,8 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
           <Modal.Title>Add Item</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <form onSubmit={handleItemSubmit}>
+          {addItemError && <p style={{ color: "red" }}>{addItemError}</p>}
+          <form onSubmit={handleItemSubmit} className="row g-3">
             <div className="form-group">
               <label>Item Name</label>
               <input
@@ -237,13 +244,15 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
                 onChange={(e) => setIsGroup(e.target.checked)}
               />
             </div>
-            {addItemError && <p style={{ color: "red" }}>{addItemError}</p>}
-            <Button variant="secondary" onClick={handleModalClose}>
-              Close
-            </Button>
-            <Button variant="primary" type="submit">
-              Save
-            </Button>
+
+            <Modal.Footer>
+              <Button variant="secondary" onClick={handleModalClose}>
+                Close
+              </Button>
+              <Button variant="primary" type="submit">
+                Save
+              </Button>
+            </Modal.Footer>
           </form>
         </Modal.Body>
       </Modal>
