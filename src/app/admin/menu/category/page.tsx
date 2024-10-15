@@ -3,8 +3,8 @@
 import SecureRoute from "../../../components/SecureRoute";
 import AdminLayout from "../../../shared/AdminLayout";
 import React, { useState, useEffect } from "react";
-import CategoryItems from "./components/category-items";
-import Categories from "./components/categories";
+import CategoryItems from "./components/category/category-items";
+import Categories from "./components/category/categories";
 
 const CategoryPage: React.FC = () => {
   const [name, setName] = useState("");
