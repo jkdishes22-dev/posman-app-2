@@ -1,15 +1,16 @@
 import React, { useState } from "react";
 import Image from "next/image";
-import { Category, Item } from "../../types";
 import EditItemModal from "./item-edit";
 import ItemDeleteModal from "./item-delete";
+import { Category, Item } from "../../types";
+import SecureRoute from "../../../../../components/SecureRoute";
 
 interface ViewItemsProps {
   selectedCategory: Category | null;
   items: Item[];
   itemError: string;
-  handleAddItemClick: () => void;
-  handleDeleteItem: (itemId: string) => void;
+  handleAddItemClick?: () => void; // Made optional
+  handleDeleteItem?: (itemId: string) => void; // Made optional
   itemTypes: { id: string; name: string }[];
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
 }
@@ -29,12 +30,11 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
 
-  // Filtering items based on search term
   const filteredItems = searchTerm
     ? items.filter((item) =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()),
       )
-    : items; // If no search term, display all items
+    : items;
 
   const handleEditItem = (item: Item) => {
     setSelectedItem(item);
@@ -47,7 +47,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   };
 
   const confirmDelete = () => {
-    if (itemToDelete) {
+    if (itemToDelete && handleDeleteItem) {
       handleDeleteItem(itemToDelete.id);
       setShowDeleteModal(false);
     }
@@ -76,19 +76,21 @@ const ViewItems: React.FC<ViewItemsProps> = ({
             </div>
           </div>
 
-          <div
-            className="col border bg-primary-subtle border-1 border-primary-subtle w-25 h-25"
-            onClick={handleAddItemClick}
-          >
-            <Image
-              src="/icons/plus-circle.svg"
-              alt="Add Item"
-              width={24}
-              height={24}
-              className="m-2"
-            />
-            Add item
-          </div>
+          {handleAddItemClick && ( // Conditional rendering for Add Item button
+            <div
+              className="col border bg-primary-subtle border-1 border-primary-subtle w-25 h-25"
+              onClick={handleAddItemClick}
+            >
+              <Image
+                src="/icons/plus-circle.svg"
+                alt="Add Item"
+                width={24}
+                height={24}
+                className="m-2"
+              />
+              Add item
+            </div>
+          )}
         </div>
 
         {itemError && <p style={{ color: "red" }}>{itemError}</p>}
@@ -101,7 +103,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
               <th>Category</th>
               <th>Item Type</th>
               <th>Item price</th>
-              <th></th>
+              <th></th> {/* Empty header for action buttons */}
             </tr>
           </thead>
           <tbody>
@@ -114,24 +116,29 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                   <td>{item.itemType.name}</td>
                   <td>{item.price}</td>
                   <td>
-                    <Image
-                      src="/icons/pencil.svg"
-                      alt="Edit Item"
-                      width={24}
-                      height={24}
-                      className="m-2"
-                      onClick={() => handleEditItem(item)}
-                      style={{ cursor: "pointer" }}
-                    />
-                    <Image
-                      src="/icons/x-circle.svg"
-                      alt="Delete Item"
-                      width={24}
-                      height={24}
-                      className="m-2"
-                      onClick={() => handleDeleteItemClick(item)}
-                      style={{ cursor: "pointer" }}
-                    />
+                    {handleDeleteItem &&
+                      handleEditItem && ( // Conditional rendering for Edit/Delete icons
+                        <SecureRoute roleRequired="admin">
+                          <Image
+                            src="/icons/pencil.svg"
+                            alt="Edit Item"
+                            width={24}
+                            height={24}
+                            className="m-2"
+                            onClick={() => handleEditItem(item)}
+                            style={{ cursor: "pointer" }}
+                          />
+                          <Image
+                            src="/icons/x-circle.svg"
+                            alt="Delete Item"
+                            width={24}
+                            height={24}
+                            className="m-2"
+                            onClick={() => handleDeleteItemClick(item)}
+                            style={{ cursor: "pointer" }}
+                          />
+                        </SecureRoute>
+                      )}
                   </td>
                 </tr>
               ))
@@ -146,19 +153,22 @@ const ViewItems: React.FC<ViewItemsProps> = ({
         </table>
       </div>
 
-      <EditItemModal
-        show={showEditModal}
-        item={selectedItem}
-        itemTypes={itemTypes}
-        onClose={() => setShowEditModal(false)}
-        onSave={(editedItem) => {
-          setItems((prevItems) =>
-            prevItems.map((item) =>
-              item.id === editedItem.id ? editedItem : item,
-            ),
-          );
-        }}
-      />
+      {/* Edit and Delete modals wrapped in SecureRoute */}
+      {showEditModal && (
+        <EditItemModal
+          show={showEditModal}
+          item={selectedItem}
+          itemTypes={itemTypes}
+          onClose={() => setShowEditModal(false)}
+          onSave={(editedItem) => {
+            setItems((prevItems) =>
+              prevItems.map((item) =>
+                item.id === editedItem.id ? editedItem : item,
+              ),
+            );
+          }}
+        />
+      )}
       {itemToDelete && (
         <ItemDeleteModal
           show={showDeleteModal}

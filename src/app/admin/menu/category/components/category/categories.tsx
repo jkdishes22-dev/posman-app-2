@@ -4,14 +4,14 @@ import Image from "next/image";
 interface Category {
   id: string;
   name: string;
-  status: string; // "active" or "deleted"
+  status: string;
 }
 
 interface CategoriesProps {
   categories: Category[];
   onCategoryClick: (category: Category) => void;
   fetchError: string;
-  onDeleteCategory: (category: { id: string; name: string }) => void;
+  onDeleteCategory?: (category: { id: string; name: string }) => void; // Make this prop optional
 }
 
 const Categories: React.FC<CategoriesProps> = ({
@@ -33,7 +33,6 @@ const Categories: React.FC<CategoriesProps> = ({
     setShowAll(!showAll);
   };
 
-  // Filter categories by status
   const filteredCategories = categories.filter((category) => {
     if (statusFilter === "all") return true;
     return category.status === statusFilter;
@@ -80,17 +79,21 @@ const Categories: React.FC<CategoriesProps> = ({
                   <div className="d-flex justify-content-between align-items-start border-bottom border-light pb-1">
                     <div className="col-auto"></div>
                     <div className="col-auto">
-                      <Image
-                        src="/icons/x-circle.svg"
-                        alt="Delete Item"
-                        width={24}
-                        height={24}
-                        className="m-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDeleteCategory(category);
-                        }}
-                      />
+                      {onDeleteCategory && ( // Check if onDeleteCategory is defined
+                        <Image
+                          src="/icons/x-circle.svg"
+                          alt="Delete Item"
+                          width={24}
+                          height={24}
+                          className="m-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onDeleteCategory) {
+                              onDeleteCategory(category);
+                            } // Call delete only if the function exists
+                          }}
+                        />
+                      )}
                     </div>
                   </div>
                   <div className="text-center pt-2">
