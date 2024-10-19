@@ -3,7 +3,7 @@ import permissions from "@backend/config/managed-roles";
 import { NextApiRequest, NextApiResponse } from "next";
 import {
   fetchItemTypesHandler,
-  createItemTypeHandler,
+  createItemTypeHandler, updateItemHandler,
 } from "@controllers/MenuController";
 import { ensureMetadata } from "@backend/utils/metadata-hack";
 

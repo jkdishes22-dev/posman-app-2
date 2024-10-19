@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ViewItems from "../items/items-view";
 import NewItemModal from "../items/items-new";
 import { Category, Item } from "../../types";
@@ -8,6 +8,7 @@ interface ItemsTableProps {
   items: Item[];
   itemError: string;
   fetchItems: (categoryId: string) => void;
+  itemTypes: { id: string; name: string }[]; // Assuming you have item types to pass
 }
 
 const CategoryItems: React.FC<ItemsTableProps> = ({
@@ -15,8 +16,15 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
   items,
   itemError,
   fetchItems,
+  itemTypes, // Accept itemTypes as a prop
 }) => {
   const [showModal, setShowModal] = useState(false);
+  const [localItems, setLocalItems] = useState<Item[]>([]); // Local state for items
+
+  // Sync localItems with items prop
+  useEffect(() => {
+    setLocalItems(items);
+  }, [items]);
 
   const handleAddItemClick = () => {
     setShowModal(true);
@@ -26,13 +34,23 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
     setShowModal(false);
   };
 
+  const handleDeleteItem = (itemId: string) => {
+    // Logic to delete the item from the list and refresh items
+    if (selectedCategory) {
+      fetchItems(selectedCategory.id);
+    }
+  };
+
   return (
     <>
       <ViewItems
         selectedCategory={selectedCategory}
-        items={items}
+        items={localItems} // Pass the local items state
         itemError={itemError}
         handleAddItemClick={handleAddItemClick}
+        handleDeleteItem={handleDeleteItem}
+        itemTypes={itemTypes} // Pass item types to ViewItems
+        setItems={setLocalItems} // Pass setItems as a prop
       />
       <NewItemModal
         selectedCategory={selectedCategory}

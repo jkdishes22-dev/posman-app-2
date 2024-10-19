@@ -1,12 +1,12 @@
 import { authMiddleware, authorize } from "@backend/middleware/auth";
 import permissions from "@backend/config/managed-roles";
-import { deleteCategoryHandler } from "@controllers/MenuController";
+import { updateItemHandler } from "@controllers/MenuController";
 import { NextApiRequest, NextApiResponse } from "next";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  if (req.method === "DELETE") {
+  if (req.method === "PATCH") {
     await authMiddleware(
-      authorize([permissions.CAN_DELETE_CATEGORY])(deleteCategoryHandler),
+      authorize([permissions.CAN_EDIT_ITEM])(updateItemHandler),
     )(req, res);
   }
 };

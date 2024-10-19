@@ -10,6 +10,8 @@ export type Item = {
   price: number;
   category: Category;
   itemType: ItemType;
+  defaultUnitId: number;
+  isGroup: boolean;
 };
 
 export type ItemType = {

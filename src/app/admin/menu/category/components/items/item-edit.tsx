@@ -1,13 +1,14 @@
 // components/EditItemModal.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   Button,
   ModalHeader,
   ModalTitle,
-  ModalBody, ModalFooter
+  ModalBody,
+  ModalFooter,
 } from "react-bootstrap";
-import { Item } from "../../types";
+import { Item, ItemType } from "../../types";
 
 interface EditItemModalProps {
   show: boolean;
@@ -22,27 +23,86 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
   onClose,
   onSave,
 }) => {
-  const [editedItem, setEditedItem] = React.useState<Item | null>(item);
+  const [editedItem, setEditedItem] = useState<Item | null>(item);
+  const [itemTypes, setItemTypes] = useState<ItemType[]>([]); // State for item types
+  const [loading, setLoading] = useState<boolean>(true); // Loading state
+  const [error, setError] = useState<string | null>(null); // Error state
 
-  React.useEffect(() => {
+  useEffect(() => {
     setEditedItem(item); // Update edited item when modal opens
   }, [item]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    const fetchItemTypes = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch("/api/menu/items/types", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        const data = await response.json();
+        setItemTypes(data);
+      } catch (error) {
+        setError("Failed to fetch item types: " + error);
+      } finally {
+        setLoading(false); // Set loading to false after fetch completes
+      }
+    };
+
+    fetchItemTypes();
+  }, []);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
     if (editedItem) {
+      const { name, value, type, checked } = e.target;
+
       setEditedItem({
         ...editedItem,
-        [e.target.name]: e.target.value,
+        [name]: type === "checkbox" ? checked : value, // Handle checkbox for isGroup
       });
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (editedItem) {
-      onSave(editedItem); // Call save function with edited item
-      onClose(); // Close modal
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(`/api/menu/items/${editedItem.id}`, {
+          method: "PATCH", // Use PATCH to update specific fields
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(editedItem), // Convert the edited item to JSON
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to update item");
+        }
+
+        const updatedItem = await response.json(); // Get the updated item from the response
+        onSave(updatedItem); // Call save function with the updated item
+        onClose(); // Close modal
+      } catch (error) {
+        console.error("Error updating item:", error);
+        setError("Error updating item: " + error.message);
+      }
     }
   };
+
+  if (loading) {
+    return <p>Loading item types...</p>; // Display loading message
+  }
+
+  if (error) {
+    return <p>{error}</p>; // Display error message
+  }
 
   return (
     <Modal show={show} onHide={onClose}>
@@ -58,7 +118,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
                 type="text"
                 className="form-control"
                 name="name"
-                value={editedItem.name}
+                value={editedItem.name || ""} // Use empty string if null
                 onChange={handleChange}
               />
             </div>
@@ -68,7 +128,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
                 type="text"
                 className="form-control"
                 name="code"
-                value={editedItem.code}
+                value={editedItem.code || ""} // Use empty string if null
                 onChange={handleChange}
               />
             </div>
@@ -78,7 +138,32 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
                 type="number"
                 className="form-control"
                 name="price"
-                value={editedItem.price}
+                value={editedItem.price || 0}
+                onChange={handleChange}
+              />
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Item Type</label>
+              <select
+                className="form-control"
+                name="itemType"
+                value={editedItem.itemType?.id || ""}
+                onChange={handleChange}
+              >
+                <option value="">Select Item Type</option>
+                {itemTypes.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Is Group</label>
+              <input
+                type="checkbox"
+                name="isGroup"
+                checked={editedItem.isGroup}
                 onChange={handleChange}
               />
             </div>

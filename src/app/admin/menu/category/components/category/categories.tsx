@@ -1,17 +1,17 @@
 import React, { useState } from "react";
 import Image from "next/image";
-import CategoryDeleteModal from "./category-delete";
 
 interface Category {
   id: string;
   name: string;
+  status: string; // "active" or "deleted"
 }
 
 interface CategoriesProps {
   categories: Category[];
   onCategoryClick: (category: Category) => void;
   fetchError: string;
-  onDeleteCategory: (categoryId: string) => void;
+  onDeleteCategory: (category: { id: string; name: string }) => void;
 }
 
 const Categories: React.FC<CategoriesProps> = ({
@@ -20,94 +20,87 @@ const Categories: React.FC<CategoriesProps> = ({
   fetchError,
   onDeleteCategory,
 }) => {
-  const [showModal, setShowModal] = useState<boolean>(false);
-  const [categoryToDelete, setCategoryToDelete] = useState<string>("");
-  const [categoryNameToDelete, setCategoryNameToDelete] = useState<string>("");
-  const [collapsed, setCollapsed] = useState<boolean>(false); // New state for collapsing
+  const [showAll, setShowAll] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(8);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const handleShow = (categoryId: string, categoryName: string) => {
-    setCategoryToDelete(categoryId);
-    setCategoryNameToDelete(categoryName);
-    setShowModal(true);
-  };
-
-  const handleClose = () => {
-    setShowModal(false);
-    setCategoryToDelete("");
-    setCategoryNameToDelete("");
-  };
-
-  const confirmDelete = () => {
-    if (categoryToDelete) {
-      onDeleteCategory(categoryToDelete);
-      handleClose();
+  const toggleShowMore = () => {
+    if (showAll) {
+      setVisibleCount(8);
+    } else {
+      setVisibleCount(categories.length);
     }
+    setShowAll(!showAll);
   };
 
-  const toggleCollapse = () => {
-    setCollapsed(!collapsed);
-  };
+  // Filter categories by status
+  const filteredCategories = categories.filter((category) => {
+    if (statusFilter === "all") return true;
+    return category.status === statusFilter;
+  });
 
   return (
     <div>
       <div className="p-2 border bg-light">
         {fetchError && <p style={{ color: "red" }}>{fetchError}</p>}
 
-        {/* Collapse/Expand Button */}
-        <div className="d-flex justify-content-between align-items-center mb-2">
-          <h5>Categories</h5>
-          <button className="btn btn-outline-primary" onClick={toggleCollapse}>
-            {collapsed ? "Show More" : "Show Less"}
-          </button>
+        <div className="row mb-3">
+          <div className="col-4">
+            <select
+              className="form-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">Show All</option>
+              <option value="active">Show Active</option>
+              <option value="deleted">Show Deleted</option>
+            </select>
+          </div>
+          <div className="col">
+            {filteredCategories.length > 8 && (
+              <div className="d-flex justify-content-end">
+                <button className="btn btn-primary" onClick={toggleShowMore}>
+                  {showAll ? "Show Less" : "Show More"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Conditionally render categories based on collapsed state */}
-        {!collapsed && (
-          <div className="row">
-            {categories.map((category) => (
-              <div
-                key={category.id}
-                className="col-sm-3 mb-1"
-                onClick={() => onCategoryClick(category)}
-                style={{ cursor: "pointer" }}
-              >
-                <div className="card">
-                  <div className="card-body">
-                    <div className="d-flex justify-content-between align-items-start border-bottom border-light pb-1">
-                      <div className="col-auto">
-                        {/* Empty space to maintain alignment */}
-                      </div>
-                      <div className="col-auto">
-                        <Image
-                          src="/icons/x-circle.svg"
-                          alt="Delete Item"
-                          width={24}
-                          height={24}
-                          className="m-1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleShow(category.id, category.name);
-                          }}
-                        />
-                      </div>
+        <div className="row">
+          {filteredCategories.slice(0, visibleCount).map((category) => (
+            <div
+              key={category.id}
+              className="col-sm-3 mb-1"
+              onClick={() => onCategoryClick(category)}
+              style={{ cursor: "pointer" }}
+            >
+              <div className="card">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-start border-bottom border-light pb-1">
+                    <div className="col-auto"></div>
+                    <div className="col-auto">
+                      <Image
+                        src="/icons/x-circle.svg"
+                        alt="Delete Item"
+                        width={24}
+                        height={24}
+                        className="m-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteCategory(category);
+                        }}
+                      />
                     </div>
-                    <div className="text-center pt-2">
-                      <h5 className="card-title">{category.name}</h5>
-                    </div>
+                  </div>
+                  <div className="text-center pt-2">
+                    <h5 className="card-title">{category.name}</h5>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-
-        {/* Category Delete Modal */}
-        <CategoryDeleteModal
-          show={showModal}
-          categoryName={categoryNameToDelete}
-          onConfirm={confirmDelete}
-          onCancel={handleClose}
-        />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from "react";
 import AdminLayout from "../../../shared/AdminLayout";
 import Image from "next/image";
+import Modal from "react-bootstrap/Modal";
+import Button from "react-bootstrap/Button";
+import Form from "react-bootstrap/Form";
+import AsyncSelect from "react-select/async";
 
 type ErrorState = {
   message: string;
@@ -16,6 +20,14 @@ export default function UsersPage() {
   const [permissionsByScope, setPermissionsByScope] = useState({});
   const [scopes, setScopes] = useState([]);
   const [error, setError] = useState<ErrorState>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [permissionToDelete, setPermissionToDelete] = useState<string | null>(
+    null,
+  );
+  const [availablePermissions, setAvailablePermissions] = useState<string[]>(
+    [],
+  );
 
   useEffect(() => {
     fetchRoles();
@@ -117,30 +129,68 @@ export default function UsersPage() {
                   <span>{perm}</span>
                   <Image
                     src="/icons/x-circle.svg"
-                    alt="Add Item"
+                    alt="Delete Permission"
                     width={24}
                     height={24}
                     className="m-2"
-                  />{" "}
+                    onClick={() => handleDeletePermission(scope, perm)}
+                  />
                 </li>
               ))
             ) : (
               <li>No permissions added</li>
             )}
           </ul>
-          <div className="col border bg-primary-subtle border-1 border-primary-subtle w-25">
+          <button
+            onClick={() => handleShowAddModal(scope)}
+            className="border bg-primary-subtle border-0 border-primary-subtle"
+          >
             <Image
               src="/icons/plus-circle.svg"
-              alt="Add Item"
+              alt="Add Permission"
               width={24}
               height={24}
               className="m-2"
-            />{" "}
+            />
             Add Permission
-          </div>
+          </button>
         </div>
       </div>
     );
+  };
+
+  const handleDeletePermission = (scope, permission) => {
+    setPermissionToDelete(permission);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeletePermission = () => {
+    // Implement delete functionality
+    setShowDeleteModal(false);
+  };
+
+  const handleShowAddModal = (scope) => {
+    setSelectedScope(scope);
+    setShowAddModal(true);
+  };
+
+  const fetchAvailablePermissions = async () => {
+    if (availablePermissions.length > 0) return availablePermissions;
+
+    const token = localStorage.getItem("token");
+    const response = await fetch(`/api/scopes/${selectedScope}/permissions`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const data = await response.json();
+    setAvailablePermissions(data);
+    return data;
+  };
+
+  const handleAddPermission = () => {
+    // Implement the logic to add permission to the selected role and scope
+    setShowAddModal(false);
   };
 
   return (
@@ -195,6 +245,64 @@ export default function UsersPage() {
             </div>
           </div>
         </div>
+
+        {/* Delete Modal */}
+        <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+          <Modal.Header closeButton>
+            <Modal.Title>Delete Permission</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            Are you sure you want to delete the permission "{permissionToDelete}
+            "?
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={() => setShowDeleteModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDeletePermission}>
+              Delete
+            </Button>
+          </Modal.Footer>
+        </Modal>
+
+        {/* Add Permission Modal */}
+        <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
+          <Modal.Header closeButton>
+            <Modal.Title>Add Permission</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Form.Group className="mb-3">
+              <Form.Label>Role</Form.Label>
+              <Form.Control
+                type="text"
+                value={selectedRole?.name || ""}
+                readOnly
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Scope</Form.Label>
+              <Form.Control type="text" value={selectedScope || ""} readOnly />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Permission</Form.Label>
+              <AsyncSelect
+                loadOptions={fetchAvailablePermissions}
+                defaultOptions
+              />
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowAddModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleAddPermission}>
+              Add Permission
+            </Button>
+          </Modal.Footer>
+        </Modal>
       </div>
     </AdminLayout>
   );

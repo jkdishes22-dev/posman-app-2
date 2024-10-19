@@ -9,15 +9,19 @@ interface ViewItemsProps {
   items: Item[];
   itemError: string;
   handleAddItemClick: () => void;
-  handleDeleteItem: (itemId: string) => void; // Add delete handler
+  handleDeleteItem: (itemId: string) => void;
+  itemTypes: { id: string; name: string }[];
+  setItems: React.Dispatch<React.SetStateAction<Item[]>>;
 }
 
 const ViewItems: React.FC<ViewItemsProps> = ({
   selectedCategory,
-  items,
+  items = [],
   itemError,
   handleAddItemClick,
   handleDeleteItem,
+  itemTypes,
+  setItems,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -25,9 +29,12 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
 
-  const filteredItems = items.filter((item) =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  // Filtering items based on search term
+  const filteredItems = searchTerm
+    ? items.filter((item) =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+    : items; // If no search term, display all items
 
   const handleEditItem = (item: Item) => {
     setSelectedItem(item);
@@ -35,14 +42,14 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   };
 
   const handleDeleteItemClick = (item: Item) => {
-    setItemToDelete(item); // Set the item to delete
-    setShowDeleteModal(true); // Show the delete modal
+    setItemToDelete(item);
+    setShowDeleteModal(true);
   };
 
   const confirmDelete = () => {
     if (itemToDelete) {
-      handleDeleteItem(itemToDelete.id); // Call the delete handler
-      setShowDeleteModal(false); // Close the modal after delete
+      handleDeleteItem(itemToDelete.id);
+      setShowDeleteModal(false);
     }
   };
 
@@ -130,7 +137,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="text-center">
+                <td colSpan={6} className="text-center">
                   No items found
                 </td>
               </tr>
@@ -142,13 +149,16 @@ const ViewItems: React.FC<ViewItemsProps> = ({
       <EditItemModal
         show={showEditModal}
         item={selectedItem}
+        itemTypes={itemTypes}
         onClose={() => setShowEditModal(false)}
         onSave={(editedItem) => {
-          console.log("Saved item:", editedItem);
+          setItems((prevItems) =>
+            prevItems.map((item) =>
+              item.id === editedItem.id ? editedItem : item,
+            ),
+          );
         }}
       />
-
-      {/* Render Delete Item Modal */}
       {itemToDelete && (
         <ItemDeleteModal
           show={showDeleteModal}

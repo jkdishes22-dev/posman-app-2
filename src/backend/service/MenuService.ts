@@ -50,4 +50,25 @@ export class MenuService {
   public async fetchItemTypes(): Promise<ItemType[]> {
     return this.itemTypeRepository.find();
   }
+
+  async deleteCategory(id: number): Promise<void> {
+    await this.categoryRepository.update(id, {
+      status: CategoryStatus.DELETED,
+    });
+  }
+  async findItemById(id: number): Promise<Item> {
+    const item = await this.itemRepository.findOne({ where: { id } });
+    if (!item) {
+      throw new Error("Item not found");
+    }
+    return item;
+  }
+
+  async updateItem(id: number, updateData: Partial<Item>) {
+    const item = await this.findItemById(id);
+
+    Object.assign(item, updateData);
+    await this.itemRepository.save(item);
+    return item; // Return the updated item
+  }
 }

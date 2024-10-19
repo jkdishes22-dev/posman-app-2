@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { MenuService } from "@services/MenuService";
+import { ItemType } from "@entities/ItemType";
 
 const menuService = new MenuService();
 
@@ -81,5 +82,39 @@ export const fetchItemTypesHandler = async (
     res.status(201).json(itemTypes);
   } catch (error) {
     res.status(500).json({ error: "Error fetching item types" + error });
+  }
+};
+
+export const deleteCategoryHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  try {
+    const { id } = req.query;
+    await menuService.deleteCategory(Number(id));
+    res.status(204).end();
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete category", error });
+  }
+};
+
+export const updateItemHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const { id } = req.query;
+  const updateData = req.body;
+
+  try {
+    const updatedItem = await menuService.updateItem(Number(id), updateData); // Pass the ID and update data to the service
+
+    if (!updatedItem) {
+      return res.status(404).json({ message: "Item not found" });
+    }
+
+    return res.status(200).json(updatedItem); // Return the updated item
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Error updating item", error });
   }
 };

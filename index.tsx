@@ -6,6 +6,7 @@ import { parse } from "url";
 
 import { config } from "dotenv";
 import * as process from "process";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 config();
 
