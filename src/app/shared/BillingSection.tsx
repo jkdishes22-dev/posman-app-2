@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import ViewItems from "../admin/menu/category/components/items/items-view";
 import Categories from "../admin/menu/category/components/category/categories";
@@ -6,6 +7,7 @@ import { Item } from "../admin/menu/category/types";
 import QuantityModal from "./QuantityModal";
 import jwt from "jsonwebtoken";
 import { DecodedToken } from "../components/SecureRoute";
+import { Button, Modal } from "react-bootstrap";
 
 const BillingSection = () => {
   const [categories, setCategories] = useState([]);
@@ -19,6 +21,8 @@ const BillingSection = () => {
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [waitress, setWaitress] = useState("");
   const [userId, setUserId] = useState("");
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -47,7 +51,6 @@ const BillingSection = () => {
         setFetchError("Failed to fetch categories: " + error);
       }
     };
-
     fetchCategories();
   }, []);
 
@@ -66,7 +69,6 @@ const BillingSection = () => {
         console.error("Error fetching item types:", error);
       }
     };
-
     fetchItemTypes();
   }, []);
 
@@ -123,10 +125,14 @@ const BillingSection = () => {
     setSelectedItems((prev) => prev.filter((item) => item.id !== itemId));
   };
 
-  const handleSubmit = async () => {
+  const handleShowSubmitModal = () => setShowSubmitModal(true);
+  const handleCloseSubmitModal = () => setShowSubmitModal(false);
+  const handleShowCancelModal = () => setShowCancelModal(true);
+  const handleCloseCancelModal = () => setShowCancelModal(false);
+
+  const handleConfirmSubmit = async () => {
     const token = localStorage.getItem("token");
     const total = selectedItems.reduce((sum, item) => sum + item.subtotal, 0);
-
     const payload = {
       items: selectedItems.map((item) => ({
         item_id: item.id,
@@ -136,7 +142,6 @@ const BillingSection = () => {
       user_id: userId,
       total,
     };
-
     try {
       const response = await fetch("/api/bill", {
         method: "POST",
@@ -146,14 +151,19 @@ const BillingSection = () => {
         },
         body: JSON.stringify(payload),
       });
-
       if (!response.ok) {
         throw new Error("Failed to submit picked items");
       }
       console.log("Items submitted successfully!");
+      setShowSubmitModal(false);
+      window.location.reload();
     } catch (error) {
       console.error("Error submitting items:", error);
     }
+  };
+
+  const handleConfirmCancel = () => {
+    window.location.reload(); // Reload the page
   };
 
   // Calculate total amount
@@ -176,7 +186,6 @@ const BillingSection = () => {
             onItemPick={handlePickItem}
           />
         </div>
-
         <div className="col">
           <h5>Billing</h5>
           <table className="table stripped">
@@ -208,13 +217,18 @@ const BillingSection = () => {
           </table>
           <h5>Total Amount: ${totalAmount.toFixed(2)}</h5>
           <h5>Served By: {waitress}</h5>
-
-          <button className="btn btn-success" onClick={handleSubmit}>
+          <Button
+            variant="success"
+            onClick={handleShowSubmitModal}
+            disabled={selectedItems.length === 0}
+          >
             Submit
-          </button>
+          </Button>
+          <Button className="m-2" variant="secondary" onClick={handleShowCancelModal}>
+            Cancel
+          </Button>
         </div>
       </div>
-
       <div className="row">
         <div className="col mt-5">
           <Categories
@@ -227,7 +241,6 @@ const BillingSection = () => {
           />
         </div>
       </div>
-
       {/* Quantity Modal */}
       {showQuantityModal && (
         <QuantityModal
@@ -236,6 +249,43 @@ const BillingSection = () => {
           onConfirm={handleQuantityConfirm}
         />
       )}
+
+      {/* Submit Confirmation Modal */}
+      <Modal show={showSubmitModal} onHide={handleCloseSubmitModal}>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Billing</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Create bill of total amount:
+          <b>{totalAmount}</b>?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseSubmitModal}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleConfirmSubmit}>
+            Confirm
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Cancel Confirmation Modal */}
+      <Modal show={showCancelModal} onHide={handleCloseCancelModal}>
+        <Modal.Header closeButton>
+          <Modal.Title>Cancel Billing</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to cancel billing?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseCancelModal}>
+            No
+          </Button>
+          <Button variant="primary" onClick={handleConfirmCancel}>
+            Yes
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

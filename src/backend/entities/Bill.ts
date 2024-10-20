@@ -20,9 +20,6 @@ export class Bill {
   id: number;
 
   @Column()
-  bill_code: string;
-
-  @Column()
   user_id: number;
 
   @Column({ type: "enum", enum: BillStatus, default: BillStatus.SUBMITTED })
@@ -38,7 +35,7 @@ export class Bill {
   @CreateDateColumn({ type: "datetime" })
   created_at: Date;
 
-  @UpdateDateColumn({ type: "datetime" })
+  @UpdateDateColumn({ type: "datetime", nullable: true })
   updated_at: Date;
 
   @Column() created_by: number;
