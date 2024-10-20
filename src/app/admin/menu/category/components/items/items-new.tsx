@@ -6,7 +6,7 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  ModalTitle
+  ModalTitle,
 } from "react-bootstrap";
 
 interface NewItemModalProps {
@@ -134,7 +134,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           <div className="form-group">
             <label>Item Price</label>
             <input
-              type="number"
+              type="text"
               className="form-control"
               value={itemPrice}
               onChange={(e) => setItemPrice(parseFloat(e.target.value))}

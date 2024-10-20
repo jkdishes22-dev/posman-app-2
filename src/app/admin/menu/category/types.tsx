@@ -1,6 +1,7 @@
 export type Category = {
   id: string;
   name: string;
+  status: string;
 };
 
 export type Item = {

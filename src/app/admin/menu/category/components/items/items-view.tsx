@@ -3,16 +3,17 @@ import Image from "next/image";
 import EditItemModal from "./item-edit";
 import ItemDeleteModal from "./item-delete";
 import { Category, Item } from "../../types";
-import SecureRoute from "../../../../../components/SecureRoute";
 
 interface ViewItemsProps {
   selectedCategory: Category | null;
   items: Item[];
   itemError: string;
-  handleAddItemClick?: () => void; // Made optional
-  handleDeleteItem?: (itemId: string) => void; // Made optional
+  handleAddItemClick?: () => void; // Optional
+  handleDeleteItem?: (itemId: string) => void; // Optional
   itemTypes: { id: string; name: string }[];
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
+  isBillingSection?: boolean;
+  onItemPick;
 }
 
 const ViewItems: React.FC<ViewItemsProps> = ({
@@ -23,6 +24,8 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   handleDeleteItem,
   itemTypes,
   setItems,
+  isBillingSection = false, // Default to false
+  onItemPick,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -47,8 +50,8 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   };
 
   const confirmDelete = () => {
-    if (itemToDelete && handleDeleteItem) {
-      handleDeleteItem(itemToDelete.id);
+    if (itemToDelete) {
+      handleDeleteItem?.(itemToDelete.id); // Call if defined
       setShowDeleteModal(false);
     }
   };
@@ -57,26 +60,12 @@ const ViewItems: React.FC<ViewItemsProps> = ({
     <div className="col mt-2">
       <div className="p-3 border bg-light">
         <div className="row mb-3">
-          <div className="col-2">
-            {selectedCategory
-              ? `${selectedCategory.name} Items`
-              : "Category items section"}
+          <div className="col-4">
+            Pick {selectedCategory
+              ? `${selectedCategory.name}`
+              : "Category items"}
           </div>
-          <div className="col-8">
-            <div className="row mb-3">
-              <div className="col-12">
-                <input
-                  type="text"
-                  className="form-control input-group-lg"
-                  placeholder="Search items by name"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {handleAddItemClick && ( // Conditional rendering for Add Item button
+          {!isBillingSection && (
             <div
               className="col border bg-primary-subtle border-1 border-primary-subtle w-25 h-25"
               onClick={handleAddItemClick}
@@ -95,15 +84,19 @@ const ViewItems: React.FC<ViewItemsProps> = ({
 
         {itemError && <p style={{ color: "red" }}>{itemError}</p>}
 
-        <table className="table mt-3 stripped">
+        <table className="table table-sm mt-3 table-striped">
           <thead>
             <tr>
               <th scope="col">Item name</th>
-              <th>Item code</th>
-              <th>Category</th>
-              <th>Item Type</th>
+              {!isBillingSection && (
+                <>
+                  <th>Item code</th>
+                  <th>Category</th>
+                  <th>Item Type</th>
+                </>
+              )}
               <th>Item price</th>
-              <th></th> {/* Empty header for action buttons */}
+              {!isBillingSection && <th></th>}
             </tr>
           </thead>
           <tbody>
@@ -111,40 +104,52 @@ const ViewItems: React.FC<ViewItemsProps> = ({
               filteredItems.map((item) => (
                 <tr key={item.id}>
                   <td>{item.name}</td>
-                  <td>{item.code}</td>
-                  <td>{item.category.name}</td>
-                  <td>{item.itemType.name}</td>
-                  <td>{item.price}</td>
-                  <td>
-                    {handleDeleteItem &&
-                      handleEditItem && ( // Conditional rendering for Edit/Delete icons
-                        <SecureRoute roleRequired="admin">
-                          <Image
-                            src="/icons/pencil.svg"
-                            alt="Edit Item"
-                            width={24}
-                            height={24}
-                            className="m-2"
-                            onClick={() => handleEditItem(item)}
-                            style={{ cursor: "pointer" }}
-                          />
-                          <Image
-                            src="/icons/x-circle.svg"
-                            alt="Delete Item"
-                            width={24}
-                            height={24}
-                            className="m-2"
-                            onClick={() => handleDeleteItemClick(item)}
-                            style={{ cursor: "pointer" }}
-                          />
-                        </SecureRoute>
-                      )}
-                  </td>
+                  {!isBillingSection && (
+                    <>
+                      <td>{item.code}</td>
+                      <td>{item.category.name}</td>
+                      <td>{item.itemType.name}</td>
+                      <td>{item.price}</td>
+                      <td>
+                        <Image
+                          src="/icons/pencil.svg"
+                          alt="Edit Item"
+                          width={24}
+                          height={24}
+                          className="m-2"
+                          onClick={() => handleEditItem(item)}
+                          style={{ cursor: "pointer" }}
+                        />
+                        <Image
+                          src="/icons/x-circle.svg"
+                          alt="Delete Item"
+                          width={24}
+                          height={24}
+                          className="m-2"
+                          onClick={() => handleDeleteItemClick(item)}
+                          style={{ cursor: "pointer" }}
+                        />
+                      </td>
+                    </>
+                  )}
+                  {isBillingSection && (
+                    <>
+                      <td>{item.price}</td>
+                      <td>
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={() => onItemPick(item)}
+                        >
+                          Pick
+                        </button>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="text-center">
+                <td colSpan={isBillingSection ? 1 : 6} className="text-center">
                   No items found
                 </td>
               </tr>
@@ -153,22 +158,19 @@ const ViewItems: React.FC<ViewItemsProps> = ({
         </table>
       </div>
 
-      {/* Edit and Delete modals wrapped in SecureRoute */}
-      {showEditModal && (
-        <EditItemModal
-          show={showEditModal}
-          item={selectedItem}
-          itemTypes={itemTypes}
-          onClose={() => setShowEditModal(false)}
-          onSave={(editedItem) => {
-            setItems((prevItems) =>
-              prevItems.map((item) =>
-                item.id === editedItem.id ? editedItem : item,
-              ),
-            );
-          }}
-        />
-      )}
+      <EditItemModal
+        show={showEditModal}
+        item={selectedItem}
+        itemTypes={itemTypes}
+        onClose={() => setShowEditModal(false)}
+        onSave={(editedItem) => {
+          setItems((prevItems) =>
+            prevItems.map((item) =>
+              item.id === editedItem.id ? editedItem : item,
+            ),
+          );
+        }}
+      />
       {itemToDelete && (
         <ItemDeleteModal
           show={showDeleteModal}

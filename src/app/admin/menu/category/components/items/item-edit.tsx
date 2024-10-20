@@ -135,7 +135,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
             <div className="mb-3">
               <label className="form-label">Item Price</label>
               <input
-                type="number"
+                type="text"
                 className="form-control"
                 name="price"
                 value={editedItem.price || 0}

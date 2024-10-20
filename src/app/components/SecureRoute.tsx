@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import jwt from "jsonwebtoken";
 
-interface DecodedToken {
+export interface DecodedToken {
   id: number;
+  user: Record<string, string>,
   roles: string[];
   iat?: number;
   exp?: number;
