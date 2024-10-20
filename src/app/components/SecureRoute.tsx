@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 
 export interface DecodedToken {
   id: number;
-  user: Record<string, string>,
+  user: Record<string, string>;
   roles: string[];
   iat?: number;
   exp?: number;

@@ -18,12 +18,14 @@ const BillingSection = () => {
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [waitress, setWaitress] = useState("");
+  const [userId, setUserId] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     const decodedToken = jwt.decode(token) as DecodedToken;
     if (decodedToken && decodedToken.user) {
-      setWaitress(decodedToken.user.firstName);
+      setWaitress(decodedToken.user.firstname);
+      setUserId(decodedToken.id.toString());
     }
   }, []);
 
@@ -93,20 +95,17 @@ const BillingSection = () => {
 
   const handleQuantityConfirm = (quantity: number) => {
     if (currentItem) {
-      // Check if the item already exists in selectedItems
       setSelectedItems((prev) => {
         const existingItemIndex = prev.findIndex(
           (i) => i.id === currentItem.id,
         );
         if (existingItemIndex >= 0) {
-          // Update existing item's quantity and subtotal
           const updatedItems = [...prev];
           updatedItems[existingItemIndex].quantity = quantity;
           updatedItems[existingItemIndex].subtotal =
             currentItem.price * quantity;
           return updatedItems;
         } else {
-          // Add new item with quantity and subtotal
           return [
             ...prev,
             {
@@ -126,21 +125,31 @@ const BillingSection = () => {
 
   const handleSubmit = async () => {
     const token = localStorage.getItem("token");
+    const total = selectedItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+    const payload = {
+      items: selectedItems.map((item) => ({
+        item_id: item.id,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+      })),
+      user_id: userId,
+      total,
+    };
+
     try {
-      const response = await fetch("/api/picked-items", {
+      const response = await fetch("/api/bill", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(selectedItems),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         throw new Error("Failed to submit picked items");
       }
-
-      // Handle success (e.g., show a success message or reset the state)
       console.log("Items submitted successfully!");
     } catch (error) {
       console.error("Error submitting items:", error);

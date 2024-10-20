@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { MenuService } from "@services/MenuService";
-import { ItemType } from "@entities/ItemType";
 
 const menuService = new MenuService();
 

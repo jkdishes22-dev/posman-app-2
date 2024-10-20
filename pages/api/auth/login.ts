@@ -24,8 +24,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid username or password" });
     }
+
     const token = jwt.sign(
-      { id: user.id, roles: user.roles.map((role) => role.name) },
+      {
+        user: {
+          firstname: user.firstName,
+          lastname: user.lastName,
+        },
+        id: user.id,
+        roles: user.roles.map((role) => role.name),
+      },
       secret,
       { expiresIn: "1h" },
     );
