@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { PermissionService } from "@services/permissionService";
+import { PermissionService } from "@services/PermissionService";
 
 const permissionService = new PermissionService();
 

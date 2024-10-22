@@ -78,7 +78,7 @@ export const fetchItemTypesHandler = async (
 ) => {
   try {
     const itemTypes = await menuService.fetchItemTypes();
-    res.status(201).json(itemTypes);
+    res.status(200).json(itemTypes);
   } catch (error) {
     res.status(500).json({ error: "Error fetching item types" + error });
   }

@@ -3,42 +3,47 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
-  JoinColumn
+  JoinColumn,
 } from "typeorm";
+import { Item } from "@entities/Item";
 import { Bill } from "@entities/Bill";
 
 export enum BillItemStatus {
+  ACTIVE = "active",
+  DELETED = "deleted",
   SUBMITTED = "submitted",
-  VOID_REQUESTED = "void_requested",
   VOIDED = "voided",
-  COMPLETED = "completed",
 }
 
-@Entity("bill_item")
+@Entity()
 export class BillItem {
-  @PrimaryGeneratedColumn("increment", { unsigned: true })
+  @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  item_id: number;
+  @ManyToOne(() => Item)
+  @JoinColumn({ name: "item_id" })
+  item: Item;
 
-  @Column()
-  bill_id: number;
+  @ManyToOne(() => Bill, (bill) => bill.billItems)
+  @JoinColumn({ name: "bill_id" })
+  bill: Bill;
 
-  @Column()
+  @Column({ default: 0 })
   quantity: number;
 
-  @Column()
+  @Column({ type: 'double', default: 0.00 })
   subtotal: number;
 
   @Column({
     type: "enum",
     enum: BillItemStatus,
-    default: BillItemStatus.SUBMITTED,
+    nullable: true
   })
   status: BillItemStatus;
 
-  @ManyToOne(() => Bill, (bill) => bill.bill_items)
-  @JoinColumn({ name: "bill_id" })
-  bill: Bill;
+  @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
+  created_at: Date;
+
+  @Column({ type: 'datetime', nullable: true })
+  updated_at: Date;
 }

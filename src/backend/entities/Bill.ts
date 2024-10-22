@@ -3,45 +3,53 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
-  CreateDateColumn,
-  UpdateDateColumn,
 } from "typeorm";
 import { BillItem } from "@entities/BillItem";
 
+
 export enum BillStatus {
-  SUBMITTED = "submitted",
-  CANCELLED = "cancelled",
+  PENDING = "pending",
   COMPLETED = "completed",
+  CANCELLED = "cancelled",
+  SUBMITTED = "submitted",
 }
 
-@Entity("bill")
+@Entity()
 export class Bill {
-  @PrimaryGeneratedColumn("increment", { unsigned: true })
+  @PrimaryGeneratedColumn()
   id: number;
 
   @Column()
   user_id: number;
 
-  @Column({ type: "enum", enum: BillStatus, default: BillStatus.SUBMITTED })
+  @Column({
+    type: "enum",
+    enum: BillStatus,
+    nullable: true
+  })
   status: BillStatus;
 
-  @Column() total: number;
+  @Column({ nullable: true })
+  total: number;
 
-  @Column() cleared_by: number;
+  @Column({ nullable: true })
+  cleared_by: number;
 
-  @Column()
+  @Column({ type: 'datetime', nullable: true })
   cleared_at: Date;
 
-  @CreateDateColumn({ type: "datetime" })
+  @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @UpdateDateColumn({ type: "datetime", nullable: true })
+  @Column({ type: 'datetime', nullable: true })
   updated_at: Date;
 
-  @Column() created_by: number;
+  @Column({ nullable: true })
+  created_by: number;
 
-  @Column() updated_by: number;
+  @Column({ nullable: true })
+  updated_by: number;
 
-  @OneToMany(() => BillItem, (billItem) => billItem.bill, { cascade: true })
+  @OneToMany(() => BillItem, (billItem) => billItem.bill)
   bill_items: BillItem[];
 }

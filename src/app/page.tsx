@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import React from "react";
 import Image from "next/image";
+import jwt from "jsonwebtoken";
+import { DecodedToken } from "./components/SecureRoute";
 
 const LoginForm = () => {
   const [username, setUsername] = useState("");
@@ -29,6 +31,11 @@ const LoginForm = () => {
       if (response.status === 200) {
         const { token, role } = await response.json();
         localStorage.setItem("token", token);
+        const decodedToken = jwt.decode(token) as DecodedToken;
+        if (decodedToken && decodedToken.user) {
+          localStorage.setItem("user", decodedToken.user.toString());
+        }
+
         if (role === "admin") {
           router.push("/admin");
         } else {

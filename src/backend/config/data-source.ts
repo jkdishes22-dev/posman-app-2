@@ -27,15 +27,17 @@ export const AppDataSource = new DataSource({
     Permission,
     UserRole,
     RolePermission,
-    Item, ItemGroup,
+    Item,
+    ItemGroup,
     Category,
     ItemType,
     PermissionScope,
     Bill,
-    BillItem
+    BillItem,
   ],
   synchronize: false,
   logging: ["error"],
+  timezone: "Africa/Nairobi",
 });
 
 AppDataSource.initialize()

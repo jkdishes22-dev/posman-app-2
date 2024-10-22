@@ -143,7 +143,7 @@ const BillingSection = () => {
       total,
     };
     try {
-      const response = await fetch("/api/bill", {
+      const response = await fetch("/api/bills", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
