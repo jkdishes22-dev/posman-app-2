@@ -21,8 +21,8 @@ export class BillService {
 
     const billItems = items.map((item) => {
       return this.billItemRepository.create({
-        item: { id: item.item_id }, // Properly reference the item by id
-        bill: { id: savedBill.id },  // Properly reference the bill by id
+        item: { id: item.item_id },
+        bill: { id: savedBill.id },
         quantity: item.quantity,
         subtotal: item.subtotal,
         status: BillItemStatus.SUBMITTED,
@@ -33,7 +33,6 @@ export class BillService {
     return savedBill;
   }
 
-  // Fetch bills for a user filtered by a single date
   async fetchBillsByDate(userId: number, date: Date) {
     const startOfDay = new Date(date.setHours(0, 0, 0, 0));
     const endOfDay = new Date(date.setHours(23, 59, 59, 999));
@@ -48,7 +47,6 @@ export class BillService {
     });
   }
 
-  // Cancel a bill by updating its status
   async cancelBill(billId: number) {
     const bill = await this.billRepository.findOne({ where: { id: billId } });
 

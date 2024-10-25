@@ -24,7 +24,7 @@ export class BillItem {
   @JoinColumn({ name: "item_id" })
   item: Item;
 
-  @ManyToOne(() => Bill, (bill) => bill.billItems)
+  @ManyToOne(() => Bill, (bill) => bill.bill_items)
   @JoinColumn({ name: "bill_id" })
   bill: Bill;
 

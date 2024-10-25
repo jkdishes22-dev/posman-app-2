@@ -13,6 +13,8 @@ import { PermissionScope } from "@entities/PermissionScope";
 import { ItemGroup } from "@entities/ItemGroup";
 import { BillItem } from "@entities/BillItem";
 import { Bill } from "@entities/Bill";
+import { Pricelist } from "@entities/Pricelist";
+import { PricelistItem } from "@entities/PricelistItem";
 
 export const AppDataSource = new DataSource({
   type: "mysql",
@@ -34,6 +36,8 @@ export const AppDataSource = new DataSource({
     PermissionScope,
     Bill,
     BillItem,
+    Pricelist,
+    PricelistItem,
   ],
   synchronize: false,
   logging: ["error"],

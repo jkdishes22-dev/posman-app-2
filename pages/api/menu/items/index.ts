@@ -4,7 +4,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import {
   createItemHandler,
   fetchItemsHandler,
-} from "@controllers/MenuController";
+} from "@controllers/ItemController";
 import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {

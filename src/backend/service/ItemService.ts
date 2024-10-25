@@ -3,7 +3,7 @@ import { Category, CategoryStatus } from "@entities/Category";
 import { Item } from "@entities/Item";
 import { ItemType } from "@entities/ItemType";
 
-export class MenuService {
+export class ItemService {
   private categoryRepository = AppDataSource.getRepository(Category);
   private itemRepository = AppDataSource.getRepository(Item);
   private itemTypeRepository = AppDataSource.getRepository(ItemType);
@@ -34,7 +34,7 @@ export class MenuService {
       whereClause.category = { id: categoryId } as any;
     }
     if (itemTypeId) {
-      whereClause.itemType = { id: itemTypeId } as any; // Corrected from itemTypeId to itemType
+      whereClause.itemType = { id: itemTypeId } as any;
     }
     return this.itemRepository.find({
       where: whereClause,

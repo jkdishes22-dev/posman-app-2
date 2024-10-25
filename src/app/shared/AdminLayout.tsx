@@ -39,6 +39,10 @@ export default function AdminLayout({
     router.push("/admin/menu/category");
   };
 
+  const managePricelist = () => {
+    router.push("/admin/menu/pricelist");
+  };
+
   return (
     <SecureRoute roleRequired="admin">
       <div className="container">
@@ -169,7 +173,7 @@ export default function AdminLayout({
                     </a>
                   </li>
                   <li>
-                    <a className="dropdown-item" href="#">
+                    <a className="dropdown-item" href="#" onClick={managePricelist}>
                       Pricelist
                     </a>
                   </li>

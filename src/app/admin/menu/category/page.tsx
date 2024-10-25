@@ -1,6 +1,5 @@
 "use client";
 
-import SecureRoute from "../../../components/SecureRoute";
 import AdminLayout from "../../../shared/AdminLayout";
 import React, { useState, useEffect } from "react";
 import CategoryItems from "./components/category/category-items";
@@ -132,74 +131,72 @@ const CategoryPage: React.FC = () => {
   }, []);
 
   return (
-    <SecureRoute roleRequired="admin">
-      <AdminLayout>
-        <div className="container p-1">
-          <div className="row px-1">
-            <div className="col-4">
-              <div className="p-3 border bg-light">
-                Add Category
-                <form onSubmit={handleSubmit} className="px-4 py-3">
-                  {formError && <p style={{ color: "red" }}>{formError}</p>}
-                  <div className="form-group row">
-                    <label className="col-sm-2 col-form-label">Name</label>
-                    <div className="col-sm-10">
-                      <input
-                        type="text"
-                        className="form-control"
-                        onChange={(e) => setName(e.target.value)}
-                      />
-                    </div>
+    <AdminLayout>
+      <div className="container p-1">
+        <div className="row px-1">
+          <div className="col-4">
+            <div className="p-3 border bg-light">
+              Add Category
+              <form onSubmit={handleSubmit} className="px-4 py-3">
+                {formError && <p style={{ color: "red" }}>{formError}</p>}
+                <div className="form-group row">
+                  <label className="col-sm-2 col-form-label">Name</label>
+                  <div className="col-sm-10">
+                    <input
+                      type="text"
+                      className="form-control"
+                      onChange={(e) => setName(e.target.value)}
+                    />
                   </div>
-                  <div className="d-flex justify-content-end mt-3">
-                    <button
-                      type="submit"
-                      className="bg-primary-subtle border border-0"
-                    >
-                      <Image
-                        src="/icons/plus-circle.svg"
-                        alt="Add Category"
-                        width={24}
-                        height={24}
-                        className="m-2"
-                      />
-                      Add Category
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-
-            <div className="col-8">
-              <Categories
-                categories={categories}
-                onCategoryClick={handleCategoryClick}
-                fetchError={fetchError}
-                onDeleteCategory={openDeleteModal}
-              />
+                </div>
+                <div className="d-flex justify-content-end mt-3">
+                  <button
+                    type="submit"
+                    className="bg-primary-subtle border border-0"
+                  >
+                    <Image
+                      src="/icons/plus-circle.svg"
+                      alt="Add Category"
+                      width={24}
+                      height={24}
+                      className="m-2"
+                    />
+                    Add Category
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
-          <div className="row px-1">
-            <CategoryItems
-              selectedCategory={selectedCategory}
-              items={items}
-              itemError={itemError}
-              fetchItems={fetchItems}
+
+          <div className="col-8">
+            <Categories
+              categories={categories}
+              onCategoryClick={handleCategoryClick}
+              fetchError={fetchError}
+              onDeleteCategory={openDeleteModal}
             />
           </div>
         </div>
-
-        {/* Delete Modal */}
-        {categoryToDelete && (
-          <CategoryDeleteModal
-            show={showDeleteModal}
-            categoryName={categoryToDelete.name}
-            onConfirm={() => handleDeleteCategory(categoryToDelete.id)}
-            onCancel={() => setShowDeleteModal(false)}
+        <div className="row px-1">
+          <CategoryItems
+            selectedCategory={selectedCategory}
+            items={items}
+            itemError={itemError}
+            fetchItems={fetchItems}
           />
-        )}
-      </AdminLayout>
-    </SecureRoute>
+        </div>
+      </div>
+
+      {/* Delete Modal */}
+      {categoryToDelete && (
+        <CategoryDeleteModal
+          show={showDeleteModal}
+          categoryName={categoryToDelete.name}
+          onConfirm={() => handleDeleteCategory(categoryToDelete.id)}
+          onCancel={() => setShowDeleteModal(false)}
+        />
+      )}
+    </AdminLayout>
   );
 };
 

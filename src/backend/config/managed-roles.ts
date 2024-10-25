@@ -118,6 +118,12 @@ const permissions = {
   CAN_EDIT_PERMISSION_SCOPE: "can_edit_permission_scope",
   CAN_DELETE_PERMISSION_SCOPE: "can_delete_permission_scope",
   CAN_VIEW_PERMISSION_SCOPE: "can_view_permission_scope",
+
+  // Pricelist
+  CAN_VIEW_PRICELIST: "can_view_pricelist",
+  CAN_ADD_PRICELIST: "can_add_pricelist",
+  CAN_EDIT_PRICELIST: "can_edit_pricelist",
+  CAN_DELETE_PRICELIST: "can_delete_pricelist",
 };
 
 export default permissions;

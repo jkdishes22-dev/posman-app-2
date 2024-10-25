@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { MenuService } from "@services/MenuService";
+import { ItemService } from "@services/ItemService";
 
-const menuService = new MenuService();
+const itemService = new ItemService();
 
 export const createCategoryHandler = async (
   req: NextApiRequest,
@@ -9,7 +9,7 @@ export const createCategoryHandler = async (
 ) => {
   const { name } = req.body;
   try {
-    const newCategory = await menuService.createCategory(name);
+    const newCategory = await itemService.createCategory(name);
     res.status(201).json(newCategory);
   } catch (error) {
     console.error("Error creating category:", error);
@@ -22,7 +22,7 @@ export const fetchCategoriesHandler = async (
   res: NextApiResponse,
 ) => {
   try {
-    const categories = await menuService.fetchCategories();
+    const categories = await itemService.fetchCategories();
     res.status(200).json(categories);
   } catch (error) {
     console.error("Error fetching categories:", error);
@@ -37,7 +37,7 @@ export const fetchItemsHandler = async (
   try {
     const { category } = req.query;
     console.log("Fetching Items:", category);
-    const items = await menuService.fetchItems(category);
+    const items = await itemService.fetchItems(category);
 
     res.status(200).json(items);
   } catch (error) {
@@ -52,7 +52,7 @@ export const createItemHandler = async (
 ) => {
   try {
     const newItem = req.body;
-    const item = await menuService.createItem(newItem);
+    const item = await itemService.createItem(newItem);
     res.status(201).json(item);
   } catch (error) {
     res.status(500).json({ message: "Failed to create item", error });
@@ -65,7 +65,7 @@ export const createItemTypeHandler = async (
 ) => {
   try {
     const newItemType = req.body;
-    const item = await menuService.createItemType(newItemType);
+    const item = await itemService.createItemType(newItemType);
     res.status(201).json(item);
   } catch (error) {
     res.status(500).json({ message: "Failed to create item type", error });
@@ -77,7 +77,7 @@ export const fetchItemTypesHandler = async (
   res: NextApiResponse,
 ) => {
   try {
-    const itemTypes = await menuService.fetchItemTypes();
+    const itemTypes = await itemService.fetchItemTypes();
     res.status(200).json(itemTypes);
   } catch (error) {
     res.status(500).json({ error: "Error fetching item types" + error });
@@ -90,7 +90,7 @@ export const deleteCategoryHandler = async (
 ) => {
   try {
     const { id } = req.query;
-    await menuService.deleteCategory(Number(id));
+    await itemService.deleteCategory(Number(id));
     res.status(204).end();
   } catch (error) {
     res.status(500).json({ message: "Failed to delete category", error });
@@ -105,7 +105,7 @@ export const updateItemHandler = async (
   const updateData = req.body;
 
   try {
-    const updatedItem = await menuService.updateItem(Number(id), updateData); // Pass the ID and update data to the service
+    const updatedItem = await itemService.updateItem(Number(id), updateData); // Pass the ID and update data to the service
 
     if (!updatedItem) {
       return res.status(404).json({ message: "Item not found" });

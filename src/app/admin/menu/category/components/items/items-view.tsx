@@ -61,7 +61,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
       <div className="p-3 border bg-light">
         <div className="row mb-3">
           <div className="col-4">
-            Pick {selectedCategory
+            {selectedCategory
               ? `${selectedCategory.name}`
               : "Category items"}
           </div>
@@ -75,7 +75,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                 alt="Add Item"
                 width={24}
                 height={24}
-                className="m-2"
+                className="m-2 cursor-pointer"
               />
               Add item
             </div>

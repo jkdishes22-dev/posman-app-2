@@ -5,10 +5,12 @@ import {
   ManyToOne,
   JoinColumn,
   ManyToMany,
-  JoinTable,
+  JoinTable, OneToMany,
 } from "typeorm";
 import { Category } from "@entities/Category";
 import { ItemType } from "@entities/ItemType";
+import { PricelistItem } from "@entities/PricelistItem";
+import { BillItem } from "@entities/BillItem";
 
 @Entity()
 export class Item {
@@ -48,7 +50,13 @@ export class Item {
     inverseJoinColumn: {
       name: "sub_item_id",
       referencedColumnName: "id",
-    }
+    },
   })
   subItems: Item[];
+
+  // @OneToMany(() => BillItem, (billItem) => billItem.item)
+  // bill_items: BillItem[];
+
+  // @OneToMany(() => PricelistItem, (pricelistItem) => pricelistItem.pricelist)
+  // pricelistItems: PricelistItem[];
 }

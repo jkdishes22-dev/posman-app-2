@@ -1,11 +1,5 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  OneToMany,
-} from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
 import { BillItem } from "@entities/BillItem";
-
 
 export enum BillStatus {
   PENDING = "pending",
@@ -25,7 +19,7 @@ export class Bill {
   @Column({
     type: "enum",
     enum: BillStatus,
-    nullable: true
+    nullable: true,
   })
   status: BillStatus;
 
@@ -35,13 +29,13 @@ export class Bill {
   @Column({ nullable: true })
   cleared_by: number;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: "datetime", nullable: true })
   cleared_at: Date;
 
-  @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: "datetime", nullable: true })
   updated_at: Date;
 
   @Column({ nullable: true })
