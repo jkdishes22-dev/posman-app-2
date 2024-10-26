@@ -32,7 +32,6 @@ export const AppDataSource = new DataSource({
     Item,
     ItemGroup,
     Category,
-    ItemType,
     PermissionScope,
     Bill,
     BillItem,
@@ -42,6 +41,10 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   logging: ["error"],
   timezone: "Africa/Nairobi",
+  pool: {
+    min: 2,
+    max: 10,
+  }
 });
 
 AppDataSource.initialize()

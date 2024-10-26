@@ -1,4 +1,3 @@
-// components/EditItemModal.tsx
 import React, { useEffect, useState } from "react";
 import {
   Modal,
@@ -8,7 +7,7 @@ import {
   ModalBody,
   ModalFooter,
 } from "react-bootstrap";
-import { Item, ItemType } from "../../types";
+import { Item } from "../../types";
 
 interface EditItemModalProps {
   show: boolean;
@@ -24,37 +23,11 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
   onSave,
 }) => {
   const [editedItem, setEditedItem] = useState<Item | null>(item);
-  const [itemTypes, setItemTypes] = useState<ItemType[]>([]); // State for item types
-  const [loading, setLoading] = useState<boolean>(true); // Loading state
   const [error, setError] = useState<string | null>(null); // Error state
 
   useEffect(() => {
     setEditedItem(item); // Update edited item when modal opens
   }, [item]);
-
-  useEffect(() => {
-    const fetchItemTypes = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/items/types", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
-        const data = await response.json();
-        setItemTypes(data);
-      } catch (error) {
-        setError("Failed to fetch item types: " + error);
-      } finally {
-        setLoading(false); // Set loading to false after fetch completes
-      }
-    };
-
-    fetchItemTypes();
-  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -95,10 +68,6 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
       }
     }
   };
-
-  if (loading) {
-    return <p>Loading item types...</p>; // Display loading message
-  }
 
   if (error) {
     return <p>{error}</p>; // Display error message
@@ -141,22 +110,6 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
                 value={editedItem.price || 0}
                 onChange={handleChange}
               />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Item Type</label>
-              <select
-                className="form-control"
-                name="itemType"
-                value={editedItem.itemType?.id || ""}
-                onChange={handleChange}
-              >
-                <option value="">Select Item Type</option>
-                {itemTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
-                ))}
-              </select>
             </div>
             <div className="mb-3">
               <label className="form-label">Is Group</label>

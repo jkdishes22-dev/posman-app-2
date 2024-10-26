@@ -10,7 +10,6 @@ export type Item = {
   code: string;
   price: number;
   category: Category;
-  itemType: ItemType;
   defaultUnitId: number;
   isGroup: boolean;
 };

@@ -10,7 +10,6 @@ interface ViewItemsProps {
   itemError: string;
   handleAddItemClick?: () => void; // Optional
   handleDeleteItem?: (itemId: string) => void; // Optional
-  itemTypes: { id: string; name: string }[];
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
   isBillingSection?: boolean;
   onItemPick;
@@ -22,7 +21,6 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   itemError,
   handleAddItemClick,
   handleDeleteItem,
-  itemTypes,
   setItems,
   isBillingSection = false, // Default to false
   onItemPick,
@@ -61,9 +59,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
       <div className="p-3 border bg-light">
         <div className="row mb-3">
           <div className="col-4">
-            {selectedCategory
-              ? `${selectedCategory.name}`
-              : "Category items"}
+            {selectedCategory ? `${selectedCategory.name}` : "Category items"}
           </div>
           {!isBillingSection && (
             <div
@@ -108,7 +104,6 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                     <>
                       <td>{item.code}</td>
                       <td>{item.category.name}</td>
-                      <td>{item.itemType.name}</td>
                       <td>{item.price}</td>
                       <td>
                         <Image
@@ -161,7 +156,6 @@ const ViewItems: React.FC<ViewItemsProps> = ({
       <EditItemModal
         show={showEditModal}
         item={selectedItem}
-        itemTypes={itemTypes}
         onClose={() => setShowEditModal(false)}
         onSave={(editedItem) => {
           setItems((prevItems) =>

@@ -1,12 +1,10 @@
 import { AppDataSource } from "@backend/config/data-source";
 import { Category, CategoryStatus } from "@entities/Category";
 import { Item } from "@entities/Item";
-import { ItemType } from "@entities/ItemType";
 
 export class ItemService {
   private categoryRepository = AppDataSource.getRepository(Category);
   private itemRepository = AppDataSource.getRepository(Item);
-  private itemTypeRepository = AppDataSource.getRepository(ItemType);
 
   public async createCategory(name: string): Promise<Category> {
     const category: Category = this.categoryRepository.create({
@@ -40,15 +38,6 @@ export class ItemService {
       where: whereClause,
       relations: ["category", "itemType"],
     });
-  }
-
-  public async createItemType(data: Partial<ItemType>): Promise<ItemType> {
-    const itemType: ItemType = this.itemRepository.create(data);
-    return this.itemTypeRepository.save(itemType);
-  }
-
-  public async fetchItemTypes(): Promise<ItemType[]> {
-    return this.itemTypeRepository.find();
   }
 
   async deleteCategory(id: number): Promise<void> {
