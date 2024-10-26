@@ -8,7 +8,6 @@ import { UserRole } from "@entities/UserRole";
 import { RolePermission } from "@entities/RolePermission";
 import { Category } from "@entities/Category";
 import { Item } from "@entities/Item";
-import { ItemType } from "@entities/ItemType";
 import { PermissionScope } from "@entities/PermissionScope";
 import { ItemGroup } from "@entities/ItemGroup";
 import { BillItem } from "@entities/BillItem";

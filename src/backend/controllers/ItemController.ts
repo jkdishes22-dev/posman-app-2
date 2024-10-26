@@ -51,36 +51,25 @@ export const createItemHandler = async (
   res: NextApiResponse,
 ) => {
   try {
-    const newItem = req.body;
-    const item = await itemService.createItem(newItem);
+
+    console.log("Creating Item:", req.body);
+    const { name, code, price, category, pricelistId, isGroup } = req.body;
+    const user_id = req.user.id;
+
+    const itemData = {
+      name,
+      code,
+      category,
+      isGroup,
+    };
+    const item = await itemService.createItem(
+      itemData,
+      { pricelistId, price },
+      user_id,
+    );
     res.status(201).json(item);
   } catch (error) {
     res.status(500).json({ message: "Failed to create item", error });
-  }
-};
-
-export const createItemTypeHandler = async (
-  req: NextApiRequest,
-  res: NextApiResponse,
-) => {
-  try {
-    const newItemType = req.body;
-    const item = await itemService.createItemType(newItemType);
-    res.status(201).json(item);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to create item type", error });
-  }
-};
-
-export const fetchItemTypesHandler = async (
-  req: NextApiRequest,
-  res: NextApiResponse,
-) => {
-  try {
-    const itemTypes = await itemService.fetchItemTypes();
-    res.status(200).json(itemTypes);
-  } catch (error) {
-    res.status(500).json({ error: "Error fetching item types" + error });
   }
 };
 

@@ -81,15 +81,16 @@ export class BillService {
       bill_item.status,
       item.name AS item_name,
       bill_item.created_at AS created_at,
-      item.price AS item_price
+      pi.price AS item_price
     FROM 
       bill_item
     JOIN 
       item ON bill_item.item_id = item.id
+    JOIN 
+      pricelist_item pi ON pi.item_id = item.id
     WHERE 
       bill_item.bill_id = ?
   `;
-
     return await AppDataSource.query(query, [billId]);
   }
 }

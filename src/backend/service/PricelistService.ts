@@ -1,6 +1,5 @@
 import { AppDataSource } from "@backend/config/data-source";
 import { Pricelist, PriceListStatus } from "@entities/Pricelist";
-import { BillStatus } from "@entities/Bill";
 
 export class PricelistService {
   private pricelistRepository = AppDataSource.getRepository(Pricelist);

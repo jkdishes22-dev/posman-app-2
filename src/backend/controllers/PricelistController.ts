@@ -10,7 +10,10 @@ export const createPricelistHandler = async (
   try {
     const newPricelist = req.body;
     const user_id = req.user.id;
-    const pricelist = await pricelistService.createPricelist(newPricelist, user_id);
+    const pricelist = await pricelistService.createPricelist(
+      newPricelist,
+      user_id,
+    );
     res.status(201).json(pricelist);
   } catch (error) {
     console.error("Error creating pricelist:", error);

@@ -155,7 +155,7 @@ const MySales = () => {
                                 <td>${item.subtotal}</td>
                                 <td>
                                   <Button variant="danger">
-                                    Void
+                                    Void Request
                                   </Button>
                                 </td>
                               </tr>

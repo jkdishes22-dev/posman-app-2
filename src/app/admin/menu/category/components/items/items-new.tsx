@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
 import { Category } from "../../types";
@@ -25,9 +25,30 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   const [itemName, setItemName] = useState("");
   const [itemCode, setItemCode] = useState("");
   const [itemPrice, setItemPrice] = useState<number | "">("");
-  const [defaultUnitId, setDefaultUnitId] = useState<number | "">("");
+  const [pricelistId, setPricelistId] = useState<string>("");
   const [isGroup, setIsGroup] = useState(false);
+  const [pricelists, setPricelists] = useState([]);
   const [addItemError, setAddItemError] = useState("");
+
+  useEffect(() => {
+    async function fetchPricelists() {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch("/api/menu/pricelists", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        setPricelists(data);
+      } catch (error) {
+        setAddItemError("Failed to fetch pricelists: " + error.message);
+      }
+    }
+    fetchPricelists();
+  }, []);
 
   const handleItemSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +56,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
       !itemName ||
       !itemCode ||
       !itemPrice ||
+      !pricelistId ||
       !selectedCategory
     ) {
       setAddItemError("Please fill in all fields");
@@ -46,7 +68,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
       code: itemCode,
       price: itemPrice,
       category: selectedCategory.id,
-      defaultUnitId,
+      pricelistId,
       isGroup,
     };
 
@@ -67,7 +89,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         setItemName("");
         setItemCode("");
         setItemPrice("");
-        setDefaultUnitId("");
+        setPricelistId("");
         setIsGroup(false);
         setAddItemError("");
       } else {
@@ -77,6 +99,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
       setAddItemError("Failed to create item: " + e.message);
     }
   };
+
   return (
     <Modal show={showModal} onHide={handleModalClose}>
       <ModalHeader closeButton>
@@ -104,6 +127,22 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
             />
           </div>
           <div className="form-group">
+            <label>Pricelist</label>
+            <select
+              className="form-control"
+              value={pricelistId}
+              onChange={(e) => setPricelistId(e.target.value)}
+            >
+              <option value="">Select Pricelist</option>
+              {pricelists.map((pricelist) => (
+                <option key={pricelist.id} value={pricelist.id}>
+                  {pricelist.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
             <label>Item Price</label>
             <input
               type="text"
@@ -114,15 +153,6 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           </div>
 
           <div className="form-group">
-            <label>Default Unit ID</label>
-            <input
-              type="number"
-              className="form-control"
-              value={defaultUnitId}
-              onChange={(e) => setDefaultUnitId(parseInt(e.target.value))}
-            />
-          </div>
-          <div className="form-group">
             <label>Is Group</label>
             <input
               type="checkbox"
@@ -130,7 +160,6 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
               onChange={(e) => setIsGroup(e.target.checked)}
             />
           </div>
-
           <ModalFooter>
             <Button variant="secondary" onClick={handleModalClose}>
               Close

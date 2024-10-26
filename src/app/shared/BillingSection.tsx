@@ -8,6 +8,7 @@ import QuantityModal from "./QuantityModal";
 import jwt from "jsonwebtoken";
 import { DecodedToken } from "../components/SecureRoute";
 import { Button, Modal } from "react-bootstrap";
+import { Alert } from "bootstrap";
 
 const BillingSection = () => {
   const [categories, setCategories] = useState([]);
@@ -15,7 +16,6 @@ const BillingSection = () => {
   const [items, setItems] = useState([]);
   const [fetchError, setFetchError] = useState("");
   const [itemError, setItemError] = useState("");
-  const [itemTypes, setItemTypes] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
@@ -54,23 +54,6 @@ const BillingSection = () => {
     fetchCategories();
   }, []);
 
-  useEffect(() => {
-    const fetchItemTypes = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/items/types", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        setItemTypes(data);
-      } catch (error) {
-        console.error("Error fetching item types:", error);
-      }
-    };
-    fetchItemTypes();
-  }, []);
 
   const fetchItems = async (categoryId) => {
     try {
@@ -91,6 +74,9 @@ const BillingSection = () => {
   };
 
   const handlePickItem = (item: Item) => {
+    if (!item.price) {
+      return;
+    }
     setCurrentItem(item);
     setShowQuantityModal(true);
   };
@@ -180,7 +166,6 @@ const BillingSection = () => {
             selectedCategory={selectedCategory}
             items={items}
             itemError={itemError}
-            itemTypes={itemTypes}
             setItems={setItems}
             isBillingSection={true}
             onItemPick={handlePickItem}

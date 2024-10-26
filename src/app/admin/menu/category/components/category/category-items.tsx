@@ -8,7 +8,6 @@ interface ItemsTableProps {
   items: Item[];
   itemError: string;
   fetchItems: (categoryId: string) => void;
-  itemTypes: { id: string; name: string }[]; // Assuming you have item types to pass
 }
 
 const CategoryItems: React.FC<ItemsTableProps> = ({
@@ -16,7 +15,6 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
   items,
   itemError,
   fetchItems,
-  itemTypes, // Accept itemTypes as a prop
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [localItems, setLocalItems] = useState<Item[]>([]); // Local state for items
@@ -49,7 +47,6 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
         itemError={itemError}
         handleAddItemClick={handleAddItemClick}
         handleDeleteItem={handleDeleteItem}
-        itemTypes={itemTypes} // Pass item types to ViewItems
         setItems={setLocalItems} // Pass setItems as a prop
       />
       <NewItemModal

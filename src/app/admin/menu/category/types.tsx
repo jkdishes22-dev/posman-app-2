@@ -10,11 +10,6 @@ export type Item = {
   code: string;
   price: number;
   category: Category;
-  defaultUnitId: number;
+  pricelistId: number;
   isGroup: boolean;
-};
-
-export type ItemType = {
-  id: string;
-  name: string;
 };

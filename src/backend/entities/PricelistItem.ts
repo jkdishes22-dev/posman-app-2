@@ -1,18 +1,14 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  ManyToOne,
-  JoinColumn,
-} from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
 import { Pricelist } from "./Pricelist";
 import { Item } from "./Item";
+import { BaseEntity } from "@entities/BaseEntity";
 
+export enum Currency {
+  USD = "USD",
+  KES = "KES",
+}
 @Entity()
-export class PricelistItem {
-  @PrimaryGeneratedColumn()
-  id: number;
-
+export class PricelistItem extends BaseEntity {
   @ManyToOne(() => Pricelist)
   @JoinColumn({ name: "pricelist_id" })
   pricelist: Pricelist;
@@ -21,21 +17,13 @@ export class PricelistItem {
   @JoinColumn({ name: "item_id" })
   item: Item;
 
-  @Column()
-  name: string;
-
   @Column({ type: "double", default: 0.0 })
   price: number;
 
-  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
-  created_at: Date;
-
-  @Column({ type: "datetime", nullable: true })
-  updated_at: Date;
-
-  @Column({ nullable: true })
-  created_by: number;
-
-  @Column({ nullable: true })
-  updated_by: number;
+  @Column({
+    type: "enum",
+    enum: Currency,
+    nullable: true,
+  })
+  currency: string;
 }

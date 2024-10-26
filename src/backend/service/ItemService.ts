@@ -1,11 +1,19 @@
 import { AppDataSource } from "@backend/config/data-source";
 import { Category, CategoryStatus } from "@entities/Category";
 import { Item } from "@entities/Item";
+import { Currency, PricelistItem } from "@entities/PricelistItem";
+import { Repository } from "typeorm";
 
 export class ItemService {
-  private categoryRepository = AppDataSource.getRepository(Category);
-  private itemRepository = AppDataSource.getRepository(Item);
+  private categoryRepository: Repository<Category>;
+  private itemRepository: Repository<Item>;
+  private pricelistItemRepository: Repository<PricelistItem>;
 
+  constructor() {
+    this.categoryRepository = AppDataSource.getRepository(Category);
+    this.itemRepository = AppDataSource.getRepository(Item);
+    this.pricelistItemRepository = AppDataSource.getRepository(PricelistItem);
+  }
   public async createCategory(name: string): Promise<Category> {
     const category: Category = this.categoryRepository.create({
       name,
@@ -18,26 +26,60 @@ export class ItemService {
     return this.categoryRepository.find();
   }
 
-  public async createItem(data: Partial<Item>): Promise<Item> {
-    const item: Item = this.itemRepository.create(data);
-    return this.itemRepository.save(item);
+  public async createItem(
+    itemData: Partial<Item>,
+    { pricelistId, price },
+    user_id: number,
+  ): Promise<Item> {
+    return await AppDataSource.transaction(
+      async (transactionalEntityManager) => {
+        const newItem = {
+          ...itemData,
+          created_by: user_id,
+        };
+        const item: Item = this.itemRepository.create(newItem);
+        const savedItem = await transactionalEntityManager.save(Item, item);
+
+        const newPriceListItem = {
+          price: price,
+          created_by: user_id,
+          pricelist: { id: Number(pricelistId) },
+          item: { id: savedItem.id },
+          currency: Currency.KES,
+        };
+        const pricelistItem: PricelistItem =
+          this.pricelistItemRepository.create(newPriceListItem);
+        await transactionalEntityManager.save(PricelistItem, pricelistItem);
+
+        return savedItem;
+      },
+    );
   }
 
-  public async fetchItems(
-    categoryId?: string | string[],
-    itemTypeId?: number,
-  ): Promise<Item[]> {
-    const whereClause: any = {};
+  public async fetchItems(categoryId?: string | string[]): Promise<any[]> {
+    const query = this.itemRepository
+      .createQueryBuilder("item")
+      .leftJoinAndSelect("item.category", "category")
+      .leftJoin("pricelist_item", "pi", "pi.item_id = item.id")
+      .addSelect(["pi.price as price"]);
+
     if (categoryId) {
-      whereClause.category = { id: categoryId } as any;
+      query.where("category.id = :categoryId", { categoryId });
     }
-    if (itemTypeId) {
-      whereClause.itemType = { id: itemTypeId } as any;
-    }
-    return this.itemRepository.find({
-      where: whereClause,
-      relations: ["category", "itemType"],
-    });
+
+    const items = await query.getRawMany();
+
+    return items.map((item) => ({
+      id: item.item_id,
+      name: item.item_name,
+      code: item.item_code,
+      isGroup: item.item_isGroup,
+      category: {
+        id: item.category_id,
+        name: item.category_name,
+      },
+      price: item.price, // Ensure price is included
+    }));
   }
 
   async deleteCategory(id: number): Promise<void> {

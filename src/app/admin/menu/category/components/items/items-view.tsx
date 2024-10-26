@@ -61,9 +61,11 @@ const ViewItems: React.FC<ViewItemsProps> = ({
           <div className="col-4">
             {selectedCategory ? `${selectedCategory.name}` : "Category items"}
           </div>
-          {!isBillingSection && (
+
+          <div className="col-6"> filter items here</div>
+          {!isBillingSection && selectedCategory && (
             <div
-              className="col border bg-primary-subtle border-1 border-primary-subtle w-25 h-25"
+              className="col-2 border bg-primary-subtle border-1 border-primary-subtle align-items-center justify-content-end"
               onClick={handleAddItemClick}
             >
               <Image
@@ -133,7 +135,13 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                       <td>
                         <button
                           className="btn btn-sm btn-primary"
-                          onClick={() => onItemPick(item)}
+                          onClick={() => {
+                            if (item.price > 0) {
+                              onItemPick(item);
+                            } else {
+                              alert("Price must be greater than zero");
+                            }
+                          }}
                         >
                           Pick
                         </button>

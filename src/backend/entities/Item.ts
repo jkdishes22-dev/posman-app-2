@@ -5,10 +5,9 @@ import {
   ManyToOne,
   JoinColumn,
   ManyToMany,
-  JoinTable, OneToMany,
+  JoinTable,
 } from "typeorm";
 import { Category } from "@entities/Category";
-import { ItemType } from "@entities/ItemType";
 import { PricelistItem } from "@entities/PricelistItem";
 import { BillItem } from "@entities/BillItem";
 
@@ -29,10 +28,6 @@ export class Item {
   @ManyToOne(() => Category)
   @JoinColumn({ name: "item_category_id" })
   category: Category;
-
-  @ManyToOne(() => ItemType)
-  @JoinColumn({ name: "item_type_id" })
-  itemType: ItemType;
 
   @Column({ nullable: true, name: "default_unit_id" })
   defaultUnitId: number;
