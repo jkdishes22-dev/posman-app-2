@@ -24,9 +24,45 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
 }) => {
   const [editedItem, setEditedItem] = useState<Item | null>(item);
   const [error, setError] = useState<string | null>(null); // Error state
+  const [pricelists, setPricelists] = useState([]);
+  const [pricelistId, setPricelistId] = useState<number>(
+    item?.pricelistId || null,
+  );
+  const [loadingPricelists, setLoadingPricelists] = useState(true);
+  const [addItemError, setAddItemError] = useState("");
 
   useEffect(() => {
-    setEditedItem(item); // Update edited item when modal opens
+    async function fetchPricelists() {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch("/api/menu/pricelists", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        setPricelists(data);
+      } catch (error) {
+        setAddItemError("Failed to fetch pricelists: " + error.message);
+      } finally {
+        setLoadingPricelists(false); // Set loading to false after fetching
+      }
+    }
+    fetchPricelists();
+  }, []);
+
+  useEffect(() => {
+    if (item) {
+      setEditedItem(item);
+      if (item.pricelistId) {
+        setPricelistId(item.pricelistId);
+      }
+    } else {
+      setEditedItem(null);
+      setPricelistId(null);
+    }
   }, [item]);
 
   const handleChange = (
@@ -47,12 +83,12 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
       try {
         const token = localStorage.getItem("token");
         const response = await fetch(`/api/menu/items/${editedItem.id}`, {
-          method: "PATCH", // Use PATCH to update specific fields
+          method: "PATCH",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(editedItem), // Convert the edited item to JSON
+          body: JSON.stringify({ ...editedItem, pricelistId }),
         });
 
         if (!response.ok) {
@@ -79,48 +115,68 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
         <ModalTitle>Edit Item</ModalTitle>
       </ModalHeader>
       <ModalBody>
-        {editedItem && (
-          <>
-            <div className="mb-3">
-              <label className="form-label">Item Name</label>
-              <input
-                type="text"
-                className="form-control"
-                name="name"
-                value={editedItem.name || ""} // Use empty string if null
-                onChange={handleChange}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Item Code</label>
-              <input
-                type="text"
-                className="form-control"
-                name="code"
-                value={editedItem.code || ""} // Use empty string if null
-                onChange={handleChange}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Item Price</label>
-              <input
-                type="text"
-                className="form-control"
-                name="price"
-                value={editedItem.price || 0}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Is Group</label>
-              <input
-                type="checkbox"
-                name="isGroup"
-                checked={editedItem.isGroup}
-                onChange={handleChange}
-              />
-            </div>
-          </>
+        {addItemError && <p style={{ color: "red" }}>{addItemError}</p>}
+        {loadingPricelists ? (
+          <p>Loading Pricelists...</p>
+        ) : (
+          editedItem && (
+            <>
+              <div className="mb-3">
+                <label className="form-label">Item Name</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  name="name"
+                  value={editedItem.name || ""} // Use empty string if null
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Item Code</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  name="code"
+                  value={editedItem.code || ""}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="form-group">
+                <label>Pricelist</label>
+                <select
+                  className="form-control"
+                  value={pricelistId} // Controlled component
+                  onChange={(e) => setPricelistId(parseInt(e.target.value))}
+                >
+                  <option value="">Select Pricelist</option>
+                  {pricelists.map((pricelist) => (
+                    <option key={pricelist.id} value={pricelist.id}>
+                      {pricelist.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Item Price</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  name="price"
+                  value={editedItem.price || 0}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Is Group</label>
+                <input
+                  type="checkbox"
+                  name="isGroup"
+                  checked={editedItem.isGroup}
+                  onChange={handleChange}
+                />
+              </div>
+            </>
+          )
         )}
       </ModalBody>
       <ModalFooter>

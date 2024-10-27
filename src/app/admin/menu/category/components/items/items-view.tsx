@@ -90,7 +90,6 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                 <>
                   <th>Item code</th>
                   <th>Category</th>
-                  <th>Item Type</th>
                 </>
               )}
               <th>Item price</th>

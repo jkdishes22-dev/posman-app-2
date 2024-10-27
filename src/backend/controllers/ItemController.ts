@@ -51,7 +51,6 @@ export const createItemHandler = async (
   res: NextApiResponse,
 ) => {
   try {
-
     console.log("Creating Item:", req.body);
     const { name, code, price, category, pricelistId, isGroup } = req.body;
     const user_id = req.user.id;
@@ -90,19 +89,27 @@ export const updateItemHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
-  const { id } = req.query;
-  const updateData = req.body;
-
   try {
-    const updatedItem = await itemService.updateItem(Number(id), updateData); // Pass the ID and update data to the service
+    console.log("Updating Item:", req.body);
+    const { id, name, code, price, category, pricelistId, isGroup } = req.body;
+    const user_id = req.user.id; // Ensure that user_id is correctly obtained from the request
 
-    if (!updatedItem) {
-      return res.status(404).json({ message: "Item not found" });
-    }
+    const itemData = {
+      id,
+      name,
+      code,
+      category,
+      isGroup,
+    };
 
-    return res.status(200).json(updatedItem); // Return the updated item
+    const updatedItem = await itemService.updateItem(
+      itemData,
+      { pricelistId, price },
+      user_id,
+    );
+
+    res.status(200).json(updatedItem);
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Error updating item", error });
+    res.status(500).json({ message: "Failed to update item", error });
   }
 };

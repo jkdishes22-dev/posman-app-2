@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useEffect, useState } from "react";
 import AdminLayout from "../../../shared/AdminLayout";
 import PricelistAdd from "./pricelist-new";
@@ -7,6 +8,7 @@ export default function PricelistPage() {
   const [showModal, setShowModal] = useState(false);
   const [pricelists, setPricelists] = useState([]);
   const [pricelistItems, setPricelistItems] = useState([]);
+  const [selectedPricelistId, setSelectedPricelistId] = useState(null);
 
   useEffect(() => {
     async function fetchPricelists() {
@@ -26,30 +28,34 @@ export default function PricelistPage() {
       }
     }
 
-    async function fetchPricelistItems() {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/pricelist/items", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        setPricelistItems(data);
-      } catch (error) {
-        console.error("Failed to fetch pricelist items", error);
-      }
-    }
-
     fetchPricelists();
-    fetchPricelistItems();
   }, []);
+
+  useEffect(() => {
+    if (selectedPricelistId) {
+      fetchPricelistItems(selectedPricelistId);
+    }
+  }, [selectedPricelistId]);
+
+  const fetchPricelistItems = async (pricelistId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/pricelist/${pricelistId}/items`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      setPricelistItems(data);
+    } catch (error) {
+      console.error("Failed to fetch pricelist items", error);
+    }
+  };
 
   const handleShowModal = () => setShowModal(true);
   const handleCloseModal = () => setShowModal(false);
-
   const handleAddPricelist = async ({ name, description }) => {
     try {
       const token = localStorage.getItem("token");
@@ -95,7 +101,10 @@ export default function PricelistPage() {
             </thead>
             <tbody>
               {pricelists.map((pricelist) => (
-                <tr key={pricelist.id}>
+                <tr
+                  key={pricelist.id}
+                  onClick={() => setSelectedPricelistId(pricelist.id)}
+                >
                   <td>{pricelist.id}</td>
                   <td>{pricelist.name}</td>
                   <td>{pricelist.status}</td>
