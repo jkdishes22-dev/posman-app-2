@@ -33,3 +33,18 @@ export const fetchPricelistsHandler = async (
     return [];
   }
 };
+
+export const fetchPricelistItems = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  try {
+    const pricelistId = req.query.pricelistId as string;
+    const pricelistItems =
+      await pricelistService.fetchPricelistItems(pricelistId);
+    res.status(200).json(pricelistItems);
+  } catch (error) {
+    console.error("Error fetching pricelist items:", error);
+    return [];
+  }
+};

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import AdminLayout from "../../../shared/AdminLayout";
 import PricelistAdd from "./pricelist-new";
+import ViewItems from "../category/components/items/items-view";
 
 export default function PricelistPage() {
   const [showModal, setShowModal] = useState(false);
@@ -40,13 +41,16 @@ export default function PricelistPage() {
   const fetchPricelistItems = async (pricelistId) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/pricelist/${pricelistId}/items`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        `/api/menu/pricelists/${pricelistId}/items`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
       const data = await response.json();
       setPricelistItems(data);
     } catch (error) {
@@ -114,32 +118,16 @@ export default function PricelistPage() {
           </table>
         </div>
         <div className="col-8">
-          <table className="table table-striped">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Pricelist ID</th>
-                <th>Item ID</th>
-                <th>Currency</th>
-                <th>Price</th>
-                <th>Created At</th>
-                <th>Updated At</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pricelistItems.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.id}</td>
-                  <td>{item.pricelist_id}</td>
-                  <td>{item.item_id}</td>
-                  <td>{item.currency}</td>
-                  <td>{item.price}</td>
-                  <td>{item.created_at}</td>
-                  <td>{item.updated_at}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ViewItems
+            selectedCategory={null} // or the category if you have it
+            items={[]} // pass the relevant items if needed
+            pricelistItems={pricelistItems} // pass pricelist items here
+            itemError="" // handle error state
+            setItems={setPricelistItems} // or any function to update items
+            onItemPick={(item) => console.log("Picked item", item)} // handle item pick logic
+            isBillingSection={false} // adjust based on your needs
+            isPricelistSection={true} // add this prop
+          />
         </div>
       </div>
     </AdminLayout>

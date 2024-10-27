@@ -91,7 +91,7 @@ export const updateItemHandler = async (
 ) => {
   try {
     console.log("Updating Item:", req.body);
-    const { id, name, code, price, category, pricelistId, isGroup } = req.body;
+    const { id, name, code, price, category, pricelistItemId, isGroup } = req.body;
     const user_id = req.user.id; // Ensure that user_id is correctly obtained from the request
 
     const itemData = {
@@ -104,7 +104,7 @@ export const updateItemHandler = async (
 
     const updatedItem = await itemService.updateItem(
       itemData,
-      { pricelistId, price },
+      { pricelistItemId, price },
       user_id,
     );
 

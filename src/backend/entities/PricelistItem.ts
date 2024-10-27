@@ -26,4 +26,7 @@ export class PricelistItem extends BaseEntity {
     nullable: true,
   })
   currency: string;
+
+  @Column({ type: 'tinyint', width: 1, default: true })
+  is_enabled: boolean;
 }

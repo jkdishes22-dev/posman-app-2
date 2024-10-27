@@ -12,4 +12,6 @@ export type Item = {
   category: Category;
   pricelistId: number;
   isGroup: boolean;
+  pricelistName: number;
+  pricelist_item_isEnabled: boolean;
 };

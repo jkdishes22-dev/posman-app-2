@@ -10,7 +10,13 @@ import {
 import { Category } from "@entities/Category";
 import { PricelistItem } from "@entities/PricelistItem";
 import { BillItem } from "@entities/BillItem";
+import { BillStatus } from "@entities/Bill";
 
+export enum ItemStatus {
+    ACTIVE = "ACTIVE",
+    DELETED = "DELETED",
+
+}
 @Entity()
 export class Item {
   @PrimaryGeneratedColumn()
@@ -22,8 +28,11 @@ export class Item {
   @Column()
   code: string;
 
-  @Column()
-  price: number;
+  @Column({
+    type: "enum",
+    enum: ItemStatus,
+  })
+  status: string;
 
   @ManyToOne(() => Category)
   @JoinColumn({ name: "item_category_id" })

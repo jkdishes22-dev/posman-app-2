@@ -7,23 +7,27 @@ import { Category, Item } from "../../types";
 interface ViewItemsProps {
   selectedCategory: Category | null;
   items: Item[];
+  pricelistItems?: Item[]; // Optional prop for pricelist items
   itemError: string;
   handleAddItemClick?: () => void; // Optional
   handleDeleteItem?: (itemId: string) => void; // Optional
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
   isBillingSection?: boolean;
-  onItemPick;
+  isPricelistSection?: boolean;
+  onItemPick: (item: Item) => void;
 }
 
 const ViewItems: React.FC<ViewItemsProps> = ({
   selectedCategory,
   items = [],
+  pricelistItems, // Include optional prop
   itemError,
   handleAddItemClick,
   handleDeleteItem,
   setItems,
-  isBillingSection = false, // Default to false
+  isBillingSection = false,
   onItemPick,
+  isPricelistSection = false, // Add this prop
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -31,11 +35,12 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
 
+  // Use pricelistItems if provided, otherwise use items
   const filteredItems = searchTerm
-    ? items.filter((item) =>
+    ? (pricelistItems || items).filter((item) =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()),
       )
-    : items;
+    : pricelistItems || items;
 
   const handleEditItem = (item: Item) => {
     setSelectedItem(item);
@@ -59,9 +64,8 @@ const ViewItems: React.FC<ViewItemsProps> = ({
       <div className="p-3 border bg-light">
         <div className="row mb-3">
           <div className="col-4">
-            {selectedCategory ? `${selectedCategory.name}` : "Category items"}
+            {selectedCategory ? `${selectedCategory.name}` : {isPricelistSection} ? "Pricelist items" : "Items"}
           </div>
-
           <div className="col-6"> filter items here</div>
           {!isBillingSection && selectedCategory && (
             <div
@@ -79,9 +83,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
             </div>
           )}
         </div>
-
         {itemError && <p style={{ color: "red" }}>{itemError}</p>}
-
         <table className="table table-sm mt-3 table-striped">
           <thead>
             <tr>
@@ -92,6 +94,8 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                   <th>Category</th>
                 </>
               )}
+              <th>Pricelist</th>
+              {!isPricelistSection && <th></th>}
               <th>Item price</th>
               {!isBillingSection && <th></th>}
             </tr>
@@ -105,6 +109,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                     <>
                       <td>{item.code}</td>
                       <td>{item.category.name}</td>
+                      <td>{item.pricelistName}</td>
                       <td>{item.price}</td>
                       <td>
                         <Image
@@ -159,7 +164,6 @@ const ViewItems: React.FC<ViewItemsProps> = ({
           </tbody>
         </table>
       </div>
-
       <EditItemModal
         show={showEditModal}
         item={selectedItem}
