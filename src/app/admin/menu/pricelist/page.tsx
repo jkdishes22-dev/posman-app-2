@@ -119,14 +119,15 @@ export default function PricelistPage() {
         </div>
         <div className="col-8">
           <ViewItems
-            selectedCategory={null} // or the category if you have it
-            items={[]} // pass the relevant items if needed
-            pricelistItems={pricelistItems} // pass pricelist items here
-            itemError="" // handle error state
-            setItems={setPricelistItems} // or any function to update items
-            onItemPick={(item) => console.log("Picked item", item)} // handle item pick logic
-            isBillingSection={false} // adjust based on your needs
-            isPricelistSection={true} // add this prop
+            selectedCategory={null}
+            items={[]}
+            pricelistItems={pricelistItems}
+            itemError=""
+            setItems={setPricelistItems}
+            onItemPick={(item) => console.log("Picked item", item)}
+            isBillingSection={false}
+            isPricelistSection={true}
+            isCategoryItemsSection={false}
           />
         </div>
       </div>

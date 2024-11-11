@@ -4,7 +4,9 @@ import { User } from "@entities/User";
 import { AppDataSource } from "../config/data-source";
 import { Role } from "@entities/Role";
 import { Permission } from "@entities/Permission";
+import { Service } from "typedi";
 
+@Service()
 export class UserService {
   private userRepository = AppDataSource.getRepository(User);
 

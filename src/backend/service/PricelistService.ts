@@ -28,7 +28,7 @@ export class PricelistService {
         .createQueryBuilder("pi")
         .innerJoin("pi.item", "item")
         .innerJoin("item.category", "category")
-        .innerJoin("pi.pricelist", "pricelist") // Join pricelist table
+        .innerJoin("pi.pricelist", "pricelist")
         .select([
           "pi.id AS pricelistItemId",
           "pi.price AS price",
@@ -40,7 +40,7 @@ export class PricelistService {
           "item.isGroup AS item_isGroup",
           "category.id AS category_id",
           "category.name AS category_name",
-          "pricelist.name AS pricelist_name", // Fetch pricelist name
+          "pricelist.name AS pricelist_name",
         ])
         .where("pi.pricelist_id = :pricelistId", { pricelistId });
       // .andWhere("pi.is_enabled = :enabled", { enabled: 1 });
@@ -59,7 +59,7 @@ export class PricelistService {
         price: item.price,
         currency: item.currency,
         pricelistItemId: item.pricelistItemId,
-        pricelistName: item.pricelist_name, // Include pricelist name in response
+        pricelistName: item.pricelist_name,
       }));
     } catch (error) {
       throw new Error("Failed to fetch pricelist items: " + error);

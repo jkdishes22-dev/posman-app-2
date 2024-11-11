@@ -149,10 +149,9 @@ const BillingSection = () => {
   };
 
   const handleConfirmCancel = () => {
-    window.location.reload(); // Reload the page
+    window.location.reload();
   };
 
-  // Calculate total amount
   const totalAmount = selectedItems.reduce(
     (sum, item) => sum + item.subtotal,
     0,
@@ -168,6 +167,8 @@ const BillingSection = () => {
             itemError={itemError}
             setItems={setItems}
             isBillingSection={true}
+            isPricelistSection={false}
+            isCategoryItemsSection={false}
             onItemPick={handlePickItem}
           />
         </div>

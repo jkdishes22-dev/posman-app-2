@@ -91,8 +91,17 @@ export const updateItemHandler = async (
 ) => {
   try {
     console.log("Updating Item:", req.body);
-    const { id, name, code, price, category, pricelistItemId, isGroup } = req.body;
-    const user_id = req.user.id; // Ensure that user_id is correctly obtained from the request
+    const {
+      id,
+      name,
+      code,
+      price,
+      category,
+      pricelistItemId,
+      isGroup,
+      pricelistId,
+    } = req.body;
+    const user_id = req.user.id;
 
     const itemData = {
       id,
@@ -106,10 +115,38 @@ export const updateItemHandler = async (
       itemData,
       { pricelistItemId, price },
       user_id,
+      pricelistId,
     );
 
     res.status(200).json(updatedItem);
   } catch (error) {
+    console.log("Error updating item:", error);
     res.status(500).json({ message: "Failed to update item", error });
+  }
+};
+
+export const fetchGroupedItemsHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  try {
+    const items = await itemService.fetchGroupedItems();
+    res.status(200).json(items);
+  } catch (error) {
+    console.error("Error fetching group items:", error);
+    res.status(500).json({ message: "Failed to fetch grouped items", error });
+  }
+};
+
+export const createGroupItemHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const { itemId, subItemId } = req.body;
+  try {
+    const newGroupItem = await itemService.createGroupedItem(itemId, subItemId);
+    res.status(201).json(newGroupItem);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to create group item", error });
   }
 };

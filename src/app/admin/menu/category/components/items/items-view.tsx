@@ -14,6 +14,7 @@ interface ViewItemsProps {
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
   isBillingSection?: boolean;
   isPricelistSection?: boolean;
+  isCategoryItemsSection?: boolean;
   onItemPick: (item: Item) => void;
 }
 
@@ -27,7 +28,8 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   setItems,
   isBillingSection = false,
   onItemPick,
-  isPricelistSection = false, // Add this prop
+  isPricelistSection = false,
+  isCategoryItemsSection = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -35,7 +37,6 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
 
-  // Use pricelistItems if provided, otherwise use items
   const filteredItems = searchTerm
     ? (pricelistItems || items).filter((item) =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -64,7 +65,11 @@ const ViewItems: React.FC<ViewItemsProps> = ({
       <div className="p-3 border bg-light">
         <div className="row mb-3">
           <div className="col-4">
-            {selectedCategory ? `${selectedCategory.name}` : {isPricelistSection} ? "Pricelist items" : "Items"}
+            {selectedCategory
+              ? `${selectedCategory.name}`
+              : { isPricelistSection }
+                ? "Pricelist items"
+                : "Items"}
           </div>
           <div className="col-6"> filter items here</div>
           {!isBillingSection && selectedCategory && (
@@ -95,7 +100,6 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                 </>
               )}
               <th>Pricelist</th>
-              {!isPricelistSection && <th></th>}
               <th>Item price</th>
               {!isBillingSection && <th></th>}
             </tr>
@@ -135,21 +139,24 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                   )}
                   {isBillingSection && (
                     <>
-                      <td>{item.price}</td>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-primary"
-                          onClick={() => {
-                            if (item.price > 0) {
-                              onItemPick(item);
-                            } else {
-                              alert("Price must be greater than zero");
-                            }
-                          }}
-                        >
-                          Pick
-                        </button>
-                      </td>
+                      <td>{item.pricelistName}</td>
+                      {!isCategoryItemsSection && <td>{item.price}</td>}
+                      {isBillingSection && (
+                        <td>
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => {
+                              if (item.price > 0) {
+                                onItemPick(item);
+                              } else {
+                                alert("Price must be greater than zero");
+                              }
+                            }}
+                          >
+                            Pick
+                          </button>
+                        </td>
+                      )}
                     </>
                   )}
                 </tr>

@@ -42,7 +42,6 @@ export const authorize = (requiredPermissions) => {
           missingPermissions,
         });
       }
-
       return handler(req, res);
     };
   };

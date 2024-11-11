@@ -2,20 +2,23 @@ import { AppDataSource } from "@backend/config/data-source";
 import { Category, CategoryStatus } from "@entities/Category";
 import { Item, ItemStatus } from "@entities/Item";
 import { Currency, PricelistItem } from "@entities/PricelistItem";
-import { EntityManager, Repository } from "typeorm";
+import { EntityManager, getRepository, In, Repository } from "typeorm";
 import { Pricelist } from "@entities/Pricelist";
+import { ItemGroup } from "@entities/ItemGroup";
 
 export class ItemService {
   private categoryRepository: Repository<Category>;
   private itemRepository: Repository<Item>;
   private pricelistItemRepository: Repository<PricelistItem>;
   private pricelistRepository: Repository<Pricelist>;
+  private itemGroupRepository: Repository<ItemGroup>;
 
   constructor() {
     this.categoryRepository = AppDataSource.getRepository(Category);
     this.itemRepository = AppDataSource.getRepository(Item);
     this.pricelistItemRepository = AppDataSource.getRepository(PricelistItem);
     this.pricelistRepository = AppDataSource.getRepository(Pricelist);
+    this.itemGroupRepository = AppDataSource.getRepository(ItemGroup);
   }
   public async createCategory(name: string): Promise<Category> {
     const category: Category = this.categoryRepository.create({
@@ -113,6 +116,7 @@ export class ItemService {
     itemData: Partial<Item>,
     { pricelistItemId, price },
     user_id: number,
+    pricelistId: number,
   ): Promise<Item> {
     return await AppDataSource.transaction(
       async (transactionalEntityManager) => {
@@ -132,35 +136,27 @@ export class ItemService {
 
         await transactionalEntityManager.save(Item, updatedItemData);
 
-      /*  const pricelistExists = await this.pricelistRepository.findOne({
-          where: {
-            id: Number(pricelistId),
-          },
-        });
-        if (!pricelistExists) {
-            console.log("pricelistId not found" + pricelistId);
-          throw new Error(`Pricelist with ID ${pricelistId} does not exist.`);
-        }*/
-
         const pricelistItemToUpdate = await this.pricelistItemRepository
           .createQueryBuilder("pi")
           .innerJoinAndSelect("pi.item", "item")
-          // .innerJoinAndSelect("pi.pricelist", "pricelist")
-          .where("item.id = :itemId", { itemId: itemData.id })
-          .andWhere(".id = pi :pricelistItemId:", {
+          .innerJoinAndSelect("pi.pricelist", "pricelist")
+          .where("pi.id = :pricelistItemId", {
             pricelistItemId: Number(pricelistItemId),
           })
           .getOne();
 
-        await this.disablePreExistingPricelistItems(
-          transactionalEntityManager,
-          itemData,
-          pricelistId,
+        console.log(
+          "pricelistItemToUpdate " + JSON.stringify(pricelistItemToUpdate),
         );
 
         if (pricelistItemToUpdate) {
-          pricelistItemToUpdate.price = price; // Update price
-          pricelistItemToUpdate.updated_by = user_id; // Track who updated
+          await this.disablePreExistingPricelistItems(
+            transactionalEntityManager,
+            pricelistItemToUpdate,
+          );
+
+          pricelistItemToUpdate.price = price;
+          pricelistItemToUpdate.updated_by = user_id;
           await transactionalEntityManager.save(
             PricelistItem,
             pricelistItemToUpdate,
@@ -194,7 +190,7 @@ export class ItemService {
       pricelist: { id: Number(pricelistId) },
       item: { id: itemData.id },
       currency: Currency.KES,
-      is_enabled: true, // Make sure to enable the new item
+      is_enabled: true,
     };
     console.log("new PriceList Item " + JSON.stringify(newPriceListItem));
     const pricelistItem: PricelistItem =
@@ -204,17 +200,81 @@ export class ItemService {
 
   private async disablePreExistingPricelistItems(
     transactionalEntityManager: EntityManager,
-    itemData: Partial<Item>,
-    pricelistId,
+    pricelistItem: PricelistItem | null,
   ) {
     await transactionalEntityManager
       .createQueryBuilder()
       .update(PricelistItem)
       .set({ is_enabled: false })
-      .where("item_id = :itemId", { itemId: itemData.id })
-      .andWhere("pricelist_id != :pricelistId", {
-        pricelistId: Number(pricelistId),
+      .where("item_id = :itemId", { itemId: pricelistItem?.item.id })
+      .andWhere("pricelist_id = :pricelistId", {
+        pricelistId: pricelistItem?.pricelist.id,
       })
       .execute();
+  }
+
+  async fetchGroupedItems() {
+    const groupsWithItems = await this.itemRepository
+      .createQueryBuilder("group")
+      .leftJoinAndSelect("group.subItems", "subItem")
+      .where("group.isGroup = :isGroup", { isGroup: true })
+      .select([
+        "group.id", // Item group ID
+        "group.name", // Item group name
+        "subItem.id", // Sub-item ID
+        "subItem.name", // Sub-item name
+      ])
+      .getMany();
+
+    return groupsWithItems.map((group) => ({
+      id: group.id,
+      name: group.name,
+      items: group.subItems.map((subItem) => ({
+        id: subItem.id,
+        name: subItem.name,
+      })),
+    }));
+  }
+
+  async createGroupedItem(
+    itemId: number,
+    subItemId: number,
+    // portionSize: number,
+  ) {
+    try {
+      const items = await this.itemRepository.find({
+        where: { id: In([itemId, subItemId]) },
+      });
+
+      if (items.length !== 2) {
+        throw new Error("Item or SubItem not found.");
+      }
+
+      const item = items.find((i) => i.id === itemId);
+      const subItem = items.find((i) => i.id === subItemId);
+
+      if (!item || !subItem) {
+        throw new Error("Item or SubItem not found.");
+      }
+
+      if (!item.isGroup) {
+        throw new Error(
+          "The selected item is not a valid group (is_group should be true).",
+        );
+      }
+
+      const newItemGroup = new ItemGroup();
+      newItemGroup.item = item;
+      newItemGroup.subItem = subItem;
+      // newItemGroup.portionSize = portionSize;
+
+      await this.itemGroupRepository.save(newItemGroup);
+
+      console.log("Group item added successfully.");
+      return newItemGroup;
+    } catch (error) {
+      console.error("Error adding group item:", error);
+      throw error;
+    }
   }
 }

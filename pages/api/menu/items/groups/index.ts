@@ -1,0 +1,16 @@
+import { NextApiRequest, NextApiResponse } from "next";
+import { ensureMetadata } from "@backend/utils/metadata-hack";
+import { authMiddleware, authorize } from "@backend/middleware/auth";
+import permissions from "@backend/config/managed-roles";
+import { fetchGroupedItemsHandler } from "@controllers/ItemController";
+
+const handler = async (req: NextApiRequest, res: NextApiResponse) => {
+  await ensureMetadata("Item");
+  if (req.method === "GET") {
+    await authMiddleware(
+      authorize([permissions.CAN_VIEW_ITEM])(fetchGroupedItemsHandler),
+    )(req, res);
+  }
+};
+
+export default handler;

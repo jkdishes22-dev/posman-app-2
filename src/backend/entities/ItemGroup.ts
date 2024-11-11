@@ -1,11 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, ManyToOne, JoinColumn, Column } from "typeorm";
 import { Item } from "./Item";
+import { BaseEntity } from "@entities/BaseEntity";
 
 @Entity()
-export class ItemGroup {
-  @PrimaryGeneratedColumn()
-  id: number;
-
+export class ItemGroup extends BaseEntity {
   @ManyToOne(() => Item, { eager: true })
   @JoinColumn({ name: "item_id" })
   item: Item;

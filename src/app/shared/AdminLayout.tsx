@@ -43,6 +43,10 @@ export default function AdminLayout({
     router.push("/admin/menu/pricelist");
   };
 
+  const manageGroupItems = () => {
+    router.push("/admin/menu/category/components/items/grouped");
+  };
+
   return (
     <SecureRoute roleRequired="admin">
       <div className="container">
@@ -163,17 +167,29 @@ export default function AdminLayout({
                   aria-labelledby="menuAndPricing"
                 >
                   <li>
-                    <a className="dropdown-item" href="#" onClick={manageCategory}>
+                    <a
+                      className="dropdown-item"
+                      href="#"
+                      onClick={manageCategory}
+                    >
                       Category
                     </a>
                   </li>
                   <li>
-                    <a className="dropdown-item" href="#">
-                      Items
+                    <a
+                      className="dropdown-item"
+                      href="#"
+                      onClick={manageGroupItems}
+                    >
+                      Group Items
                     </a>
                   </li>
                   <li>
-                    <a className="dropdown-item" href="#" onClick={managePricelist}>
+                    <a
+                      className="dropdown-item"
+                      href="#"
+                      onClick={managePricelist}
+                    >
                       Pricelist
                     </a>
                   </li>

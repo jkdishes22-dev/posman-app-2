@@ -33,7 +33,6 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
   };
 
   const handleDeleteItem = (itemId: string) => {
-    // Logic to delete the item from the list and refresh items
     if (selectedCategory) {
       fetchItems(selectedCategory.id);
     }
@@ -47,7 +46,11 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
         itemError={itemError}
         handleAddItemClick={handleAddItemClick}
         handleDeleteItem={handleDeleteItem}
-        setItems={setLocalItems} // Pass setItems as a prop
+        setItems={setLocalItems}
+        isBillingSection={false}
+        isPricelistSection={false}
+        isCategoryItemsSection={true}
+        onItemPick={null}
       />
       <NewItemModal
         selectedCategory={selectedCategory}
