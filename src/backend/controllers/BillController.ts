@@ -59,7 +59,7 @@ export const voidBillItem = async (
   try {
     const result = await billService.voidBillItem(Number(billItemId));
     res.status(200).json({ message: "Bill item voided successfully", result });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error voiding bill item:", error);
     res
       .status(500)
