@@ -27,8 +27,6 @@ yarn-error.log*
 
 # local env files
 .env*.local
-.env
-
 
 # vercel
 .vercel
@@ -39,6 +37,8 @@ next-env.d.ts
 /public/workbox-*.js
 public/sw.js
 
-#idea
 .idea
-
+.next
+.DS_Store
+.env
+.gitignore.swp
