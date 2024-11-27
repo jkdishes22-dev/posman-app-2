@@ -1,6 +1,7 @@
-import { Column, Entity } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
 import { BaseEntity } from "@entities/BaseEntity";
 import { BillStatus } from "@entities/Bill";
+import { Station } from "./Station";
 
 export enum PriceListStatus {
   ACTIVE = "active",
@@ -19,6 +20,10 @@ export class Pricelist extends BaseEntity {
     default: PriceListStatus.ACTIVE,
   })
   status: PriceListStatus;
+
+  @ManyToOne(() => Station)
+  @JoinColumn({ name: "station_id" })
+  station: Station;
 
   // @OneToMany(() => PricelistItem, (pricelistItem) => pricelistItem.pricelist)
   // pricelistItems: PricelistItem[];

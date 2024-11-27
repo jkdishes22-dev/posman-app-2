@@ -4,7 +4,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import {
   fetchPermissionsHandler,
   createPermissionHandler,
-} from "@controllers/permissionController";
+} from "@controllers/PermissionController";
 import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {

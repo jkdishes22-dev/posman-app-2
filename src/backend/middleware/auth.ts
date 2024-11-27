@@ -28,7 +28,7 @@ export const authMiddleware = (handler) => {
   };
 };
 
-export const authorize = (requiredPermissions) => {
+export const authorize = (requiredPermissions: any[]) => {
   return (handler) => {
     return async (req, res) => {
       const userPermissions = req.user.permissions.map((perm) => perm.name);

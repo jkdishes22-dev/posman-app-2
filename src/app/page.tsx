@@ -13,7 +13,7 @@ const LoginForm = () => {
   const [activeField, setActiveField] = useState("username");
   const router = useRouter();
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
     if (!username || !password) {
       setError("Please fill in all fields");
@@ -50,11 +50,11 @@ const LoginForm = () => {
     }
   };
 
-  const handleInputClick = (field) => {
+  const handleInputClick = (field: React.SetStateAction<string>) => {
     setActiveField(field);
   };
 
-  const KeyPadWrite = (value) => {
+  const KeyPadWrite = (value: string | number) => {
     if (value === -1) {
       if (activeField === "username") {
         setUsername((prev) => prev.slice(0, -1));

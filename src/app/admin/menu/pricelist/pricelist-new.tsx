@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import { headers } from "next/headers";
 
 export default function PricelistAdd({
   showModal,
@@ -7,13 +8,49 @@ export default function PricelistAdd({
   handleAddPricelist,
 }) {
   const [name, setName] = useState("");
+  const [station, setStation] = useState("");
   const [description, setDescription] = useState("");
+  const [stations, setStations] = useState([]);
+  const [addPricelistError, setAddPricelistError] = useState("");
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    handleAddPricelist({ name, description });
-    setName("");
-    setDescription("");
+  useEffect(() => {
+    async function fetchStations() {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch("/api/station?status=enabled", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          }
+      });
+        const data = await response.json();
+        setStations(data);
+      } catch (error) {
+        setAddPricelistError("Failed to fetch stations: " + error.message);
+      }
+    }
+    if (showModal) {
+      fetchStations();
+    }
+  }, [showModal]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !description || !station) {
+      setAddPricelistError("Please fill in all fields");
+      return;
+    }
+
+    try {
+      handleAddPricelist({ name, description, station });
+      setName("");
+      setDescription("");
+      setStation("");
+      setAddPricelistError("");
+    } catch (error) {
+      setAddPricelistError("Failed to add pricelist: " + error.message);
+    }
   };
 
   if (!showModal) return null;
@@ -29,6 +66,9 @@ export default function PricelistAdd({
             </button>
           </div>
           <div className="modal-body">
+            {addPricelistError && (
+              <p style={{ color: "red" }}>{addPricelistError}</p>
+            )}
             <form className="px-4 py-3" onSubmit={handleSubmit}>
               <div className="form-group">
                 <label htmlFor="name" className="form-label">
@@ -42,6 +82,25 @@ export default function PricelistAdd({
                   onChange={(e) => setName(e.target.value)}
                   required
                 />
+              </div>
+              <div className="form-group">
+                <label htmlFor="station" className="form-label">
+                  Station
+                </label>
+                <select
+                  className="form-control"
+                  id="station"
+                  value={station}
+                  onChange={(e) => setStation(e.target.value)}
+                  required
+                >
+                  <option value="">Select station</option>
+                  {stations.map((station) => (
+                    <option key={station.id} value={station.id}>
+                      {station.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="form-group">
                 <label htmlFor="description" className="form-label">
@@ -59,7 +118,7 @@ export default function PricelistAdd({
                 <button type="submit" className="btn btn-primary">
                   <Image
                     src="/icons/plus-circle.svg"
-                    alt="Add Category"
+                    alt="Add Pricelist"
                     width={24}
                     height={24}
                     className="m-2"

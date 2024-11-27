@@ -14,6 +14,7 @@ import { BillItem } from "@entities/BillItem";
 import { Bill } from "@entities/Bill";
 import { Pricelist } from "@entities/Pricelist";
 import { PricelistItem } from "@entities/PricelistItem";
+import { Station } from "@backend/entities/Station";
 
 export const AppDataSource = new DataSource({
   type: "mysql",
@@ -36,6 +37,7 @@ export const AppDataSource = new DataSource({
     BillItem,
     Pricelist,
     PricelistItem,
+    Station,
   ],
   synchronize: false,
   logging: ["error"],

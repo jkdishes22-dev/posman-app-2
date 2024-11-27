@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import AdminLayout from "../../../shared/AdminLayout";
 import PricelistAdd from "./pricelist-new";
 import ViewItems from "../category/components/items/items-view";
+import station from "pages/api/station";
+import { Button } from "react-bootstrap";
 
 export default function PricelistPage() {
   const [showModal, setShowModal] = useState(false);
@@ -51,8 +53,8 @@ export default function PricelistPage() {
           },
         },
       );
-      const data = await response.json();
-      setPricelistItems(data);
+      const pricelistItems = await response.json();
+      setPricelistItems(response.ok ? pricelistItems : []);
     } catch (error) {
       console.error("Failed to fetch pricelist items", error);
     }
@@ -60,7 +62,7 @@ export default function PricelistPage() {
 
   const handleShowModal = () => setShowModal(true);
   const handleCloseModal = () => setShowModal(false);
-  const handleAddPricelist = async ({ name, description }) => {
+  const handleAddPricelist = async ({ name, description, station }) => {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch("/api/menu/pricelists", {
@@ -69,7 +71,7 @@ export default function PricelistPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name, description }),
+        body: JSON.stringify({ name, description, station }),
       });
       if (response.ok) {
         const newPricelist = await response.json();
@@ -111,7 +113,16 @@ export default function PricelistPage() {
                 >
                   <td>{pricelist.id}</td>
                   <td>{pricelist.name}</td>
-                  <td>{pricelist.status}</td>
+                  <td>
+                    {(!(pricelist.status) || pricelist.status === "inactive")
+                      &&
+                      <Button variant="success" className='w-8'>Enable</Button>
+                    }
+                    {pricelist.status === "active"
+                      &&
+                      <Button variant="danger" className='w-8'>Disable</Button>
+                    }
+                  </td>
                 </tr>
               ))}
             </tbody>

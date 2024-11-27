@@ -1,19 +1,26 @@
 import { AppDataSource } from "@backend/config/data-source";
+import { Station } from "@backend/entities/Station";
 import { Pricelist, PriceListStatus } from "@entities/Pricelist";
 import { PricelistItem } from "@entities/PricelistItem";
 
 export class PricelistService {
   private pricelistRepository = AppDataSource.getRepository(Pricelist);
   private pricelistItemRepository = AppDataSource.getRepository(PricelistItem);
+  private stationRepository = AppDataSource.getRepository(Station);
+
 
   public async createPricelist(
     payload: Partial<Pricelist>,
     user_id: number,
   ): Promise<Pricelist> {
+    const foundStation = await this.stationRepository.findOneBy({
+        id: Number(payload.station)
+    });
     const pricelist: Pricelist = this.pricelistRepository.create({
       ...payload,
       status: PriceListStatus.ACTIVE,
       created_by: user_id,
+      station: foundStation ? foundStation.id: null
     });
     return this.pricelistRepository.save(pricelist);
   }

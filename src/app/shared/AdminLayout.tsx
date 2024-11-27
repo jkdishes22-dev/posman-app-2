@@ -47,6 +47,10 @@ export default function AdminLayout({
     router.push("/admin/menu/category/components/items/grouped");
   };
 
+  const manageStations = () => {
+      router.push("/admin/station");
+  };
+
   return (
     <SecureRoute roleRequired="admin">
       <div className="container">
@@ -105,7 +109,7 @@ export default function AdminLayout({
                   aria-labelledby="navbarDarkDropdownMenuLink"
                 >
                   <li>
-                    <a className="dropdown-item" href="#">
+                    <a className="dropdown-item" href="#" onClick={manageStations}>
                       Station
                     </a>
                   </li>

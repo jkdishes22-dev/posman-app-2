@@ -18,10 +18,10 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   console.log("App is running on port 3000");
-  createServer((req: Request, res: Response) => {
+  createServer((req, res) => {
     const parsedUrl = parse(req.url!, true);
     handle(req, res, parsedUrl);
   }).listen(process.env.PORT, () => {
-    console.log(`Ready on http://localhost:${process.env.PORT}`);
+    console.log(`App started on http://localhost:${process.env.PORT}`);
   });
 });

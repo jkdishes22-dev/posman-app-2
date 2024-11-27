@@ -8,6 +8,7 @@ export const createPricelistHandler = async (
   res: NextApiResponse,
 ) => {
   try {
+    console.log("pricelist payload "+ JSON.stringify(req.body));
     const newPricelist = req.body;
     const user_id = req.user.id;
     const pricelist = await pricelistService.createPricelist(
