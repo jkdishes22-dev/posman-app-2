@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import AdminLayout from "../../../shared/AdminLayout";
 import PricelistAdd from "./pricelist-new";
 import ViewItems from "../category/components/items/items-view";
-import station from "pages/api/station";
+import station from "pages/api/stations";
 import { Button } from "react-bootstrap";
 
 export default function PricelistPage() {

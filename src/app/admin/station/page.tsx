@@ -17,7 +17,7 @@ export default function StationPage() {
     const fetchData = async () => {
       const token = localStorage.getItem("token");
       try {
-        const responseStations = await fetch('/api/station', {
+        const responseStations = await fetch('/api/stations', {
           method: 'GET',
           headers: {
             "Content-Type": "application/json",
@@ -45,7 +45,7 @@ export default function StationPage() {
   const fetchStationPricelist = async (stationId: number) => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`/api/station/${stationId}/pricelists`, {
+      const response = await fetch(`/api/stations/${stationId}/pricelists`, {
         headers: {
           Authorization: `Bearer ${token}`
         }

@@ -84,10 +84,10 @@ const permissions = {
   CAN_VIEW_STAFF: "can_view_staff",
 
   // Staff Station
-  CAN_ADD_STAFF_STATION: "can_add_staff_station",
-  CAN_EDIT_STAFF_STATION: "can_edit_staff_station",
-  CAN_DELETE_STAFF_STATION: "can_delete_staff_station",
-  CAN_VIEW_STAFF_STATION: "can_view_staff_station",
+  CAN_ADD_USER_STATION: "can_add_user_station",
+  CAN_EDIT_USER_STATION: "can_edit_user_station",
+  CAN_DELETE_USER_STATION: "can_delete_user_station",
+  CAN_VIEW_USER_STATION: "can_view_user_station",
 
   // Station
   CAN_ADD_STATION: "can_add_station",

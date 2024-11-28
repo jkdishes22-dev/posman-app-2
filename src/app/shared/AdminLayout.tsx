@@ -51,6 +51,10 @@ export default function AdminLayout({
       router.push("/admin/station");
   };
 
+  const manageStationStaff = () => {
+      router.push("/admin/station/user")
+  };
+
   return (
     <SecureRoute roleRequired="admin">
       <div className="container">
@@ -114,8 +118,8 @@ export default function AdminLayout({
                     </a>
                   </li>
                   <li>
-                    <a className="dropdown-item" href="#">
-                      Staff
+                    <a className="dropdown-item" href="#" onClick={manageStationStaff}>
+                      Station users
                     </a>
                   </li>
                 </ul>

@@ -62,3 +62,13 @@ export const loginUserHandler = async (
     res.status(500).json({ message: "Internal server error" + error.message });
   }
 };
+
+export const fetchUserStations = async(req: NextApiRequest, res: NextApiResponse) => {
+  try {
+    const { userId } = req.query;
+    const users = await userService.fetchUserStations(Number(userId));
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching user stations" + error });
+  }
+};

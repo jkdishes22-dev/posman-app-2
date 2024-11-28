@@ -26,7 +26,14 @@ export class UserService {
   }
 
   public async getUsers(): Promise<User[]> {
-    return this.userRepository.find();
+    const query = `select 
+                    s.id, s.lastName, s.firstName, role_id, r.name
+                    from user s
+                    left join user_roles ur on ur.user_id = s.id
+                    left join roles r on r.id = ur.role_id`
+
+    return await AppDataSource.query(query);
+    // return this.userRepository.find();
   }
 
   async getUserByUsername(username: string) {
@@ -73,5 +80,15 @@ export class UserService {
       throw new Error("User not found");
     }
     return user;
+  }
+
+  async fetchUserStations(userId: number) {
+    const query = `
+      select us.*, s.name from user u
+      left join user_station us on u.id = us.user_id
+      left join station s on s.id = us.station_id
+      WHERE u.id = ?
+  `;
+    return await AppDataSource.query(query, [userId]);
   }
 }
