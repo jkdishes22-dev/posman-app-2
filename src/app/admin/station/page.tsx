@@ -37,36 +37,56 @@ export default function StationPage() {
 
   useEffect(() => {
     if (selectedStationId) {
-      fetchStationDetails(selectedStationId);
+      fetchStationPricelist(selectedStationId);
+      fetchStationUsers(selectedStationId);
     }
   }, [selectedStationId]);
 
-  const fetchStationDetails = async (stationId) => {
+  const fetchStationPricelist = async (stationId: number) => {
     const token = localStorage.getItem("token");
     try {
-      const responsePricelists = await fetch(`/api/station/${stationId}/pricelists`, {
+      const response = await fetch(`/api/station/${stationId}/pricelists`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-      const dataPricelists = await responsePricelists.json();
-      setPricelists(responsePricelists.ok ? dataPricelists : []);
 
-      const responseUsers = await fetch(`/api/station/${stationId}/users`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      const dataUsers = await responseUsers.json();
-      setUsers(responseUsers.ok ? dataUsers : []);
+      if (!response.ok) {
+        throw new Error("Failed to station pricelist");
+      } else {
+        const pricelistData = await response.json();
+        setPricelists(pricelistData);
+      }
+
     } catch (error) {
       console.error('Failed to fetch station details', error);
       setPricelists([]);
-      setUsers([]);
     }
   };
 
-  const handleAddStation = async (name) => {
+  const fetchStationUsers = async (stationId: number) => {
+    const token = localStorage.getItem("token");
+    try {
+      const response = await fetch(`/api/station/${stationId}/users`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to station users");
+      } else {
+        const dataUsers = await response.json();
+        setUsers(dataUsers);
+      }
+    }
+    catch (error) {
+      console.error('Failed to fetch station users', error);
+      setUsers([]);
+    }
+  }
+
+  const handleAddStation = async (name: string) => {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch('/api/station', {
@@ -135,14 +155,25 @@ export default function StationPage() {
               <div className="col-md-6">
                 <h3>Linked Pricelists</h3>
                 <ul className="list-group">
-                  {pricelists.map(pricelist => (
-                    <li key={pricelist.id} className="list-group-item">
-                      {pricelist.name}
-                      <Button variant="danger" className="btn-sm ml-2" style={{ padding: '0.25rem 0.5rem', width: '4rem' }}>Disable</Button>
-                      <Button variant="success" className="btn-sm ml-2" style={{ padding: '0.25rem 0.5rem', width: '4rem' }}>Enable</Button>
-                    </li>
-                  ))}
+                  {
+                    pricelists.length > 0 ? (
+                      pricelists.map(pricelist => (
+                        <li key={pricelist.id} className="list-group-item">
+                          {pricelist.name}
+                          {(!(pricelist.status) || pricelist.status === "inactive") &&
+                            <Button variant="success"> Enable</Button>
+                          }
+                          {pricelist.status === "active" &&
+                            <Button variant="danger" className='w-12'> Disable</Button>
+                          }
+                        </li>
+                      ))
+                    ) : (
+                      <li className="list-group-item">No pricelist added yet</li>
+                    )
+                  }
                 </ul>
+
               </div>
 
               <div className="col-md-6">

@@ -42,3 +42,4 @@ public/sw.js
 .DS_Store
 .env
 .gitignore.swp
+public/sw.js.map
