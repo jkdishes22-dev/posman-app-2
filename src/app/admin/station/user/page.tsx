@@ -2,11 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import {
-  Card,
-  Button,
-  Form
-} from "react-bootstrap";
+import { Card, Button, Form } from "react-bootstrap";
 import AsyncSelect from "react-select/async"; // For typeahead searchable dropdown
 import AdminLayout from "src/app/shared/AdminLayout";
 
@@ -65,12 +61,12 @@ function StationUsersPage() {
     }
   };
 
-  const fetchUserStations = async (userId: number) => {
+  const fetchUserStations = async (userId) => {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(`/api/users/${userId}/stations`, {
+        method: "GET",
         headers: {
-          method: "GET",
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
@@ -83,7 +79,7 @@ function StationUsersPage() {
     }
   };
 
-  const handleUserSelect = (userId: number) => {
+  const handleUserSelect = (userId) => {
     const userData = users.find((user) => user.id === userId);
     if (userData) {
       setSelectedUser(userData);
@@ -92,18 +88,25 @@ function StationUsersPage() {
   };
 
   const handleAddUserToStation = async () => {
+    if (!selectedUser || !selectedStation) return;
+
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(`/api/users/${selectedUser.id}/stations`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ stationId: selectedStation })
+        body: JSON.stringify({
+          station: selectedStation,
+        }),
       });
-      if (!response.ok) throw new Error("Failed to add user to station");
-      fetchUserStations(selectedUser.id); // Refresh the user's stations
+      if (!response.ok) {
+        throw new Error("Failed to add user to station");
+      } else {
+        fetchUserStations(selectedUser.id);
+      }
     } catch (error) {
       console.error("Error adding user to station:", error);
     }
@@ -166,7 +169,7 @@ function StationUsersPage() {
                 </div>
                 <div className="col-md-6">
                   <Card>
-                    <Card.Header>Add to Station</Card.Header>
+                    <Card.Header>Add {selectedUser.firstName} to a station</Card.Header>
                     <Card.Body>
                       <Form.Group>
                         <Form.Label>Select Station</Form.Label>
@@ -189,19 +192,47 @@ function StationUsersPage() {
                         onClick={handleAddUserToStation}
                         disabled={!selectedStation}
                       >
-                        Add to Station
+                        Add Station
                       </Button>
+
                       <Card.Text className="mt-3">
                         <strong>Current Stations:</strong>
-                        <ul>
-                          {userStations.length > 0 ? (
-                            userStations.map((station) => (
-                              <li key={station.id}>{station.name}</li>
-                            ))
-                          ) : (
-                            <li>No stations assigned</li>
-                          )}
-                        </ul>
+                        <table className="table table-striped mt-3">
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>Default</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {userStations && userStations.length > 0 ? (
+                              userStations.map((station) => (
+                                station && (
+                                  <tr key={station.id}>
+                                    <td>{station.name}</td>
+                                    <td>
+                                      {station.is_default ? (
+                                        <span>Yes</span>
+                                      ) : (
+                                        <Button variant="success">Make Default</Button>
+                                      )}
+                                    </td>
+                                    <td>
+                                      {station.status === "enabled" && (
+                                        <Button variant="danger" className="w-12">Disable</Button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan="3">No stations assigned</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
                       </Card.Text>
                     </Card.Body>
                   </Card>

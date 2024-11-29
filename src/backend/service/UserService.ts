@@ -5,10 +5,13 @@ import { AppDataSource } from "../config/data-source";
 import { Role } from "@entities/Role";
 import { Permission } from "@entities/Permission";
 import { Service } from "typedi";
+import { UserStation } from "@backend/entities/UserStation";
+import { DeepPartial } from "typeorm";
 
 @Service()
 export class UserService {
   private userRepository = AppDataSource.getRepository(User);
+  private userStationRepository = AppDataSource.getRepository(UserStation);
 
   public async createUser(
     username: string,
@@ -91,4 +94,32 @@ export class UserService {
   `;
     return await AppDataSource.query(query, [userId]);
   }
+
+  async addUserStation(payload: { station?: any; user: any; }) {
+    const userStation: DeepPartial<UserStation> = this.userStationRepository.create({
+      user: payload.user,
+      station: payload.station,
+    });
+    return this.userStationRepository.save(userStation);
+  }
+
+  //  async addUserStation(payload: { station?: any; user: any; }) {
+  //   const existingUserStation = await this.userStationRepository.findOne({
+  //     where: {
+  //       user: payload.user,
+  //       station: payload.station,
+  //     },
+  //   });
+  
+  //   if (existingUserStation) {
+  //     throw new Error('User is already assigned to this station');
+  //   }
+  
+  //   const userStation: DeepPartial<UserStation> = this.userStationRepository.create({
+  //     user: payload.user,
+  //     station: payload.station,
+  //   });
+  
+  //   return this.userStationRepository.save(userStation);
+  // }
 }

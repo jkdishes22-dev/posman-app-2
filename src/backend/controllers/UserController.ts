@@ -63,12 +63,30 @@ export const loginUserHandler = async (
   }
 };
 
-export const fetchUserStations = async(req: NextApiRequest, res: NextApiResponse) => {
+export const fetchUserStations = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     const { userId } = req.query;
     const users = await userService.fetchUserStations(Number(userId));
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ error: "Error fetching user stations" + error });
+  }
+};
+
+export const addUserStation = async (req: NextApiRequest, res: NextApiResponse) => {
+  try {
+    const { station } = req.body;
+    const { userId } = req.query;
+
+    const userStationRequest = {
+      station,
+      user: userId
+    }
+
+    const newUserStation = await userService.addUserStation(userStationRequest)
+    res.status(201).json(newUserStation);
+  } catch (error) {
+    console.error("Error creating user station:", error);
+    res.status(500).json({ error: "Error creating user station" + error });
   }
 };
