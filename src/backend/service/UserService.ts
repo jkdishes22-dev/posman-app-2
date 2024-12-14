@@ -5,8 +5,9 @@ import { AppDataSource } from "../config/data-source";
 import { Role } from "@entities/Role";
 import { Permission } from "@entities/Permission";
 import { Service } from "typedi";
-import { UserStation } from "@backend/entities/UserStation";
+import { UserStation, UserStationStatus } from "@backend/entities/UserStation";
 import { DeepPartial } from "typeorm";
+import { Station } from "@backend/entities/Station";
 
 @Service()
 export class UserService {
@@ -33,7 +34,7 @@ export class UserService {
                     s.id, s.lastName, s.firstName, role_id, r.name
                     from user s
                     left join user_roles ur on ur.user_id = s.id
-                    left join roles r on r.id = ur.role_id`
+                    left join roles r on r.id = ur.role_id`;
 
     return await AppDataSource.query(query);
     // return this.userRepository.find();
@@ -103,23 +104,47 @@ export class UserService {
     return this.userStationRepository.save(userStation);
   }
 
-  //  async addUserStation(payload: { station?: any; user: any; }) {
-  //   const existingUserStation = await this.userStationRepository.findOne({
-  //     where: {
-  //       user: payload.user,
-  //       station: payload.station,
-  //     },
-  //   });
-  
-  //   if (existingUserStation) {
-  //     throw new Error('User is already assigned to this station');
-  //   }
-  
-  //   const userStation: DeepPartial<UserStation> = this.userStationRepository.create({
-  //     user: payload.user,
-  //     station: payload.station,
-  //   });
-  
-  //   return this.userStationRepository.save(userStation);
-  // }
+  async setDefaultStation(userStationRequest: { station: number; user: number; }, currentUser: number) {
+    console.log("station update request " + JSON.stringify(userStationRequest));
+
+    return await AppDataSource.transaction(async (transactionEntityManager) => {
+      const existingStation = await this.userStationRepository.findOne({
+        where: {
+          user: { id: userStationRequest.user }, station: { id: userStationRequest.station }
+        },
+      });
+
+      if (!existingStation) {
+        throw new Error("User station not found");
+      }
+
+      await transactionEntityManager.update(UserStation, { user: { id: userStationRequest.user } }, { isDefault: false });
+
+      existingStation.isDefault = true;
+      existingStation.status = UserStationStatus.ENABLED;
+      existingStation.updated_by = currentUser;
+
+      await transactionEntityManager.save(UserStation, existingStation);
+
+      return existingStation;
+    });
+  }
+
+  async disableUserStation(userStationRequest: { userStation: number; }, currentUser: number) {
+    const existingStation = await this.userStationRepository.findOne({
+      where: {
+        id: userStationRequest.userStation
+      },
+    });
+
+    if (!existingStation) {
+      throw new Error("User station not found");
+    }
+
+    existingStation.status = UserStationStatus.DISABLED;
+    existingStation.updated_by = currentUser;
+    existingStation.isDefault = false;
+
+    return await this.userStationRepository.save(existingStation);
+  }
 }

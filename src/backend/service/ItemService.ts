@@ -3,33 +3,19 @@ import { Category, CategoryStatus } from "@entities/Category";
 import { Item, ItemStatus } from "@entities/Item";
 import { Currency, PricelistItem } from "@entities/PricelistItem";
 import { EntityManager, In, Repository } from "typeorm";
-import { Pricelist } from "@entities/Pricelist";
 import { ItemGroup } from "@entities/ItemGroup";
 
 export class ItemService {
   private categoryRepository: Repository<Category>;
   private itemRepository: Repository<Item>;
   private pricelistItemRepository: Repository<PricelistItem>;
-  private pricelistRepository: Repository<Pricelist>;
   private itemGroupRepository: Repository<ItemGroup>;
 
   constructor() {
     this.categoryRepository = AppDataSource.getRepository(Category);
     this.itemRepository = AppDataSource.getRepository(Item);
     this.pricelistItemRepository = AppDataSource.getRepository(PricelistItem);
-    this.pricelistRepository = AppDataSource.getRepository(Pricelist);
     this.itemGroupRepository = AppDataSource.getRepository(ItemGroup);
-  }
-  public async createCategory(name: string): Promise<Category> {
-    const category: Category = this.categoryRepository.create({
-      name,
-      status: CategoryStatus.ACTIVE,
-    });
-    return this.categoryRepository.save(category);
-  }
-
-  public async fetchCategories(): Promise<Category[]> {
-    return this.categoryRepository.find();
   }
 
   public async createItem(
@@ -63,20 +49,29 @@ export class ItemService {
     );
   }
 
-  public async fetchItems(categoryId?: string | string[]): Promise<any[]> {
+  public async fetchItems(categoryId: number, user_id: number, billing: boolean = false): Promise<any[]> {
     const query = this.itemRepository
       .createQueryBuilder("item")
       .leftJoinAndSelect("item.category", "category")
       .leftJoin("pricelist_item", "pi", "pi.item_id = item.id")
-      .leftJoin("pi.pricelist", "pricelist") // Join pricelist table
+      .leftJoin("pi.pricelist", "pricelist")
+      .leftJoin("station", "s", "s.id = pricelist.station_id")
+      .leftJoin("user_station", "us", "us.station_id = s.id")
+      .leftJoin("user", "u", "u.id = us.user_id")
       .addSelect([
         "pi.price AS price",
         "pi.is_enabled AS pricelist_item_isEnabled",
         "pi.id AS pricelistId",
         "pricelist.name AS pricelistName",
-      ]); // Select pricelist name
+        "s.name as stationName"
+      ]);
 
-    query.andWhere("pi.is_enabled = :enabled", { enabled: 1 });
+    // if (billing) {
+      query.andWhere("pi.is_enabled = :enabled", { enabled: 1 });
+      query.andWhere("us.status = :status", { status: 'enabled' })
+      query.andWhere("us.is_default = :is_default", { is_default: 1 })
+      query.andWhere("u.id = :id", { id: user_id })
+    // }
 
     if (categoryId) {
       query.andWhere("category.id = :categoryId", { categoryId });
@@ -95,15 +90,11 @@ export class ItemService {
       },
       price: item.price,
       pricelistId: item.pricelistId,
-      pricelistName: item.pricelistName, // Include pricelist name in response
+      pricelistName: item.pricelistName,
     }));
   }
 
-  async deleteCategory(id: number): Promise<void> {
-    await this.categoryRepository.update(id, {
-      status: CategoryStatus.DELETED,
-    });
-  }
+
   async findItemById(id: number): Promise<Item> {
     const item = await this.itemRepository.findOne({ where: { id } });
     if (!item) {
@@ -145,10 +136,6 @@ export class ItemService {
           })
           .getOne();
 
-        console.log(
-          "pricelistItemToUpdate " + JSON.stringify(pricelistItemToUpdate),
-        );
-
         if (pricelistItemToUpdate) {
           await this.disablePreExistingPricelistItems(
             transactionalEntityManager,
@@ -170,8 +157,6 @@ export class ItemService {
             transactionalEntityManager,
           );
         }
-
-        console.log("updatedItemData " + JSON.stringify(updatedItemData));
         return updatedItemData;
       },
     );
@@ -192,7 +177,6 @@ export class ItemService {
       currency: Currency.KES,
       is_enabled: true,
     };
-    console.log("new PriceList Item " + JSON.stringify(newPriceListItem));
     const pricelistItem: PricelistItem =
       this.pricelistItemRepository.create(newPriceListItem);
     await transactionalEntityManager.save(PricelistItem, pricelistItem);

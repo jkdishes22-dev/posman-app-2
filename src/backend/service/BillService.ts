@@ -7,7 +7,6 @@ export class BillService {
   private billRepository = AppDataSource.getRepository(Bill);
   private billItemRepository = AppDataSource.getRepository(BillItem);
 
-  // Create a new bill with bill items
   async createBill(payload) {
     const { items, total, user_id } = payload;
     const newBill = this.billRepository.create({

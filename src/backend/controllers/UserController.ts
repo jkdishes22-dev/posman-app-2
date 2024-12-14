@@ -83,10 +83,45 @@ export const addUserStation = async (req: NextApiRequest, res: NextApiResponse) 
       user: userId
     }
 
-    const newUserStation = await userService.addUserStation(userStationRequest)
+    const newUserStation = await userService.addUserStation(userStationRequest);
     res.status(201).json(newUserStation);
   } catch (error) {
     console.error("Error creating user station:", error);
     res.status(500).json({ error: "Error creating user station" + error });
   }
+};
+
+export const setDefaultUserStation = async (req: NextApiRequest, res: NextApiResponse) => {
+  try {
+    const { stationId } = req.body;
+    const { userId } = req.query;
+    const currentUser = req.user?.id;
+
+    const userStationRequest = {
+      station: stationId,
+      user: userId
+    }
+
+    const updatedUserStation = await userService.setDefaultStation(userStationRequest, currentUser);
+    res.status(200).json(updatedUserStation);
+  } catch (error) {
+    res.status(500).json({ error: "Error updating user station" + error });
+  }
+};
+
+export const disableUserStation = async (req: NextApiRequest, res: NextApiResponse) => {
+  try {
+    const { userStationId } = req.body;
+    const currentUser = req.user?.id;
+
+    const userStationRequest = {
+      userStation: userStationId,
+    }
+
+    const updatedUserStation = await userService.disableUserStation(userStationRequest, currentUser);
+    res.status(200).json(updatedUserStation);
+  } catch (error) {
+    res.status(500).json({ error: "Error disabling user station" + error });
+  }
+
 };

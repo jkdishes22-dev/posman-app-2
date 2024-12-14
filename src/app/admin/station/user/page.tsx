@@ -3,26 +3,26 @@
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Button, Form } from "react-bootstrap";
-import AsyncSelect from "react-select/async"; // For typeahead searchable dropdown
 import AdminLayout from "src/app/shared/AdminLayout";
+import { User } from "../../menu/category/types";
 
 function StationUsersPage() {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [searchTerm, setSearchTerm] = useState(""); // State for user search term
-  const [stations, setStations] = useState([]); // State for all stations
-  const [selectedStation, setSelectedStation] = useState(""); // State for selected station
-  const [userStations, setUserStations] = useState([]); // State for user's stations
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [stations, setStations] = useState([]);
+  const [selectedStation, setSelectedStation] = useState("");
+  const [userStations, setUserStations] = useState([]);
 
   useEffect(() => {
     fetchUsers();
-    fetchStations(); // Fetch all stations on component mount
+    fetchStations();
   }, []);
 
   useEffect(() => {
     setFilteredUsers(
-      users.filter((user) =>
+      users.filter((user: User) =>
         user.firstName.toLowerCase().includes(searchTerm.toLowerCase())
       )
     );
@@ -61,7 +61,7 @@ function StationUsersPage() {
     }
   };
 
-  const fetchUserStations = async (userId) => {
+  const fetchUserStations = async (userId: number) => {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(`/api/users/${userId}/stations`, {
@@ -79,8 +79,8 @@ function StationUsersPage() {
     }
   };
 
-  const handleUserSelect = (userId) => {
-    const userData = users.find((user) => user.id === userId);
+  const handleUserSelect = (userId: number) => {
+    const userData = users.find((user: User) => user.id === userId);
     if (userData) {
       setSelectedUser(userData);
       fetchUserStations(userId);
@@ -112,6 +112,63 @@ function StationUsersPage() {
     }
   };
 
+  const makeDefaultSation = async (stationId: number) => {
+    if (!selectedUser || !stationId) {
+      alert("Please select user and station")
+      return;
+    }
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/users/${selectedUser.id}/stations`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          stationId: stationId
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update user station");
+      } else {
+        fetchUserStations(selectedUser.id);
+      }
+    } catch (error) {
+      console.error("Error updating user station:", error);
+    }
+  };
+
+  const disableUserStation = async (userStationId: number) => {
+    if (!selectedUser || !userStationId) {
+      alert("Please select user and station")
+      return;
+    }
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/users/${selectedUser.id}/stations`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "x-action": "disable"
+        },
+        body: JSON.stringify({
+          userStationId: userStationId
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update user station");
+      } else {
+        fetchUserStations(selectedUser.id);
+      }
+    } catch (error) {
+      console.error("Error updating user station:", error);
+    }
+  };
+
+
+
   return (
     <AdminLayout>
       <div className="container my-5">
@@ -133,7 +190,7 @@ function StationUsersPage() {
               style={{ maxHeight: "400px", overflowY: "auto" }} // Make sidebar scrollable
             >
               {filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => (
+                filteredUsers.map((user: User) => (
                   <li
                     key={user.id}
                     className="list-group-item list-group-item-action"
@@ -153,7 +210,7 @@ function StationUsersPage() {
           <div className="col-md-8">
             {selectedUser ? (
               <div className="row">
-                <div className="col-md-6">
+                <div className="col-md-4">
                   <Card>
                     <Card.Header>User: {selectedUser.firstName}</Card.Header>
                     <Card.Body>
@@ -167,7 +224,7 @@ function StationUsersPage() {
                     </Card.Body>
                   </Card>
                 </div>
-                <div className="col-md-6">
+                <div className="col-md-8">
                   <Card>
                     <Card.Header>Add {selectedUser.firstName} to a station</Card.Header>
                     <Card.Body>
@@ -215,12 +272,12 @@ function StationUsersPage() {
                                       {station.is_default ? (
                                         <span>Yes</span>
                                       ) : (
-                                        <Button variant="success">Make Default</Button>
+                                        <Button variant="success" className="w-12" onClick={() => makeDefaultSation(station.station_id)}>Make Default </Button>
                                       )}
                                     </td>
                                     <td>
                                       {station.status === "enabled" && (
-                                        <Button variant="danger" className="w-12">Disable</Button>
+                                        <Button variant="danger" className="w-12" onClick={() => disableUserStation(station.id)}>Disable</Button>
                                       )}
                                     </td>
                                   </tr>

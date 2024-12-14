@@ -8,7 +8,6 @@ import QuantityModal from "./QuantityModal";
 import jwt from "jsonwebtoken";
 import { DecodedToken } from "../components/SecureRoute";
 import { Button, Modal } from "react-bootstrap";
-import { Alert } from "bootstrap";
 
 const BillingSection = () => {
   const [categories, setCategories] = useState([]);
@@ -55,10 +54,10 @@ const BillingSection = () => {
   }, []);
 
 
-  const fetchItems = async (categoryId) => {
+  const fetchItems = async (categoryId: string) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/menu/items?category=${categoryId}`, {
+      const response = await fetch(`/api/menu/items?category=${categoryId}&billing=true`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

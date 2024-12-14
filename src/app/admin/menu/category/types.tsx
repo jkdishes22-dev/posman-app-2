@@ -14,6 +14,7 @@ export type Item = {
   isGroup: boolean;
   pricelistName: number;
   pricelist_item_isEnabled: boolean;
+  stationName: string;
 };
 
 export type Station = {
@@ -30,4 +31,6 @@ export type Pricelist = {
 
 export type User = {
   id: number;
+  firstName: string;
+  lastName: string;
 };
