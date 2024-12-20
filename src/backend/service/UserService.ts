@@ -7,11 +7,11 @@ import { Permission } from "@entities/Permission";
 import { Service } from "typedi";
 import { UserStation, UserStationStatus } from "@backend/entities/UserStation";
 import { DeepPartial } from "typeorm";
-import { Station } from "@backend/entities/Station";
 
 @Service()
 export class UserService {
   private userRepository = AppDataSource.getRepository(User);
+  private roleRepository = AppDataSource.getRepository(Role);
   private userStationRepository = AppDataSource.getRepository(UserStation);
 
   public async createUser(
@@ -19,25 +19,49 @@ export class UserService {
     password: string,
     firstName: string,
     lastName: string,
+    role: number,
   ): Promise<User> {
-    const newUser: User = this.userRepository.create({
-      username,
-      password,
-      firstName,
-      lastName,
-    });
-    return this.userRepository.save(newUser);
+
+    const existingUser = await this.getUserByUsername(username);
+    if (existingUser) {
+      throw new Error("User already exists");
+    } else {
+
+      const newUser: User = this.userRepository.create({
+        username,
+        password,
+        firstName,
+        lastName,
+      });
+
+      const _role = await this.roleRepository.findOneBy(
+        {
+          id: role
+        }
+      );
+      if (_role === null) {
+        console.log("Role not found. Creating user without role");
+      } else {
+        newUser.roles = [_role];
+      }
+      return this.userRepository.save(newUser);
+    }
   }
 
   public async getUsers(): Promise<User[]> {
     const query = `select 
-                    s.id, s.lastName, s.firstName, role_id, r.name
+                    s.id, 
+                    s.lastName, 
+                    s.firstName, 
+                    s.username, 
+                    s.locked,
+                    s.last_login_date,
+                    role_id, r.name as role_name
                     from user s
                     left join user_roles ur on ur.user_id = s.id
                     left join roles r on r.id = ur.role_id`;
 
     return await AppDataSource.query(query);
-    // return this.userRepository.find();
   }
 
   async getUserByUsername(username: string) {

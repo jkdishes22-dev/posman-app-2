@@ -1,25 +1,22 @@
 "use client";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import AdminLayout from "../../../shared/AdminLayout";
-import React, { useState, useEffect } from "react";
+import NewUser from "../register/new-user";
+import { User } from "../../menu/category/types";
 
 export default function UsersPage() {
   const [showModal, setShowModal] = useState(false);
   const [users, setUsers] = useState([]);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [filter, setFilter] = useState("");
   const [error, setError] = useState("");
 
   const handleClose = () => {
     setShowModal(false);
-    resetForm();
   };
 
   const handleShow = () => {
-    resetForm();
     setShowModal(true);
   };
 
@@ -38,35 +35,11 @@ export default function UsersPage() {
       const data = await response.json();
       setUsers(data);
     } else {
-      console.error("Failed to fetch users" + response);
+      console.error("Failed to fetch users" + JSON.stringify(response));
     }
   }
 
-  function resetForm() {
-    setFirstName("");
-    setLastName("");
-    setUsername("");
-    setPassword("");
-    setConfirmPassword("");
-    setError("");
-  }
-
-  async function handleCreateUser(): Promise<void> {
-    setError("");
-    if (!username || !password) {
-      setError("Please fill in all fields");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-    const formData = {
-      firstName,
-      lastName,
-      username,
-      password,
-    };
+  async function handleCreateUser(formData) {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch("/api/users", {
@@ -77,13 +50,17 @@ export default function UsersPage() {
         },
         body: JSON.stringify(formData),
       });
-      if (response.status === 201) {
-        setError("");
-        const newUser = await response.json();
-        setUsers((prevUsers) => [...prevUsers, newUser]);
-        handleClose();
-      } else {
-        setError("User registration failed");
+
+      if (response) {
+        const data = await response.json();
+        if (response.status === 201) {
+          setError("");
+          const newUser = data;
+          setUsers((prevUsers) => [...prevUsers, newUser]);
+          handleClose();
+        } else {
+          setError(data.error);
+        }
       }
     } catch (err) {
       setError(err.message);
@@ -92,176 +69,109 @@ export default function UsersPage() {
     }
   }
 
+  const filteredUsers = users.filter((user: User) =>
+    user.firstName.toLowerCase().includes(filter.toLowerCase()) ||
+    user.lastName.toLowerCase().includes(filter.toLowerCase()) ||
+    user.username.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  const handleUserSelect = (user) => {
+    setSelectedUser(user);
+  };
+
   return (
     <AdminLayout>
       <div className="container-fluid">
-        <button
-          type="button"
-          className="btn btn-primary d-flex align-items-center"
-          onClick={handleShow}
-        >
-          <Image
-            src="/icons/person-add.svg"
-            alt="Add user"
-            width={12}
-            height={12}
-            className="m-2"
-          />
-          Add
-        </button>
-        <table className="table mt-3">
-          <thead>
-            <tr>
-              <th scope="col">First Name</th>
-              <th scope="col">Last Name</th>
-              <th scope="col">Username</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td>{user.firstName}</td>
-                <td>{user.lastName}</td>
-                <td>{user.username}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {showModal && (
-        <div
-          className="modal fade show d-block"
-          tabIndex={-1}
-          role="dialog"
-          style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div className="modal-dialog modal-dialog-centered" role="document">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Add new user</h5>
-              </div>
-              <div className="modal-body">
-                {error && <p style={{ color: "red" }}>{error}</p>}
-                <form>
-                  <div className="form-group row m-2">
-                    <label
-                      htmlFor="firstName"
-                      className="col-sm-4 col-form-label"
-                    >
-                      First Name
-                    </label>
-                    <div className="col-sm-8">
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="firstName"
-                        name="firstName"
-                        placeholder="First name"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="form-group row m-2">
-                    <label
-                      htmlFor="lastName"
-                      className="col-sm-4 col-form-label"
-                    >
-                      Last Name
-                    </label>
-                    <div className="col-sm-8">
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="lastName"
-                        name="lastName"
-                        placeholder="Last name"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="form-group row m-2">
-                    <label
-                      htmlFor="username"
-                      className="col-sm-4 col-form-label"
-                    >
-                      User name
-                    </label>
-                    <div className="col-sm-8">
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="username"
-                        name="username"
-                        placeholder="Username"
-                        autoComplete="Username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="form-group row m-2">
-                    <label
-                      htmlFor="password"
-                      className="col-sm-4 col-form-label"
-                    >
-                      Password
-                    </label>
-                    <div className="col-sm-8">
-                      <input
-                        type="password"
-                        className="form-control"
-                        id="password"
-                        name="password"
-                        placeholder="password"
-                        autoComplete="new-password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="form-group row m-2">
-                    <label
-                      htmlFor="confirmPassword"
-                      className="col-sm-4 col-form-label"
-                    >
-                      Confirm Password
-                    </label>
-                    <div className="col-sm-8">
-                      <input
-                        type="password"
-                        className="form-control"
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        placeholder="confirm Password"
-                        autoComplete="new-password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </form>
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleClose}
-                >
-                  Close
+        <div className="row">
+          <div className="col-6">
+            <button
+              type="button"
+              className="btn btn-primary d-flex align-items-center"
+              onClick={handleShow}
+            >
+              <Image
+                src="/icons/person-add.svg"
+                alt="Add user"
+                width={12}
+                height={12}
+                className="m-2"
+              />
+              Add
+            </button>
+            <input
+              type="text"
+              className="form-control mt-3"
+              placeholder="Filter users"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+            <table className="table table-striped">
+              <thead>
+                <tr>
+                  <th scope="col">First Name</th>
+                  <th scope="col">Last Name</th>
+                  <th scope="col">Username</th>
+                  <th scope="col">Locked</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} onClick={() => handleUserSelect(user)}>
+                    <td>{user.firstName}</td>
+                    <td>{user.lastName}</td>
+                    <td>{user.username}</td>
+                    <td>{user.locked ? 'Yes' : 'No'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="col-6 mt-5">
+            {selectedUser ? (
+              <div>
+                <h3>User Details: {selectedUser.firstName}</h3>
+                <h3>Role: {selectedUser.role_name}</h3>
+
+                <button type="button" className=" btn btn-outline-warning btn-sm mr-5" onClick={() => console.log('Update User', selectedUser)}>
+                  Update
                 </button>
-                <button
-                  type="button"
-                  onClick={handleCreateUser}
-                  className="btn btn-primary"
-                >
-                  Save Changes
-                </button>
+                <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => console.log('Delete User', selectedUser)}>Delete</button>
+                <button className="btn btn-outline-info btn-sm" onClick={() => console.log('Lock User', selectedUser)}>Lock</button>
+                <button className="btn btn-outline-secondary btn-sm" onClick={() => console.log('Assign Role', selectedUser)}>Assign Role</button>
+
+                <table className="table table-sm table-striped">
+                  <thead className="table-dark">
+                    <tr>
+                      <th className="p-1 m-0">First Name</th>
+                      <th className="p-1 m-0">{selectedUser.firstName}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td className="p-1 m-0">Last Name</td>
+                      <td className="p-1 m-0">{selectedUser.lastName}</td>
+                    </tr>
+                    <tr>
+                      <td className="p-1 m-0">Username</td>
+                      <td className="p-1 m-0">{selectedUser.username}</td>
+                    </tr>
+                    <tr>
+                      <td className="p-1 m-0">Locked</td>
+                      <td className="p-1 m-0">{selectedUser.locked ? 'Yes' : 'No'}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
               </div>
-            </div>
+            ) : (
+              <p>Select a user to view their details.</p>
+            )}
           </div>
         </div>
+      </div>
+      {showModal && (
+        <NewUser onClose={handleClose} onSave={handleCreateUser} error={error} />
       )}
     </AdminLayout>
   );

@@ -10,18 +10,18 @@ export const createUserHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
-  const { username, password, firstName, lastName } = req.body;
-  try {
+  const { username, password, firstName, lastName, role } = req.body;
+  try {   
     const newUser = await userService.createUser(
       username,
       password,
       firstName,
       lastName,
+      role,
     );
     res.status(201).json(newUser);
   } catch (error) {
-    console.error("Error creating user:", error);
-    res.status(500).json({ error: "Error creating user" + error });
+    res.status(500).json({ error: "Error creating user " + error });
   }
 };
 
@@ -32,7 +32,7 @@ export const getUsersHandler = async (
   try {
     const users = await userService.getUsers();
     res.status(200).json(users);
-  } catch (error) {
+  } catch (error) {  
     res.status(500).json({ error: "Error fetching users" + error });
   }
 };

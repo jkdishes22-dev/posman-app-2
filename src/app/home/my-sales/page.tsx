@@ -154,7 +154,10 @@ const MySales = () => {
                                 <td>{item.quantity}</td>
                                 <td>${item.subtotal}</td>
                                 <td>
-                                  <Button variant="danger">Void Request</Button>
+                                  {selectedBill.status === 'submitted' ? (
+                                     <Button variant="danger">Void Request</Button>
+                                  ) : ('')}
+                                 
                                 </td>
                               </tr>
                             ))
