@@ -45,8 +45,8 @@ export const AppDataSource = new DataSource({
   logging: ["error"],
   timezone: "Africa/Nairobi",
   pool: {
-    min: 2,
-    max: 10,
+    min: 5,
+    max: 20,
   }
 });
 

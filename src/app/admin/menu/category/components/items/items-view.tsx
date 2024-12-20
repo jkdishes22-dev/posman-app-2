@@ -55,7 +55,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
 
   const confirmDelete = () => {
     if (itemToDelete) {
-      handleDeleteItem?.(itemToDelete.id); // Call if defined
+      handleDeleteItem?.(itemToDelete.id);
       setShowDeleteModal(false);
     }
   };

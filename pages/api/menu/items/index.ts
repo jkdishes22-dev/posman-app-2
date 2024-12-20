@@ -4,16 +4,26 @@ import { NextApiRequest, NextApiResponse } from "next";
 import {
   createItemHandler,
   fetchItemsHandler,
+  filterItemsHandler, // Import the new handler
 } from "@controllers/ItemController";
 import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   await ensureMetadata("Item");
 
+  console.log("Handling request:", req.method, req.url); // Log the request method and URL
+
   if (req.method === "GET") {
-    await authMiddleware(
-      authorize([permissions.CAN_VIEW_ITEM])(fetchItemsHandler),
-    )(req, res);
+    const { search } = req.query;
+    if (req.query && search) {
+      await authMiddleware(
+        authorize([permissions.CAN_VIEW_ITEM])(filterItemsHandler),
+      )(req, res);
+    } else {
+      await authMiddleware(
+        authorize([permissions.CAN_VIEW_ITEM])(fetchItemsHandler),
+      )(req, res);
+    }
   } else if (req.method === "POST") {
     await authMiddleware(
       authorize([permissions.CAN_ADD_ITEM])(createItemHandler),

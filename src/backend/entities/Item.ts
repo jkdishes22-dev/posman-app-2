@@ -6,17 +6,16 @@ import {
   JoinColumn,
   ManyToMany,
   JoinTable,
+  OneToMany,
 } from "typeorm";
 import { Category } from "@entities/Category";
-import { PricelistItem } from "@entities/PricelistItem";
-import { BillItem } from "@entities/BillItem";
-import { BillStatus } from "@entities/Bill";
+import { ItemGroup } from "./ItemGroup"; // Import the ItemGroup entity
 
 export enum ItemStatus {
-    ACTIVE = "ACTIVE",
-    DELETED = "DELETED",
-
+  ACTIVE = "ACTIVE",
+  DELETED = "DELETED",
 }
+
 @Entity()
 export class Item {
   @PrimaryGeneratedColumn()

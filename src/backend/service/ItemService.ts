@@ -1,18 +1,16 @@
 import { AppDataSource } from "@backend/config/data-source";
-import { Category, CategoryStatus } from "@entities/Category";
+import { Category } from "@entities/Category";
 import { Item, ItemStatus } from "@entities/Item";
 import { Currency, PricelistItem } from "@entities/PricelistItem";
-import { EntityManager, In, Repository } from "typeorm";
+import { EntityManager, In, Like, Repository } from "typeorm";
 import { ItemGroup } from "@entities/ItemGroup";
 
 export class ItemService {
-  private categoryRepository: Repository<Category>;
   private itemRepository: Repository<Item>;
   private pricelistItemRepository: Repository<PricelistItem>;
   private itemGroupRepository: Repository<ItemGroup>;
 
   constructor() {
-    this.categoryRepository = AppDataSource.getRepository(Category);
     this.itemRepository = AppDataSource.getRepository(Item);
     this.pricelistItemRepository = AppDataSource.getRepository(PricelistItem);
     this.itemGroupRepository = AppDataSource.getRepository(ItemGroup);
@@ -66,12 +64,12 @@ export class ItemService {
         "s.name as stationName"
       ]);
 
-    // if (billing) {
+    if (billing) {
       query.andWhere("pi.is_enabled = :enabled", { enabled: 1 });
       query.andWhere("us.status = :status", { status: 'enabled' })
       query.andWhere("us.is_default = :is_default", { is_default: 1 })
       query.andWhere("u.id = :id", { id: user_id })
-    // }
+    }
 
     if (categoryId) {
       query.andWhere("category.id = :categoryId", { categoryId });
@@ -163,9 +161,9 @@ export class ItemService {
   }
 
   private async createNewPricelistItem(
-    price,
+    price: any,
     user_id: number,
-    pricelistId,
+    pricelistId: number,
     itemData: Partial<Item>,
     transactionalEntityManager: EntityManager,
   ) {
@@ -197,35 +195,53 @@ export class ItemService {
       .execute();
   }
 
-  async fetchGroupedItems() {
-    const groupsWithItems = await this.itemRepository
+  async fetchGroupedItems(groupId?: number) {
+    const queryBuilder = this.itemRepository
       .createQueryBuilder("group")
       .leftJoinAndSelect("group.subItems", "subItem")
-      .where("group.isGroup = :isGroup", { isGroup: true })
-      .select([
-        "group.id", // Item group ID
-        "group.name", // Item group name
-        "subItem.id", // Sub-item ID
-        "subItem.name", // Sub-item name
-      ])
-      .getMany();
+      .leftJoin("item_group", "groupSubItem", "groupSubItem.item_id = group.id AND groupSubItem.sub_item_id = subItem.id")
+      .where("group.isGroup = :isGroup", { isGroup: true });
 
-    return groupsWithItems.map((group) => ({
-      id: group.id,
-      name: group.name,
-      items: group.subItems.map((subItem) => ({
-        id: subItem.id,
-        name: subItem.name,
-      })),
-    }));
+    if (groupId) {
+      queryBuilder.andWhere("group.id = :groupId", { groupId });
+    }
+
+    const rawResults = await queryBuilder
+      .select([
+        "group.id AS group_id",
+        "group.name AS group_name",
+        "subItem.id AS subItem_id",
+        "subItem.name AS subItem_name",
+        "groupSubItem.portion_size AS portion_size"
+      ])
+      .getRawMany();
+
+    const groupsWithItems = rawResults.reduce((acc, row) => {
+      let group = acc.find(g => g.id === row.group_id);
+      if (!group) {
+        group = {
+          id: row.group_id,
+          name: row.group_name,
+          items: []
+        };
+        acc.push(group);
+      }
+      group.items.push({
+        id: row.subItem_id,
+        name: row.subItem_name,
+        portionSize: row.portion_size
+      });
+      return acc;
+    }, []);
+
+    return groupsWithItems;
   }
 
   async createGroupedItem(
-    itemId: number,
-    subItemId: number,
-    // portionSize: number,
+    groupItemRequest: { itemId: any; subItemId: any; portionSize: any; }
   ) {
     try {
+      const { itemId, subItemId, portionSize } = groupItemRequest;
       const items = await this.itemRepository.find({
         where: { id: In([itemId, subItemId]) },
       });
@@ -250,15 +266,37 @@ export class ItemService {
       const newItemGroup = new ItemGroup();
       newItemGroup.item = item;
       newItemGroup.subItem = subItem;
-      // newItemGroup.portionSize = portionSize;
+      newItemGroup.portion_size = portionSize;
 
       await this.itemGroupRepository.save(newItemGroup);
 
-      console.log("Group item added successfully.");
       return newItemGroup;
     } catch (error) {
       console.error("Error adding group item:", error);
       throw error;
     }
+  };
+
+  async filterItems(criteria: Record<string, any>) {
+    const queryBuilder = this.itemRepository.
+      createQueryBuilder("item").
+      where("item.name LIKE :search", { search: `%${criteria.search}%` });
+    if (criteria.excludeGrouped) {
+      queryBuilder.andWhere("item.is_group = :isGroup", { isGroup: false });
+    }
+    return await queryBuilder.getMany();
   }
-}
+
+
+  async fetchGroupItems(groupId: number) {
+
+  }
+
+  async removeItemFromGroup(groupId: number, itemId: number) {
+    await this.itemGroupRepository.delete(
+      {
+        item: { id: parseInt(groupId) },
+        subItem: { id: parseInt(itemId) },
+      });
+  };
+};

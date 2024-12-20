@@ -11,6 +11,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       authorize([permissions.CAN_VIEW_ITEM])(fetchGroupedItemsHandler),
     )(req, res);
   }
+  else {
+    res.setHeader("Allow", ["GET"]);
+    res.status(405).end(`Method ${req.method} Not Allowed`);
+  }
 };
+
 
 export default handler;

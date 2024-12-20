@@ -4,8 +4,8 @@ import { BaseEntity } from "@entities/BaseEntity";
 
 @Entity()
 export class ItemGroup extends BaseEntity {
-  @Column()
-  name!: string;
+  @Column("decimal", { precision: 10, scale: 2 })
+  portion_size!: number;
 
   @ManyToOne(() => Item, { eager: true })
   @JoinColumn({ name: "item_id" })

@@ -3,42 +3,33 @@
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import AdminLayout from "../../../../../../shared/AdminLayout";
-import {
-  Modal,
-  Button,
-  ModalHeader,
-  ModalTitle,
-  ModalBody,
-  ModalFooter,
-} from "react-bootstrap";
-import AsyncSelect from "react-select/async"; // For typeahead searchable dropdown
+import AddGroupItemModal from "./add-group-item";
+import { Modal, Button } from 'react-bootstrap';
 
 function GroupedItemsPage() {
   const [groups, setGroups] = useState([]);
   const [filteredGroups, setFilteredGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const [selectedGroupName, setSelectedGroupName] = useState("");
   const [groupItems, setGroupItems] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null); // For storing selected item
-  const [portionSize, setPortionSize] = useState("");
-  const [searchTerm, setSearchTerm] = useState(""); // State for group search term
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [itemToRemove, setItemToRemove] = useState(null);
 
   useEffect(() => {
     fetchGroups();
   }, []);
 
   useEffect(() => {
-    // Filter groups based on the search term
-    setFilteredGroups(
-      groups.filter((group) =>
-        group.name.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
-    );
+    setFilteredGroups(groups.filter(group =>
+      group.name.toLowerCase().includes(searchTerm.toLowerCase())
+    ));
   }, [searchTerm, groups]);
 
   const fetchGroups = async () => {
+    const token = localStorage.getItem("token");
     try {
-      const token = localStorage.getItem("token");
       const response = await fetch("/api/menu/items/groups", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -47,87 +38,109 @@ function GroupedItemsPage() {
       if (!response.ok) throw new Error("Failed to fetch groups");
       const data = await response.json();
       setGroups(data);
-      setFilteredGroups(data); // Initialize filtered groups with all groups
+      setFilteredGroups(data);
     } catch (error) {
       console.error("Error fetching groups:", error);
     }
   };
 
-  const fetchItems = async (inputValue) => {
-    // Fetch item names from the backend based on the search input
+  const handleGroupSelect = async (groupId) => {
+    const groupData = groups.find((group) => group.id === groupId);
+
+    console.log("group  Data " + JSON.stringify(groupData))
+    if (groupData) {
+      setSelectedGroup(groupId);
+      setSelectedGroupName(groupData.name);
+      await fetchGroupItemsFromBackend(groupId);
+    }
+  };
+
+  const addItemToGroup = async (itemId, portionSize) => {
+    if (!selectedGroup) {
+      return;
+    }
+    const token = localStorage.getItem("token");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/menu/items?search=${inputValue}`, {
+      const response = await fetch(`/api/menu/items/groups/${selectedGroup}`, {
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-      });
-      if (!response.ok) throw new Error("Failed to fetch items");
-      const data = await response.json();
-      return data.map((item) => ({
-        label: item.name, // Display name
-        value: item.id, // Use item ID as the value
-      }));
-    } catch (error) {
-      console.error("Error fetching items:", error);
-      return [];
-    }
-  };
-
-  const handleGroupSelect = (groupId) => {
-    const groupData = groups.find((group) => group.id === groupId);
-    if (groupData) {
-      setGroupItems(groupData.items || []);
-      setSelectedGroup(groupId);
-    }
-  };
-
-  const addItemToGroup = async () => {
-    try {
-      if (!selectedItem || !portionSize) {
-        alert("Please fill in both fields.");
-        return;
-      }
-
-      const response = await fetch(`/api/groups/${selectedGroup}/items/add`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          itemId: selectedItem.value,
+          itemId: selectedGroup,
+          subItemId: itemId,
           portionSize: portionSize,
         }),
       });
       if (!response.ok) throw new Error("Failed to add item");
 
-      fetchGroupItems(selectedGroup);
+      await fetchGroupItemsFromBackend(selectedGroup);
       closeModal();
     } catch (error) {
       console.error("Error adding item to group:", error);
     }
   };
 
-  const fetchGroupItems = async (groupId) => {
+  const fetchGroupItemsFromBackend = async (groupId) => {
+    const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`/api/menu/items/groups/${groupId}/items`);
+      const response = await fetch(`/api/menu/items/groups/${groupId}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!response.ok) throw new Error("Failed to fetch group items");
       const data = await response.json();
-      setGroupItems(data);
-      setSelectedGroup(groupId);
+
+      // Ensure the items are extracted and set correctly
+      console.log("data fetched from the backend " + JSON.stringify(data))
+
+      const items = data[0].items || [];
+      setGroupItems(items);
+      updateGroupsInState(groupId, items);
     } catch (error) {
       console.error("Error fetching group items:", error);
     }
   };
 
-  const removeItemFromGroup = async (itemId) => {
+  const updateGroupsInState = (groupId, updatedItems) => {
+    const updatedGroups = groups.map(group => {
+      if (group.id === groupId) {
+        return { ...group, items: updatedItems };
+      }
+      return group;
+    });
+    setGroups(updatedGroups);
+    setFilteredGroups(updatedGroups);
+  };
+
+  const confirmRemoveItem = (itemId: number) => {
+    setItemToRemove(itemId);
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmRemove = async () => {
+    setShowConfirmation(false);
+    if (itemToRemove !== null) {
+      await removeItemFromGroup(itemToRemove);
+      setItemToRemove(null);
+    }
+  };
+
+  const removeItemFromGroup = async (itemId: number) => {
+    const token = localStorage.getItem("token");
     try {
-      const response = await fetch(
-        `/api/groups/${selectedGroup}/items/${itemId}/remove`,
-        {
-          method: "DELETE",
-        },
-      );
+      const response = await fetch(`/api/menu/items/groups/${selectedGroup}/items/${itemId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      });
       if (!response.ok) throw new Error("Failed to remove item");
-      fetchGroupItems(selectedGroup);
+
+      await fetchGroupItemsFromBackend(selectedGroup);
     } catch (error) {
       console.error("Error removing item from group:", error);
     }
@@ -139,19 +152,15 @@ function GroupedItemsPage() {
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedItem(null); // Reset selected item
-    setPortionSize("");
   };
 
   return (
     <AdminLayout>
       <div className="container my-5">
         <div className="row">
-          {/* Sidebar: Group List */}
           <div className="col-md-4">
             <h4>Groups</h4>
             <div className="mb-3">
-              {/* Search Input */}
               <input
                 type="text"
                 className="form-control"
@@ -160,10 +169,7 @@ function GroupedItemsPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div
-              className="list-group"
-              style={{ maxHeight: "400px", overflowY: "auto" }} // Make sidebar scrollable
-            >
+            <div className="list-group" style={{ maxHeight: "400px", overflowY: "auto" }}>
               {filteredGroups.length > 0 ? (
                 filteredGroups.map((group) => (
                   <li
@@ -181,23 +187,16 @@ function GroupedItemsPage() {
             </div>
           </div>
 
-          {/* Main Content: Group Items */}
           <div className="col-md-8">
-            <h4>
-              Items in Group{" "}
-              {selectedGroup
-                ? `: ${groups.find((group) => group.id === selectedGroup)?.name}`
-                : ""}
-            </h4>
+            <h4>Items in Group {selectedGroup ? `: ${selectedGroupName}` : ""}</h4>
             {selectedGroup ? (
               <>
-                <button className="btn btn-success mb-3" onClick={openModal}>
-                  Add New Item
-                </button>
+                <button className="btn btn-success mb-3" onClick={openModal}>Add New Item</button>
                 <table className="table table-striped">
                   <thead>
                     <tr>
                       <th>Name</th>
+                      <th>Portion size</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -206,19 +205,15 @@ function GroupedItemsPage() {
                       groupItems.map((item) => (
                         <tr key={item.id}>
                           <td>{item.name}</td>
+                          <td>{item.portionSize}</td>
                           <td>
-                            <button
-                              className="btn btn-danger btn-sm"
-                              onClick={() => removeItemFromGroup(item.id)}
-                            >
-                              Remove
-                            </button>
+                            <button className="btn btn-danger btn-sm" onClick={() => confirmRemoveItem(item.id)}>Remove</button>
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="2">No items available.</td>
+                        <td colSpan="3">No items available.</td>
                       </tr>
                     )}
                   </tbody>
@@ -231,45 +226,27 @@ function GroupedItemsPage() {
         </div>
       </div>
 
-      {/* Modal for Adding Item */}
-      <Modal show={isModalOpen} onHide={closeModal}>
-        <ModalHeader closeButton>
-          <ModalTitle>Add New Item</ModalTitle>
-        </ModalHeader>
-        <ModalBody>
-          <div className="form-group">
-            <label htmlFor="item-select">Select Item</label>
-            <AsyncSelect
-              id="item-select"
-              cacheOptions
-              loadOptions={fetchItems} // Fetch items from backend
-              onChange={setSelectedItem} // Set selected item
-              value={selectedItem}
-              getOptionLabel={(e) => e.label} // Display item name
-              getOptionValue={(e) => e.value} // Use item ID as value
-              placeholder="Search for an item"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="portion-size">Portion Size</label>
-            <input
-              type="number"
-              id="portion-size"
-              className="form-control"
-              value={portionSize}
-              onChange={(e) => setPortionSize(e.target.value)}
-              placeholder="Enter portion size"
-            />
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="secondary" onClick={closeModal}>
-            Close
+      <AddGroupItemModal
+        isModalOpen={isModalOpen}
+        closeModal={closeModal}
+        selectedGroup={selectedGroup}
+        selectedGroupName={selectedGroupName}
+        addItemToGroup={addItemToGroup}
+      />
+
+      <Modal show={showConfirmation} onHide={() => setShowConfirmation(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Action</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>Are you sure you want to remove this item from the group?</Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowConfirmation(false)}>
+            Cancel
           </Button>
-          <Button variant="primary" onClick={addItemToGroup}>
-            Add Item
+          <Button variant="danger" onClick={handleConfirmRemove}>
+            Confirm
           </Button>
-        </ModalFooter>
+        </Modal.Footer>
       </Modal>
     </AdminLayout>
   );
