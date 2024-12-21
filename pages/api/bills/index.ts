@@ -3,7 +3,7 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import permissions from "@backend/config/managed-roles";
 import {
   createBill,
-  fetchBillsByDate,
+  fetchBills,
   cancelBill,
   voidBillItem,
 } from "@controllers/BillController";
@@ -22,7 +22,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   if (req.method === "GET") {
     return authMiddleware(
-      authorize([permissions.CAN_VIEW_BILL])(fetchBillsByDate),
+      authorize([permissions.CAN_VIEW_BILL])(fetchBills),
     )(req, res);
   }
 

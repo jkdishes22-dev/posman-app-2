@@ -14,13 +14,13 @@ export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-// Fetch bills by date (defaulting to current date)
-export const fetchBillsByDate = async (
+
+export const fetchBills = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
   const userId = req.user?.id;
-  const { date } = req.query;
+  const { date, status, billId } = req.query;
 
   const targetDate = date ? new Date(date as string) : new Date();
   if (isNaN(targetDate.getTime())) {
@@ -28,13 +28,14 @@ export const fetchBillsByDate = async (
   }
 
   try {
-    const bills = await billService.fetchBillsByDate(userId, targetDate);
+    const bills = await billService.fetchBills(userId, {targetDate, status, billId});
     res.status(200).json(bills);
   } catch (error) {
     console.error("Error fetching bills:", error);
     res.status(500).json({ error: `Error fetching bills: ${error.message}` });
   }
 };
+
 
 // Cancel a bill
 export const cancelBill = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -79,3 +80,17 @@ export const fetchBillItems = async (
     res.status(500).json({ message: "Error fetching permissions", error });
   }
 };
+
+export const submitBill = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  try {
+     const billPayment  = req.body;
+     console.log(billPayment);
+     console.log(req.body);
+     const submit = await billService.submitBill(billPayment)
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching permissions", error });
+  }
+}

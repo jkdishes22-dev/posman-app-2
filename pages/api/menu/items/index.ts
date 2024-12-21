@@ -10,9 +10,6 @@ import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   await ensureMetadata("Item");
-
-  console.log("Handling request:", req.method, req.url); // Log the request method and URL
-
   if (req.method === "GET") {
     const { search } = req.query;
     if (req.query && search) {

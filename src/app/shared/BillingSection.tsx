@@ -139,7 +139,6 @@ const BillingSection = () => {
       if (!response.ok) {
         throw new Error("Failed to submit picked items");
       }
-      console.log("Items submitted successfully!");
       setShowSubmitModal(false);
       window.location.reload();
     } catch (error) {
@@ -207,7 +206,7 @@ const BillingSection = () => {
             onClick={handleShowSubmitModal}
             disabled={selectedItems.length === 0}
           >
-            Submit
+            Create Bill
           </Button>
           <Button className="m-2" variant="secondary" onClick={handleShowCancelModal}>
             Cancel

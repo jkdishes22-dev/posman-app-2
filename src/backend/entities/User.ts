@@ -8,6 +8,7 @@ import {
 } from "typeorm";
 import bcrypt from "bcryptjs";
 import { Role } from "@entities/Role";
+import { Exclude } from "class-transformer";
 
 @Entity()
 export class User {
@@ -24,6 +25,7 @@ export class User {
   firstName!: string;
 
   @Column()
+  @Exclude()
   password!: string;
 
   @ManyToMany(() => Role, (role) => role.users)

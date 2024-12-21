@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, JoinColumn, ManyToOne } from "typeorm";
 import { BillItem } from "@entities/BillItem";
+import { User } from "./User";
 
 export enum BillStatus {
   PENDING = "pending",
@@ -13,8 +14,9 @@ export class Bill {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  user_id: number;
+  @ManyToOne(() => User, user => user.bills)
+  @JoinColumn({ name: "user_id" })
+  user: User;
 
   @Column({
     type: "enum",

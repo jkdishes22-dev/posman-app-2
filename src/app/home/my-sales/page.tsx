@@ -1,44 +1,85 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import SecureRoute from "../../components/SecureRoute";
 import HomePageLayout from "../../shared/HomePageLayout";
-import DatePicker from "react-datepicker"; // Import a date picker library
-import "react-datepicker/dist/react-datepicker.css"; // Date picker styles
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { formatISO } from "date-fns";
-import { Button } from "react-bootstrap";
+import { Button, Form } from "react-bootstrap";
+import SubmitBillModal from "./submit-bill";
 
 const MySales = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [bills, setBills] = useState([]); // Bills state
-  const [selectedBill, setSelectedBill] = useState(null); // Selected bill for displaying items
-  const [billItems, setBillItems] = useState([]); // Bill items state
+  const [bills, setBills] = useState([]);
+  const [filteredBills, setFilteredBills] = useState([]);
+  const [selectedBill, setSelectedBill] = useState(null);
+  const [billItems, setBillItems] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [billIdFilter, setBillIdFilter] = useState("");
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
   };
 
-  useEffect(() => {
-    if (selectedDate) {
-      fetchBillsByDate(selectedDate);
+  const handleBillIdChange = (e) => {
+    const filter = e.target.value;
+    setBillIdFilter(filter);
+
+    if (filter === "") {
+      setFilteredBills(bills);
+    } else {
+      const filtered = bills.filter((bill) => bill.id.toString().includes(filter));
+      setFilteredBills(filtered);
+
+      if (filtered.length === 0) {
+        fetchBillsByBillId(filter);
+      }
     }
-  }, [selectedDate]);
+  };
 
   const fetchBillsByDate = async (date) => {
     const token = localStorage.getItem("token");
     const formattedDate = formatISO(date, { representation: "date" });
+
     try {
       const response = await fetch(`/api/bills?date=${formattedDate}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+
       if (!response.ok) {
         throw new Error("Failed to fetch bills");
       }
+
       const data = await response.json();
-      setBills(data); // Populate bills data
+      setBills(data);
+      setFilteredBills(data);
     } catch (error) {
       console.error("Error fetching bills:", error);
+    }
+  };
+
+  const fetchBillsByBillId = async (billId) => {
+    const token = localStorage.getItem("token");
+
+    try {
+      const response = await fetch(`/api/bills?billId=${billId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch bills by Bill ID");
+      }
+
+      const data = await response.json();
+      setBills(data);
+      setFilteredBills(data);
+    } catch (error) {
+      console.error("Error fetching bills by Bill ID:", error);
     }
   };
 
@@ -50,11 +91,13 @@ const MySales = () => {
           Authorization: `Bearer ${token}`,
         },
       });
+
       if (!response.ok) {
         throw new Error("Failed to fetch bill items");
       }
+
       const data = await response.json();
-      setBillItems(data); // Populate selected bill items
+      setBillItems(data);
     } catch (error) {
       console.error("Error fetching bill items:", error);
     }
@@ -65,49 +108,65 @@ const MySales = () => {
     fetchBillItems(bill.id);
   };
 
+  const openModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
+  useEffect(() => {
+    if (selectedDate) {
+      fetchBillsByDate(selectedDate);
+    }
+  }, [selectedDate]);
+
   return (
     <HomePageLayout>
       <SecureRoute roleRequired="user">
         <div className="container">
           <div className="row">
-            {/* Left Column - Bills */}
             <div className="col-4">
-              <DatePicker
-                className="border border-1 border-primary rounded"
-                selected={selectedDate}
-                onChange={handleDateChange}
-                dateFormat="yyyy-MM-dd"
-                placeholderText="Select billing date"
-                maxDate={new Date()}
-              />
+              <div className="d-flex align-items-center mb-3">
+                <DatePicker
+                  className="form-control me-3"
+                  selected={selectedDate}
+                  onChange={handleDateChange}
+                  dateFormat="yyyy-MM-dd"
+                  placeholderText="Select billing date"
+                  maxDate={new Date()}
+                />
+                <Form.Control
+                  type="text"
+                  className="form-control"
+                  placeholder="Search by Bill ID"
+                  value={billIdFilter}
+                  onChange={handleBillIdChange}
+                />
+              </div>
               <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
                 <table className="table stripped">
-                  <thead
-                    style={{
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#fff",
-                      zIndex: 1,
-                    }}
-                  >
+                  <thead>
                     <tr>
+                      <th>Bill ID</th>
                       <th>Status</th>
                       <th>Amount</th>
                       <th>Bill Date</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {bills.length > 0 ? (
-                      bills.map((bill) => (
-                        <tr key={bill.id} onClick={() => handleBillClick(bill)}>
+                    {filteredBills.length > 0 ? (
+                      filteredBills.map((bill) => (
+                        <tr
+                          key={bill.id}
+                          onClick={() => handleBillClick(bill)}
+                          className={selectedBill?.id === bill.id ? "table-active" : ""}
+                        >
+                          <td>{bill.id}</td>
                           <td>{bill.status}</td>
                           <td>${bill.total}</td>
-                          <td>
-                            {new Date(bill.created_at)
-                              .toISOString()
-                              .slice(0, 19)
-                              .replace("T", " ")}
-                          </td>
+                          <td>{new Date(bill.created_at).toLocaleString()}</td>
                         </tr>
                       ))
                     ) : (
@@ -119,15 +178,26 @@ const MySales = () => {
                 </table>
               </div>
             </div>
-            {/* Right Column - Bill Items */}
+
             <div className="col-8">
               {selectedBill ? (
                 <div>
                   <div className="card">
                     <div className="card-body">
-                      <Button className="m-2" variant="success">
-                        Complete Bill (KES: {selectedBill.total})
-                      </Button>
+                      {selectedBill.status === "pending" ? (
+                        <Button
+                          className="m-2"
+                          variant="success"
+                          onClick={openModal}
+                        >
+                          Submit Bill (KES: {selectedBill.total})
+                        </Button>
+                      ) : (
+                        <span className="text-success">
+                          Bill is {selectedBill.status}
+                        </span>
+                      )}
+
                       <table className="table stripped">
                         <thead>
                           <tr>
@@ -143,21 +213,15 @@ const MySales = () => {
                           {billItems.length > 0 ? (
                             billItems.map((item) => (
                               <tr key={item.id}>
-                                <td>
-                                  {new Date(item.created_at)
-                                    .toISOString()
-                                    .slice(0, 19)
-                                    .replace("T", " ")}
-                                </td>
+                                <td>{new Date(item.created_at).toLocaleString()}</td>
                                 <td>{item.item_name}</td>
                                 <td>${item.item_price}</td>
                                 <td>{item.quantity}</td>
                                 <td>${item.subtotal}</td>
                                 <td>
-                                  {selectedBill.status === 'submitted' ? (
-                                     <Button variant="danger">Void Request</Button>
-                                  ) : ('')}
-                                 
+                                  {selectedBill.status === "pending" ? (
+                                    <Button variant="danger">Void Request</Button>
+                                  ) : null}
                                 </td>
                               </tr>
                             ))
@@ -177,6 +241,12 @@ const MySales = () => {
             </div>
           </div>
         </div>
+
+        <SubmitBillModal
+          show={isModalOpen}
+          onHide={closeModal}
+          selectedBill={selectedBill}
+        />
       </SecureRoute>
     </HomePageLayout>
   );

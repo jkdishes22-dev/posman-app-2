@@ -27,7 +27,6 @@ export class RoleService {
   }
 
   async addPermissionToRole(roleId: any, permissionId: any) {
-
     const role = await this.roleRepository.findOneBy({ id: roleId });
     const permission = await this.permissionRepository.findOneBy({
       id: permissionId,

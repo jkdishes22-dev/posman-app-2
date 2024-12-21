@@ -16,6 +16,8 @@ import { Pricelist } from "@entities/Pricelist";
 import { PricelistItem } from "@entities/PricelistItem";
 import { Station } from "@backend/entities/Station";
 import { UserStation } from "@backend/entities/UserStation";
+import { BillPayment } from "@backend/entities/BillPayment";
+import { Payment } from "@backend/entities/Payment";
 
 export const AppDataSource = new DataSource({
   type: "mysql",
@@ -39,15 +41,13 @@ export const AppDataSource = new DataSource({
     Pricelist,
     PricelistItem,
     Station,
-    UserStation
+    UserStation,
+    Payment,
+    BillPayment
   ],
   synchronize: false,
   logging: ["error"],
   timezone: "Africa/Nairobi",
-  pool: {
-    min: 5,
-    max: 20,
-  }
 });
 
 AppDataSource.initialize()

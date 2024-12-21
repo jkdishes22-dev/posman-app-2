@@ -38,8 +38,12 @@ const LoginForm = () => {
 
         if (role === "admin") {
           router.push("/admin");
-        } else {
+        } else if (role === 'user') {
           router.push("/home");
+        } else if (role === 'cashier') {
+          router.push("/home/cashier");
+        } else {
+          router.push("/");
         }
       } else {
         setError("Login Failed! Invalid credentials");
