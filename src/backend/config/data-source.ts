@@ -1,7 +1,9 @@
+// data-source.ts
 import "reflect-metadata";
 import { DataSource } from "typeorm";
-import { User } from "@entities/User";
 import * as process from "process";
+
+import { User } from "@entities/User";
 import { Role } from "@entities/Role";
 import { Permission } from "@entities/Permission";
 import { UserRole } from "@entities/UserRole";
@@ -38,22 +40,36 @@ export const AppDataSource = new DataSource({
     PermissionScope,
     Bill,
     BillItem,
+    Payment,
+    BillPayment,
     Pricelist,
     PricelistItem,
     Station,
     UserStation,
-    Payment,
-    BillPayment
+ 
   ],
   synchronize: false,
   logging: ["error"],
   timezone: "Africa/Nairobi",
 });
 
-AppDataSource.initialize()
-  .then(() => {
+export const getDataSource34 = async (): Promise<DataSource> => {
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize();
     console.log("Data Source has been initialized!");
-  })
-  .catch((err) => {
-    console.error("Error during Data Source initialization:", err);
-  });
+  }
+  return AppDataSource;
+};
+
+
+export const getDataSource = async (): Promise<DataSource> => {
+  try {
+    if (!AppDataSource.isInitialized) {
+      await AppDataSource.initialize();
+      console.log("Data Source has been initialized!");
+    }
+    return AppDataSource;
+  } catch (error) {
+    throw new Error('Failed to initialize the data source');
+  }
+};

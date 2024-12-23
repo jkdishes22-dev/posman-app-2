@@ -25,8 +25,8 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
   };
 
   const totalPaid =
-    (paymentMethod === "cash" || paymentMethod === "both" ? Number(cashAmount) : 0) +
-    (paymentMethod === "mpesa" || paymentMethod === "both" ? Number(mpesaAmount) : 0);
+    (paymentMethod === "cash" || paymentMethod === "cash_mpesa" ? Number(cashAmount) : 0) +
+    (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa" ? Number(mpesaAmount) : 0);
 
   const pendingAmount = totalAmount - totalPaid;
 
@@ -35,7 +35,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
     if (/^\d*\.?\d*$/.test(value)) {
       const newCashAmount = value;
       const newTotalPaid =
-        (paymentMethod === "mpesa" || paymentMethod === "both" ? Number(mpesaAmount) : 0) +
+        (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa" ? Number(mpesaAmount) : 0) +
         Number(newCashAmount);
 
       if (newTotalPaid <= totalAmount) {
@@ -44,7 +44,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
         setCashAmount(
           (
             totalAmount -
-            (paymentMethod === "mpesa" || paymentMethod === "both" ? Number(mpesaAmount) : 0)
+            (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa" ? Number(mpesaAmount) : 0)
           ).toString()
         );
       }
@@ -56,7 +56,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
     if (/^\d*\.?\d*$/.test(value)) {
       const newMpesaAmount = value;
       const newTotalPaid =
-        (paymentMethod === "cash" || paymentMethod === "both" ? Number(cashAmount) : 0) +
+        (paymentMethod === "cash" || paymentMethod === "cash_mpesa" ? Number(cashAmount) : 0) +
         Number(newMpesaAmount);
 
       if (newTotalPaid <= totalAmount) {
@@ -65,7 +65,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
         setMpesaAmount(
           (
             totalAmount -
-            (paymentMethod === "cash" || paymentMethod === "both" ? Number(cashAmount) : 0)
+            (paymentMethod === "cash" || paymentMethod === "cash_mpesa" ? Number(cashAmount) : 0)
           ).toString()
         );
       }
@@ -73,16 +73,16 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
   };
 
   const handleSubmit = async () => {
-    if ((paymentMethod === "mpesa" || paymentMethod === "both") && !mpesaCode && Number(mpesaAmount) > 0) {
+    if ((paymentMethod === "mpesa" || paymentMethod === "cash_mpesa") && !mpesaCode && Number(mpesaAmount) > 0) {
       setErrorMessage("Please enter an M-Pesa payment code.");
       return;
     }
 
     const paymentDetails = {
       paymentMethod,
-      cashAmount: paymentMethod === "cash" || paymentMethod === "both" ? Number(cashAmount) : 0,
-      mpesaAmount: paymentMethod === "mpesa" || paymentMethod === "both" ? Number(mpesaAmount) : 0,
-      mpesaCode: paymentMethod === "mpesa" || paymentMethod === "both" ? mpesaCode : null,
+      cashAmount: paymentMethod === "cash" || paymentMethod === "cash_mpesa" ? Number(cashAmount) : 0,
+      mpesaAmount: paymentMethod === "mpesa" || paymentMethod === "cash_mpesa" ? Number(mpesaAmount) : 0,
+      mpesaCode: paymentMethod === "mpesa" || paymentMethod === "cash_mpesa" ? mpesaCode : null,
       pendingAmount: pendingAmount > 0 ? pendingAmount : 0,
       billId: selectedBill?.id
     };
@@ -113,7 +113,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
     }
   };
 
-  const isCashFullPayment = Number(cashAmount) >= totalAmount;
+  const isCashFullPayment = (Number(cashAmount) || Number(mpesaAmount)) >= totalAmount;
 
   return (
     <Modal show={show} onHide={handleClose}>
@@ -149,11 +149,11 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
               />
               <Form.Check
                 type="radio"
-                label="Both (Cash & M-Pesa)"
+                label="Cash_mpesa (Cash & M-Pesa)"
                 name="paymentMethod"
-                value="both"
-                checked={paymentMethod === "both"}
-                onChange={() => setPaymentMethod("both")}
+                value="cash_mpesa"
+                checked={paymentMethod === "cash_mpesa"}
+                onChange={() => setPaymentMethod("cash_mpesa")}
                 custom
                 style={{ fontSize: "18px" }}
               />
@@ -166,7 +166,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
               type="text"
               value={cashAmount}
               onChange={handleCashChange}
-              disabled={isCashFullPayment}
+              disabled={isCashFullPayment || paymentMethod === "mpesa"}
             />
           </Form.Group>
 
@@ -180,7 +180,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
             />
           </Form.Group>
 
-          {(paymentMethod === "mpesa" || paymentMethod === "both") && !isCashFullPayment && (
+          {(paymentMethod === "mpesa" || paymentMethod === "cash_mpesa") && !isCashFullPayment && (
             <Form.Group>
               <Form.Label>M-Pesa Payment Code</Form.Label>
               <Form.Control

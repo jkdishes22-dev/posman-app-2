@@ -37,7 +37,6 @@ export const fetchBills = async (
 };
 
 
-// Cancel a bill
 export const cancelBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const { billId } = req.query;
 
@@ -50,7 +49,6 @@ export const cancelBill = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-// Void a bill item
 export const voidBillItem = async (
   req: NextApiRequest,
   res: NextApiResponse,
@@ -87,9 +85,13 @@ export const submitBill = async (
 ) => {
   try {
      const billPayment  = req.body;
-     console.log(billPayment);
-     console.log(req.body);
-     const submit = await billService.submitBill(billPayment)
+     const userId = req.user?.id;
+     billPayment.userId = userId;
+
+     const submittedBill = await billService.submitBill(billPayment);
+
+    //  console.log(submittedBill);
+     res.status(200).json(submittedBill);
   } catch (error) {
     res.status(500).json({ message: "Error fetching permissions", error });
   }

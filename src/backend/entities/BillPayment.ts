@@ -5,21 +5,21 @@ import { Payment } from "./Payment";
 
 @Entity() export class BillPayment extends BaseEntity {
 
-    @ManyToOne(() => Bill, bill => bill.billPayments)
+    @ManyToOne(() => Bill)
     @JoinColumn({ name: 'bill_id' })
     bill: Bill;
 
-    @ManyToOne(() => Payment, payment => payment.billPayments)
+    @ManyToOne(() => Payment)
     @JoinColumn({ name: 'payment_id' })
     payment: Payment;
 
     @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
     created_at: Date;
   
-    @Column({ type: "datetime", nullable: true })
+    @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
     updated_at: Date;
   
-    @Column({ nullable: true })
+    @Column({ nullable: false })
     created_by: number;
   
     @Column({ nullable: true })

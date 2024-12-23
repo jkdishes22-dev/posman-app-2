@@ -8,6 +8,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { formatISO } from "date-fns";
 import { Button, Form } from "react-bootstrap";
 import SubmitBillModal from "./submit-bill";
+import TimeZoneAwareDatePicker from "src/app/shared/TimezoneAwareDatePicker";
 
 const MySales = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -129,14 +130,18 @@ const MySales = () => {
           <div className="row">
             <div className="col-4">
               <div className="d-flex align-items-center mb-3">
-                <DatePicker
+                <TimeZoneAwareDatePicker
+                  onDateChange={handleDateChange}
+                  format="yyyy-MM-dd"
+                />
+                {/* <DatePicker
                   className="form-control me-3"
                   selected={selectedDate}
                   onChange={handleDateChange}
                   dateFormat="yyyy-MM-dd"
                   placeholderText="Select billing date"
                   maxDate={new Date()}
-                />
+                /> */}
                 <Form.Control
                   type="text"
                   className="form-control"

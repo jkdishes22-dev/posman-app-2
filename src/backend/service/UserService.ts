@@ -7,6 +7,7 @@ import { Permission } from "@entities/Permission";
 import { Service } from "typedi";
 import { UserStation, UserStationStatus } from "@backend/entities/UserStation";
 import { DeepPartial } from "typeorm";
+import { BaseService } from "./BaseService";
 
 @Service()
 export class UserService {

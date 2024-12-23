@@ -2,35 +2,45 @@ import { Entity, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from "t
 import { BaseEntity } from "./BaseEntity";
 import { BillPayment } from "./BillPayment";
 
+export enum PaymentType {
+    CASH = "CASH",
+    MPESA = "MPESA"
+}
+
 @Entity()
-export class Payment extends BaseEntity{
-    @Column({ type: 'int', nullable: true })
-    debitAmount: number | null;
+export class Payment extends BaseEntity {
+    @Column({ type: "double", default: 0.0, name: "debit_amount" })
+    debitAmount: number;
 
-    @Column({ type: 'int', nullable: true })
-    creditAmount: number | null;
+    @Column({ type: "double", default: 0.0, name: "credit_amount" })
+    creditAmount: number;
 
-    @Column({ type: 'varchar', length: 50, nullable: true })
-    paymentType: string | null;
+    @Column({
+        type: "enum",
+        enum: PaymentType,
+        nullable: false,
+        name: "payment_type"
+    })
+    paymentType: PaymentType;
 
-    @Column({ type: 'int', nullable: true })
-    paidAt: number | null;
+    @Column({ type: "datetime", nullable: false, default: () => "CURRENT_TIMESTAMP", name: "paid_at" })
+    paidAt: Date;
 
-    @Column({ type: 'varchar', length: 250, nullable: true })
-    reference: string | null;
+    @Column()
+    reference: string;
 
-    @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
+    @Column({ type: "datetime", nullable: false, default: () => "CURRENT_TIMESTAMP" })
     created_at: Date;
-  
-    @Column({ type: "datetime", nullable: true })
+
+    @Column({ type: "datetime", nullable: false, default: () => "CURRENT_TIMESTAMP" })
     updated_at: Date;
-  
-    @Column({ nullable: true })
+
+    @Column({ nullable: false })
     created_by: number;
-  
+
     @Column({ nullable: true })
     updated_by: number;
 
-    @OneToMany(() => BillPayment, billPayment => billPayment.payment)
-    billPayments: BillPayment[];
+    // @OneToMany(() => BillPayment, billPayment => billPayment.payment, { lazy: true })
+    // billPayments: BillPayment[];
 }

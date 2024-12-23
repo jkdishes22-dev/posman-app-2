@@ -1,5 +1,4 @@
 import { AppDataSource } from "@backend/config/data-source";
-import { Category } from "@entities/Category";
 import { Item, ItemStatus } from "@entities/Item";
 import { Currency, PricelistItem } from "@entities/PricelistItem";
 import { EntityManager, In, Like, Repository } from "typeorm";
