@@ -54,7 +54,6 @@ export const voidBillItem = async (
   res: NextApiResponse,
 ) => {
   const { billItemId } = req.query;
-
   try {
     const result = await billService.voidBillItem(Number(billItemId));
     res.status(200).json({ message: "Bill item voided successfully", result });
@@ -72,10 +71,10 @@ export const fetchBillItems = async (
 ) => {
   const { billId } = req.query;
   try {
-    const items = await billService.fetchBillItems(billId);
+    const items = await billService.fetchBillItems(Number(billId));
     res.status(200).json(items);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching permissions", error });
+    res.status(500).json({ message: "Error fetching bills", error });
   }
 };
 
@@ -91,10 +90,21 @@ export const submitBill = async (
     console.log(billPayment);
 
     const submittedBill = await billService.submitBill(billPayment);
-
-    console.log(submittedBill);
     res.status(200).json(submittedBill);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching permissions", error });
+    res.status(500).json({ message: "Error submitting bill", error });
   }
-}
+};
+
+export const closeBill = async (req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const { billId } = req.query;
+  try {
+    const closedBill = await billService.closeBill(Number(billId));
+    res.status(200).json(closedBill);
+  } catch (error) {
+    res.status(500).json({ message: "Error closing bill", error });
+
+  }
+};

@@ -1,3 +1,5 @@
+import { Double } from "typeorm";
+
 export type Category = {
   id: string;
   name: string;
@@ -35,3 +37,26 @@ export type User = {
   lastName: string;
   username: string;
 };
+
+export type Bill = {
+  id: number;
+  total: number,
+  status: string,
+  bill_payments: Record<string, any>
+  user: User,
+  created_at: Date
+}
+
+export type BillPayment = {
+  id: number,
+  payment: Payment,
+  created_at: Date
+}
+
+export type Payment ={
+  id: number,
+  creditAmount: number,
+  paymentType: string,
+  created_at: Date,
+  reference: string
+}

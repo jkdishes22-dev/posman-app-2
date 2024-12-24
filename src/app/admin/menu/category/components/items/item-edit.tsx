@@ -7,7 +7,7 @@ import {
   ModalBody,
   ModalFooter,
 } from "react-bootstrap";
-import { Item } from "../../types";
+import { Item } from "../../../../../types/types";
 
 interface EditItemModalProps {
   show: boolean;

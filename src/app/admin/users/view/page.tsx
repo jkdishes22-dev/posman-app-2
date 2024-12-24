@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import AdminLayout from "../../../shared/AdminLayout";
 import NewUser from "../register/new-user";
-import { User } from "../../menu/category/types";
+import { User } from "../../../types/types";
 
 export default function UsersPage() {
   const [showModal, setShowModal] = useState(false);

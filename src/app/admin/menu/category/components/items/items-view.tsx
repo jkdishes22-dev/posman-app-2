@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import EditItemModal from "./item-edit";
 import ItemDeleteModal from "./item-delete";
-import { Category, Item } from "../../types";
+import { Category, Item } from "../../../../../types/types";
 
 interface ViewItemsProps {
   selectedCategory: Category | null;

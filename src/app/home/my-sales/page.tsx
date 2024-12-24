@@ -8,6 +8,7 @@ import { formatISO } from "date-fns";
 import { Button, Form } from "react-bootstrap";
 import SubmitBillModal from "./submit-bill";
 import TimeZoneAwareDatePicker from "src/app/shared/TimezoneAwareDatePicker";
+import { Bill } from "src/app/types/types";
 
 const MySales = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -19,6 +20,7 @@ const MySales = () => {
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
+    setSelectedBill(null)
   };
 
   const handleBillIdChange = (e) => {
@@ -37,15 +39,29 @@ const MySales = () => {
     }
   };
 
-  const fetchBillsByDate = async (date) => {
+  const fetchBills = async (date?: Date, status?: string) => {
     const token = localStorage.getItem("token");
-    const formattedDate = formatISO(date, { representation: "date" });
+    let url = `/api/bills?`;
+    let formattedDate;
+
+    if (date && !status) {
+      formattedDate = formatISO(date, { representation: "date" });
+      url += `date=${formattedDate}`;
+    } else if (status && !date) {
+      if (selectedDate) {
+        formattedDate = formatISO(selectedDate, { representation: "date" });
+        url += `date=${formattedDate}&status=${status}`;
+      } else {
+        url += `status=${status}`;
+      }
+    } else if (date && status) {
+      formattedDate = formatISO(date, { representation: "date" });
+      url += `date=${formattedDate}&status=${status}`;
+    }
 
     try {
-      const response = await fetch(`/api/bills?date=${formattedDate}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -59,6 +75,7 @@ const MySales = () => {
       console.error("Error fetching bills:", error);
     }
   };
+
 
   const fetchBillsByBillId = async (billId) => {
     const token = localStorage.getItem("token");
@@ -94,7 +111,7 @@ const MySales = () => {
     setIsModalOpen(false);
   };
 
-  const handleBillSubmitted = (updatedBill) => {
+  const handleBillSubmitted = (updatedBill: Bill) => {
     setBills((prevBills) => prevBills.map((bill) => (bill.id === updatedBill.id ? updatedBill : bill)));
     setFilteredBills((prevFilteredBills) => prevFilteredBills.map((bill) => (bill.id === updatedBill.id ? updatedBill : bill)));
     setSelectedBill(updatedBill);
@@ -102,7 +119,7 @@ const MySales = () => {
 
   useEffect(() => {
     if (selectedDate) {
-      fetchBillsByDate(selectedDate);
+      fetchBills(selectedDate);
     }
   }, [selectedDate]);
 
@@ -111,7 +128,7 @@ const MySales = () => {
       <SecureRoute roleRequired="user">
         <div className="container">
           <div className="row">
-            <div className="col-4">
+            <div className="col-5">
               <div className="d-flex align-items-center mb-3">
                 <TimeZoneAwareDatePicker
                   onDateChange={handleDateChange}
@@ -159,7 +176,27 @@ const MySales = () => {
               </div>
             </div>
 
-            <div className="col-8">
+            <div className="col-7">
+              <div className="btn-group mb-2" role="group" aria-label="Filter actions">
+                <button
+                  className="btn btn-outline-primary"
+                  onClick={() => fetchBills(undefined, "submitted")}
+                >
+                  Submitted
+                </button>
+                <button
+                  className="btn btn-outline-primary"
+                  onClick={() => fetchBills(undefined, "closed")}
+                >
+                  Closed
+                </button>
+                <button
+                  className="btn btn-outline-primary"
+                  onClick={() => fetchBills(undefined, "voided")}
+                >
+                  Voided
+                </button>
+              </div>
               {selectedBill ? (
                 <div>
                   <div className="card">

@@ -6,9 +6,9 @@ import { BillPayment } from "./BillPayment";
 
 export enum BillStatus {
   PENDING = "pending",
-  COMPLETED = "completed",
   CANCELLED = "cancelled",
   SUBMITTED = "submitted",
+  CLOSED = "closed",
 }
 
 @Entity()

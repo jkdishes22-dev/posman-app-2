@@ -5,14 +5,18 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useState, useEffect } from "react";
 import { formatISO } from "date-fns";
+import { Bill, BillPayment } from "src/app/types/types";
+import { Modal, Button } from "react-bootstrap";
 
 const CashierBillsPage = () => {
     const [billingDate, setBillingDate] = useState(null);
     const [selectedWaitress, setSelectedWaitress] = useState("Waitress 1");
-    const [bills, setBills] = useState([]);
+    const [bills, setBills] = useState<Bill[]>([]);
     const [searchBillId, setSearchBillId] = useState("");
-    const [selectedBill, setSelectedBill] = useState(null);
+    const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
     const [selectedBills, setSelectedBills] = useState([]);
+    const [closeBillError, setCloseBillError] = useState("");
+    const [showModal, setShowCloseBillModal] = useState(false);
 
     useEffect(() => {
         if (!billingDate) {
@@ -26,6 +30,11 @@ const CashierBillsPage = () => {
 
         if (date) {
             const formattedDate = formatISO(date, { representation: "date" });
+            url += `&date=${formattedDate}`;
+        } 
+        const filterStatuses = ['closed', 'voided', 'all'];
+        if(filterStatuses.includes(status) && !date && billingDate) {
+            const formattedDate = formatISO(billingDate, { representation: "date" });
             url += `&date=${formattedDate}`;
         }
 
@@ -43,7 +52,7 @@ const CashierBillsPage = () => {
         }
     };
 
-    const fetchBillById = async (billId) => {
+    const fetchBillById = async (billId: number) => {
         const token = localStorage.getItem("token");
         const url = `/api/bills/${billId}`;
 
@@ -121,12 +130,21 @@ const CashierBillsPage = () => {
         }
     };
 
-    const handleProcessClick = (bill) => {
+    const handleProcessClick = (bill: Bill) => {
+        setCloseBillError("");
         setSelectedBill(bill);
     };
 
-    const handleCloseBill = async () => {
+    const handleConfirmCloseBill = async () => {
         if (!selectedBill) return;
+
+        const billAmount = selectedBill.total;
+        const paidAmount = selectedBill.bill_payments.reduce((sum, billPayment: BillPayment) => sum + billPayment.payment.creditAmount, 0)
+
+        if (billAmount !== paidAmount) {
+            setCloseBillError("Cannot close bill. Please confirm payments")
+            return;
+        }
 
         const token = localStorage.getItem("token");
         const url = `/api/bills/${selectedBill.id}/close`;
@@ -137,14 +155,23 @@ const CashierBillsPage = () => {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            if (!response.ok) throw new Error("Failed to close bill");
+            if (!response.ok) {
+                const data = await response.json();
+                setCloseBillError("Failed to close bill Error, " + data.message)
+                throw new Error("Failed to close bill");
+            }
 
             fetchBills("submitted");
             setSelectedBill(null);
         } catch (error) {
             console.error("Error closing bill:", error);
+        } finally {
+            setShowCloseBillModal(false);
         }
     };
+
+    const showCloseBillModal = () => setShowCloseBillModal(true);
+    const handleCloseModal = () => setShowCloseBillModal(false);
 
     return (
         <SecureRoute roleRequired="cashier">
@@ -208,7 +235,7 @@ const CashierBillsPage = () => {
                             </button>
                             <button
                                 className="btn btn-outline-primary"
-                                onClick={() => fetchBills("closed")}
+                                onClick={() => fetchBills("closed" )}
                             >
                                 Closed
                             </button>
@@ -264,13 +291,12 @@ const CashierBillsPage = () => {
                                     </thead>
                                     <tbody>
                                         {bills.map((bill) => (
-                                            <tr key={bill.id}>
+                                            <tr
+                                                key={bill.id}
+                                                style={{ backgroundColor: bill.id === selectedBill?.id ? '#d3d3d3' : 'transparent', transition: 'background-color 0.3s ease' }}
+                                            >
                                                 <td>
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedBills.includes(bill.id)}
-                                                        onChange={() => handleCheckboxChange(bill.id)}
-                                                    />
+                                                    <input type="checkbox" checked={selectedBills.includes(bill.id) || bill.id === selectedBill?.id} onChange={() => handleCheckboxChange(bill.id)} />
                                                 </td>
                                                 <td>{bill.id}</td>
                                                 <td>{bill.status}</td>
@@ -279,13 +305,17 @@ const CashierBillsPage = () => {
                                                     {bill.user.firstName} {bill.user.lastName}
                                                 </td>
                                                 <td>{new Date(bill.created_at).toLocaleString()}</td>
-                                                <td>
+                                                <td> {bill.status === 'submitted' ? (
                                                     <button
                                                         className="btn btn-sm btn-primary"
                                                         onClick={() => handleProcessClick(bill)}
                                                     >
                                                         Process
                                                     </button>
+                                                ) : (<span className="btn btn-secondary"
+                                                    onClick={() => handleProcessClick(bill)}
+                                                >View</span>)
+                                                }
                                                 </td>
                                             </tr>
                                         ))}
@@ -298,6 +328,7 @@ const CashierBillsPage = () => {
                     </div>
 
                     <div className="col-5 mt-4">
+                        {closeBillError && <p style={{ color: "red" }}>{closeBillError}</p>}
                         {selectedBill ? (
                             <div className="row">
                                 <div className="col-6">
@@ -311,19 +342,22 @@ const CashierBillsPage = () => {
 
 
                                         <div className="col-5"> {
-                                            selectedBill.total === selectedBill.bill_payments.reduce((sum, payment) => sum + payment.payment.creditAmount, 0) ? (
-                                                <button className="btn btn-success mb-2" onClick={handleCloseBill}>Close Bill</button>) : (
-                                                <button className="btn btn-warning mb-2" disabled>Bill is pending - Not closable</button>)}
+                                            selectedBill.status === "submitted" ?
+                                                selectedBill.total === selectedBill.bill_payments.reduce((sum, billPayment) => sum + billPayment.payment.creditAmount, 0) ? (
+                                                    <button className="btn btn-success mb-2" onClick={showCloseBillModal}>Close Bill</button>) : (
+                                                    <button className="btn btn-warning mb-2" disabled>Bill is pending - Not closable</button>)
+                                                : <span className="btn btn-warning">Bill is closed</span>
+                                        }
                                         </div>
                                     </div>
 
                                 </div>
 
                                 <div className="col-6">
-                                    <strong><u>Payments : ({selectedBill.bill_payments.reduce((sum, payment) => sum + payment.payment.creditAmount, 0)})</u></strong>
+                                    <strong><u>Payments : ({selectedBill.bill_payments.reduce((sum, billPayment) => sum + billPayment.payment.creditAmount, 0)})</u></strong>
                                     {selectedBill.bill_payments.length > 0 ? (
                                         <ul> {
-                                            selectedBill.bill_payments.map((billPayment) => (
+                                            selectedBill.bill_payments.map((billPayment: BillPayment) => (
                                                 <li key={billPayment.id}>
                                                     <p><strong>Payment Type :</strong> {billPayment.payment.paymentType} </p>
                                                     <p><strong></strong><strong>Amount Paid :</strong>
@@ -344,6 +378,24 @@ const CashierBillsPage = () => {
                         )}
                     </div>
                 </div>
+
+                <Modal show={showModal} onHide={handleCloseModal}>
+                    <Modal.Header closeButton>
+                        <Modal.Title>Close Bill</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        Are you sure you want to close bill <strong>{selectedBill?.id}</strong> ?
+
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button variant="secondary" onClick={handleCloseModal}>
+                            Cancel
+                        </Button>
+                        <Button variant="success" onClick={handleConfirmCloseBill}>
+                            Close Bill
+                        </Button>
+                    </Modal.Footer>
+                </Modal>
             </div>
         </SecureRoute>
     );

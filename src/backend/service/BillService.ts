@@ -7,14 +7,14 @@ import { startOfDay, endOfDay } from "date-fns";
 import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment, PaymentType } from "@backend/entities/Payment";
 import { Service } from "typedi";
-import { Repository } from "typeorm";
+import { EntityNotFoundError, Repository } from "typeorm";
 
 @Service()
 export class BillService {
   private billRepository = AppDataSource.getRepository(Bill);
-  private billItemRepository= AppDataSource.getRepository(BillItem);
-  private paymentRepository= AppDataSource.getRepository(Payment);
-  private billPaymentRepository= AppDataSource.getRepository(BillPayment);
+  private billItemRepository = AppDataSource.getRepository(BillItem);
+  private paymentRepository = AppDataSource.getRepository(Payment);
+  private billPaymentRepository = AppDataSource.getRepository(BillPayment);
 
   private userService: UserService;
 
@@ -137,14 +137,13 @@ export class BillService {
   }
 
   async submitBill(billPayment: BillPaymentInterface) {
-
-      const bill = await AppDataSource
-          .createQueryBuilder("bill", 'bill')
-          .leftJoinAndSelect("bill.bill_items", "billItem")
-          .leftJoinAndSelect('billItem.item', 'item')
-          .leftJoinAndSelect('bill.user', 'user')
-          .where("bill.id = :id", { id: billPayment.billId })
-          .getOne();
+    const bill = await AppDataSource
+      .createQueryBuilder("bill", 'bill')
+      .leftJoinAndSelect("bill.bill_items", "billItem")
+      .leftJoinAndSelect('billItem.item', 'item')
+      .leftJoinAndSelect('bill.user', 'user')
+      .where("bill.id = :id", { id: billPayment.billId })
+      .getOne();
 
     if (!bill) {
       throw new Error(`Bill with ID ${billPayment.billId} not found`);
@@ -194,7 +193,6 @@ export class BillService {
     }
   }
 
-
   private generatePaymentPayloads(billPayment: BillPaymentInterface): Payment[] {
     const { userId, paymentMethod, cashAmount, mpesaAmount, mpesaCode } = billPayment;
 
@@ -215,5 +213,34 @@ export class BillService {
       ...payment,
       created_by: userId
     }));
+  }
+
+  async closeBill(billId: number) {
+    const bill = await AppDataSource
+      .createQueryBuilder("bill", 'bill')
+      .leftJoinAndSelect('bill.bill_payments', 'billPayment')
+      .leftJoinAndSelect('billPayment.payment', 'payment')
+      .where("bill.id = :id", { id: billId })
+      .getOne();
+
+    if (!bill) {
+      throw new EntityNotFoundError(Bill, "Cannot close bill. Please confirm payments");
+    }
+
+    const billAmount = bill.total;
+    const paidAmount = bill.bill_payments.reduce((sum, billPayment) => sum + billPayment.payment.creditAmount, 0)
+
+    if (billAmount !== paidAmount) {
+      throw new Error("Cannot close bill. Please confirm payments");
+    }
+
+    const updateBill = await AppDataSource
+      .createQueryBuilder()
+      .update(Bill)
+      .set({ status: BillStatus.CLOSED })
+      .where("id = :id", { id: bill.id })
+      .execute();
+
+    return updateBill;
   }
 }

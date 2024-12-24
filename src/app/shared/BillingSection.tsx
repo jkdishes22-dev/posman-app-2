@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import ViewItems from "../admin/menu/category/components/items/items-view";
 import Categories from "../admin/menu/category/components/category/categories";
-import { Item } from "../admin/menu/category/types";
+import { Item } from "../types/types";
 import QuantityModal from "./QuantityModal";
 import jwt from "jsonwebtoken";
 import { DecodedToken } from "../components/SecureRoute";

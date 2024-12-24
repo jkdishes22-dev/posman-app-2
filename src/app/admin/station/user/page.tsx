@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Button, Form } from "react-bootstrap";
 import AdminLayout from "src/app/shared/AdminLayout";
-import { User } from "../../menu/category/types";
+import { User } from "../../../types/types";
 
 function StationUsersPage() {
   const [users, setUsers] = useState([]);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import ViewItems from "../items/items-view";
 import NewItemModal from "../items/items-new";
-import { Category, Item } from "../../types";
+import { Category, Item } from "../../../../../types/types";
 
 interface ItemsTableProps {
   selectedCategory: Category | null;

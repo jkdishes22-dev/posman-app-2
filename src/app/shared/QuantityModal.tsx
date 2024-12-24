@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Modal, Button } from "react-bootstrap";
-import { Item } from "../admin/menu/category/types";
+import { Item } from "../types/types";
 
 interface QuantityModalProps {
   item: Item | null;
