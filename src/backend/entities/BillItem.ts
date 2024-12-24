@@ -5,6 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from "typeorm";
+import type { Relation } from "typeorm";
 import { Item } from "@entities/Item";
 import { Bill } from "@entities/Bill";
 
@@ -26,7 +27,7 @@ export class BillItem {
 
   @ManyToOne(() => Bill, (bill) => bill.bill_items)
   @JoinColumn({ name: "bill_id" })
-  bill: Bill;
+  bill: Relation<Bill>;
 
   @Column({ default: 0 })
   quantity: number;

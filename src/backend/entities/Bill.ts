@@ -1,6 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, JoinColumn, ManyToOne } from "typeorm";
+import { User } from "@entities/User";
 import { BillItem } from "@entities/BillItem";
-import { User } from "./User";
+import { BillPayment } from "./BillPayment";
+
 
 export enum BillStatus {
   PENDING = "pending",
@@ -46,6 +48,9 @@ export class Bill {
   @Column({ nullable: true })
   updated_by: number;
 
-  @OneToMany(() => BillItem, (billItem) => billItem.bill)
+  @OneToMany(() => BillItem, (billItem) => billItem.bill, { eager: true})
   bill_items: BillItem[];
+
+  @OneToMany(() => BillPayment, (billPayment) => billPayment.bill)
+  bill_payments: BillPayment[];
 }

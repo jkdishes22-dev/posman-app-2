@@ -15,8 +15,10 @@ const CashierBillsPage = () => {
     const [selectedBills, setSelectedBills] = useState([]);
 
     useEffect(() => {
-        fetchBills("submitted");
-    }, []);
+        if (!billingDate) {
+            fetchBills("submitted");
+        }
+    }, [billingDate]);
 
     const fetchBills = async (status: string, date?: Date) => {
         const token = localStorage.getItem("token");
@@ -29,9 +31,7 @@ const CashierBillsPage = () => {
 
         try {
             const response = await fetch(url, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
             });
 
             if (!response.ok) throw new Error("Failed to fetch bills");
@@ -43,7 +43,7 @@ const CashierBillsPage = () => {
         }
     };
 
-    const fetchBillById = async (billId: number) => {
+    const fetchBillById = async (billId) => {
         const token = localStorage.getItem("token");
         const url = `/api/bills/${billId}`;
 
@@ -61,7 +61,7 @@ const CashierBillsPage = () => {
         }
     };
 
-    const handleDateChange = (date: Date) => {
+    const handleDateChange = (date) => {
         setBillingDate(date);
         fetchBills("submitted", date);
     };
@@ -86,24 +86,17 @@ const CashierBillsPage = () => {
         }
     };
 
-    const handleProcessClick = (bill) => {
-        setSelectedBill(bill);
-    };
-
     const handleCheckboxChange = (billId) => {
-        if (selectedBills.includes(billId)) {
-            setSelectedBills(selectedBills.filter((id) => id !== billId));
-        } else {
-            setSelectedBills([...selectedBills, billId]);
-        }
+        const updatedSelectedBills = selectedBills.includes(billId)
+            ? selectedBills.filter((id) => id !== billId)
+            : [...selectedBills, billId];
+
+        setSelectedBills(updatedSelectedBills);
     };
 
     const handleSelectAll = (event) => {
-        if (event.target.checked) {
-            setSelectedBills(bills.map((bill) => bill.id));
-        } else {
-            setSelectedBills([]);
-        }
+        const updatedSelectedBills = event.target.checked ? bills.map((bill) => bill.id) : [];
+        setSelectedBills(updatedSelectedBills);
     };
 
     const handleBulkProcess = async () => {
@@ -126,6 +119,10 @@ const CashierBillsPage = () => {
         } catch (error) {
             console.error("Error processing bills:", error);
         }
+    };
+
+    const handleProcessClick = (bill) => {
+        setSelectedBill(bill);
     };
 
     const handleCloseBill = async () => {
@@ -241,7 +238,7 @@ const CashierBillsPage = () => {
                                     onClick={handleBulkProcess}
                                     disabled={selectedBills.length === 0}
                                 >
-                                    Bulk Process
+                                    Bulk Close
                                 </button>
                             </div>
                         </div>
@@ -299,30 +296,47 @@ const CashierBillsPage = () => {
                             )}
                         </div>
                     </div>
+
                     <div className="col-5 mt-4">
                         {selectedBill ? (
                             <div className="row">
                                 <div className="col-6">
 
                                     <div>
-                                        <h5>Bill Details</h5>
+                                        <h5> <u>Bill Details</u></h5>
                                         <p><strong>Bill ID:</strong> {selectedBill.id}</p>
-                                        <p><strong>Total:</strong> {selectedBill.total}</p>
+                                        <p><strong>Total Bill:</strong> {selectedBill.total}</p>
                                         <p><strong>Created By:</strong> {selectedBill.user.firstName} {selectedBill.user.lastName}</p>
                                         <p><strong>Created At:</strong> {new Date(selectedBill.created_at).toLocaleString()}</p>
-                                        <button className="btn btn-success" onClick={handleCloseBill}>Close Bill</button>
+
+
+                                        <div className="col-5"> {
+                                            selectedBill.total === selectedBill.bill_payments.reduce((sum, payment) => sum + payment.payment.creditAmount, 0) ? (
+                                                <button className="btn btn-success mb-2" onClick={handleCloseBill}>Close Bill</button>) : (
+                                                <button className="btn btn-warning mb-2" disabled>Bill is pending - Not closable</button>)}
+                                        </div>
                                     </div>
 
                                 </div>
 
                                 <div className="col-6">
-                                    <div>
-                                        <h5>Payment details</h5>
-                                        <p><strong>Bill ID:</strong> {selectedBill.id}</p>
-                                        <p><strong>Total:</strong> {selectedBill.total}</p>
-                                        <p><strong>Mpesa:</strong> {selectedBill.total}</p>
-                                        <p><strong>Cash:</strong> {selectedBill.total}</p>
-                                    </div>
+                                    <strong><u>Payments : ({selectedBill.bill_payments.reduce((sum, payment) => sum + payment.payment.creditAmount, 0)})</u></strong>
+                                    {selectedBill.bill_payments.length > 0 ? (
+                                        <ul> {
+                                            selectedBill.bill_payments.map((billPayment) => (
+                                                <li key={billPayment.id}>
+                                                    <p><strong>Payment Type :</strong> {billPayment.payment.paymentType} </p>
+                                                    <p><strong></strong><strong>Amount Paid :</strong>
+                                                        {billPayment.payment.creditAmount} </p>
+                                                    <p><strong></strong><strong>Paid At :</strong> {new Date(billPayment.created_at).toLocaleString()} </p>
+                                                    <p><strong></strong><strong>Paid By :</strong> {selectedBill.user.firstName} {selectedBill.user.lastName} </p>
+                                                    <p><strong></strong><strong>Reference:</strong> {billPayment.payment.reference} </p>
+                                                    <hr />
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) :
+                                        (<p>Bill payment missing</p>)}
                                 </div>
                             </div>
                         ) : (

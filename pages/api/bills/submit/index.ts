@@ -6,7 +6,6 @@ import { NextApiRequest, NextApiResponse } from "next";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     await ensureMetadata("Bill");
-    await ensureMetadata("BillPaymnet");
     if (req.method === "POST") {
         return authMiddleware(authorize([permissions.CAN_ADD_BILL_PAYMENT])(submitBill))(
             req,

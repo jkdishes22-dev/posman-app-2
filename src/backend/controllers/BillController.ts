@@ -28,7 +28,7 @@ export const fetchBills = async (
   }
 
   try {
-    const bills = await billService.fetchBills(userId, {targetDate, status, billId});
+    const bills = await billService.fetchBills(userId, { targetDate, status, billId });
     res.status(200).json(bills);
   } catch (error) {
     console.error("Error fetching bills:", error);
@@ -84,14 +84,16 @@ export const submitBill = async (
   res: NextApiResponse,
 ) => {
   try {
-     const billPayment  = req.body;
-     const userId = req.user?.id;
-     billPayment.userId = userId;
+    const billPayment = req.body;
+    const userId = req.user?.id;
+    billPayment.userId = userId;
 
-     const submittedBill = await billService.submitBill(billPayment);
+    console.log(billPayment);
 
-    //  console.log(submittedBill);
-     res.status(200).json(submittedBill);
+    const submittedBill = await billService.submitBill(billPayment);
+
+    console.log(submittedBill);
+    res.status(200).json(submittedBill);
   } catch (error) {
     res.status(500).json({ message: "Error fetching permissions", error });
   }

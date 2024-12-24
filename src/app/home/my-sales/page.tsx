@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import SecureRoute from "../../components/SecureRoute";
 import HomePageLayout from "../../shared/HomePageLayout";
-import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { formatISO } from "date-fns";
 import { Button, Form } from "react-bootstrap";
@@ -15,7 +14,6 @@ const MySales = () => {
   const [bills, setBills] = useState([]);
   const [filteredBills, setFilteredBills] = useState([]);
   const [selectedBill, setSelectedBill] = useState(null);
-  const [billItems, setBillItems] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billIdFilter, setBillIdFilter] = useState("");
 
@@ -84,29 +82,8 @@ const MySales = () => {
     }
   };
 
-  const fetchBillItems = async (billId) => {
-    const token = localStorage.getItem("token");
-    try {
-      const response = await fetch(`/api/bills/${billId}/items`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch bill items");
-      }
-
-      const data = await response.json();
-      setBillItems(data);
-    } catch (error) {
-      console.error("Error fetching bill items:", error);
-    }
-  };
-
   const handleBillClick = (bill) => {
     setSelectedBill(bill);
-    fetchBillItems(bill.id);
   };
 
   const openModal = () => {
@@ -115,6 +92,12 @@ const MySales = () => {
 
   const closeModal = () => {
     setIsModalOpen(false);
+  };
+
+  const handleBillSubmitted = (updatedBill) => {
+    setBills((prevBills) => prevBills.map((bill) => (bill.id === updatedBill.id ? updatedBill : bill)));
+    setFilteredBills((prevFilteredBills) => prevFilteredBills.map((bill) => (bill.id === updatedBill.id ? updatedBill : bill)));
+    setSelectedBill(updatedBill);
   };
 
   useEffect(() => {
@@ -134,14 +117,6 @@ const MySales = () => {
                   onDateChange={handleDateChange}
                   format="yyyy-MM-dd"
                 />
-                {/* <DatePicker
-                  className="form-control me-3"
-                  selected={selectedDate}
-                  onChange={handleDateChange}
-                  dateFormat="yyyy-MM-dd"
-                  placeholderText="Select billing date"
-                  maxDate={new Date()}
-                /> */}
                 <Form.Control
                   type="text"
                   className="form-control"
@@ -170,13 +145,13 @@ const MySales = () => {
                         >
                           <td>{bill.id}</td>
                           <td>{bill.status}</td>
-                          <td>${bill.total}</td>
+                          <td>KES {bill.total}</td>
                           <td>{new Date(bill.created_at).toLocaleString()}</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="3">No bills available</td>
+                        <td colSpan="4">No bills available</td>
                       </tr>
                     )}
                   </tbody>
@@ -199,7 +174,7 @@ const MySales = () => {
                         </Button>
                       ) : (
                         <span className="text-success">
-                          Bill is {selectedBill.status}
+                          Bill is {selectedBill.status} <strong> Total: {selectedBill.total} </strong>
                         </span>
                       )}
 
@@ -215,14 +190,14 @@ const MySales = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {billItems.length > 0 ? (
-                            billItems.map((item) => (
+                          {selectedBill.bill_items.length > 0 ? (
+                            selectedBill.bill_items.map((item) => (
                               <tr key={item.id}>
                                 <td>{new Date(item.created_at).toLocaleString()}</td>
-                                <td>{item.item_name}</td>
-                                <td>${item.item_price}</td>
+                                <td>{item.item.name}</td>
+                                <td>KES {item.item.price}</td>
                                 <td>{item.quantity}</td>
-                                <td>${item.subtotal}</td>
+                                <td>KES {item.subtotal}</td>
                                 <td>
                                   {selectedBill.status === "pending" ? (
                                     <Button variant="danger">Void Request</Button>
@@ -232,7 +207,7 @@ const MySales = () => {
                             ))
                           ) : (
                             <tr>
-                              <td colSpan="5">No items for this bill</td>
+                              <td colSpan="6">No items for this bill</td>
                             </tr>
                           )}
                         </tbody>
@@ -251,6 +226,7 @@ const MySales = () => {
           show={isModalOpen}
           onHide={closeModal}
           selectedBill={selectedBill}
+          onBillSubmitted={handleBillSubmitted}
         />
       </SecureRoute>
     </HomePageLayout>

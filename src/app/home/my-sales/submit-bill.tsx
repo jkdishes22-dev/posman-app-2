@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 
-const SubmitBillModal = ({ show, onHide, selectedBill }) => {
+const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashAmount, setCashAmount] = useState("");
   const [mpesaAmount, setMpesaAmount] = useState("");
@@ -9,7 +9,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
 
-  const totalAmount = selectedBill?.total;
+  const totalAmount = selectedBill?.total || 0;
 
   const resetForm = () => {
     setPaymentMethod("cash");
@@ -105,6 +105,10 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
         throw new Error(`Failed to submit bill: ${response.statusText}`);
       }
 
+      const responseData = await response.json(); 
+
+      onBillSubmitted(responseData.bill);
+
       handleClose();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "An unexpected error occurred.");
@@ -112,8 +116,6 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
       setIsSubmitting(false);
     }
   };
-
-  const isCashFullPayment = (Number(cashAmount) || Number(mpesaAmount)) >= totalAmount;
 
   return (
     <Modal show={show} onHide={handleClose}>
@@ -123,91 +125,95 @@ const SubmitBillModal = ({ show, onHide, selectedBill }) => {
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form>
-          <Form.Group>
-            <Form.Label>Select Payment Method</Form.Label>
-            <div>
-              <Form.Check
-                type="radio"
-                label="Cash"
-                name="paymentMethod"
-                value="cash"
-                checked={paymentMethod === "cash"}
-                onChange={() => setPaymentMethod("cash")}
-                custom
-                style={{ fontSize: "18px" }}
-              />
-              <Form.Check
-                type="radio"
-                label="M-Pesa"
-                name="paymentMethod"
-                value="mpesa"
-                checked={paymentMethod === "mpesa"}
-                onChange={() => setPaymentMethod("mpesa")}
-                custom
-                style={{ fontSize: "18px" }}
-              />
-              <Form.Check
-                type="radio"
-                label="Cash_mpesa (Cash & M-Pesa)"
-                name="paymentMethod"
-                value="cash_mpesa"
-                checked={paymentMethod === "cash_mpesa"}
-                onChange={() => setPaymentMethod("cash_mpesa")}
-                custom
-                style={{ fontSize: "18px" }}
-              />
-            </div>
-          </Form.Group>
-
-          <Form.Group>
-            <Form.Label>Cash Amount</Form.Label>
-            <Form.Control
-              type="text"
-              value={cashAmount}
-              onChange={handleCashChange}
-              disabled={isCashFullPayment || paymentMethod === "mpesa"}
-            />
-          </Form.Group>
-
-          <Form.Group>
-            <Form.Label>M-Pesa Amount</Form.Label>
-            <Form.Control
-              type="text"
-              value={mpesaAmount}
-              onChange={handleMpesaChange}
-              disabled={isCashFullPayment || paymentMethod === "cash"}
-            />
-          </Form.Group>
-
-          {(paymentMethod === "mpesa" || paymentMethod === "cash_mpesa") && !isCashFullPayment && (
+        {selectedBill ? (
+          <Form>
             <Form.Group>
-              <Form.Label>M-Pesa Payment Code</Form.Label>
+              <Form.Label>Select Payment Method</Form.Label>
+              <div>
+                <Form.Check
+                  type="radio"
+                  label="Cash"
+                  name="paymentMethod"
+                  value="cash"
+                  checked={paymentMethod === "cash"}
+                  onChange={() => setPaymentMethod("cash")}
+                  custom
+                  style={{ fontSize: "18px" }}
+                />
+                <Form.Check
+                  type="radio"
+                  label="M-Pesa"
+                  name="paymentMethod"
+                  value="mpesa"
+                  checked={paymentMethod === "mpesa"}
+                  onChange={() => setPaymentMethod("mpesa")}
+                  custom
+                  style={{ fontSize: "18px" }}
+                />
+                <Form.Check
+                  type="radio"
+                  label="Cash_mpesa (Cash & M-Pesa)"
+                  name="paymentMethod"
+                  value="cash_mpesa"
+                  checked={paymentMethod === "cash_mpesa"}
+                  onChange={() => setPaymentMethod("cash_mpesa")}
+                  custom
+                  style={{ fontSize: "18px" }}
+                />
+              </div>
+            </Form.Group>
+
+            <Form.Group>
+              <Form.Label>Cash Amount</Form.Label>
               <Form.Control
                 type="text"
-                value={mpesaCode}
-                onChange={(e) => setMpesaCode(e.target.value)}
-                placeholder="Enter M-Pesa payment code"
-                required
+                value={cashAmount}
+                onChange={handleCashChange}
+                disabled={paymentMethod === "mpesa"}
               />
             </Form.Group>
-          )}
 
-          <p>
-            <strong>Total Paid:</strong> KES {totalPaid}
-          </p>
-          <p>
-            <strong>Pending Amount:</strong> KES {pendingAmount > 0 ? pendingAmount : "0"}
-          </p>
+            <Form.Group>
+              <Form.Label>M-Pesa Amount</Form.Label>
+              <Form.Control
+                type="text"
+                value={mpesaAmount}
+                onChange={handleMpesaChange}
+                disabled={paymentMethod === "cash"}
+              />
+            </Form.Group>
 
-          {errorMessage && <p className="text-danger">{errorMessage}</p>}
-        </Form>
+            {(paymentMethod === "mpesa" || paymentMethod === "cash_mpesa") && (
+              <Form.Group>
+                <Form.Label>M-Pesa Payment Code</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={mpesaCode}
+                  onChange={(e) => setMpesaCode(e.target.value)}
+                  placeholder="Enter M-Pesa payment code"
+                  required
+                />
+              </Form.Group>
+            )}
+
+            <p>
+              <strong>Total Paid:</strong> KES {totalPaid}
+            </p>
+            <p>
+              <strong>Pending Amount:</strong> KES {pendingAmount > 0 ? pendingAmount : "0"}
+            </p>
+
+            {errorMessage && <p className="text-danger">{errorMessage}</p>}
+          </Form>
+        ) : (
+          <p>No bill selected. Please select a bill to continue.</p>
+        )}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={handleClose} disabled={isSubmitting}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleSubmit} disabled={isSubmitting}>
+        <Button variant="primary" onClick={handleSubmit} disabled={isSubmitting || !selectedBill}>
           {isSubmitting ? <Spinner animation="border" size="sm" /> : "Submit Bill"}
         </Button>
       </Modal.Footer>

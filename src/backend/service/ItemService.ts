@@ -1,7 +1,7 @@
 import { AppDataSource } from "@backend/config/data-source";
 import { Item, ItemStatus } from "@entities/Item";
 import { Currency, PricelistItem } from "@entities/PricelistItem";
-import { EntityManager, In, Like, Repository } from "typeorm";
+import { EntityManager, In, Repository } from "typeorm";
 import { ItemGroup } from "@entities/ItemGroup";
 
 export class ItemService {
