@@ -30,7 +30,8 @@ export const getUsersHandler = async (
   res: NextApiResponse,
 ) => {
   try {
-    const users = await userService.getUsers();
+    const { role } = req.query;
+    const users = await userService.getUsers(role);
     res.status(200).json(users);
   } catch (error) {  
     res.status(500).json({ error: "Error fetching users" + error });

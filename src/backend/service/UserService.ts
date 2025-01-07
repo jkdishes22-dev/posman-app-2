@@ -7,7 +7,6 @@ import { Permission } from "@entities/Permission";
 import { Service } from "typedi";
 import { UserStation, UserStationStatus } from "@backend/entities/UserStation";
 import { DeepPartial } from "typeorm";
-import { BaseService } from "./BaseService";
 
 @Service()
 export class UserService {
@@ -49,20 +48,39 @@ export class UserService {
     }
   }
 
-  public async getUsers(): Promise<User[]> {
-    const query = `select 
-                    s.id, 
-                    s.lastName, 
-                    s.firstName, 
-                    s.username, 
-                    s.locked,
-                    s.last_login_date,
-                    role_id, r.name as role_name
-                    from user s
-                    left join user_roles ur on ur.user_id = s.id
-                    left join roles r on r.id = ur.role_id`;
+  public async getUsers(role?: string): Promise<User[]> {
+    // const query = `select 
+    //                 s.id, 
+    //                 s.lastName, 
+    //                 s.firstName, 
+    //                 s.username, 
+    //                 s.locked,
+    //                 s.last_login_date,
+    //                 role_id, r.name as role_name
+    //                 from user s
+    //                 left join user_roles ur on ur.user_id = s.id
+    //                 left join roles r on r.id = ur.role_id`;
 
-    return await AppDataSource.query(query);
+    const query = this.userRepository
+      .createQueryBuilder("user")
+      .leftJoinAndSelect("user.roles", 'role')
+      .addSelect([
+        "user.id",
+        "user.lastName",
+        "user.firstName",
+        "user.username",
+        "user.locked",
+        "user.last_login_date",
+        "role.id",
+        "role.name"
+      ]);
+
+    if (role) {
+      query.andWhere("role.name = :role", { role })
+    }
+
+    const users = await query.getMany();
+    return users;
   }
 
   async getUserByUsername(username: string) {

@@ -25,7 +25,7 @@ const SecureRoute = ({ children, roleRequired }) => {
         const decodedToken = jwt.decode(token) as DecodedToken;
         if (!decodedToken || !decodedToken.roles.includes(roleRequired)) {
           router.push("/not-authorized");
-        }
+        } 
       }
     }
   }, [isClient, router, roleRequired]);

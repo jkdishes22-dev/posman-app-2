@@ -7,6 +7,7 @@ import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
 import AsyncSelect from "react-select/async";
+import { Role, Scope } from "src/app/types/types";
 
 type ErrorState = {
   message: string;
@@ -15,19 +16,19 @@ type ErrorState = {
 
 export default function UsersPage() {
   const [roles, setRoles] = useState([]);
-  const [selectedRole, setSelectedRole] = useState(null);
-  const [selectedScope, setSelectedScope] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+  const [selectedScope, setSelectedScope] = useState<Scope | null>(null);
   const [permissionsByScope, setPermissionsByScope] = useState({});
-  const [scopes, setScopes] = useState([]);
+  const [scopes, setScopes] = useState<Scope[]>([]);
   const [error, setError] = useState<ErrorState>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [permissionToDelete, setPermissionToDelete] = useState<string | null>(
-    null,
+    null
   );
-  const [availablePermissions, setAvailablePermissions] = useState<string[]>(
-    [],
-  );
+  const [availablePermissions, setAvailablePermissions] = useState<string[]>([]);
+  const [selectedPermission, setSelectedPermission] = useState(null);
+
 
   useEffect(() => {
     fetchRoles();
@@ -51,7 +52,7 @@ export default function UsersPage() {
         setError(null);
       }
     } catch (error) {
-      setError({ message: "An unexpected error occurred." + error.message });
+      setError({ message: "An unexpected error occurred: " + error.message });
     }
   };
 
@@ -70,18 +71,17 @@ export default function UsersPage() {
         const data = await response.json();
         setScopes(data);
         const emptyPermissionsByScope = data.reduce((acc, scope) => {
-          acc[scope.name] = [];
+          acc[scope.id] = [];
           return acc;
         }, {});
         setPermissionsByScope(emptyPermissionsByScope);
         setError(null);
       }
     } catch (error) {
-      setError({ message: "An unexpected error occurred." + error.message });
+      setError({ message: "An unexpected error occurred: " + error.message });
     }
   };
-
-  const fetchPermissions = async (role) => {
+  const fetchPermissions = async (role: Role) => {
     try {
       setSelectedRole(role);
       const token = localStorage.getItem("token");
@@ -101,62 +101,16 @@ export default function UsersPage() {
           return acc;
         }, {});
         permissions.forEach((perm) => {
-          const scopeName = perm.scope || "Unscoped";
-          if (!updatedPermissionsByScope[scopeName]) {
-            updatedPermissionsByScope[scopeName] = [];
+          if (!updatedPermissionsByScope[perm.scope]) {
+            updatedPermissionsByScope[perm.scope] = [];
           }
-          updatedPermissionsByScope[scopeName].push(perm.name);
+          updatedPermissionsByScope[perm.scope].push(perm.name);
         });
         setPermissionsByScope(updatedPermissionsByScope);
       }
     } catch (error) {
-      setError({ message: "An unexpected error occurred." + error.message });
+      setError({ message: "An unexpected error occurred: " + error.message });
     }
-  };
-
-  const displayPermissionsByScope = (scope) => {
-    const permissions = permissionsByScope[scope] || [];
-    return (
-      <div key={scope} className="card mb-3">
-        <div className="card-header">
-          <h3>Scope: {scope}</h3>
-        </div>
-        <div className="card-body">
-          <ul className="list-unstyled">
-            {permissions.length > 0 ? (
-              permissions.map((perm) => (
-                <li key={perm} className="p-1">
-                  <span>{perm}</span>
-                  <Image
-                    src="/icons/x-circle.svg"
-                    alt="Delete Permission"
-                    width={24}
-                    height={24}
-                    className="m-2"
-                    onClick={() => handleDeletePermission(scope, perm)}
-                  />
-                </li>
-              ))
-            ) : (
-              <li>No permissions added</li>
-            )}
-          </ul>
-          <button
-            onClick={() => handleShowAddModal(scope)}
-            className="border bg-primary-subtle border-0 border-primary-subtle"
-          >
-            <Image
-              src="/icons/plus-circle.svg"
-              alt="Add Permission"
-              width={24}
-              height={24}
-              className="m-2"
-            />
-            Add Permission
-          </button>
-        </div>
-      </div>
-    );
   };
 
   const handleDeletePermission = (scope, permission) => {
@@ -165,7 +119,6 @@ export default function UsersPage() {
   };
 
   const confirmDeletePermission = () => {
-    // Implement delete functionality
     setShowDeleteModal(false);
   };
 
@@ -175,24 +128,67 @@ export default function UsersPage() {
   };
 
   const fetchAvailablePermissions = async () => {
-    if (availablePermissions.length > 0) return availablePermissions;
-
+    if (!selectedScope) {
+      console.log("No selected scope!");
+      return [];
+    }
     const token = localStorage.getItem("token");
-    const response = await fetch(`/api/scopes/${selectedScope}/permissions`, {
+    const response = await fetch(`/api/roles/scopes/${selectedScope.id}/permissions`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
     const data = await response.json();
-    setAvailablePermissions(data);
-    return data;
+
+    const allPermissions = data[0].permissions;
+    const existingPermissions = permissionsByScope[selectedScope.name] || [];
+
+    const filteredPermissions = allPermissions.filter(
+      (permission) => !existingPermissions.includes(permission.name)
+    );
+    const formattedPermissions = filteredPermissions.map((permission) => ({
+      label: permission.name,
+      value: permission.id,
+    }));
+
+    setAvailablePermissions(formattedPermissions);
+    return formattedPermissions;
   };
 
-  const handleAddPermission = () => {
-    // Implement the logic to add permission to the selected role and scope
-    setShowAddModal(false);
+  const handleAddPermission = async () => {
+    if (!selectedScope || !selectedRole || !selectedPermission) {
+      console.log("Scope, Role, or Permission not selected!");
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem("token");
+  
+      const response = await fetch(`/api/roles/${selectedRole.id}/permissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          roleId: selectedRole.id,
+          permissionId: selectedPermission.value, // Use the selected permission's value
+        }),
+      });
+      
+      if (!response.ok) {
+        console.error("Failed to add permission");
+        return;
+      }
+      
+      console.log("Permission added successfully!");
+      setShowAddModal(false);
+      // Update the permissions list if necessary
+    } catch (error) {
+      console.error("An unexpected error occurred:", error.message);
+    }
   };
-
+  
   return (
     <AdminLayout>
       <div>
@@ -225,35 +221,87 @@ export default function UsersPage() {
               </ul>
             </div>
             <div className="col-8">
-              <h3>Role: {selectedRole && selectedRole.name}</h3>
-              <ul className="nav nav-underline">
-                {scopes.map((scope) => (
-                  <li key={scope.name} className="nav-item">
-                    <a
-                      className={`nav-link ${selectedScope === scope.name ? "active" : ""}`}
-                      href="#"
-                      onClick={() => setSelectedScope(scope.name)}
-                    >
-                      {scope.name}
-                    </a>
-                  </li>
-                ))}
-              </ul>
+
+              <h3>Scopes: {selectedRole && selectedRole.name}</h3>
+              {selectedRole ? (
+                <ul className="nav nav-underline">
+                  {scopes.map((scope) => (
+                    <li key={scope.id} className="nav-item">
+                      <a
+                        className={`nav-link ${selectedScope?.id === scope.id ? "active" : ""}`}
+                        href="#"
+                        onClick={() => setSelectedScope(scope)}
+                      >
+                        {scope.name}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>Please select a role to see the available scopes.</p>
+              )}
+
               <div>
-                {selectedScope && displayPermissionsByScope(selectedScope)}
+                {selectedScope && (
+                  <div key={selectedScope.id} className="card mb-3">
+                    <div className="card-header">
+                      <h4>
+                        {selectedRole.name}-{selectedScope.name} Permissions
+                      </h4>
+                    </div>
+                    <div className="card-body">
+                      <ul className="list-unstyled">
+                        {permissionsByScope[selectedScope.name].length > 0 ? (
+                          permissionsByScope[selectedScope.name].map((perm) => (
+                            <li key={perm} className="p-1">
+                              <span>{perm}</span>
+                              <Image
+                                src="/icons/x-circle.svg"
+                                alt="Delete Permission"
+                                width={24}
+                                height={24}
+                                className="m-2"
+                                onClick={() =>
+                                  handleDeletePermission(selectedScope, perm)
+                                }
+                              />
+                            </li>
+                          ))
+                        ) : (
+                          <li>No permissions added</li>
+                        )}
+                      </ul>
+                      <button
+                        onClick={() => handleShowAddModal(selectedScope)}
+                        className="border bg-primary-subtle border-0 border-primary-subtle"
+                      >
+                        <Image
+                          src="/icons/plus-circle.svg"
+                          alt="Add Permission"
+                          width={24}
+                          height={24}
+                          className="m-2"
+                        />
+                        Add Permission
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
 
         {/* Delete Modal */}
-        <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+        <Modal
+          show={showDeleteModal}
+          onHide={() => setShowDeleteModal(false)}
+        >
           <Modal.Header closeButton>
             <Modal.Title>Delete Permission</Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            Are you sure you want to delete the permission "{permissionToDelete}
-            "?
+            Are you sure you want to delete the permission "{permissionToDelete}"?
           </Modal.Body>
           <Modal.Footer>
             <Button
@@ -269,30 +317,25 @@ export default function UsersPage() {
         </Modal>
 
         {/* Add Permission Modal */}
-        <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
+        <Modal
+          show={showAddModal}
+          onHide={() => setShowAddModal(false)}
+        >
           <Modal.Header closeButton>
-            <Modal.Title>Add Permission</Modal.Title>
+            <Modal.Title>Add permission</Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Role</Form.Label>
-              <Form.Control
-                type="text"
-                value={selectedRole?.name || ""}
-                readOnly
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Scope</Form.Label>
-              <Form.Control type="text" value={selectedScope || ""} readOnly />
-            </Form.Group>
+            <p>Scope: {selectedScope?.name || ""}</p>
+            <p>Role: {selectedRole?.name || ""}</p>
             <Form.Group className="mb-3">
               <Form.Label>Permission</Form.Label>
               <AsyncSelect
                 loadOptions={fetchAvailablePermissions}
                 defaultOptions
+                onChange={setSelectedPermission} // Update the selected permission
               />
             </Form.Group>
+
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowAddModal(false)}>

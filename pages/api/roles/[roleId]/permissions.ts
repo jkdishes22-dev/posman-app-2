@@ -1,7 +1,7 @@
 import { authMiddleware, authorize } from "@backend/middleware/auth";
 import permissions from "@backend/config/managed-roles";
 import { NextApiRequest, NextApiResponse } from "next";
-import { fetchPermissionsByRoleHandler } from "@controllers/RoleController";
+import { addPermissionToRoleHandler, fetchPermissionsByRoleHandler } from "@controllers/RoleController";
 import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -12,8 +12,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         fetchPermissionsByRoleHandler,
       ),
     )(req, res);
+  } else if (req.method === "POST") {
+    await authMiddleware(
+      authorize([permissions.CAN_ADD_PERMISSION])(
+        addPermissionToRoleHandler,
+      ),
+    )(req, res);
   } else {
-    res.setHeader("Allow", ["GET"]);
+    res.setHeader("Allow", ["GET", "POST"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 };

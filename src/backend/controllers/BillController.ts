@@ -19,16 +19,17 @@ export const fetchBills = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
-  const userId = req.user?.id;
-  const { date, status, billId } = req.query;
+  const currentUserId = req.user?.id;
+  const { date, status, billId, billingUserId } = req.query;
 
+  // todo this should be optional
   const targetDate = date ? new Date(date as string) : new Date();
   if (isNaN(targetDate.getTime())) {
     return res.status(400).json({ error: "Invalid date format" });
   }
 
   try {
-    const bills = await billService.fetchBills(userId, { targetDate, status, billId });
+    const bills = await billService.fetchBills(currentUserId, { targetDate, status, billId, billingUserId });
     res.status(200).json(bills);
   } catch (error) {
     console.error("Error fetching bills:", error);

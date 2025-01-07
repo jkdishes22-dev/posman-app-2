@@ -33,6 +33,8 @@ export class RoleService {
     });
 
     if (role && permission) {
+      if (!role.permissions) { role.permissions = []; }
+      
       role.permissions = [...role.permissions, permission];
       return await this.roleRepository.save(role);
     } else {

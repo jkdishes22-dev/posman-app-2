@@ -144,7 +144,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                       {isBillingSection && (
                         <td>
                           <button
-                            className="btn btn-sm btn-primary"
+                            className="btn btn-sm btn-success"
                             onClick={() => {
                               if (item.price > 0) {
                                 onItemPick(item);

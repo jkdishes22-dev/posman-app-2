@@ -60,3 +60,14 @@ export type Payment ={
   created_at: Date,
   reference: string
 }
+
+export type Scope = {
+ id: number;
+ name: string;
+}
+
+export type Role = {
+  id: number;
+  name: string;
+}
+

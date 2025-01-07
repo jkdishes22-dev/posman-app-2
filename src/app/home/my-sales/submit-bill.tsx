@@ -7,7 +7,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
   const [mpesaAmount, setMpesaAmount] = useState("");
   const [mpesaCode, setMpesaCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const totalAmount = selectedBill?.total || 0;
 
@@ -16,7 +16,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
     setCashAmount("");
     setMpesaAmount("");
     setMpesaCode("");
-    setErrorMessage(null);
+    setErrorMessage("");
   };
 
   const handleClose = () => {
@@ -77,6 +77,10 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
       setErrorMessage("Please enter an M-Pesa payment code.");
       return;
     }
+    if(selectedBill.bill_items.length === 0) {
+      setErrorMessage("Cannot submit bill with no items.");
+      return;
+    }
 
     const paymentDetails = {
       paymentMethod,
@@ -89,7 +93,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
 
     try {
       setIsSubmitting(true);
-      setErrorMessage(null);
+      setErrorMessage("");
 
       const token = localStorage.getItem("token");
       const response = await fetch("/api/bills/submit", {
@@ -127,6 +131,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
       <Modal.Body>
         {selectedBill ? (
           <Form>
+              {errorMessage && <p className="text-danger">{errorMessage}</p>}
             <Form.Group>
               <Form.Label>Select Payment Method</Form.Label>
               <div>
@@ -202,8 +207,6 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
             <p>
               <strong>Pending Amount:</strong> KES {pendingAmount > 0 ? pendingAmount : "0"}
             </p>
-
-            {errorMessage && <p className="text-danger">{errorMessage}</p>}
           </Form>
         ) : (
           <p>No bill selected. Please select a bill to continue.</p>

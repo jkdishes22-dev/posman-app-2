@@ -247,7 +247,7 @@ const BillingSection = () => {
           <Button variant="secondary" onClick={handleCloseSubmitModal}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleConfirmSubmit}>
+          <Button className="btn-success" variant="primary" onClick={handleConfirmSubmit}>
             Confirm
           </Button>
         </Modal.Footer>

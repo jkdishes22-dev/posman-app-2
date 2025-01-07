@@ -102,16 +102,28 @@ const QuantityModal: React.FC<QuantityModalProps> = ({
               </div>
             </div>
           </div>
-          <input
-            type="text"
-            value={quantity}
-            onChange={handleInputChange}
-            className="form-control mt-3"
-            placeholder="Enter quantity (1 or more)"
-          />
-          <Button variant="danger" onClick={handleClear} className="mt-2 w-100">
-            Clear
-          </Button>
+          <div className="row align-items-center">
+            <div className="col col-8">
+              <input
+                type="text"
+                value={quantity}
+                onChange={handleInputChange}
+                className="form-control"
+                placeholder="Enter quantity (1 or more)"
+                style={{ marginTop: '10px' }}
+              />
+            </div>
+            <div className="col col-4 d-flex align-items-center">
+              <Button
+                variant="danger"
+                onClick={handleClear}
+                className="w-100"
+                style={{ marginTop: '10px' }}
+              >
+                Clear
+              </Button>
+            </div>
+          </div>
         </div>
       </Modal.Body>
       <Modal.Footer>
@@ -119,7 +131,7 @@ const QuantityModal: React.FC<QuantityModalProps> = ({
           Close
         </Button>
         <Button
-          variant="primary"
+          variant="success"
           onClick={handleConfirm}
           disabled={quantity === "" || parseInt(quantity, 10) <= 0}
         >

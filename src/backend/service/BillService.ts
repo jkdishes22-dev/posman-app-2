@@ -7,7 +7,14 @@ import { startOfDay, endOfDay } from "date-fns";
 import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment, PaymentType } from "@backend/entities/Payment";
 import { Service } from "typedi";
-import { EntityNotFoundError, Repository } from "typeorm";
+import { EntityNotFoundError } from "typeorm";
+
+export type BillFilter = {
+  targetDate: Date; 
+  status?: string;
+  billId?: number;
+  billingUserId?: number;
+};
 
 @Service()
 export class BillService {
@@ -54,7 +61,7 @@ export class BillService {
     return savedBill;
   }
 
-  async fetchBills(userId: number, { targetDate, status, billId }: { targetDate: Date; status?: string, billId?: number }) {
+  async fetchBills(userId: number, { targetDate, status, billId, billingUserId }: BillFilter) {
     const startOfDayDate = startOfDay(new Date(targetDate));
     const endOfDayDate = endOfDay(new Date(targetDate));
 
@@ -80,8 +87,13 @@ export class BillService {
       query.andWhere('bill.id = :billId', { billId });
     }
 
+    // if current user is a waitress, fetch their bills
     if (userId && hasRole) {
       query.andWhere('bill.user_id = :userId', { userId });
+    }
+    // filters bills by a given user. Eg admin fetching bill by a given user
+    if (billingUserId) {
+      query.andWhere('bill.user_id = :billingUserId', { billingUserId });
     }
 
     const bills = await query.getMany();

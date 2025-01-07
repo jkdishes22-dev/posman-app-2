@@ -5,37 +5,47 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { useState, useEffect } from "react";
 import { formatISO } from "date-fns";
-import { Bill, BillPayment } from "src/app/types/types";
+import { Bill, BillPayment, User } from "src/app/types/types";
 import { Modal, Button } from "react-bootstrap";
 
 const CashierBillsPage = () => {
-    const [billingDate, setBillingDate] = useState(null);
-    const [selectedWaitress, setSelectedWaitress] = useState("Waitress 1");
+    const [filters, setFilters] = useState({
+        billingDate: null,
+        selectedWaitress: "",
+        status: "submitted",
+    });
+
+    const [waitresses, setWaitresses] = useState<User[]>([]);
     const [bills, setBills] = useState<Bill[]>([]);
-    const [searchBillId, setSearchBillId] = useState("");
     const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
     const [selectedBills, setSelectedBills] = useState([]);
     const [closeBillError, setCloseBillError] = useState("");
     const [showModal, setShowCloseBillModal] = useState(false);
+    const [searchBillId, setSearchBillId] = useState("");
 
     useEffect(() => {
-        if (!billingDate) {
-            fetchBills("submitted");
-        }
-    }, [billingDate]);
+        console.log("Filters changed:", filters);
+        fetchBills();
+    }, [filters]);
 
-    const fetchBills = async (status: string, date?: Date) => {
+    useEffect(() => {
+        console.log("Fetching sales persons on initial render");
+        fetchSalesPersons();
+    }, []);
+
+
+    const fetchBills = async () => {
         const token = localStorage.getItem("token");
+        const { status, billingDate, selectedWaitress } = filters;
         let url = `/api/bills?status=${status}`;
 
-        if (date) {
-            const formattedDate = formatISO(date, { representation: "date" });
-            url += `&date=${formattedDate}`;
-        } 
-        const filterStatuses = ['closed', 'voided', 'all'];
-        if(filterStatuses.includes(status) && !date && billingDate) {
+        if (billingDate) {
             const formattedDate = formatISO(billingDate, { representation: "date" });
             url += `&date=${formattedDate}`;
+        }
+
+        if (selectedWaitress) {
+            url += `&billingUserId=${selectedWaitress}`;
         }
 
         try {
@@ -51,6 +61,7 @@ const CashierBillsPage = () => {
             console.error("Error fetching bills:", error);
         }
     };
+
 
     const fetchBillById = async (billId: number) => {
         const token = localStorage.getItem("token");
@@ -70,22 +81,42 @@ const CashierBillsPage = () => {
         }
     };
 
+    const fetchSalesPersons = async () => {
+        const token = localStorage.getItem("token");
+        const url = `/api/users?role=user`;
+        try {
+            const response = await fetch(url, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (!response.ok) throw new Error("Failed to fetch user");
+            const data = await response.json();
+            setWaitresses(data);
+        } catch (error) {
+            console.error("Error fetching user:", error);
+        }
+    };
+
+
+    const handleFilterChange = (key, value) => {
+        setFilters((prevFilters) => ({
+            ...prevFilters,
+            [key]: value,
+        }));
+    };
+
     const handleDateChange = (date) => {
-        setBillingDate(date);
-        fetchBills("submitted", date);
+        handleFilterChange("billingDate", date);
     };
 
     const handleBillIdSearch = (event) => {
         const billId = event.target.value;
-
         if (/^\d*$/.test(billId)) {
             setSearchBillId(billId);
-
             if (billId === "") {
                 fetchBills("submitted");
             } else {
                 const existingBill = bills.find((bill) => bill.id === parseInt(billId));
-
                 if (existingBill) {
                     setBills([existingBill]);
                 } else {
@@ -93,6 +124,10 @@ const CashierBillsPage = () => {
                 }
             }
         }
+    };
+
+    const handleWaitressChange = (event) => {
+        handleFilterChange("selectedWaitress", event.target.value);
     };
 
     const handleCheckboxChange = (billId) => {
@@ -123,14 +158,14 @@ const CashierBillsPage = () => {
 
             if (!response.ok) throw new Error("Failed to process bills");
 
-            fetchBills("submitted");
+            fetchBills();
             setSelectedBills([]);
         } catch (error) {
             console.error("Error processing bills:", error);
         }
     };
 
-    const handleProcessClick = (bill: Bill) => {
+    const handleProcessClick = (bill) => {
         setCloseBillError("");
         setSelectedBill(bill);
     };
@@ -139,10 +174,10 @@ const CashierBillsPage = () => {
         if (!selectedBill) return;
 
         const billAmount = selectedBill.total;
-        const paidAmount = selectedBill.bill_payments.reduce((sum, billPayment: BillPayment) => sum + billPayment.payment.creditAmount, 0)
+        const paidAmount = selectedBill.bill_payments.reduce((sum, billPayment: BillPayment) => sum + billPayment.payment.creditAmount, 0);
 
         if (billAmount !== paidAmount) {
-            setCloseBillError("Cannot close bill. Please confirm payments")
+            setCloseBillError("Cannot close bill. Please confirm payments");
             return;
         }
 
@@ -157,11 +192,11 @@ const CashierBillsPage = () => {
 
             if (!response.ok) {
                 const data = await response.json();
-                setCloseBillError("Failed to close bill Error, " + data.message)
+                setCloseBillError("Failed to close bill Error, " + data.message);
                 throw new Error("Failed to close bill");
             }
 
-            fetchBills("submitted");
+            fetchBills();
             setSelectedBill(null);
         } catch (error) {
             console.error("Error closing bill:", error);
@@ -172,6 +207,7 @@ const CashierBillsPage = () => {
 
     const showCloseBillModal = () => setShowCloseBillModal(true);
     const handleCloseModal = () => setShowCloseBillModal(false);
+
 
     return (
         <SecureRoute roleRequired="cashier">
@@ -186,7 +222,7 @@ const CashierBillsPage = () => {
                             <DatePicker
                                 className="form-control"
                                 id="billingDate"
-                                selected={billingDate}
+                                selected={filters.billingDate}
                                 onChange={handleDateChange}
                                 dateFormat="yyyy-MM-dd"
                                 placeholderText="Select billing date"
@@ -212,16 +248,20 @@ const CashierBillsPage = () => {
                     <div className="col-md-3">
                         <div className="form-group">
                             <label htmlFor="waitress" className="form-label">
-                                Waitress
+                                Select Waitress
                             </label>
                             <select
                                 id="waitress"
                                 className="form-control"
-                                value={selectedWaitress}
-                                onChange={(e) => setSelectedWaitress(e.target.value)}
+                                value={filters.selectedWaitress}
+                                onChange={handleWaitressChange}
                             >
-                                <option value="Waitress 1">Waitress 1</option>
-                                <option value="Waitress 2">Waitress 2</option>
+                                <option value="">Select waitress</option>
+                                {waitresses.map((waitress) => (
+                                    <option key={waitress.id} value={waitress.id}>
+                                        {waitress.firstName} {waitress.lastName}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </div>
@@ -229,25 +269,25 @@ const CashierBillsPage = () => {
                         <div className="btn-group" role="group" aria-label="Filter actions">
                             <button
                                 className="btn btn-outline-primary"
-                                onClick={() => fetchBills("submitted")}
+                                onClick={() => handleFilterChange("status", "submitted")}
                             >
                                 Submitted
                             </button>
                             <button
                                 className="btn btn-outline-primary"
-                                onClick={() => fetchBills("closed" )}
+                                onClick={() => handleFilterChange("status", "closed")}
                             >
                                 Closed
                             </button>
                             <button
                                 className="btn btn-outline-primary"
-                                onClick={() => fetchBills("voided")}
+                                onClick={() => handleFilterChange("status", "voided")}
                             >
                                 Voided
                             </button>
                             <button
                                 className="btn btn-outline-primary"
-                                onClick={() => fetchBills("all")}
+                                onClick={() => handleFilterChange("status", "all")}
                             >
                                 All
                             </button>
@@ -385,7 +425,6 @@ const CashierBillsPage = () => {
                     </Modal.Header>
                     <Modal.Body>
                         Are you sure you want to close bill <strong>{selectedBill?.id}</strong> ?
-
                     </Modal.Body>
                     <Modal.Footer>
                         <Button variant="secondary" onClick={handleCloseModal}>

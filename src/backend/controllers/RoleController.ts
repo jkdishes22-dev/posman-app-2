@@ -39,6 +39,7 @@ export const addPermissionToRoleHandler = async (
     await roleService.addPermissionToRole(roleId, permissionId);
     res.status(200).json({ message: "Permission added to role" });
   } catch (error) {
+    console.log(error)
     res
       .status(500)
       .json({ message: "Failed to add permission to role", error });

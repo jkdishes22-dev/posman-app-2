@@ -17,6 +17,7 @@ const MySales = () => {
   const [selectedBill, setSelectedBill] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billIdFilter, setBillIdFilter] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
@@ -30,7 +31,7 @@ const MySales = () => {
     if (filter === "") {
       setFilteredBills(bills);
     } else {
-      const filtered = bills.filter((bill) => bill.id.toString().includes(filter));
+      const filtered = bills.filter((bill: Bill) => bill.id.toString().includes(filter));
       setFilteredBills(filtered);
 
       if (filtered.length === 0) {
@@ -77,7 +78,7 @@ const MySales = () => {
   };
 
 
-  const fetchBillsByBillId = async (billId) => {
+  const fetchBillsByBillId = async (billId: number) => {
     const token = localStorage.getItem("token");
 
     try {
@@ -99,11 +100,15 @@ const MySales = () => {
     }
   };
 
-  const handleBillClick = (bill) => {
+  const handleBillClick = (bill: number) => {
     setSelectedBill(bill);
   };
 
-  const openModal = () => {
+  const openSubmitModal = () => {
+    if(selectedBill && selectedBill.bill_items.length === 0) {
+      setErrorMessage("Cannot submit bill with no items.");
+      return;
+    }
     setIsModalOpen(true);
   };
 
@@ -175,7 +180,6 @@ const MySales = () => {
                 </table>
               </div>
             </div>
-
             <div className="col-7">
               <div className="btn-group mb-2" role="group" aria-label="Filter actions">
                 <button
@@ -200,12 +204,13 @@ const MySales = () => {
               {selectedBill ? (
                 <div>
                   <div className="card">
+                  {errorMessage && <p className="text-danger">{errorMessage}</p>}
                     <div className="card-body">
                       {selectedBill.status === "pending" ? (
                         <Button
                           className="m-2"
                           variant="success"
-                          onClick={openModal}
+                          onClick={openSubmitModal}
                         >
                           Submit Bill (KES: {selectedBill.total})
                         </Button>

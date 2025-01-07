@@ -8,4 +8,14 @@ export class ScopeService {
   async fetchScopes() {
     return await this.permissionScopeRepository.find();
   }
+
+  async fetchScopePermissions(scopeId: number) {
+    return await this.permissionScopeRepository.find({
+      where: {
+        id: scopeId
+      },
+      relations: ["permissions"]
+    });
+  }
+  
 }
