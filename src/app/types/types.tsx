@@ -71,3 +71,8 @@ export type Role = {
   name: string;
 }
 
+export type Permission = {
+  id: number;
+  name: string;
+  scopeId: number;
+}
