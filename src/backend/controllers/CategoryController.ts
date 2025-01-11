@@ -25,8 +25,7 @@ export const fetchCategoriesHandler = async (
         const categories = await categoryService.fetchCategories();
         res.status(200).json(categories);
     } catch (error) {
-        console.error("Error fetching categories:", error);
-        return [];
+        res.status(500).json({ message: "Failed to fetch categories", error });
     }
 };
 

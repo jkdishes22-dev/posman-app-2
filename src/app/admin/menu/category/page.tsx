@@ -6,6 +6,7 @@ import CategoryItems from "./components/category/category-items";
 import Categories from "./components/category/categories";
 import Image from "next/image";
 import CategoryDeleteModal from "./components/category/category-delete";
+import { AuthError } from "src/app/types/types";
 
 const CategoryPage: React.FC = () => {
   const [name, setName] = useState("");
@@ -23,7 +24,7 @@ const CategoryPage: React.FC = () => {
     id: string;
     name: string;
   } | null>(null);
-
+  const [authError, setAuthError] = useState<AuthError>(null);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) {
@@ -41,13 +42,12 @@ const CategoryPage: React.FC = () => {
         },
         body: JSON.stringify(formData),
       });
+      const data = await response.json();
       if (response.status === 201) {
         setFormError("");
-        const newCategory = await response.json();
-        setCategories((prevCategories) => [...prevCategories, newCategory]);
+        setCategories((prevCategories) => [...prevCategories, data]);
       } else {
-        const errorData = await response.json();
-        setFormError(errorData.message || "Failed to create category");
+        setFormError(data.message || "Failed to create category");
       }
     } catch (e) {
       setFormError("Login failed: " + e.message);
@@ -62,11 +62,13 @@ const CategoryPage: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
       });
+      const data = await response.json();
       if (response.ok) {
-        const data = await response.json();
         setItems(data);
+      } else if(response.status === 403) {
+        setAuthError(data);
       } else {
-        setItemError("Failed to fetch items");
+        setItemError("Failed to fetch items" +JSON.stringify(data));
       }
     } catch (e) {
       setItemError("Failed to fetch items: " + e.message);
@@ -131,7 +133,7 @@ const CategoryPage: React.FC = () => {
   }, []);
 
   return (
-    <AdminLayout>
+    <AdminLayout authError={authError}>
       <div className="container p-1">
         <div className="row px-1">
           <div className="col-4">

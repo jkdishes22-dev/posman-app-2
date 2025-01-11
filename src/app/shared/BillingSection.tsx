@@ -13,7 +13,7 @@ const BillingSection = () => {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [items, setItems] = useState([]);
-  const [fetchError, setFetchError] = useState("");
+  const [fetchCategoryError, setFetchCategoryError] = useState("");
   const [itemError, setItemError] = useState("");
   const [selectedItems, setSelectedItems] = useState([]);
   const [showQuantityModal, setShowQuantityModal] = useState(false);
@@ -41,13 +41,14 @@ const BillingSection = () => {
             Authorization: `Bearer ${token}`,
           },
         });
+        const data = await response.json();
         if (!response.ok) {
+          setFetchCategoryError("Failed to fetch categories: " + data);
           throw new Error("Failed to fetch categories");
         }
-        const data = await response.json();
         setCategories(data);
       } catch (error) {
-        setFetchError("Failed to fetch categories: " + error);
+        setFetchCategoryError("Failed to fetch categories: " + error);
       }
     };
     fetchCategories();
@@ -221,7 +222,7 @@ const BillingSection = () => {
               setSelectedCategory(category);
               fetchItems(category.id);
             }}
-            fetchError={fetchError}
+            fetchCategoryError={fetchCategoryError}
           />
         </div>
       </div>

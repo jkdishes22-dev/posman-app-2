@@ -7,7 +7,7 @@ import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
 import AsyncSelect from "react-select/async";
-import { Role, Scope } from "src/app/types/types";
+import { AuthError, Role, Scope } from "src/app/types/types";
 
 type ErrorState = {
   message: string;
@@ -28,7 +28,7 @@ export default function UsersPage() {
   );
   const [availablePermissions, setAvailablePermissions] = useState<string[]>([]);
   const [selectedPermission, setSelectedPermission] = useState(null);
-
+  const [authError, setAuthError] = useState<AuthError>(null);
 
   useEffect(() => {
     fetchRoles();
@@ -43,11 +43,12 @@ export default function UsersPage() {
           Authorization: `Bearer ${token}`,
         },
       });
+      const data = await response.json();
       if (!response.ok) {
-        const data = await response.json();
         setError(data);
+      } else if(response.status === 403) {
+        setAuthError(data);
       } else {
-        const data = await response.json();
         setRoles(data);
         setError(null);
       }
@@ -64,11 +65,10 @@ export default function UsersPage() {
           Authorization: `Bearer ${token}`,
         },
       });
+      const data = await response.json();
       if (!response.ok) {
-        const data = await response.json();
         setError(data);
       } else {
-        const data = await response.json();
         setScopes(data);
         const emptyPermissionsByScope = data.reduce((acc, scope) => {
           acc[scope.id] = [];
@@ -160,10 +160,9 @@ export default function UsersPage() {
       console.log("Scope, Role, or Permission not selected!");
       return;
     }
-    
+
     try {
       const token = localStorage.getItem("token");
-  
       const response = await fetch(`/api/roles/${selectedRole.id}/permissions`, {
         method: 'POST',
         headers: {
@@ -172,15 +171,15 @@ export default function UsersPage() {
         },
         body: JSON.stringify({
           roleId: selectedRole.id,
-          permissionId: selectedPermission.value, // Use the selected permission's value
+          permissionId: selectedPermission.value,
         }),
       });
-      
+
       if (!response.ok) {
         console.error("Failed to add permission");
         return;
       }
-      
+
       console.log("Permission added successfully!");
       setShowAddModal(false);
       // Update the permissions list if necessary
@@ -188,9 +187,9 @@ export default function UsersPage() {
       console.error("An unexpected error occurred:", error.message);
     }
   };
-  
+
   return (
-    <AdminLayout>
+    <AdminLayout authError={authError}>
       <div>
         {error && (
           <div className="alert alert-danger">
@@ -221,25 +220,29 @@ export default function UsersPage() {
               </ul>
             </div>
             <div className="col-8">
-
               <h3>Scopes: {selectedRole && selectedRole.name}</h3>
               {selectedRole ? (
-                <ul className="nav nav-underline">
-                  {scopes.map((scope) => (
-                    <li key={scope.id} className="nav-item">
-                      <a
-                        className={`nav-link ${selectedScope?.id === scope.id ? "active" : ""}`}
-                        href="#"
-                        onClick={() => setSelectedScope(scope)}
-                      >
-                        {scope.name}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
+                scopes.length > 0 ? (
+                  <ul className="nav nav-underline">
+                    {scopes.map((scope) => (
+                      <li key={scope.id} className="nav-item">
+                        <a
+                          className={`nav-link ${selectedScope?.id === scope.id ? "active" : ""}`}
+                          href="#"
+                          onClick={() => setSelectedScope(scope)}
+                        >
+                          {scope.name}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>No scopes available for the selected role.</p>
+                )
               ) : (
                 <p>Please select a role to see the available scopes.</p>
               )}
+
 
               <div>
                 {selectedScope && (

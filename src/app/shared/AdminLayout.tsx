@@ -4,11 +4,14 @@ import { useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 import SecureRoute from "../components/SecureRoute";
 import NavbarTitleSection from "./NavbarTitleSection";
+import { AuthError } from "../types/types";
 
 export default function AdminLayout({
   children,
+  authError,
 }: {
   children: React.ReactNode;
+  authError: AuthError | null; 
 }) {
   const router = useRouter();
   useEffect(() => {
@@ -258,6 +261,18 @@ export default function AdminLayout({
             </div>
           </div>
         </nav>
+        {authError && (
+          <div className="alert alert-danger">
+            <strong>Error:</strong> {authError.message}
+            {authError.missingPermissions && (
+              <ul>
+                {authError.missingPermissions.map((perm) => (
+                  <li key={perm}>{perm}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
         <main>{children}</main>
       </div>
     </SecureRoute>

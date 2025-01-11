@@ -21,7 +21,7 @@ export const fetchScopePermisionsHandler = async (
 ) => {
   try {
     const { scopeId } = req.query;
-    const scopePermisions = await scopeService.fetchScopePermissions(parseInt(scopeId));
+    const scopePermisions = await scopeService.fetchScopePermissions(parseInt(scopeId as string));
     res.status(200).json(scopePermisions);
   } catch (error) {
     res.status(500).json({ message: "Error fetching scope permissions" , error });

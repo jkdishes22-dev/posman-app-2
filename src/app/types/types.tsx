@@ -76,3 +76,8 @@ export type Permission = {
   name: string;
   scopeId: number;
 }
+
+export type AuthError = {
+  message: string;
+  missingPermissions?: string[];
+} | null;

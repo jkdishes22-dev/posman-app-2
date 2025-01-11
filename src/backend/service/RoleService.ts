@@ -27,16 +27,20 @@ export class RoleService {
   }
 
   async addPermissionToRole(roleId: any, permissionId: any) {
-    const role = await this.roleRepository.findOneBy({ id: roleId });
+    const role = await this.roleRepository.findOne({
+      where: { id: roleId },
+      relations: ["permissions"]
+    });
     const permission = await this.permissionRepository.findOneBy({
       id: permissionId,
     });
 
     if (role && permission) {
-      if (!role.permissions) { role.permissions = []; }
-      
-      role.permissions = [...role.permissions, permission];
-      return await this.roleRepository.save(role);
+      const hasPermission = role.permissions.some((perm) => perm.id === permission.id);
+      if (!hasPermission) {
+        role.permissions.push(permission);
+        await this.roleRepository.save(role);
+      }
     } else {
       throw new Error("Role or Permission not found");
     }

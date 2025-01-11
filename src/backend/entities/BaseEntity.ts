@@ -2,6 +2,9 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  CreateDateColumn,
+  DeleteDateColumn,
+  UpdateDateColumn,
 } from "typeorm";
 
 @Entity()
@@ -9,11 +12,11 @@ export abstract class BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
-  created_at: Date;
+  @CreateDateColumn({ type: 'datetime',  default: () => "CURRENT_TIMESTAMP" })
+  readonly created_at!: Date;
 
-  @Column({ type: "datetime", nullable: true })
-  updated_at: Date;
+  @UpdateDateColumn({ type: 'datetime',  nullable: true  })
+  readonly updated_at!: Date;
 
   @Column({ nullable: true })
   created_by: number;

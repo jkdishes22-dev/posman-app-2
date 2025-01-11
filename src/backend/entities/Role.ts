@@ -7,12 +7,10 @@ import {
 } from "typeorm";
 import { User } from "@entities/User";
 import { Permission } from "@entities/Permission";
+import { BaseEntity } from "./BaseEntity";
 
 @Entity("roles")
-export class Role {
-  @PrimaryGeneratedColumn()
-  id: number;
-
+export class Role extends BaseEntity{
   @Column()
   name: string;
 

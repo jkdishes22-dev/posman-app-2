@@ -48,7 +48,7 @@ export const AppDataSource = new DataSource({
     UserStation,
   ],
   synchronize: false,
-  logging: ["error"],
+  logging: true,
   timezone: "Africa/Nairobi",
 });
 

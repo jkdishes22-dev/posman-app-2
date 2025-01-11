@@ -8,12 +8,10 @@ import {
 } from "typeorm";
 import { Role } from "@entities/Role";
 import { PermissionScope } from "@entities/PermissionScope";
+import { BaseEntity } from "./BaseEntity";
 
 @Entity("permissions")
-export class Permission {
-  @PrimaryGeneratedColumn()
-  id: number;
-
+export class Permission extends BaseEntity {
   @Column()
   name: string;
 

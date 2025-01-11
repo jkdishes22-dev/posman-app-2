@@ -6,7 +6,6 @@ import { fetchCategoriesHandler, createCategoryHandler } from "@backend/controll
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   await ensureMetadata("Category");
-
   if (req.method === "GET") {
     await authMiddleware(
       authorize([permissions.CAN_VIEW_CATEGORY])(fetchCategoriesHandler),
