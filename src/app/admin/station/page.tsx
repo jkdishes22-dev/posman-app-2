@@ -5,6 +5,7 @@ import StationNew from './station-new';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Button } from 'react-bootstrap';
 import { stat } from 'fs';
+import { AuthError } from 'src/app/types/types';
 
 export default function StationPage() {
   const [stations, setStations] = useState([]);
@@ -12,20 +13,29 @@ export default function StationPage() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedStationId, setSelectedStationId] = useState(null);
+  const [authError, setAuthError] = useState<AuthError>(null);
+  const [fetchStationsError, setFetchStationsError] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       const token = localStorage.getItem("token");
       try {
-        const responseStations = await fetch('/api/stations', {
+        const response = await fetch('/api/stations', {
           method: 'GET',
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`
           },
         });
-        const dataStations = await responseStations.json();
-        setStations(responseStations.ok ? dataStations : []);
+        const data = await response.json();
+
+      if (response.ok) {
+        setStations(response.ok ? data : []);
+      } else if(response.status === 403) {
+        setAuthError(data);
+      } else {
+        setFetchStationsError("Failed to fetch items " +JSON.stringify(data));
+      }
       } catch (error) {
         console.error('Failed to fetch stations', error);
         setStations([]);
@@ -111,7 +121,7 @@ export default function StationPage() {
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout authError={authError}>
       <div className="container">
         <div className="row">
           <div className="col-md-4">

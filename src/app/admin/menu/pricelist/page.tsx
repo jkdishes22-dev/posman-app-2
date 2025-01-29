@@ -6,12 +6,15 @@ import PricelistAdd from "./pricelist-new";
 import ViewItems from "../category/components/items/items-view";
 import station from "pages/api/stations";
 import { Button } from "react-bootstrap";
+import { AuthError } from "src/app/types/types";
 
 export default function PricelistPage() {
   const [showModal, setShowModal] = useState(false);
   const [pricelists, setPricelists] = useState([]);
   const [pricelistItems, setPricelistItems] = useState([]);
   const [selectedPricelistId, setSelectedPricelistId] = useState(null);
+  const [authError, setAuthError] = useState<AuthError>(null);
+  const [fetchPricelistError, setFetchPricelistError] = useState();
 
   useEffect(() => {
     async function fetchPricelists() {
@@ -25,7 +28,15 @@ export default function PricelistPage() {
           },
         });
         const data = await response.json();
-        setPricelists(data);
+        if (response.ok) {
+          setPricelists(data);
+        }
+        else if (response.status === 403) {
+          setAuthError(data)
+        } else {
+          setFetchPricelistError(data);
+        }
+
       } catch (error) {
         console.error("Failed to fetch pricelists", error);
       }
@@ -86,7 +97,7 @@ export default function PricelistPage() {
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout authError={authError}>
       <div className="row">
         <div className="col-4">
           <button onClick={handleShowModal} className="btn btn-primary">

@@ -81,3 +81,9 @@ export type AuthError = {
   message: string;
   missingPermissions?: string[];
 } | null;
+
+export type InventoryItem = {
+  name: string;
+  code: string;
+  isStock: boolean;
+};

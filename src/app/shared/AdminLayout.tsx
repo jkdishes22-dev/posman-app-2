@@ -8,7 +8,7 @@ import { AuthError } from "../types/types";
 
 export default function AdminLayout({
   children,
-  authError,
+  authError
 }: {
   children: React.ReactNode;
   authError: AuthError | null; 
@@ -58,16 +58,25 @@ export default function AdminLayout({
       router.push("/admin/station/user")
   };
 
+  const manageInventory = () => {
+      router.push("/admin/inventory/items")
+  };
+
+  const inventoryItemsDefinition = () => {
+    router.push("/admin/inventory/definitions")
+  };
+
+  const restock = () => {
+    router.push("/admin/inventory/restock")
+  }
+  
   return (
     <SecureRoute roleRequired="admin">
       <div className="container">
-        <nav className="navbar navbar-expand-lg navbar-light bg-body-secondary m-2 px-2">
+        <nav className="navbar navbar-expand-lg navbar-light bg-body-secondary m-0 px-2">
           <NavbarTitleSection onClick={adminPage} />
-
-          <div className="collapse navbar-collapse" id="navbarTogglerDemo02">
-            {/* Left-aligned navigation links */}
+          <div className="collapse navbar-collapse">
             <ul className="navbar-nav mr-auto mt-2 mt-lg-0">
-              {/* Dropdown for User & Configuration */}
               <li className="nav-item dropdown">
                 <a
                   className="nav-link dropdown-toggle"
@@ -207,16 +216,37 @@ export default function AdminLayout({
                 </ul>
               </li>
 
-              {/* Other Nav Items */}
-              <li className="nav-item">
-                <a className="nav-link" href="#">
-                  Financials
-                </a>
-              </li>
-              <li className="nav-item">
-                <a className="nav-link" href="#">
+              <li className="nav-item dropdown">
+                <a
+                  className="nav-link dropdown-toggle"
+                  href="#"
+                  id="navbarDarkDropdownMenuLink"
+                  role="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
                   Inventory
                 </a>
+                <ul
+                  className="dropdown-menu dropdown-menu-dark"
+                  aria-labelledby="navbarDarkDropdownMenuLink"
+                >
+                  <li>
+                    <a className="dropdown-item" href="#" onClick={manageInventory}>
+                      Stock Items 
+                    </a>
+                  </li>
+                  <li>
+                    <a className="dropdown-item" href="#" onClick={inventoryItemsDefinition}>
+                      Inventory definition
+                    </a>
+                  </li>
+                  <li>
+                    <a className="dropdown-item" href="#" onClick={restock}>
+                      Restock
+                    </a>
+                  </li>
+                </ul>
               </li>
               <li className="nav-item">
                 <a className="nav-link" href="#">

@@ -7,10 +7,10 @@ import { Category, Item } from "../../../../../types/types";
 interface ViewItemsProps {
   selectedCategory: Category | null;
   items: Item[];
-  pricelistItems?: Item[]; // Optional prop for pricelist items
+  pricelistItems?: Item[];
   itemError: string;
-  handleAddItemClick?: () => void; // Optional
-  handleDeleteItem?: (itemId: string) => void; // Optional
+  handleAddItemClick?: () => void;
+  handleDeleteItem?: (itemId: string) => void;
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
   isBillingSection?: boolean;
   isPricelistSection?: boolean;
@@ -21,7 +21,7 @@ interface ViewItemsProps {
 const ViewItems: React.FC<ViewItemsProps> = ({
   selectedCategory,
   items = [],
-  pricelistItems, // Include optional prop
+  pricelistItems,
   itemError,
   handleAddItemClick,
   handleDeleteItem,

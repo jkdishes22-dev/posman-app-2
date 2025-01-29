@@ -25,6 +25,7 @@ const CategoryPage: React.FC = () => {
     name: string;
   } | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) {
@@ -118,12 +119,14 @@ const CategoryPage: React.FC = () => {
             Authorization: `Bearer ${token}`,
           },
         });
+        const data = await response.json();
         if (response.ok) {
-          const data = await response.json();
           setCategories(data);
-        } else {
-          const errorData = await response.json();
-          setFetchError(errorData.message || "Failed to fetch categories");
+        } else if (response.status === 403) {
+          setAuthError(data);
+        }
+          else {
+          setFetchError(data.message || "Failed to fetch categories");
         }
       } catch (e) {
         setFetchError("Failed to fetch categories: " + e.message);

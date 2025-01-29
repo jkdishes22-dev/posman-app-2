@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Button, Form } from "react-bootstrap";
 import AdminLayout from "src/app/shared/AdminLayout";
-import { User } from "../../../types/types";
+import { AuthError, User } from "../../../types/types";
 
 function StationUsersPage() {
   const [users, setUsers] = useState([]);
@@ -14,6 +14,7 @@ function StationUsersPage() {
   const [stations, setStations] = useState([]);
   const [selectedStation, setSelectedStation] = useState("");
   const [userStations, setUserStations] = useState([]);
+  const [authError, setAuthError] = useState<AuthError>(null)
 
   useEffect(() => {
     fetchUsers();
@@ -36,10 +37,17 @@ function StationUsersPage() {
           Authorization: `Bearer ${token}`,
         },
       });
-      if (!response.ok) throw new Error("Failed to fetch users");
       const data = await response.json();
-      setUsers(data);
-      setFilteredUsers(data);
+
+      if (response.ok) {
+        setUsers(data);
+        setFilteredUsers(data);
+      } else if (response.status === 403) {
+        setAuthError(data);
+      } else {
+        throw new Error("Failed to fetch users");
+      }
+
     } catch (error) {
       console.error("Error fetching users:", error);
     }
@@ -53,9 +61,14 @@ function StationUsersPage() {
           Authorization: `Bearer ${token}`,
         },
       });
-      if (!response.ok) throw new Error("Failed to fetch stations");
       const data = await response.json();
-      setStations(data);
+      if (response.ok) {
+        setStations(data);
+      } else if (response.status === 403) {
+        setAuthError(data);
+      } else {
+        throw new Error("Failed to fetch users");
+      }
     } catch (error) {
       console.error("Error fetching stations:", error);
     }
@@ -73,7 +86,14 @@ function StationUsersPage() {
       });
       if (!response.ok) throw new Error("Failed to fetch user stations");
       const data = await response.json();
-      setUserStations(data);
+      if (response.ok) {
+        setUserStations(data);
+      } else if (response.status === 403) {
+        setAuthError(data);
+      } else {
+        throw new Error("Failed to fetch users");
+      }
+
     } catch (error) {
       console.error("Error fetching user stations:", error);
     }
@@ -170,7 +190,7 @@ function StationUsersPage() {
 
 
   return (
-    <AdminLayout>
+    <AdminLayout authError={authError}>
       <div className="container my-5">
         <div className="row">
           {/* Sidebar: User List */}

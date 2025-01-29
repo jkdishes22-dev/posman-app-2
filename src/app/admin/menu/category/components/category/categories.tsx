@@ -11,7 +11,7 @@ interface CategoriesProps {
   categories: Category[];
   onCategoryClick: (category: Category) => void;
   fetchError: string;
-  onDeleteCategory?: (category: { id: string; name: string }) => void; // Make this prop optional
+  onDeleteCategory?: (category: { id: string; name: string }) => void;
 }
 
 const Categories: React.FC<CategoriesProps> = ({

@@ -6,10 +6,8 @@ import {
   JoinColumn,
   ManyToMany,
   JoinTable,
-  OneToMany,
 } from "typeorm";
 import { Category } from "@entities/Category";
-import { ItemGroup } from "./ItemGroup"; // Import the ItemGroup entity
 
 export enum ItemStatus {
   ACTIVE = "ACTIVE",
@@ -42,6 +40,10 @@ export class Item {
 
   @Column({ nullable: true, name: "is_group" })
   isGroup: boolean;
+
+  @Column({ nullable: true, name: "is_stock" , default: false })
+  isStock: boolean;
+
 
   @ManyToMany(() => Item)
   @JoinTable({

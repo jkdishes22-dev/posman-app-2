@@ -3,7 +3,6 @@ import { BillService } from "@services/BillService";
 
 const billService = new BillService();
 
-// Create a new bill
 export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     const newBill = await billService.createBill(req.body);

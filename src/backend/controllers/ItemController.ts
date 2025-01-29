@@ -32,7 +32,7 @@ export const fetchItemsHandler = async (
     const user_id = req.user.id;
     const targetUsage = billing === 'true' ? true : false;
 
-    const items = await itemService.fetchItems(category, user_id, targetUsage);
+    const items = await itemService.fetchItems(parseInt(category), user_id, targetUsage);
     res.status(200).json(items);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch items", error });

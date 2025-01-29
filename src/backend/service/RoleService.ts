@@ -14,7 +14,6 @@ export class RoleService {
     this.roleRepository = AppDataSource.getRepository(Role);
     this.permissionRepository = AppDataSource.getRepository(Permission);
     this.userRoleRepository = AppDataSource.getRepository(UserRole);
-
   }
 
   async fetchRoles() {
