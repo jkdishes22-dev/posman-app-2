@@ -1,11 +1,11 @@
 import permissions from "@backend/config/managed-roles";
 import { addStationHandler, fetchStationsHandler } from "@backend/controllers/StationController";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
-import { ensureMetadata } from "@backend/utils/metadata-hack";
+// import { ensureMetadata } from "@backend/utils/metadata-hack";
 import { NextApiRequest, NextApiResponse } from "next"
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-   await ensureMetadata("Station");
+   // await ensureMetadata("Station");
 
    if (req.method === "POST") {
       await authMiddleware(

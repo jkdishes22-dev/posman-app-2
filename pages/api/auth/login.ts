@@ -4,14 +4,14 @@ import jwt from "jsonwebtoken";
 import { config } from "dotenv";
 import { UserService } from "@services/UserService";
 import * as process from "process";
-import { ensureMetadata } from "@backend/utils/metadata-hack";
+// import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 config();
-const secret = process.env.JWT_SECRET;
+const secret = process.env.JWT_SECRET || "4d7f12a75ea5f8fb40e8540264d47610d8aef0af421fa8643e3fdb5eb92f69ba";
 const userService = new UserService();
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  await ensureMetadata("User");
+  // await ensureMetadata("User");
   const { username, password } = req.body;
 
   try {

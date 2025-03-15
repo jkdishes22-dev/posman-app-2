@@ -1,8 +1,15 @@
-import { AppDataSource } from "@backend/config/data-source";
 import { Category, CategoryStatus } from "@backend/entities/Category";
+import Container from "typedi";
+import { Repository, DataSource } from "typeorm";
 
 export class CategoryService {
-    private categoryRepository = AppDataSource.getRepository(Category);
+     private categoryRepository: Repository<Category>;
+
+      private dataSource = Container.get<DataSource>('DATA_SOURCE');
+     
+         constructor() {
+            this.categoryRepository = this.dataSource.getRepository(Category);
+        }
 
     public async createCategory(name: string): Promise<Category> {
         const category: Category = this.categoryRepository.create({

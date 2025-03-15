@@ -6,18 +6,18 @@ import {
 } from "@controllers/UserController";
 import { config } from "dotenv";
 import * as process from "process";
-import { ensureMetadata } from "@backend/utils/metadata-hack";
+// import { ensureMetadata } from "@backend/utils/metadata-hack";
 import permissions from "@backend/config/managed-roles";
 
 config();
 const isAuthEnabled = process.env.AUTH_ENABLED || "false";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  await ensureMetadata("User");
-  await ensureMetadata("Role");
-  await ensureMetadata("Permission");
-  await ensureMetadata("UserRole");
-  await ensureMetadata("RolePermission");
+  // await ensureMetadata("User");
+  // await ensureMetadata("Role");
+  // await ensureMetadata("Permission");
+  // await ensureMetadata("UserRole");
+  // await ensureMetadata("RolePermission");
 
   if (req.method === "POST") {
     if (isAuthEnabled === "true") {

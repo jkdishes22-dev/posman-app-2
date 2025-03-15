@@ -1,14 +1,20 @@
-import { AppDataSource } from "@backend/config/data-source";
 import { BillPayment } from "@backend/entities/BillPayment";
-import { Payment, PaymentType } from "@backend/entities/Payment";
-import { BillPaymentInterface } from "@backend/interfaces/BillPayment";
+import { Payment } from "@backend/entities/Payment";
+import Container, { Inject } from "typedi";
+import { Repository, DataSource } from "typeorm";
 
 export class PaymentService {
 
-    private paymentRepository = AppDataSource.getRepository(Payment);
-    private billPaymentRepository = AppDataSource.getRepository(BillPayment);
+    private paymentRepository: Repository<Payment>;
+    private billPaymentRepository: Repository<BillPayment>;
 
-    constructor() { }
+  private dataSource = Container.get<DataSource>('DATA_SOURCE');
+      
+constructor() {
+        this.paymentRepository = this.dataSource.getRepository(Payment);
+        this.billPaymentRepository = this.dataSource.getRepository(BillPayment);
+     }
+     
     async createPayment(payload): Promise<Payment> {
         const newPayment = this.paymentRepository.create({
             ...payload

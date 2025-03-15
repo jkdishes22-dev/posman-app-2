@@ -58,16 +58,20 @@ export default function AdminLayout({
       router.push("/admin/station/user")
   };
 
-  const manageInventory = () => {
-      router.push("/admin/inventory/items")
+  const manageProduction = () => {
+      router.push("/admin/production/items")
   };
 
-  const inventoryItemsDefinition = () => {
-    router.push("/admin/inventory/definitions")
+  const productionItemDefinition = () => {
+    router.push("/admin/production/definitions")
   };
 
-  const restock = () => {
-    router.push("/admin/inventory/restock")
+  const dailyProduction = () => {
+    router.push("/admin/production")
+  }
+
+  const issue = () => {
+    router.push("admin/production/restock")
   }
   
   return (
@@ -136,40 +140,6 @@ export default function AdminLayout({
                   </li>
                 </ul>
               </li>
-
-              <li className="nav-item dropdown">
-                <a
-                  className="nav-link dropdown-toggle"
-                  href="#"
-                  id="navbarDarkDropdownMenuLink"
-                  role="button"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                >
-                  Operations
-                </a>
-                <ul
-                  className="dropdown-menu dropdown-menu-dark"
-                  aria-labelledby="navbarDarkDropdownMenuLink"
-                >
-                  <li>
-                    <a className="dropdown-item" href="#">
-                      Billing
-                    </a>
-                  </li>
-                  <li>
-                    <a className="dropdown-item" href="#">
-                      Production
-                    </a>
-                  </li>
-                  <li>
-                    <a className="dropdown-item" href="#">
-                      Issuing
-                    </a>
-                  </li>
-                </ul>
-              </li>
-
               {/* Dropdown for Menu & Pricing */}
               <li className="nav-item dropdown">
                 <a
@@ -225,25 +195,31 @@ export default function AdminLayout({
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                 >
-                  Inventory
+                  Production
                 </a>
                 <ul
                   className="dropdown-menu dropdown-menu-dark"
                   aria-labelledby="navbarDarkDropdownMenuLink"
                 >
                   <li>
-                    <a className="dropdown-item" href="#" onClick={manageInventory}>
-                      Stock Items 
+                    <a className="dropdown-item" href="#" onClick={manageProduction}>
+                      Stock Menu Items 
                     </a>
                   </li>
                   <li>
-                    <a className="dropdown-item" href="#" onClick={inventoryItemsDefinition}>
-                      Inventory definition
+                    <a className="dropdown-item" href="#" onClick={productionItemDefinition}>
+                      Ratio definition
                     </a>
                   </li>
                   <li>
-                    <a className="dropdown-item" href="#" onClick={restock}>
-                      Restock
+                    <a className="dropdown-item" href="#" onClick={dailyProduction}>
+                      Daily Production
+                    </a>
+                  </li>
+
+                  <li>
+                    <a className="dropdown-item" href="#" onClick={issue}>
+                      Issuing
                     </a>
                   </li>
                 </ul>

@@ -2,6 +2,7 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import * as process from "process";
+import { Container } from "typedi";
 
 import { User } from "@entities/User";
 import { Role } from "@entities/Role";
@@ -21,6 +22,7 @@ import { UserStation } from "@backend/entities/UserStation";
 import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment } from "@backend/entities/Payment";
 
+// Create the DataSource instance
 export const AppDataSource = new DataSource({
   type: "mysql",
   host: process.env.DB_HOST || "localhost",
@@ -50,25 +52,29 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   logging: true,
   timezone: "Africa/Nairobi",
+  extra: {
+    connectionLimit: 10,
+    waitForConnections: true,
+    queueLimit: 0
+  },
+  poolSize: 10,
+  connectTimeout: 20000,
 });
 
-export const getDataSource34 = async (): Promise<DataSource> => {
-  if (!AppDataSource.isInitialized) {
-    await AppDataSource.initialize();
-    console.log("Data Source has been initialized!");
-  }
-  return AppDataSource;
-};
-
-
-export const getDataSource = async (): Promise<DataSource> => {
+// Initialize function
+export const initializeDataSource = async (): Promise<DataSource> => {
   try {
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
+      Container.set('DATA_SOURCE', AppDataSource);
       console.log("Data Source has been initialized!");
     }
     return AppDataSource;
   } catch (error) {
+    console.error("Error during Data Source initialization", error);
     throw new Error('Failed to initialize the data source');
   }
 };
+
+// Export default instance
+export default AppDataSource;

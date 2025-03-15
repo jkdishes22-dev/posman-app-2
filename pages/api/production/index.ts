@@ -1,20 +1,20 @@
 import permissions from "@backend/config/managed-roles";
-import { createInventoryItemHandler, fetchInventoryItemsHandler } from "@backend/controllers/InventoryController";
+import { createProductionItemHandler, fetchProdutionItemsHandler } from "@backend/controllers/ProductionController";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
-import { ensureMetadata } from "@backend/utils/metadata-hack";
+// import { ensureMetadata } from "@backend/utils/metadata-hack";
 import { NextApiRequest, NextApiResponse } from "next";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-    await ensureMetadata("User");
-    await ensureMetadata("Item");
+    // await ensureMetadata("User");
+    // await ensureMetadata("Item");
 
     if (req.method === "POST") {
         await authMiddleware(
-            authorize([permissions.CAN_ADD_ITEM])(createInventoryItemHandler),
+            authorize([permissions.CAN_ADD_ITEM])(createProductionItemHandler),
         )(req, res);
     } else if (req.method === "GET") {
         await authMiddleware(
-            authorize([permissions.CAN_VIEW_ITEM])(fetchInventoryItemsHandler),
+            authorize([permissions.CAN_VIEW_ITEM])(fetchProdutionItemsHandler),
         )(req, res);
     } else {
         res.setHeader("Allow", ["GET", "POST"]);

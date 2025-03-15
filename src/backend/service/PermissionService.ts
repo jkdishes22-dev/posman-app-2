@@ -1,30 +1,39 @@
 import { AppDataSource } from "@backend/config/data-source";
 import { Permission } from "@entities/Permission";
 import { PermissionScope } from "@entities/PermissionScope";
+import Container from "typedi";
+import { Repository, DataSource } from "typeorm";
 
 export class PermissionService {
+  private permissionRepository: Repository<Permission>;
+    private scopeRepository: Repository<PermissionScope>;
+
+    private dataSource = Container.get<DataSource>('DATA_SOURCE');
+      
+  constructor() {
+        this.permissionRepository = this.dataSource.getRepository(Permission);
+        this.scopeRepository = this.dataSource.getRepository(PermissionScope);
+    }
+
   async fetchPermissions() {
-    return await AppDataSource.getRepository(Permission).find({
+    return await this.permissionRepository.find({
       relations: ["scope"],
     });
   }
 
   async createPermission(newPermission) {
-    const permissionRepository = AppDataSource.getRepository(Permission);
-    const scopeRepository = AppDataSource.getRepository(PermissionScope);
-
-    let scope = await scopeRepository.findOneBy({ name: newPermission.scope });
+    let scope = await this.scopeRepository.findOneBy({ name: newPermission.scope });
     if (!scope) {
-      scope = scopeRepository.create({ name: newPermission.scope });
-      scope = await scopeRepository.save(scope);
+      scope = this.scopeRepository.create({ name: newPermission.scope });
+      scope = await this.scopeRepository.save(scope);
     }
 
-    const permission = permissionRepository.create({
+    const permission = this.permissionRepository.create({
       name: newPermission.name,
       scope: scope,
     });
 
-    return await permissionRepository.save(permission);
+    return await this.permissionRepository.save(permission);
   }
 
   async fetchPermissionsByRole(roleId) {
@@ -39,3 +48,4 @@ export class PermissionService {
     return await AppDataSource.query(query, [roleId]);
   }
 }
+

@@ -1,7 +1,9 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { BillService } from "@services/BillService";
+import Container from "typedi";
 
-const billService = new BillService();
+
+const billService = Container.get(BillService);
 
 export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
   try {

@@ -5,10 +5,10 @@ import {
   fetchPermissionsHandler,
   createPermissionHandler,
 } from "@controllers/PermissionController";
-import { ensureMetadata } from "@backend/utils/metadata-hack";
+// import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  await ensureMetadata("Permission");
+  // await ensureMetadata("Permission");
   if (req.method === "GET") {
     await authMiddleware(
       authorize([permissions.CAN_VIEW_PERMISSION])(fetchPermissionsHandler),

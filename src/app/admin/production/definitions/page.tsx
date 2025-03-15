@@ -30,7 +30,7 @@ function InventoryItemsPage() {
   const fetchItems = async () => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch("/api/inventory", {
+      const response = await fetch("/api/production", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -60,7 +60,7 @@ function InventoryItemsPage() {
     }
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`/api/inventory/${selectedItem}/sub-items`, {
+      const response = await fetch(`/api/production/${selectedItem}/sub-items`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -83,7 +83,7 @@ function InventoryItemsPage() {
   const fetchSubItemsFromBackend = async (itemId) => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`/api/inventory/${itemId}/sub-items`, {
+      const response = await fetch(`/api/production/${itemId}/sub-items`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -127,7 +127,7 @@ function InventoryItemsPage() {
   const removeSubItemFromItem = async (subItemId) => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`/api/inventory/${selectedItem}/sub-items/${subItemId}`, {
+      const response = await fetch(`/api/production/${selectedItem}/sub-items/${subItemId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -154,7 +154,7 @@ function InventoryItemsPage() {
       <div className="container my-5">
         <div className="row">
           <div className="col-md-4">
-            <h4>Stock Items</h4>
+            <h4>Stock Menu Items</h4>
             <div className="mb-3">
               <input
                 type="text"

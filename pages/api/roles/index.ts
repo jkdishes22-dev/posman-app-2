@@ -7,10 +7,10 @@ import {
   addPermissionToRoleHandler,
   assignRoleToUserHandler,
 } from "@controllers/RoleController";
-import { ensureMetadata } from "@backend/utils/metadata-hack";
+// import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  await ensureMetadata("Role");
+  // await ensureMetadata("Role");
   if (req.method === "GET") {
     await authMiddleware(
       authorize([permissions.CAN_VIEW_ROLE])(fetchRolesHandler),

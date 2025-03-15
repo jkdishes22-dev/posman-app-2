@@ -1,7 +1,8 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { ScopeService } from "@services/ScopeService";
+import Container from "typedi";
 
-const scopeService = new ScopeService();
+const scopeService =  Container.get(ScopeService);
 
 export const fetchScopesHandler = async (
   req: NextApiRequest,

@@ -3,8 +3,9 @@ import { UserService } from "@services/UserService";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import * as process from "process";
+import Container from "typedi";
 
-const userService = new UserService();
+const userService = Container.get(UserService);
 
 export const createUserHandler = async (
   req: NextApiRequest,

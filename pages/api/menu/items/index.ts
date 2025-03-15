@@ -6,10 +6,10 @@ import {
   fetchItemsHandler,
   filterItemsHandler, // Import the new handler
 } from "@controllers/ItemController";
-import { ensureMetadata } from "@backend/utils/metadata-hack";
+// import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  await ensureMetadata("Item");
+  // await ensureMetadata("Item");
   if (req.method === "GET") {
     const { search } = req.query;
     if (req.query && search) {

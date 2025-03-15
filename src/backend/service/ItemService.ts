@@ -1,18 +1,20 @@
-import { AppDataSource } from "@backend/config/data-source";
 import { Item, ItemStatus } from "@entities/Item";
 import { Currency, PricelistItem } from "@entities/PricelistItem";
-import { EntityManager, In, Repository } from "typeorm";
+import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { ItemGroup } from "@entities/ItemGroup";
+import Container, { Inject } from "typedi";
 
 export class ItemService {
   private itemRepository: Repository<Item>;
   private pricelistItemRepository: Repository<PricelistItem>;
   private itemGroupRepository: Repository<ItemGroup>;
 
-  constructor() {
-    this.itemRepository = AppDataSource.getRepository(Item);
-    this.pricelistItemRepository = AppDataSource.getRepository(PricelistItem);
-    this.itemGroupRepository = AppDataSource.getRepository(ItemGroup);
+   private dataSource = Container.get<DataSource>('DATA_SOURCE');
+      
+constructor() {
+    this.itemRepository = this.dataSource.getRepository(Item);
+    this.pricelistItemRepository = this.dataSource.getRepository(PricelistItem);
+    this.itemGroupRepository = this.dataSource.getRepository(ItemGroup);
   }
 
   public async createItem(
@@ -20,7 +22,7 @@ export class ItemService {
     { pricelistId, price },
     user_id: number,
   ): Promise<Item> {
-    return await AppDataSource.transaction(
+    return await this.itemRepository.manager.connection.transaction(
       async (transactionalEntityManager) => {
         const newItem = {
           ...itemData,
@@ -106,7 +108,7 @@ export class ItemService {
     user_id: number,
     pricelistId: number,
   ): Promise<Item> {
-    return await AppDataSource.transaction(
+    return await this.itemRepository.manager.connection.transaction(
       async (transactionalEntityManager) => {
         const itemToUpdate = await this.itemRepository.findOne({
           where: { id: itemData.id },

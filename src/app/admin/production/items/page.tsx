@@ -5,6 +5,7 @@ import AdminLayout from "src/app/shared/AdminLayout";
 import { Button } from "react-bootstrap";
 import AuditLog from "../activity-log";
 import InventoryModal from "./new";
+import { InventoryItem } from "src/app/types/types";
 
 export default function InventoryPage() {
   const [showModal, setShowModal] = useState(false);
@@ -17,7 +18,7 @@ export default function InventoryPage() {
     async function fetchInventoryItems() {
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch("/api/inventory", {
+        const response = await fetch("/api/production", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -49,16 +50,12 @@ export default function InventoryPage() {
   const handleShowModal = () => setShowModal(true);
   const handleCloseModal = () => setShowModal(false);
   
-    type InventoryItem = {
-        name: string;
-        code: string;
-        isStock: boolean;
-    };
+   
 
   const handleAddInventoryItem = async ({ name, code, isStock }: InventoryItem) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/inventory", {
+      const response = await fetch("/api/production", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

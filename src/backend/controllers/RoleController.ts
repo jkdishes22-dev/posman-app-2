@@ -1,9 +1,10 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { RoleService } from "@services/RoleService";
 import { PermissionService } from "@services/PermissionService";
+import Container from "typedi";
 
-const roleService = new RoleService();
-const permissionService = new PermissionService();
+const roleService = Container.get(RoleService);
+const permissionService = Container.get(PermissionService);
 
 export const fetchRolesHandler = async (
   req: NextApiRequest,

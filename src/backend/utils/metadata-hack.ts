@@ -1,13 +1,21 @@
-import { EntityTarget } from "typeorm";
-import { AppDataSource } from "../config/data-source";
+// import { DataSource, EntityTarget } from "typeorm";
+// import Container from "typedi";
 
-export const ensureMetadata = async (entity: EntityTarget<never>) => {
-  if (!AppDataSource.hasMetadata(entity)) {
-    console.log(
-      `Metadata for ${entity} not found. Initializing AppDataSource...`,
-    );
-    if (!AppDataSource.isInitialized) {
-      await AppDataSource.initialize();
-    }
-  }
-};
+// const  dataSource = Container.get<DataSource>('DATA_SOURCE');
+// export const ensureMetadata = async (entity: EntityTarget<never>) => {
+// try {
+//   if (!dataSource.hasMetadata(entity)) {
+//     console.log(
+//       `Metadata for ${entity} not found. Initializing AppDataSource...`,
+//     );
+//     if (!dataSource.isInitialized) {
+//       await dataSource.initialize();
+//     }
+//   }
+// }
+//   catch(err) {
+//     console.log(
+//       `Metadata Error . ${err}`,
+//     );
+//   }
+// };

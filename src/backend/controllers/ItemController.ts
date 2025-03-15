@@ -1,7 +1,8 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { ItemService } from "@services/ItemService";
+import Container from "typedi";
 
-const itemService = new ItemService();
+const itemService = Container.get(ItemService);
 
 export const filterItemsHandler = async (req: NextApiRequest, res: NextApiResponse,) => {
   try {

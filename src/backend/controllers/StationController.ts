@@ -1,7 +1,8 @@
 import { StationService } from "@backend/service/StationService";
 import { NextApiRequest, NextApiResponse } from "next";
+import Container from "typedi";
 
-const stationService = new StationService();
+const stationService = Container.get(StationService);
 
 export const addStationHandler = async (req: NextApiRequest, res: NextApiResponse) => {
     try {

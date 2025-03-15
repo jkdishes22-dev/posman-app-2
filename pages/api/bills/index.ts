@@ -7,11 +7,11 @@ import {
   cancelBill,
   voidBillItem,
 } from "@controllers/BillController";
-import { ensureMetadata } from "@backend/utils/metadata-hack";
+// import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  await ensureMetadata("Bill");
-  await ensureMetadata("BillItem");
+  // await ensureMetadata("Bill");
+  // await ensureMetadata("BillItem");
 
   if (req.method === "POST") {
     return authMiddleware(authorize([permissions.CAN_ADD_BILL])(createBill))(

@@ -5,10 +5,10 @@ import {
   createPricelistHandler,
   fetchPricelistsHandler,
 } from "@controllers/PricelistController";
-import { ensureMetadata } from "@backend/utils/metadata-hack";
+// import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  await ensureMetadata("Pricelist");
+  // await ensureMetadata("Pricelist");
 
   if (req.method === "GET") {
     await authMiddleware(

@@ -1,13 +1,21 @@
-import { AppDataSource } from "@backend/config/data-source";
 import { Station } from "@backend/entities/Station";
 import { Pricelist, PriceListStatus } from "@entities/Pricelist";
 import { PricelistItem } from "@entities/PricelistItem";
+import Container, { Inject } from "typedi";
+import { Repository, DataSource } from "typeorm";
 
 export class PricelistService {
-  private pricelistRepository = AppDataSource.getRepository(Pricelist);
-  private pricelistItemRepository = AppDataSource.getRepository(PricelistItem);
-  private stationRepository = AppDataSource.getRepository(Station);
+  private pricelistRepository: Repository<Pricelist>;
+  private pricelistItemRepository: Repository<PricelistItem>;
+  private stationRepository: Repository<Station>;
 
+  private dataSource = Container.get<DataSource>('DATA_SOURCE');
+      
+constructor() {
+    this.pricelistRepository = this.dataSource.getRepository(Pricelist);
+    this.pricelistItemRepository = this.dataSource.getRepository(PricelistItem);
+    this.stationRepository = this.dataSource.getRepository(Station);
+  }
 
   public async createPricelist(
     payload: Partial<Pricelist>,

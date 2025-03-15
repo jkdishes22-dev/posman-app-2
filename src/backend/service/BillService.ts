@@ -6,8 +6,8 @@ import { BillPaymentInterface } from "@backend/interfaces/BillPayment";
 import { startOfDay, endOfDay } from "date-fns";
 import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment, PaymentType } from "@backend/entities/Payment";
-import { Service } from "typedi";
-import { EntityNotFoundError } from "typeorm";
+import Container, { Inject, Service } from "typedi";
+import { DataSource, EntityNotFoundError, Repository } from "typeorm";
 
 export type BillFilter = {
   targetDate: Date; 
@@ -18,20 +18,22 @@ export type BillFilter = {
 
 @Service()
 export class BillService {
-  private billRepository = AppDataSource.getRepository(Bill);
-  private billItemRepository = AppDataSource.getRepository(BillItem);
-  private paymentRepository = AppDataSource.getRepository(Payment);
-  private billPaymentRepository = AppDataSource.getRepository(BillPayment);
+  private billRepository: Repository<Bill>;
+  private billItemRepository: Repository<BillItem>;
+  private paymentRepository: Repository<Payment>;
+  private billPaymentRepository: Repository<BillPayment>;
 
   private userService: UserService;
 
-  constructor() {
-    // this.billRepository = AppDataSource.getRepository(Bill);
-    // this.billItemRepository = AppDataSource.getRepository(BillItem);
-    // this.paymentRepository = AppDataSource.getRepository(Payment);
-    // this.billPaymentRepository = AppDataSource.getRepository(BillPayment);
+ private dataSource = Container.get<DataSource>('DATA_SOURCE');
 
-    this.userService = new UserService();
+    constructor() {
+    this.billRepository = this.dataSource.getRepository(Bill);
+    this.billItemRepository = this.dataSource.getRepository(BillItem);
+    this.paymentRepository = this.dataSource.getRepository(Payment);
+    this.billPaymentRepository = this.dataSource.getRepository(BillPayment);
+
+    this.userService = new UserService(dataSource);
   }
 
   async createBill(payload) {

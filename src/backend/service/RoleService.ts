@@ -1,19 +1,21 @@
-import { AppDataSource } from "@backend/config/data-source";
 import { Role } from "@entities/Role";
 import { Permission } from "@entities/Permission";
 import { UserRole } from "@entities/UserRole";
-import { DeepPartial, Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { User } from "@backend/entities/User";
+import Container from "typedi";
 
 export class RoleService {
   private roleRepository: Repository<Role>;
   private permissionRepository: Repository<Permission>;
   private userRoleRepository: Repository<UserRole>
 
+    private dataSource = Container.get<DataSource>('DATA_SOURCE');
+      
   constructor() {
-    this.roleRepository = AppDataSource.getRepository(Role);
-    this.permissionRepository = AppDataSource.getRepository(Permission);
-    this.userRoleRepository = AppDataSource.getRepository(UserRole);
+    this.roleRepository = this.dataSource.getRepository(Role);
+    this.permissionRepository = this.dataSource.getRepository(Permission);
+    this.userRoleRepository = this.dataSource.getRepository(UserRole);
   }
 
   async fetchRoles() {

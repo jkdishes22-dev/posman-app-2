@@ -1,7 +1,8 @@
 import { CategoryService } from "@backend/service/CategoryService";
 import { NextApiRequest, NextApiResponse } from "next";
+import Container from "typedi";
 
-const categoryService = new CategoryService();
+const categoryService = Container.get(CategoryService);
 
 export const createCategoryHandler = async (
     req: NextApiRequest,

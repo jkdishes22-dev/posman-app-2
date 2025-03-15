@@ -1,7 +1,8 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PricelistService } from "@services/PricelistService";
+import Container from "typedi";
 
-const pricelistService = new PricelistService();
+const pricelistService = Container.get(PricelistService);
 
 export const createPricelistHandler = async (
   req: NextApiRequest,

@@ -1,18 +1,24 @@
 import "reflect-metadata";
 
 import { User } from "@entities/User";
-import { AppDataSource } from "../config/data-source";
 import { Role } from "@entities/Role";
-import { Permission } from "@entities/Permission";
 import { Service } from "typedi";
 import { UserStation, UserStationStatus } from "@backend/entities/UserStation";
-import { DeepPartial } from "typeorm";
+import { DeepPartial, Repository } from "typeorm";
+import AppDataSource from "@backend/config/data-source";
+import { BaseService } from "./BaseService";
 
 @Service()
-export class UserService {
-  private userRepository = AppDataSource.getRepository(User);
-  private roleRepository = AppDataSource.getRepository(Role);
-  private userStationRepository = AppDataSource.getRepository(UserStation);
+export class UserService extends BaseService{
+  private userRepository: Repository<User>;
+  private roleRepository: Repository<Role>;
+  private userStationRepository: Repository<UserStation>;
+
+    constructor() {
+    this.userRepository = this.dataSource.getRepository(User);
+    this.roleRepository = this.dataSource.getRepository(Role);
+    this.userStationRepository = this.dataSource.getRepository(UserStation);
+  }
 
   public async createUser(
     username: string,
@@ -84,7 +90,7 @@ export class UserService {
   }
 
   async getUserByUsername(username: string) {
-    const userRepository = AppDataSource.getRepository(User);
+    const userRepository = this.userRepository;
     return await userRepository.findOne({
       where: { username },
       relations: ["roles"],
@@ -92,7 +98,7 @@ export class UserService {
   }
 
   async getUserWithRolesAndPermissions(userId: number) {
-    const userRepository = AppDataSource.getRepository(User);
+    const userRepository = this.userRepository;
     const user = await userRepository.findOne({
       where: { id: userId },
       relations: ["roles"],
@@ -102,7 +108,7 @@ export class UserService {
       throw new Error("User not found");
     }
 
-    const roles = await AppDataSource.getRepository(Role)
+    const roles = await this.roleRepository
       .createQueryBuilder("role")
       .innerJoin("user_roles", "ur", "ur.role_id = role.id")
       .where("ur.user_id = :userId", { userId })
@@ -110,7 +116,7 @@ export class UserService {
 
     let permissions = [];
     if (roles.length > 0) {
-      permissions = await AppDataSource.getRepository(Permission)
+      permissions = await this.roleRepository
         .createQueryBuilder("permission")
         .innerJoin("role_permissions", "rp", "rp.permission_id = permission.id")
         .where("rp.role_id IN (:...roleIds)", {
@@ -140,7 +146,7 @@ export class UserService {
       left join station s on s.id = us.station_id
       WHERE u.id = ?
   `;
-    return await AppDataSource.query(query, [userId]);
+    return await this.userStationRepository.query(query, [userId]);
   }
 
   async addUserStation(payload: { station?: any; user: any; }) {
@@ -154,7 +160,7 @@ export class UserService {
   async setDefaultStation(userStationRequest: { station: number; user: number; }, currentUser: number) {
     console.log("station update request " + JSON.stringify(userStationRequest));
 
-    return await AppDataSource.transaction(async (transactionEntityManager) => {
+    return await this.userStationRepository.manager.transaction(async (transactionEntityManager) => {
       const existingStation = await this.userStationRepository.findOne({
         where: {
           user: { id: userStationRequest.user }, station: { id: userStationRequest.station }

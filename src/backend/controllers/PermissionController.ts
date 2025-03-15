@@ -1,7 +1,8 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PermissionService } from "@services/PermissionService";
+import Container from "typedi";
 
-const permissionService = new PermissionService();
+const permissionService = Container.get(PermissionService);
 
 export const fetchPermissionsHandler = async (
   req: NextApiRequest,
