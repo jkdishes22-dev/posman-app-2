@@ -6,11 +6,11 @@ import { BillPaymentInterface } from "@backend/interfaces/BillPayment";
 import { startOfDay, endOfDay } from "date-fns";
 import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment, PaymentType } from "@backend/entities/Payment";
-import Container, { Inject, Service } from "typedi";
+import { Service } from "typedi";
 import { DataSource, EntityNotFoundError, Repository } from "typeorm";
 
 export type BillFilter = {
-  targetDate: Date; 
+  targetDate: Date;
   status?: string;
   billId?: number;
   billingUserId?: number;
@@ -25,16 +25,14 @@ export class BillService {
 
   private userService: UserService;
 
- private dataSource = Container.get<DataSource>('DATA_SOURCE');
-
-    constructor() {
-    this.billRepository = this.dataSource.getRepository(Bill);
-    this.billItemRepository = this.dataSource.getRepository(BillItem);
-    this.paymentRepository = this.dataSource.getRepository(Payment);
-    this.billPaymentRepository = this.dataSource.getRepository(BillPayment);
+  constructor(dataSource: DataSource) {
+    this.billRepository = dataSource.getRepository(Bill);
+    this.billItemRepository = dataSource.getRepository(BillItem);
+    this.paymentRepository = dataSource.getRepository(Payment);
+    this.billPaymentRepository = dataSource.getRepository(BillPayment);
 
     this.userService = new UserService(dataSource);
-  }
+}
 
   async createBill(payload) {
     const { items, total, user_id } = payload;

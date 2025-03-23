@@ -1,11 +1,10 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { BillService } from "@services/BillService";
-import Container from "typedi";
 
 
-const billService = Container.get(BillService);
 
 export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
+  const billService = new BillService(req.db);
   try {
     const newBill = await billService.createBill(req.body);
     res.status(201).json(newBill);
@@ -20,6 +19,7 @@ export const fetchBills = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const billService = new BillService(req.db);
   const currentUserId = req.user?.id;
   const { date, status, billId, billingUserId } = req.query;
 
@@ -41,6 +41,7 @@ export const fetchBills = async (
 
 export const cancelBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const { billId } = req.query;
+  const billService = new BillService(req.db);
 
   try {
     const result = await billService.cancelBill(Number(billId));
@@ -56,6 +57,7 @@ export const voidBillItem = async (
   res: NextApiResponse,
 ) => {
   const { billItemId } = req.query;
+  const billService = new BillService(req.db);
   try {
     const result = await billService.voidBillItem(Number(billItemId));
     res.status(200).json({ message: "Bill item voided successfully", result });
@@ -72,6 +74,8 @@ export const fetchBillItems = async (
   res: NextApiResponse,
 ) => {
   const { billId } = req.query;
+  const billService = new BillService(req.db);
+
   try {
     const items = await billService.fetchBillItems(Number(billId));
     res.status(200).json(items);
@@ -84,6 +88,7 @@ export const submitBill = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const billService = new BillService(req.db);
   try {
     const billPayment = req.body;
     const userId = req.user?.id;
@@ -101,6 +106,7 @@ export const submitBill = async (
 export const closeBill = async (req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const billService = new BillService(req.db);
   const { billId } = req.query;
   try {
     const closedBill = await billService.closeBill(Number(billId));

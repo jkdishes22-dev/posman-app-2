@@ -1,20 +1,17 @@
 import { Station } from "@backend/entities/Station";
 import { Pricelist, PriceListStatus } from "@entities/Pricelist";
 import { PricelistItem } from "@entities/PricelistItem";
-import Container, { Inject } from "typedi";
-import { Repository, DataSource } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 
 export class PricelistService {
   private pricelistRepository: Repository<Pricelist>;
   private pricelistItemRepository: Repository<PricelistItem>;
   private stationRepository: Repository<Station>;
 
-  private dataSource = Container.get<DataSource>('DATA_SOURCE');
-      
-constructor() {
-    this.pricelistRepository = this.dataSource.getRepository(Pricelist);
-    this.pricelistItemRepository = this.dataSource.getRepository(PricelistItem);
-    this.stationRepository = this.dataSource.getRepository(Station);
+  constructor(datasource: DataSource) {
+    this.pricelistRepository = datasource.getRepository(Pricelist);
+    this.pricelistItemRepository = datasource.getRepository(PricelistItem);
+    this.stationRepository = datasource.getRepository(Station);
   }
 
   public async createPricelist(
@@ -22,13 +19,13 @@ constructor() {
     user_id: number,
   ): Promise<Pricelist> {
     const foundStation = await this.stationRepository.findOneBy({
-        id: Number(payload.station)
+      id: Number(payload.station)
     });
     const pricelist: Pricelist = this.pricelistRepository.create({
       ...payload,
       status: PriceListStatus.ACTIVE,
       created_by: user_id,
-      station: foundStation ? foundStation.id: null
+      station: foundStation ? foundStation.id : null
     });
     return this.pricelistRepository.save(pricelist);
   }

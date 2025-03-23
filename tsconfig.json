@@ -19,11 +19,6 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "baseUrl": ".",
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
     "paths": {
       "@backend/*": [
         "src/backend/*"
@@ -43,11 +38,25 @@
       "@interfaces/*": [
         "src/backend/interfaces/*"
       ]
-    }
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "typeRoots": ["./node_modules/@types", "./src/backend/types"],
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "**/**/*.ts",
-    "**/**/*.tsx", ".next/types/**/*.ts"],
+  "typeRoots": [
+    "./node_modules/@types",
+    "./src/backend/types"
+  ],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/**/*.ts",
+    "**/**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
   "exclude": [
     "node_modules"
   ]

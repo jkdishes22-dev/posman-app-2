@@ -1,6 +1,8 @@
 import permissions from "@backend/config/managed-roles";
 import { removeItemFromGroupHandler } from "@backend/controllers/ItemController";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
+import { dbMiddleware } from "@backend/middleware/dbMiddleware";
+import { withMiddleware } from "@backend/middleware/middleware-util";
 import { NextApiRequest, NextApiResponse } from "next";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -15,4 +17,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 }
 
-export default handler;
+export default withMiddleware(
+    dbMiddleware,
+    authMiddleware
+  )(handler);

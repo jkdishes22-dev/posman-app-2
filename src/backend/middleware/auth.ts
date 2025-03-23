@@ -6,7 +6,6 @@ import { UserService } from "@services/UserService";
 
 config();
 const secret = process.env.JWT_SECRET;
-const userService = new UserService();
 
 export const authMiddleware = (handler) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
@@ -14,16 +13,20 @@ export const authMiddleware = (handler) => {
     if (!token) {
       return res.status(401).json({ message: "No token provided" });
     }
+
+    // req.user.permissions = user.permissions;
     try {
-      req.user = jwt.verify(token, secret);
-      const user = await userService.getUserWithRolesAndPermissions(
-        req.user.id,
-      );
-      req.user.roles = user.roles;
-      req.user.permissions = user.permissions;
+      const decoded = jwt.verify(token, secret);
+      req.user = decoded;
+      const userService = new UserService(req.db);
+      const userDetails = await userService.getUserWithRolesAndPermissions(req.user.id);
+
+      req.user.roles = userDetails.roles;
+      // req.user.permissions = user.roles.flatMap(role => role.permissions);
+      req.user.permissions = userDetails.permissions;
       return handler(req, res);
     } catch (error) {
-      return res.status(401).json({ message: "Invalid token" + error });
+      return res.status(401).json({ message: 'Invalid token '+ error });
     }
   };
 };

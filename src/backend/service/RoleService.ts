@@ -3,19 +3,17 @@ import { Permission } from "@entities/Permission";
 import { UserRole } from "@entities/UserRole";
 import { DataSource, Repository } from "typeorm";
 import { User } from "@backend/entities/User";
-import Container from "typedi";
 
 export class RoleService {
   private roleRepository: Repository<Role>;
   private permissionRepository: Repository<Permission>;
   private userRoleRepository: Repository<UserRole>
 
-    private dataSource = Container.get<DataSource>('DATA_SOURCE');
       
-  constructor() {
-    this.roleRepository = this.dataSource.getRepository(Role);
-    this.permissionRepository = this.dataSource.getRepository(Permission);
-    this.userRoleRepository = this.dataSource.getRepository(UserRole);
+  constructor(datasource: DataSource) {
+    this.roleRepository = datasource.getRepository(Role);
+    this.permissionRepository = datasource.getRepository(Permission);
+    this.userRoleRepository = datasource.getRepository(UserRole);
   }
 
   async fetchRoles() {

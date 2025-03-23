@@ -1,19 +1,16 @@
 import { AppDataSource } from "@backend/config/data-source";
 import { Permission } from "@entities/Permission";
 import { PermissionScope } from "@entities/PermissionScope";
-import Container from "typedi";
-import { Repository, DataSource } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 
 export class PermissionService {
   private permissionRepository: Repository<Permission>;
-    private scopeRepository: Repository<PermissionScope>;
+  private scopeRepository: Repository<PermissionScope>;
 
-    private dataSource = Container.get<DataSource>('DATA_SOURCE');
-      
-  constructor() {
-        this.permissionRepository = this.dataSource.getRepository(Permission);
-        this.scopeRepository = this.dataSource.getRepository(PermissionScope);
-    }
+  constructor(datasource: DataSource) {
+    this.permissionRepository = datasource.getRepository(Permission);
+    this.scopeRepository = datasource.getRepository(PermissionScope);
+  }
 
   async fetchPermissions() {
     return await this.permissionRepository.find({

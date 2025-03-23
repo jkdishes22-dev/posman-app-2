@@ -6,6 +6,8 @@ import {
   fetchItemsHandler,
   filterItemsHandler, // Import the new handler
 } from "@controllers/ItemController";
+import { withMiddleware } from "@backend/middleware/middleware-util";
+import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 // import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -31,4 +33,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-export default handler;
+export default withMiddleware(
+  dbMiddleware,
+  authMiddleware
+)(handler);
+

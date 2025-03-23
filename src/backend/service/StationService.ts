@@ -1,14 +1,12 @@
 import { AppDataSource } from "@backend/config/data-source";
 import { Station, StationStatus } from "@backend/entities/Station";
-import Container, { Inject } from "typedi";
 import { DataSource, Repository } from "typeorm";
 
 export class StationService {
     private stationRepository: Repository<Station>;
-     private dataSource = Container.get<DataSource>('DATA_SOURCE');
-    
-        constructor() {
-        this.stationRepository = this.dataSource.getRepository(Station);
+
+    constructor(datasource: DataSource) {
+        this.stationRepository = datasource.getRepository(Station);
     }
 
     async createStation(station: Station) {

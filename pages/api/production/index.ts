@@ -1,6 +1,8 @@
 import permissions from "@backend/config/managed-roles";
 import { createProductionItemHandler, fetchProdutionItemsHandler } from "@backend/controllers/ProductionController";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
+import { dbMiddleware } from "@backend/middleware/dbMiddleware";
+import { withMiddleware } from "@backend/middleware/middleware-util";
 // import { ensureMetadata } from "@backend/utils/metadata-hack";
 import { NextApiRequest, NextApiResponse } from "next";
 
@@ -22,4 +24,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 };
 
-export default handler;
+export default withMiddleware(
+    dbMiddleware,
+    authMiddleware
+  )(handler);
+  

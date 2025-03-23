@@ -1,6 +1,5 @@
 import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment } from "@backend/entities/Payment";
-import Container, { Inject } from "typedi";
 import { Repository, DataSource } from "typeorm";
 
 export class PaymentService {
@@ -8,13 +7,11 @@ export class PaymentService {
     private paymentRepository: Repository<Payment>;
     private billPaymentRepository: Repository<BillPayment>;
 
-  private dataSource = Container.get<DataSource>('DATA_SOURCE');
-      
-constructor() {
-        this.paymentRepository = this.dataSource.getRepository(Payment);
-        this.billPaymentRepository = this.dataSource.getRepository(BillPayment);
-     }
-     
+    constructor(datasource: DataSource) {
+        this.paymentRepository = datasource.getRepository(Payment);
+        this.billPaymentRepository = datasource.getRepository(BillPayment);
+    }
+
     async createPayment(payload): Promise<Payment> {
         const newPayment = this.paymentRepository.create({
             ...payload
@@ -31,5 +28,5 @@ constructor() {
         return billPayment;
     }
 
-  
+
 }

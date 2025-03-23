@@ -1,15 +1,12 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { RoleService } from "@services/RoleService";
 import { PermissionService } from "@services/PermissionService";
-import Container from "typedi";
-
-const roleService = Container.get(RoleService);
-const permissionService = Container.get(PermissionService);
 
 export const fetchRolesHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const roleService = new RoleService(req.db);
   try {
     const roles = await roleService.fetchRoles();
     res.status(200).json(roles);
@@ -22,6 +19,7 @@ export const createRoleHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const roleService = new RoleService(req.db);
   try {
     const newRole = req.body;
     const role = await roleService.createRole(newRole);
@@ -35,6 +33,7 @@ export const addPermissionToRoleHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const roleService = new RoleService(req.db);
   try {
     const { roleId, permissionId } = req.body;
     await roleService.addPermissionToRole(roleId, permissionId);
@@ -51,6 +50,7 @@ export const assignRoleToUserHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const roleService = new RoleService(req.db);
   try {
     const { userId, roleId } = req.body;
     await roleService.assignRoleToUser(userId, roleId);
@@ -65,7 +65,7 @@ export const fetchPermissionsByRoleHandler = async (
   res: NextApiResponse,
 ) => {
   const { roleId } = req.query;
-
+  const permissionService = new PermissionService(req.db);
   try {
     const permissions = await permissionService.fetchPermissionsByRole(roleId);
     res.status(200).json(permissions);

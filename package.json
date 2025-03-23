@@ -7,7 +7,7 @@
     "tsc": "tsc --noEmit",
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next build --force && next start",
     "lint": "next lint"
   },
   "dependencies": {

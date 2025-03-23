@@ -1,10 +1,8 @@
 import { StationService } from "@backend/service/StationService";
 import { NextApiRequest, NextApiResponse } from "next";
-import Container from "typedi";
-
-const stationService = Container.get(StationService);
 
 export const addStationHandler = async (req: NextApiRequest, res: NextApiResponse) => {
+    const stationService = new StationService(req.db);
     try {
         const request = req.body;
         const newStation = await stationService.createStation(request);
@@ -15,6 +13,7 @@ export const addStationHandler = async (req: NextApiRequest, res: NextApiRespons
 };
 
 export const fetchStationsHandler = async (req: NextApiRequest, res: NextApiResponse) => {
+    const stationService = new StationService(req.db);
     try {
         const criteria = {
             status: req.query.status
@@ -27,6 +26,7 @@ export const fetchStationsHandler = async (req: NextApiRequest, res: NextApiResp
 };
 
 export const fetchStationPricelistHandler = async (req: NextApiRequest, res: NextApiResponse) => {
+    const stationService = new StationService(req.db);
     try {
         const { stationId } = req.query;
         const stationPricelist = await stationService.fetchStationPricelist(Number(stationId));

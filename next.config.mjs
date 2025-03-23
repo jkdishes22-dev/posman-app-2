@@ -3,9 +3,6 @@ import { dirname } from 'path';
 import path from 'path';
 import withPWA from 'next-pwa';
 
-import { InjectManifest } from 'workbox-webpack-plugin';
-
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -21,7 +18,6 @@ export default withPWA({
     dest: 'public',
     register: true,
     skipWaiting: true,
-    // disable: process.env.NODE_ENV === 'development',
     runtimeCaching: [
         {
             urlPattern: /^\/api\/.*$/,

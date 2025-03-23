@@ -1,10 +1,10 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { ItemService } from "@services/ItemService";
-import Container from "typedi";
 
-const itemService = Container.get(ItemService);
+
 
 export const filterItemsHandler = async (req: NextApiRequest, res: NextApiResponse,) => {
+  const itemService =new ItemService(req.db);
   try {
     const { search, excludeGrouped } = req.query; if (!search) {
       return res.status(400).json({ message: "Search term is required" });
@@ -28,6 +28,7 @@ export const fetchItemsHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const itemService = new ItemService(req.db);
   try {
     const { category, billing } = req.query;
     const user_id = req.user.id;
@@ -44,6 +45,7 @@ export const createItemHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const itemService =new ItemService(req.db);
   try {
     const { name, code, price, category, pricelistId, isGroup } = req.body;
     const user_id = req.user.id;
@@ -69,6 +71,7 @@ export const updateItemHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const itemService =new ItemService(req.db);
   try {
     console.log("Updating Item:", req.body);
     const {
@@ -109,6 +112,7 @@ export const fetchGroupedItemsHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const itemService =new ItemService(req.db);
   try {
     const { groupId } = req.query;
 
@@ -124,6 +128,7 @@ export const createGroupItemHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const itemService =new ItemService(req.db);
   const { itemId, subItemId, portionSize } = req.body;
   const groupItemRequest = {
     itemId,
@@ -144,7 +149,7 @@ export const fetchGroupItemsHandler = async (
   res: NextApiResponse,
 ) => {
   const { groupId } = req.query;
-
+  const itemService =new ItemService(req.db);
   try {
     const groupItems = await itemService.fetchGroupItems(groupId);
     res.status(201).json(groupItems);
@@ -156,6 +161,7 @@ export const fetchGroupItemsHandler = async (
 export const removeItemFromGroupHandler = async (
   req: NextApiRequest, res: NextApiResponse
 ) => {
+  const itemService =new ItemService(req.db);
   try {
     const { groupId, itemId } = req.query;
     if (!groupId || !itemId) {

@@ -1,15 +1,13 @@
 import { Item, ItemStatus } from "@backend/entities/Item";
-import Container, { Inject, Service } from "typedi";
+import { Service } from "typedi";
 import { DataSource, Repository } from "typeorm";
 
 @Service()
 export class ProductionService {
-    
     private itemRepository: Repository<Item>;
-   private dataSource = Container.get<DataSource>('DATA_SOURCE');
-       
- constructor() {
-        this.itemRepository = this.dataSource.getRepository(Item);
+
+    constructor(datasource: DataSource) {
+        this.itemRepository = datasource.getRepository(Item);
     }
 
     async createProductionItem(payload: any, userId: number) {

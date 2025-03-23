@@ -1,14 +1,14 @@
 import { CategoryService } from "@backend/service/CategoryService";
 import { NextApiRequest, NextApiResponse } from "next";
-import Container from "typedi";
 
-const categoryService = Container.get(CategoryService);
+
 
 export const createCategoryHandler = async (
     req: NextApiRequest,
     res: NextApiResponse,
 ) => {
     const { name } = req.body;
+    const categoryService = new CategoryService(req.db);
     try {
         const newCategory = await categoryService.createCategory(name);
         res.status(201).json(newCategory);
@@ -22,6 +22,7 @@ export const fetchCategoriesHandler = async (
     req: NextApiRequest,
     res: NextApiResponse,
 ) => {
+    const categoryService = new CategoryService(req.db);
     try {
         const categories = await categoryService.fetchCategories();
         res.status(200).json(categories);
@@ -34,6 +35,7 @@ export const deleteCategoryHandler = async (
     req: NextApiRequest,
     res: NextApiResponse,
 ) => {
+    const categoryService = new CategoryService(req.db);
     try {
         const { id } = req.query;
         await categoryService.deleteCategory(Number(id));

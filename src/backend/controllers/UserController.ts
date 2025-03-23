@@ -3,14 +3,14 @@ import { UserService } from "@services/UserService";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import * as process from "process";
-import Container from "typedi";
 
-const userService = Container.get(UserService);
+
 
 export const createUserHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const userService = new UserService(req.db);
   const { username, password, firstName, lastName, role } = req.body;
   try {   
     const newUser = await userService.createUser(
@@ -30,6 +30,7 @@ export const getUsersHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const userService = new UserService(req.db);
   try {
     const { role } = req.query;
     const users = await userService.getUsers(role);
@@ -44,7 +45,7 @@ export const loginUserHandler = async (
   res: NextApiResponse,
 ) => {
   const { username, password } = req.body;
-
+  const userService = new UserService(req.db);
   try {
     const user = await userService.getUserByUsername(username);
     if (!user) {
@@ -66,6 +67,7 @@ export const loginUserHandler = async (
 };
 
 export const fetchUserStations = async (req: NextApiRequest, res: NextApiResponse) => {
+  const userService = new UserService(req.db);
   try {
     const { userId } = req.query;
     const users = await userService.fetchUserStations(Number(userId));
@@ -76,6 +78,7 @@ export const fetchUserStations = async (req: NextApiRequest, res: NextApiRespons
 };
 
 export const addUserStation = async (req: NextApiRequest, res: NextApiResponse) => {
+  const userService = new UserService(req.db);
   try {
     const { station } = req.body;
     const { userId } = req.query;
@@ -94,6 +97,7 @@ export const addUserStation = async (req: NextApiRequest, res: NextApiResponse) 
 };
 
 export const setDefaultUserStation = async (req: NextApiRequest, res: NextApiResponse) => {
+  const userService = new UserService(req.db);
   try {
     const { stationId } = req.body;
     const { userId } = req.query;
@@ -112,6 +116,8 @@ export const setDefaultUserStation = async (req: NextApiRequest, res: NextApiRes
 };
 
 export const disableUserStation = async (req: NextApiRequest, res: NextApiResponse) => {
+  const userService = new UserService(req.db);
+  
   try {
     const { userStationId } = req.body;
     const currentUser = req.user?.id;

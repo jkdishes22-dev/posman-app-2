@@ -7,6 +7,8 @@ import {
   cancelBill,
   voidBillItem,
 } from "@controllers/BillController";
+import { withMiddleware } from "@backend/middleware/middleware-util";
+import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 // import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -46,4 +48,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   return res.status(405).end(`Method ${req.method} Not Allowed`);
 };
 
-export default handler;
+export default withMiddleware(
+  dbMiddleware,
+  authMiddleware
+)(handler);

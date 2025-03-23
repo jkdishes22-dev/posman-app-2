@@ -1,13 +1,13 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PricelistService } from "@services/PricelistService";
-import Container from "typedi";
 
-const pricelistService = Container.get(PricelistService);
+
 
 export const createPricelistHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const pricelistService =new PricelistService(req.db);
   try {
     console.log("pricelist payload "+ JSON.stringify(req.body));
     const newPricelist = req.body;
@@ -27,6 +27,7 @@ export const fetchPricelistsHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const pricelistService =new PricelistService(req.db);
   try {
     const pricelists = await pricelistService.fetchPricelists();
     res.status(200).json(pricelists);
@@ -40,6 +41,7 @@ export const fetchPricelistItems = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const pricelistService =new PricelistService(req.db);
   try {
     const pricelistId = req.query.pricelistId as string;
     const pricelistItems =

@@ -22,7 +22,8 @@ import { UserStation } from "@backend/entities/UserStation";
 import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment } from "@backend/entities/Payment";
 
-// Create the DataSource instance
+let connectionInstance: DataSource | null = null;
+
 export const AppDataSource = new DataSource({
   type: "mysql",
   host: process.env.DB_HOST || "localhost",
@@ -52,29 +53,13 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   logging: true,
   timezone: "Africa/Nairobi",
-  extra: {
-    connectionLimit: 10,
-    waitForConnections: true,
-    queueLimit: 0
-  },
-  poolSize: 10,
+  poolSize: 20,
   connectTimeout: 20000,
 });
 
-// Initialize function
-export const initializeDataSource = async (): Promise<DataSource> => {
-  try {
-    if (!AppDataSource.isInitialized) {
-      await AppDataSource.initialize();
-      Container.set('DATA_SOURCE', AppDataSource);
-      console.log("Data Source has been initialized!");
-    }
-    return AppDataSource;
-  } catch (error) {
-    console.error("Error during Data Source initialization", error);
-    throw new Error('Failed to initialize the data source');
+export const getConnection = async () => {
+  if (!connectionInstance) {
+    connectionInstance = await AppDataSource.initialize();
   }
+  return connectionInstance;
 };
-
-// Export default instance
-export default AppDataSource;

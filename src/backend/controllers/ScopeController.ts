@@ -1,13 +1,11 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { ScopeService } from "@services/ScopeService";
-import Container from "typedi";
-
-const scopeService =  Container.get(ScopeService);
 
 export const fetchScopesHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const scopeService =  new ScopeService(req.db);
   try {
     const scopes = await scopeService.fetchScopes();
     res.status(200).json(scopes);
@@ -20,6 +18,7 @@ export const fetchScopePermisionsHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const scopeService =  new ScopeService(req.db);
   try {
     const { scopeId } = req.query;
     const scopePermisions = await scopeService.fetchScopePermissions(parseInt(scopeId as string));

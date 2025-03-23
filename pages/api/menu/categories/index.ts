@@ -3,6 +3,8 @@ import permissions from "@backend/config/managed-roles";
 import { NextApiRequest, NextApiResponse } from "next";
 // import { ensureMetadata } from "@backend/utils/metadata-hack";
 import { fetchCategoriesHandler, createCategoryHandler } from "@backend/controllers/CategoryController";
+import { dbMiddleware } from "@backend/middleware/dbMiddleware";
+import { withMiddleware } from "@backend/middleware/middleware-util";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   // await ensureMetadata("Category");
@@ -20,4 +22,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-export default handler;
+export default withMiddleware(
+  dbMiddleware,
+  authMiddleware
+)(handler);

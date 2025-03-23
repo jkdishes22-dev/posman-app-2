@@ -2,9 +2,10 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { ProductionService } from "@backend/service/ProductionService";
 import Container from "typedi";
 
-const productionService = Container.get(ProductionService);
+
 
 export const createProductionItemHandler = async (req: NextApiRequest, res: NextApiResponse) => {
+    const productionService = new ProductionService(req.db);
     try {
         const user_id = req.user.id;
         const newItem = await productionService.createProductionItem(req.body, user_id);
@@ -16,6 +17,7 @@ export const createProductionItemHandler = async (req: NextApiRequest, res: Next
 }
 
 export const fetchProdutionItemsHandler = async (req: NextApiRequest, res: NextApiResponse) => {
+    const productionService = new ProductionService(req.db);
     try {
         const items = await productionService.fetchProductionItems();
         res.status(200).json(items);

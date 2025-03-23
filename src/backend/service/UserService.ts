@@ -2,22 +2,21 @@ import "reflect-metadata";
 
 import { User } from "@entities/User";
 import { Role } from "@entities/Role";
-import { Service } from "typedi";
 import { UserStation, UserStationStatus } from "@backend/entities/UserStation";
-import { DeepPartial, Repository } from "typeorm";
-import AppDataSource from "@backend/config/data-source";
-import { BaseService } from "./BaseService";
+import { DataSource, DeepPartial, Repository } from "typeorm";
+import { Permission } from "@backend/entities/Permission";
 
-@Service()
-export class UserService extends BaseService{
+export class UserService {
   private userRepository: Repository<User>;
   private roleRepository: Repository<Role>;
+  private permissionRepository: Repository<Permission>;
   private userStationRepository: Repository<UserStation>;
 
-    constructor() {
-    this.userRepository = this.dataSource.getRepository(User);
-    this.roleRepository = this.dataSource.getRepository(Role);
-    this.userStationRepository = this.dataSource.getRepository(UserStation);
+  constructor(dataSource: DataSource) {
+    this.userRepository = dataSource.getRepository(User);
+    this.roleRepository = dataSource.getRepository(Role);
+    this.userStationRepository = dataSource.getRepository(UserStation);
+    this.permissionRepository = dataSource.getRepository(Permission);
   }
 
   public async createUser(
@@ -27,7 +26,6 @@ export class UserService extends BaseService{
     lastName: string,
     role: number,
   ): Promise<User> {
-
     const existingUser = await this.getUserByUsername(username);
     if (existingUser) {
       throw new Error("User already exists");
@@ -55,18 +53,6 @@ export class UserService extends BaseService{
   }
 
   public async getUsers(role?: string): Promise<User[]> {
-    // const query = `select 
-    //                 s.id, 
-    //                 s.lastName, 
-    //                 s.firstName, 
-    //                 s.username, 
-    //                 s.locked,
-    //                 s.last_login_date,
-    //                 role_id, r.name as role_name
-    //                 from user s
-    //                 left join user_roles ur on ur.user_id = s.id
-    //                 left join roles r on r.id = ur.role_id`;
-
     const query = this.userRepository
       .createQueryBuilder("user")
       .leftJoinAndSelect("user.roles", 'role')
@@ -90,16 +76,14 @@ export class UserService extends BaseService{
   }
 
   async getUserByUsername(username: string) {
-    const userRepository = this.userRepository;
-    return await userRepository.findOne({
+    return await this.userRepository.findOne({
       where: { username },
       relations: ["roles"],
     });
   }
 
   async getUserWithRolesAndPermissions(userId: number) {
-    const userRepository = this.userRepository;
-    const user = await userRepository.findOne({
+    const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ["roles"],
     });
@@ -116,11 +100,11 @@ export class UserService extends BaseService{
 
     let permissions = [];
     if (roles.length > 0) {
-      permissions = await this.roleRepository
+      permissions = await this.permissionRepository
         .createQueryBuilder("permission")
         .innerJoin("role_permissions", "rp", "rp.permission_id = permission.id")
         .where("rp.role_id IN (:...roleIds)", {
-          roleIds: roles.map((role) => role.id),
+          roleIds: roles.map((role: { id: any; }) => role.id),
         })
         .getMany();
     }
@@ -160,7 +144,7 @@ export class UserService extends BaseService{
   async setDefaultStation(userStationRequest: { station: number; user: number; }, currentUser: number) {
     console.log("station update request " + JSON.stringify(userStationRequest));
 
-    return await this.userStationRepository.manager.transaction(async (transactionEntityManager) => {
+    return await this.userStationRepository.manager.transaction(async (transactionEntityManager: { update: (arg0: typeof UserStation, arg1: { user: { id: number; }; }, arg2: { isDefault: boolean; }) => any; save: (arg0: typeof UserStation, arg1: any) => any; }) => {
       const existingStation = await this.userStationRepository.findOne({
         where: {
           user: { id: userStationRequest.user }, station: { id: userStationRequest.station }

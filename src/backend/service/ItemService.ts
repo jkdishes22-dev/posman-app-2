@@ -2,19 +2,16 @@ import { Item, ItemStatus } from "@entities/Item";
 import { Currency, PricelistItem } from "@entities/PricelistItem";
 import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { ItemGroup } from "@entities/ItemGroup";
-import Container, { Inject } from "typedi";
 
 export class ItemService {
   private itemRepository: Repository<Item>;
   private pricelistItemRepository: Repository<PricelistItem>;
   private itemGroupRepository: Repository<ItemGroup>;
 
-   private dataSource = Container.get<DataSource>('DATA_SOURCE');
-      
-constructor() {
-    this.itemRepository = this.dataSource.getRepository(Item);
-    this.pricelistItemRepository = this.dataSource.getRepository(PricelistItem);
-    this.itemGroupRepository = this.dataSource.getRepository(ItemGroup);
+  constructor(datasource: DataSource) {
+    this.itemRepository = datasource.getRepository(Item);
+    this.pricelistItemRepository = datasource.getRepository(PricelistItem);
+    this.itemGroupRepository = datasource.getRepository(ItemGroup);
   }
 
   public async createItem(

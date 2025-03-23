@@ -1,13 +1,11 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PermissionService } from "@services/PermissionService";
-import Container from "typedi";
-
-const permissionService = Container.get(PermissionService);
 
 export const fetchPermissionsHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
+  const permissionService = new PermissionService(req.db);
   try {
     const permissions = await permissionService.fetchPermissions();
     res.status(200).json(permissions);
@@ -16,7 +14,11 @@ export const fetchPermissionsHandler = async (
   }
 };
 
-export const createPermissionHandler = async (req, res) => {
+export const createPermissionHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const permissionService = new PermissionService(req.db);
   try {
     const { name, scope } = req.body;
     const permission = await permissionService.createPermission({

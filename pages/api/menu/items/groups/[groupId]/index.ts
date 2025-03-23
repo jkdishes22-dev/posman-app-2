@@ -3,6 +3,8 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
 import permissions from "@backend/config/managed-roles";
 import { createGroupItemHandler, fetchGroupedItemsHandler } from "@backend/controllers/ItemController";
+import { withMiddleware } from "@backend/middleware/middleware-util";
+import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   // await ensureMetadata("Item");
@@ -22,4 +24,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-export default handler;
+export default withMiddleware(
+  dbMiddleware,
+  authMiddleware
+)(handler);
