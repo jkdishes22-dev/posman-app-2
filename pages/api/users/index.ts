@@ -6,7 +6,6 @@ import {
 } from "@controllers/UserController";
 import { config } from "dotenv";
 import * as process from "process";
-// import { ensureMetadata } from "@backend/utils/metadata-hack";
 import permissions from "@backend/config/managed-roles";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
@@ -15,12 +14,6 @@ config();
 const isAuthEnabled = process.env.AUTH_ENABLED || "false";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  // await ensureMetadata("User");
-  // await ensureMetadata("Role");
-  // await ensureMetadata("Permission");
-  // await ensureMetadata("UserRole");
-  // await ensureMetadata("RolePermission");
-
   if (req.method === "POST") {
     if (isAuthEnabled === "true") {
       await authMiddleware(
@@ -41,5 +34,4 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
 export default withMiddleware(
   dbMiddleware,
-  authMiddleware
 )(handler);

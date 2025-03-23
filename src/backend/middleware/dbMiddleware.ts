@@ -6,7 +6,6 @@ export const dbMiddleware = (handler) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     try {
       const connection = await getConnection();
-      console.log("connection " + connection);
       req.db = connection;
       return handler(req, res);
     } catch (error) {

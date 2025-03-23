@@ -32,33 +32,30 @@ export class BillService {
     this.billPaymentRepository = dataSource.getRepository(BillPayment);
 
     this.userService = new UserService(dataSource);
-}
+  }
 
   async createBill(payload) {
     const { items, total, user_id } = payload;
-    const user = { id: user_id };
 
-    const newBill = this.billRepository.create({
-      user,
-      total,
-      status: BillStatus.PENDING,
-      created_by: user_id,
-    });
+    return await this.billRepository.manager.transaction(async transactionalEntityManager => {
+      const newBill = await transactionalEntityManager.save('Bill', {
+        user: { id: user_id },
+        total,
+        status: BillStatus.PENDING,
+        created_by: user_id,
+      });
 
-    const savedBill = await this.billRepository.save(newBill);
-
-    const billItems = items.map((item) => {
-      return this.billItemRepository.create({
+      const billItems = items.map(item => ({
         item: { id: item.item_id },
-        bill: { id: savedBill.id },
+        bill: { id: newBill.id },
         quantity: item.quantity,
         subtotal: item.subtotal,
         status: BillItemStatus.SUBMITTED,
-      });
-    });
+      }));
 
-    await this.billItemRepository.save(billItems);
-    return savedBill;
+      await transactionalEntityManager.save('BillItem', billItems);
+      return newBill;
+    });
   }
 
   async fetchBills(userId: number, { targetDate, status, billId, billingUserId }: BillFilter) {
@@ -68,7 +65,7 @@ export class BillService {
     const currentUser = await this.userService.getUserById(userId);
 
     const roleNames = ['user', 'waitress'];
-    const hasRole = currentUser.roles.some(role => roleNames.includes(role.name));
+    const includeBills = currentUser.roles.some(role => roleNames.includes(role.name));
 
     const query = AppDataSource
       .createQueryBuilder('bill', 'bill')
@@ -88,7 +85,7 @@ export class BillService {
     }
 
     // if current user is a waitress, fetch their bills
-    if (userId && hasRole) {
+    if (userId && includeBills) {
       query.andWhere('bill.user_id = :userId', { userId });
     }
     // filters bills by a given user. Eg admin fetching bill by a given user

@@ -9,12 +9,8 @@ import {
 } from "@controllers/BillController";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
-// import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  // await ensureMetadata("Bill");
-  // await ensureMetadata("BillItem");
-
   if (req.method === "POST") {
     return authMiddleware(authorize([permissions.CAN_ADD_BILL])(createBill))(
       req,
@@ -50,5 +46,4 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
 export default withMiddleware(
   dbMiddleware,
-  authMiddleware
 )(handler);

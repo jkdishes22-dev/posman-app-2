@@ -5,6 +5,7 @@ import { Role } from "@entities/Role";
 import { UserStation, UserStationStatus } from "@backend/entities/UserStation";
 import { DataSource, DeepPartial, Repository } from "typeorm";
 import { Permission } from "@backend/entities/Permission";
+import NodeCache from "node-cache";
 
 export class UserService {
   private userRepository: Repository<User>;
@@ -26,30 +27,34 @@ export class UserService {
     lastName: string,
     role: number,
   ): Promise<User> {
-    const existingUser = await this.getUserByUsername(username);
-    if (existingUser) {
-      throw new Error("User already exists");
-    } else {
+    return await this.userRepository.manager.transaction(async transactionManager => {
+      const existingUser = await transactionManager.findOne(User, {
+        where: { username }
+      });
 
-      const newUser: User = this.userRepository.create({
+      if (existingUser) {
+        throw new Error("User already exists");
+      }
+
+      const newUser = transactionManager.create(User, {
         username,
         password,
         firstName,
         lastName,
       });
 
-      const _role = await this.roleRepository.findOneBy(
-        {
-          id: role
-        }
-      );
+      const _role = await transactionManager.findOne(Role, {
+        where: { id: role }
+      });
+
       if (_role === null) {
         console.log("Role not found. Creating user without role");
       } else {
         newUser.roles = [_role];
       }
-      return this.userRepository.save(newUser);
-    }
+
+      return await transactionManager.save(User, newUser);
+    });
   }
 
   public async getUsers(role?: string): Promise<User[]> {
@@ -82,7 +87,7 @@ export class UserService {
     });
   }
 
-  async getUserWithRolesAndPermissions(userId: number) {
+  async getUserWithRolesAndPermissions(userId: number, cacheKey: string) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ["roles"],

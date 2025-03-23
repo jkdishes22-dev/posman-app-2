@@ -24,5 +24,4 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
 export default withMiddleware(
   dbMiddleware,
-  authMiddleware
 )(handler);

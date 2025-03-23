@@ -1,13 +1,11 @@
 import { authMiddleware, authorize } from "@backend/middleware/auth";
 import permissions from "@backend/config/managed-roles";
 import { NextApiRequest, NextApiResponse } from "next";
-// import { ensureMetadata } from "@backend/utils/metadata-hack";
 import { fetchScopePermisionsHandler } from "@backend/controllers/ScopeController";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  // await ensureMetadata("Scope");
   if (req.method === "GET") {
     await authMiddleware(
       authorize([permissions.CAN_VIEW_PERMISSION])(fetchScopePermisionsHandler),
@@ -20,6 +18,5 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
 export default withMiddleware(
   dbMiddleware,
-  authMiddleware
 )(handler);
 

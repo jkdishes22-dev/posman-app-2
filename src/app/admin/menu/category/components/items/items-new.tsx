@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
-import { Category } from "../../../../../types/types";
+import { AuthError, Category } from "../../../../../types/types";
 import {
   ModalBody,
   ModalFooter,

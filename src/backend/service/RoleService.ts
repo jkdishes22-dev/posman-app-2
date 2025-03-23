@@ -25,24 +25,32 @@ export class RoleService {
     return await this.roleRepository.save(role);
   }
 
+  /**
+   * 
+   * @param roleId  
+   * @param permissionId 
+   * @returns 
+   */
   async addPermissionToRole(roleId: any, permissionId: any) {
-    const role = await this.roleRepository.findOne({
-      where: { id: roleId },
-      relations: ["permissions"]
-    });
-    const permission = await this.permissionRepository.findOneBy({
-      id: permissionId,
-    });
+    return await this.roleRepository.manager.transaction(async transactionalEntityManager => {
+      const role = await transactionalEntityManager.findOne(Role, {
+        where: { id: roleId },
+        relations: ["permissions"]
+      });
+      const permission = await transactionalEntityManager.findOneBy(Permission, {
+        id: permissionId,
+      });
 
-    if (role && permission) {
-      const hasPermission = role.permissions.some((perm) => perm.id === permission.id);
-      if (!hasPermission) {
-        role.permissions.push(permission);
-        await this.roleRepository.save(role);
+      if (role && permission) {
+        const hasPermission = role.permissions.some((perm) => perm.id === permission.id);
+        if (!hasPermission) {
+          role.permissions.push(permission);
+          await transactionalEntityManager.save(role);
+        }
+      } else {
+        throw new Error("Role or Permission not found");
       }
-    } else {
-      throw new Error("Role or Permission not found");
-    }
+    });
   }
 
   async assignRoleToUser(userId: User, roleId: Role) {

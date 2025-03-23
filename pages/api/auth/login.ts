@@ -12,7 +12,6 @@ const secret = process.env.JWT_SECRET || "4d7f12a75ea5f8fb40e8540264d47610d8aef0
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { username, password } = req.body;
 
-  console.log("Db connection " + req.db)
   try {
     const userService = new UserService(req.db);
     const user = await userService.getUserByUsername(username);
