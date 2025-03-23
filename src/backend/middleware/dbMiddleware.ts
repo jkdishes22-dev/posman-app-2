@@ -1,4 +1,3 @@
-// middleware/dbMiddleware.ts
 import { getConnection } from '@backend/config/data-source';
 import { NextApiRequest, NextApiResponse } from 'next';
 
