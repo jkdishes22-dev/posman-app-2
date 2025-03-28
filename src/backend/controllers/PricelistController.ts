@@ -1,15 +1,13 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PricelistService } from "@services/PricelistService";
 
-
-
 export const createPricelistHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
-  const pricelistService =new PricelistService(req.db);
+  const pricelistService = new PricelistService(req.db);
   try {
-    console.log("pricelist payload "+ JSON.stringify(req.body));
+    console.log("pricelist payload " + JSON.stringify(req.body));
     const newPricelist = req.body;
     const user_id = req.user.id;
     const pricelist = await pricelistService.createPricelist(
@@ -27,7 +25,7 @@ export const fetchPricelistsHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
-  const pricelistService =new PricelistService(req.db);
+  const pricelistService = new PricelistService(req.db);
   try {
     const pricelists = await pricelistService.fetchPricelists();
     res.status(200).json(pricelists);
@@ -41,7 +39,7 @@ export const fetchPricelistItems = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
-  const pricelistService =new PricelistService(req.db);
+  const pricelistService = new PricelistService(req.db);
   try {
     const pricelistId = req.query.pricelistId as string;
     const pricelistItems =

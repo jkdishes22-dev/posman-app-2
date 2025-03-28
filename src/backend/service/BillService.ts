@@ -37,66 +37,74 @@ export class BillService {
   async createBill(payload) {
     const { items, total, user_id } = payload;
 
-    return await this.billRepository.manager.transaction(async transactionalEntityManager => {
-      const newBill = await transactionalEntityManager.save('Bill', {
-        user: { id: user_id },
-        total,
-        status: BillStatus.PENDING,
-        created_by: user_id,
-      });
+    return await this.billRepository.manager.transaction(
+      async (transactionalEntityManager) => {
+        const newBill = await transactionalEntityManager.save("Bill", {
+          user: { id: user_id },
+          total,
+          status: BillStatus.PENDING,
+          created_by: user_id,
+        });
 
-      const billItems = items.map(item => ({
-        item: { id: item.item_id },
-        bill: { id: newBill.id },
-        quantity: item.quantity,
-        subtotal: item.subtotal,
-        status: BillItemStatus.SUBMITTED,
-      }));
+        const billItems = items.map((item) => ({
+          item: { id: item.item_id },
+          bill: { id: newBill.id },
+          quantity: item.quantity,
+          subtotal: item.subtotal,
+          status: BillItemStatus.SUBMITTED,
+        }));
 
-      await transactionalEntityManager.save('BillItem', billItems);
-      return newBill;
-    });
+        await transactionalEntityManager.save("BillItem", billItems);
+        return newBill;
+      },
+    );
   }
 
-  async fetchBills(userId: number, { targetDate, status, billId, billingUserId }: BillFilter) {
+  async fetchBills(
+    userId: number,
+    { targetDate, status, billId, billingUserId }: BillFilter,
+  ) {
     const startOfDayDate = startOfDay(new Date(targetDate));
     const endOfDayDate = endOfDay(new Date(targetDate));
 
     const currentUser = await this.userService.getUserById(userId);
 
-    const roleNames = ['user', 'waitress'];
-    const includeBills = currentUser.roles.some(role => roleNames.includes(role.name));
+    const roleNames = ["user", "waitress"];
+    const includeBills = currentUser.roles.some((role) =>
+      roleNames.includes(role.name),
+    );
 
-    const query = AppDataSource
-      .createQueryBuilder('bill', 'bill')
-      .leftJoinAndSelect('bill.bill_items', 'billItem')
-      .leftJoinAndSelect('billItem.item', 'item')
-      .leftJoinAndSelect('bill.bill_payments', 'billPayment')
-      .leftJoinAndSelect('billPayment.payment', 'payment')
-      .leftJoinAndSelect('bill.user', 'user')
-      .where('bill.created_at BETWEEN :start AND :end', { start: startOfDayDate, end: endOfDayDate });
+    const query = AppDataSource.createQueryBuilder("bill", "bill")
+      .leftJoinAndSelect("bill.bill_items", "billItem")
+      .leftJoinAndSelect("billItem.item", "item")
+      .leftJoinAndSelect("bill.bill_payments", "billPayment")
+      .leftJoinAndSelect("billPayment.payment", "payment")
+      .leftJoinAndSelect("bill.user", "user")
+      .where("bill.created_at BETWEEN :start AND :end", {
+        start: startOfDayDate,
+        end: endOfDayDate,
+      });
 
     if (status) {
-      query.andWhere('bill.status = :status', { status });
+      query.andWhere("bill.status = :status", { status });
     }
 
     if (billId) {
-      query.andWhere('bill.id = :billId', { billId });
+      query.andWhere("bill.id = :billId", { billId });
     }
 
     // if current user is a waitress, fetch their bills
     if (userId && includeBills) {
-      query.andWhere('bill.user_id = :userId', { userId });
+      query.andWhere("bill.user_id = :userId", { userId });
     }
     // filters bills by a given user. Eg admin fetching bill by a given user
     if (billingUserId) {
-      query.andWhere('bill.user_id = :billingUserId', { billingUserId });
+      query.andWhere("bill.user_id = :billingUserId", { billingUserId });
     }
 
     const bills = await query.getMany();
     return bills;
   }
-
 
   async cancelBill(billId: number) {
     const bill = await this.billRepository.findOne({ where: { id: billId } });
@@ -146,11 +154,10 @@ export class BillService {
   }
 
   async submitBill(billPayment: BillPaymentInterface) {
-    const bill = await AppDataSource
-      .createQueryBuilder("bill", 'bill')
+    const bill = await AppDataSource.createQueryBuilder("bill", "bill")
       .leftJoinAndSelect("bill.bill_items", "billItem")
-      .leftJoinAndSelect('billItem.item', 'item')
-      .leftJoinAndSelect('bill.user', 'user')
+      .leftJoinAndSelect("billItem.item", "item")
+      .leftJoinAndSelect("bill.user", "user")
       .where("bill.id = :id", { id: billPayment.billId })
       .getOne();
 
@@ -164,87 +171,105 @@ export class BillService {
     }
 
     try {
-      return await AppDataSource.transaction(async (transactionalEntityManager) => {
-        const payments = [];
-        const billPayments = [];
+      return await AppDataSource.transaction(
+        async (transactionalEntityManager) => {
+          const payments = [];
+          const billPayments = [];
 
-        for (const payload of paymentPayloads) {
-          const payment: Payment = this.paymentRepository.create(
-            payload
-          )
-          const savedPayment = await transactionalEntityManager.save(Payment, payment);
-          payments.push(savedPayment);
+          for (const payload of paymentPayloads) {
+            const payment: Payment = this.paymentRepository.create(payload);
+            const savedPayment = await transactionalEntityManager.save(
+              Payment,
+              payment,
+            );
+            payments.push(savedPayment);
 
-          const billPaymentPayload = {
-            payment: { id: savedPayment.id },
-            bill: { id: bill.id },
-            created_by: payload.created_by,
+            const billPaymentPayload = {
+              payment: { id: savedPayment.id },
+              bill: { id: bill.id },
+              created_by: payload.created_by,
+            };
+
+            const newBillPayment =
+              this.billPaymentRepository.create(billPaymentPayload);
+            const savedBillPayment = await transactionalEntityManager.save(
+              BillPayment,
+              newBillPayment,
+            );
+            billPayments.push(savedBillPayment);
+          }
+
+          bill.status = BillStatus.SUBMITTED;
+          await transactionalEntityManager.save(Bill, bill);
+          return {
+            bill_payments: billPayments,
+            payments,
+            bill,
           };
-
-          const newBillPayment = this.billPaymentRepository.create(
-            billPaymentPayload
-          );
-          const savedBillPayment = await transactionalEntityManager.save(BillPayment, newBillPayment);
-          billPayments.push(savedBillPayment);
-        }
-
-        bill.status = BillStatus.SUBMITTED;
-        await transactionalEntityManager.save(Bill, bill);
-        return {
-          bill_payments: billPayments,
-          payments,
-          bill,
-        };
-      });
+        },
+      );
     } catch (error) {
       console.error("Error submitting bill:", error.message);
       throw new Error("Failed to submit bill. Please try again.");
     }
   }
 
-  private generatePaymentPayloads(billPayment: BillPaymentInterface): Payment[] {
-    const { userId, paymentMethod, cashAmount, mpesaAmount, mpesaCode } = billPayment;
+  private generatePaymentPayloads(
+    billPayment: BillPaymentInterface,
+  ): Payment[] {
+    const { userId, paymentMethod, cashAmount, mpesaAmount, mpesaCode } =
+      billPayment;
 
     const paymentMap = {
-      'cash_mpesa': [
+      cash_mpesa: [
         { creditAmount: cashAmount, paymentType: PaymentType.CASH },
-        { creditAmount: mpesaAmount, paymentType: PaymentType.MPESA, reference: mpesaCode }
+        {
+          creditAmount: mpesaAmount,
+          paymentType: PaymentType.MPESA,
+          reference: mpesaCode,
+        },
       ],
-      'cash': [
-        { creditAmount: cashAmount, paymentType: PaymentType.CASH }
+      cash: [{ creditAmount: cashAmount, paymentType: PaymentType.CASH }],
+      mpesa: [
+        {
+          creditAmount: mpesaAmount,
+          paymentType: PaymentType.MPESA,
+          reference: mpesaCode,
+        },
       ],
-      'mpesa': [
-        { creditAmount: mpesaAmount, paymentType: PaymentType.MPESA, reference: mpesaCode }
-      ]
     };
 
     return (paymentMap[paymentMethod] || []).map((payment: any) => ({
       ...payment,
-      created_by: userId
+      created_by: userId,
     }));
   }
 
   async closeBill(billId: number) {
-    const bill = await AppDataSource
-      .createQueryBuilder("bill", 'bill')
-      .leftJoinAndSelect('bill.bill_payments', 'billPayment')
-      .leftJoinAndSelect('billPayment.payment', 'payment')
+    const bill = await AppDataSource.createQueryBuilder("bill", "bill")
+      .leftJoinAndSelect("bill.bill_payments", "billPayment")
+      .leftJoinAndSelect("billPayment.payment", "payment")
       .where("bill.id = :id", { id: billId })
       .getOne();
 
     if (!bill) {
-      throw new EntityNotFoundError(Bill, "Cannot close bill. Please confirm payments");
+      throw new EntityNotFoundError(
+        Bill,
+        "Cannot close bill. Please confirm payments",
+      );
     }
 
     const billAmount = bill.total;
-    const paidAmount = bill.bill_payments.reduce((sum, billPayment) => sum + billPayment.payment.creditAmount, 0)
+    const paidAmount = bill.bill_payments.reduce(
+      (sum, billPayment) => sum + billPayment.payment.creditAmount,
+      0,
+    );
 
     if (billAmount !== paidAmount) {
       throw new Error("Cannot close bill. Please confirm payments");
     }
 
-    const updateBill = await AppDataSource
-      .createQueryBuilder()
+    const updateBill = await AppDataSource.createQueryBuilder()
       .update(Bill)
       .set({ status: BillStatus.CLOSED })
       .where("id = :id", { id: bill.id })

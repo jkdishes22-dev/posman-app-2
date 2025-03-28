@@ -1,5 +1,5 @@
-import { getConnection } from '@backend/config/data-source';
-import { NextApiRequest, NextApiResponse } from 'next';
+import { getConnection } from "@backend/config/data-source";
+import { NextApiRequest, NextApiResponse } from "next";
 
 export const dbMiddleware = (handler) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
@@ -8,7 +8,9 @@ export const dbMiddleware = (handler) => {
       req.db = connection;
       return handler(req, res);
     } catch (error) {
-      return res.status(500).json({ message: 'Database connection failed' });
+      return res
+        .status(500)
+        .json({ message: "Database connection failed" + error });
     }
   };
 };

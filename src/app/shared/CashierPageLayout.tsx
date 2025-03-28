@@ -28,7 +28,7 @@ export default function CashierPageLayout({
             <ul className="navbar-nav mr-auto">
               <li className="nav-item active">
                 <a className="nav-link" href="#" onClick={bills}>
-                  Bills 
+                  Bills
                 </a>
               </li>
             </ul>

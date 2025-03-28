@@ -1,7 +1,10 @@
 import { authMiddleware, authorize } from "@backend/middleware/auth";
 import permissions from "@backend/config/managed-roles";
 import { NextApiRequest, NextApiResponse } from "next";
-import { addPermissionToRoleHandler, fetchPermissionsByRoleHandler } from "@controllers/RoleController";
+import {
+  addPermissionToRoleHandler,
+  fetchPermissionsByRoleHandler,
+} from "@controllers/RoleController";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 // import { ensureMetadata } from "@backend/utils/metadata-hack";
@@ -16,9 +19,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     )(req, res);
   } else if (req.method === "POST") {
     await authMiddleware(
-      authorize([permissions.CAN_ADD_PERMISSION])(
-        addPermissionToRoleHandler,
-      ),
+      authorize([permissions.CAN_ADD_PERMISSION])(addPermissionToRoleHandler),
     )(req, res);
   } else {
     res.setHeader("Allow", ["GET", "POST"]);
@@ -26,7 +27,4 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-export default withMiddleware(
-  dbMiddleware,
-)(handler);
-
+export default withMiddleware(dbMiddleware)(handler);

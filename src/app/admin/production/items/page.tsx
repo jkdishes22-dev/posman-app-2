@@ -12,7 +12,7 @@ export default function InventoryPage() {
   const [inventoryItems, setInventoryItems] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [authError, setAuthError] = useState(null);
-  const [fetchError, setFetchError] = useState(null);
+  const [setFetchError] = useState(null);
 
   useEffect(() => {
     async function fetchInventoryItems() {
@@ -49,10 +49,12 @@ export default function InventoryPage() {
 
   const handleShowModal = () => setShowModal(true);
   const handleCloseModal = () => setShowModal(false);
-  
-   
 
-  const handleAddInventoryItem = async ({ name, code, isStock }: InventoryItem) => {
+  const handleAddInventoryItem = async ({
+    name,
+    code,
+    isStock,
+  }: InventoryItem) => {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch("/api/production", {
@@ -61,7 +63,7 @@ export default function InventoryPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({  name, code, isStock }),
+        body: JSON.stringify({ name, code, isStock }),
       });
       if (response.ok) {
         const newItem = await response.json();
@@ -99,18 +101,15 @@ export default function InventoryPage() {
             </thead>
             <tbody>
               {inventoryItems.map((item) => (
-                <tr
-                  key={item.id}
-                  onClick={() => setSelectedItemId(item.id)}
-                >
+                <tr key={item.id} onClick={() => setSelectedItemId(item.id)}>
                   <td>{item.id}</td>
                   <td>{item.name}</td>
                   <td>{item.code}</td>
                   <td>{item.isStock}</td>
                   <td>
-                    <Button 
-                      variant="secondary" 
-                      className='w-8' 
+                    <Button
+                      variant="secondary"
+                      className="w-8"
                       onClick={() => console.log("Adjust stock")}
                     >
                       Adjust Stock

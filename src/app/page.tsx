@@ -13,7 +13,7 @@ const LoginForm = () => {
   const [activeField, setActiveField] = useState("username");
   const router = useRouter();
 
-  const handleSubmit = async (e: { preventDefault: () => void; }) => {
+  const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     if (!username || !password) {
       setError("Please fill in all fields");
@@ -38,9 +38,9 @@ const LoginForm = () => {
 
         if (role === "admin") {
           router.push("/admin");
-        } else if (role === 'user') {
+        } else if (role === "user") {
           router.push("/home");
-        } else if (role === 'cashier') {
+        } else if (role === "cashier") {
           router.push("/home/cashier");
         } else {
           router.push("/");
@@ -107,10 +107,7 @@ const LoginForm = () => {
                   onClick={() => handleInputClick("password")}
                 />
               </div>
-              <button
-                type="submit"
-                className="btn btn-primary btn-block"
-              >
+              <button type="submit" className="btn btn-primary btn-block">
                 Sign in
               </button>
             </form>

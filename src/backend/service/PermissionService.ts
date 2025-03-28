@@ -19,7 +19,9 @@ export class PermissionService {
   }
 
   async createPermission(newPermission) {
-    let scope = await this.scopeRepository.findOneBy({ name: newPermission.scope });
+    let scope = await this.scopeRepository.findOneBy({
+      name: newPermission.scope,
+    });
     if (!scope) {
       scope = this.scopeRepository.create({ name: newPermission.scope });
       scope = await this.scopeRepository.save(scope);
@@ -45,4 +47,3 @@ export class PermissionService {
     return await AppDataSource.query(query, [roleId]);
   }
 }
-

@@ -46,11 +46,11 @@ const permissions = {
   CAN_DELETE_ITEM_STATION: "can_delete_item_station",
   CAN_VIEW_ITEM_STATION: "can_view_item_station",
 
-    // Station pricelist
-    CAN_ADD_STATION_PRICELIST: "can_add_station_pricelist",
-    CAN_EDIT_STATION_PRICELIST: "can_edit_station_pricelist",
-    CAN_DELETE_STATION_PRICELIST: "can_delete_station_pricelist",
-    CAN_VIEW_STATION_PRICELIST: "can_view_station_pricelist",
+  // Station pricelist
+  CAN_ADD_STATION_PRICELIST: "can_add_station_pricelist",
+  CAN_EDIT_STATION_PRICELIST: "can_edit_station_pricelist",
+  CAN_DELETE_STATION_PRICELIST: "can_delete_station_pricelist",
+  CAN_VIEW_STATION_PRICELIST: "can_view_station_pricelist",
 
   // Payment
   CAN_ADD_PAYMENT: "can_add_payment",

@@ -3,31 +3,31 @@ import { Station, StationStatus } from "@backend/entities/Station";
 import { DataSource, Repository } from "typeorm";
 
 export class StationService {
-    private stationRepository: Repository<Station>;
+  private stationRepository: Repository<Station>;
 
-    constructor(datasource: DataSource) {
-        this.stationRepository = datasource.getRepository(Station);
-    }
+  constructor(datasource: DataSource) {
+    this.stationRepository = datasource.getRepository(Station);
+  }
 
-    async createStation(station: Station) {
-        const updatedRequest = {
-            ...station,
-            status: StationStatus.ENABLED
-        }
-        const newStation = this.stationRepository.create(updatedRequest);
-        return await this.stationRepository.save(newStation);
-    }
+  async createStation(station: Station) {
+    const updatedRequest = {
+      ...station,
+      status: StationStatus.ENABLED,
+    };
+    const newStation = this.stationRepository.create(updatedRequest);
+    return await this.stationRepository.save(newStation);
+  }
 
-    async fetchStations(options: Record<string, any>) {
-        return await this.stationRepository.find({
-            where: {
-                status: options.status
-            }
-        });
-    }
+  async fetchStations(options: Record<string, any>) {
+    return await this.stationRepository.find({
+      where: {
+        status: options.status,
+      },
+    });
+  }
 
-    async fetchStationPricelist(stationId: number) {
-        const query = `
+  async fetchStationPricelist(stationId: number) {
+    const query = `
         SELECT 
             s.id,
             s.name,
@@ -38,6 +38,6 @@ export class StationService {
         WHERE 
           s.id = ?
       `;
-        return await AppDataSource.query(query, [stationId]);
-    }
+    return await AppDataSource.query(query, [stationId]);
+  }
 }

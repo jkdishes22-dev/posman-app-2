@@ -45,13 +45,11 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         const data = await response.json();
         if (response.ok) {
           setPricelists(data);
-        }
-        else if (response.status === 403) {
-          setAuthError(data)
+        } else if (response.status === 403) {
+          setAuthError(data);
         } else {
           setFetchPricelistError(data);
         }
-
       } catch (error) {
         setAddItemError("Failed to fetch pricelists: " + error.message);
       }
@@ -111,18 +109,18 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
 
   return (
     <Modal show={showModal} onHide={handleModalClose}>
-       {authError && (
-      <div className="alert alert-danger">
-        <strong>Error:</strong> {authError.message}
-        {authError.missingPermissions && (
-          <ul>
-            {authError.missingPermissions.map((perm) => (
-              <li key={perm}>{perm}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-    )}
+      {authError && (
+        <div className="alert alert-danger">
+          <strong>Error:</strong> {authError.message}
+          {authError.missingPermissions && (
+            <ul>
+              {authError.missingPermissions.map((perm) => (
+                <li key={perm}>{perm}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       <ModalHeader closeButton>
         <ModalTitle>Add Item</ModalTitle>
       </ModalHeader>

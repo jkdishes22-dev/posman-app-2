@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { Modal, Button } from 'react-bootstrap';
+import { Modal, Button } from "react-bootstrap";
 import AdminLayout from "src/app/shared/AdminLayout";
 import AddSubItemModal from "./new";
 
@@ -22,9 +22,11 @@ function InventoryItemsPage() {
   }, []);
 
   useEffect(() => {
-    setFilteredItems(items.filter(item =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ));
+    setFilteredItems(
+      items.filter((item) =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    );
   }, [searchTerm, items]);
 
   const fetchItems = async () => {
@@ -60,17 +62,20 @@ function InventoryItemsPage() {
     }
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`/api/production/${selectedItem}/sub-items`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        `/api/production/${selectedItem}/sub-items`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            subItemId: subItemId,
+            portionSize: portionSize,
+          }),
         },
-        body: JSON.stringify({
-          subItemId: subItemId,
-          portionSize: portionSize,
-        }),
-      });
+      );
       if (!response.ok) throw new Error("Failed to add sub-item");
 
       await fetchSubItemsFromBackend(selectedItem);
@@ -101,7 +106,7 @@ function InventoryItemsPage() {
   };
 
   const updateItemsInState = (itemId, updatedItems) => {
-    const updatedItemsList = items.map(item => {
+    const updatedItemsList = items.map((item) => {
       if (item.id === itemId) {
         return { ...item, subItems: updatedItems };
       }
@@ -127,12 +132,15 @@ function InventoryItemsPage() {
   const removeSubItemFromItem = async (subItemId) => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`/api/production/${selectedItem}/sub-items/${subItemId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        }
-      });
+      const response = await fetch(
+        `/api/production/${selectedItem}/sub-items/${subItemId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
       if (!response.ok) throw new Error("Failed to remove sub-item");
 
       await fetchSubItemsFromBackend(selectedItem);
@@ -164,7 +172,10 @@ function InventoryItemsPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="list-group" style={{ maxHeight: "400px", overflowY: "auto" }}>
+            <div
+              className="list-group"
+              style={{ maxHeight: "400px", overflowY: "auto" }}
+            >
               {filteredItems.length > 0 ? (
                 filteredItems.map((item) => (
                   <li
@@ -186,7 +197,9 @@ function InventoryItemsPage() {
             <h4>Sub-Items for {selectedItem ? `: ${selectedItemName}` : ""}</h4>
             {selectedItem ? (
               <>
-                <button className="btn btn-success mb-3" onClick={openModal}>Add New Sub-Item</button>
+                <button className="btn btn-success mb-3" onClick={openModal}>
+                  Add New Sub-Item
+                </button>
                 <table className="table table-striped">
                   <thead>
                     <tr>
@@ -202,7 +215,12 @@ function InventoryItemsPage() {
                           <td>{subItem.name}</td>
                           <td>{subItem.portionSize}</td>
                           <td>
-                            <button className="btn btn-danger btn-sm" onClick={() => confirmRemoveItem(subItem.id)}>Remove</button>
+                            <button
+                              className="btn btn-danger btn-sm"
+                              onClick={() => confirmRemoveItem(subItem.id)}
+                            >
+                              Remove
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -233,9 +251,14 @@ function InventoryItemsPage() {
         <Modal.Header closeButton>
           <Modal.Title>Confirm Action</Modal.Title>
         </Modal.Header>
-        <Modal.Body>Are you sure you want to remove this sub-item from the stock item?</Modal.Body>
+        <Modal.Body>
+          Are you sure you want to remove this sub-item from the stock item?
+        </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirmation(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowConfirmation(false)}
+          >
             Cancel
           </Button>
           <Button variant="danger" onClick={handleConfirmRemove}>

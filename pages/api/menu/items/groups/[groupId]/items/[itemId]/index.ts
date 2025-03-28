@@ -6,18 +6,14 @@ import { withMiddleware } from "@backend/middleware/middleware-util";
 import { NextApiRequest, NextApiResponse } from "next";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-    if (req.method === 'DELETE') {
-        await authMiddleware(
-            authorize([permissions.CAN_ADD_ITEM])(removeItemFromGroupHandler),
-        )(req, res);
+  if (req.method === "DELETE") {
+    await authMiddleware(
+      authorize([permissions.CAN_ADD_ITEM])(removeItemFromGroupHandler),
+    )(req, res);
+  } else {
+    res.setHeader("Allow", ["DELETE"]);
+    res.status(405).end(`Method ${req.method} Not Allowed`);
+  }
+};
 
-    } else {
-        res.setHeader('Allow', ['DELETE']);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
-    }
-}
-
-export default withMiddleware(
-    dbMiddleware,
-    authMiddleware
-  )(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

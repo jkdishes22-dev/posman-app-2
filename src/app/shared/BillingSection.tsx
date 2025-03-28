@@ -54,15 +54,17 @@ const BillingSection = () => {
     fetchCategories();
   }, []);
 
-
   const fetchItems = async (categoryId: string) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/menu/items?category=${categoryId}&billing=true`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        `/api/menu/items?category=${categoryId}&billing=true`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
       if (!response.ok) {
         throw new Error("Failed to fetch items");
       }
@@ -209,7 +211,11 @@ const BillingSection = () => {
           >
             Create Bill
           </Button>
-          <Button className="m-2" variant="secondary" onClick={handleShowCancelModal}>
+          <Button
+            className="m-2"
+            variant="secondary"
+            onClick={handleShowCancelModal}
+          >
             Cancel
           </Button>
         </div>
@@ -248,7 +254,11 @@ const BillingSection = () => {
           <Button variant="secondary" onClick={handleCloseSubmitModal}>
             Cancel
           </Button>
-          <Button className="btn-success" variant="primary" onClick={handleConfirmSubmit}>
+          <Button
+            className="btn-success"
+            variant="primary"
+            onClick={handleConfirmSubmit}
+          >
             Confirm
           </Button>
         </Modal.Footer>
@@ -259,9 +269,7 @@ const BillingSection = () => {
         <Modal.Header closeButton>
           <Modal.Title>Cancel Billing</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          Are you sure you want to cancel billing?
-        </Modal.Body>
+        <Modal.Body>Are you sure you want to cancel billing?</Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCloseCancelModal}>
             No

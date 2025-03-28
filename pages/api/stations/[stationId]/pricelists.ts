@@ -5,17 +5,14 @@ import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { NextApiRequest, NextApiResponse } from "next";
 
-const handler = async (req: NextApiRequest, res : NextApiResponse) => {
-    if(req.method === "GET") {
-        await authMiddleware(
-            authorize([permissions.CAN_VIEW_STATION_PRICELIST])
-            (fetchStationPricelistHandler)
-        )(req, res)
-    }
+const handler = async (req: NextApiRequest, res: NextApiResponse) => {
+  if (req.method === "GET") {
+    await authMiddleware(
+      authorize([permissions.CAN_VIEW_STATION_PRICELIST])(
+        fetchStationPricelistHandler,
+      ),
+    )(req, res);
+  }
 };
 
-export default withMiddleware(
-    dbMiddleware,
-    authMiddleware
-  )(handler);
-  
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

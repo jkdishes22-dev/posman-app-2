@@ -12,13 +12,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     await authMiddleware(
       authorize([permissions.CAN_VIEW_ITEM])(fetchGroupedItemsHandler),
     )(req, res);
-  }
-  else {
+  } else {
     res.setHeader("Allow", ["GET"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 };
 
-export default withMiddleware(
-  dbMiddleware,
-)(handler);
+export default withMiddleware(dbMiddleware)(handler);

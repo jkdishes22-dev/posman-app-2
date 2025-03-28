@@ -1,8 +1,6 @@
-// data-source.ts
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import * as process from "process";
-import { Container } from "typedi";
 
 import { User } from "@entities/User";
 import { Role } from "@entities/Role";

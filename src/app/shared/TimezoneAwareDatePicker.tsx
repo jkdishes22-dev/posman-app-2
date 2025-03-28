@@ -7,15 +7,15 @@ const timeZone = "Africa/Nairobi";
 
 const TimeZoneAwareDatePicker = ({
   onDateChange,
-  format = "yyyy-MM-dd HH:mm",  
+  format = "yyyy-MM-dd HH:mm",
 }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  const convertToTimeZone = (date : Date) => toZonedTime(date, timeZone);
+  const convertToTimeZone = (date: Date) => toZonedTime(date, timeZone);
 
   const convertToUtc = (date: Date) => fromZonedTime(date, timeZone);
 
-  const handleChange = (date : Date) => {
+  const handleChange = (date: Date) => {
     setSelectedDate(date);
 
     const utcDate = convertToUtc(date);
@@ -26,10 +26,10 @@ const TimeZoneAwareDatePicker = ({
 
   return (
     <DatePicker
-     className="form-control me-3"
+      className="form-control me-3"
       selected={convertToTimeZone(selectedDate)}
       onChange={handleChange}
-    //   showTimeSelect
+      //   showTimeSelect
       dateFormat={format}
       maxDate={new Date()}
       placeholderText="Select billing date"

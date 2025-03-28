@@ -4,7 +4,7 @@ import { BillPayment } from "./BillPayment";
 
 export enum PaymentType {
   CASH = "CASH",
-  MPESA = "MPESA"
+  MPESA = "MPESA",
 }
 
 @Entity()
@@ -19,20 +19,33 @@ export class Payment extends BaseEntity {
     type: "enum",
     enum: PaymentType,
     nullable: false,
-    name: "payment_type"
+    name: "payment_type",
   })
   paymentType: PaymentType;
 
-  @Column({ type: "datetime", nullable: false, default: () => "CURRENT_TIMESTAMP", name: "paid_at" })
+  @Column({
+    type: "datetime",
+    nullable: false,
+    default: () => "CURRENT_TIMESTAMP",
+    name: "paid_at",
+  })
   paidAt: Date;
 
   @Column()
   reference: string;
 
-  @Column({ type: "datetime", nullable: false, default: () => "CURRENT_TIMESTAMP" })
+  @Column({
+    type: "datetime",
+    nullable: false,
+    default: () => "CURRENT_TIMESTAMP",
+  })
   created_at: Date;
 
-  @Column({ type: "datetime", nullable: false, default: () => "CURRENT_TIMESTAMP" })
+  @Column({
+    type: "datetime",
+    nullable: false,
+    default: () => "CURRENT_TIMESTAMP",
+  })
   updated_at: Date;
 
   @Column({ nullable: false })
@@ -41,6 +54,6 @@ export class Payment extends BaseEntity {
   @Column({ nullable: true })
   updated_by: number;
 
- @OneToMany(() => BillPayment, (billPayment) => billPayment.bill)
+  @OneToMany(() => BillPayment, (billPayment) => billPayment.bill)
   bill_payments: Promise<BillPayment[]>;
 }

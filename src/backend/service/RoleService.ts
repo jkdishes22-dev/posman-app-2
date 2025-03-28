@@ -7,9 +7,8 @@ import { User } from "@backend/entities/User";
 export class RoleService {
   private roleRepository: Repository<Role>;
   private permissionRepository: Repository<Permission>;
-  private userRoleRepository: Repository<UserRole>
+  private userRoleRepository: Repository<UserRole>;
 
-      
   constructor(datasource: DataSource) {
     this.roleRepository = datasource.getRepository(Role);
     this.permissionRepository = datasource.getRepository(Permission);
@@ -26,31 +25,38 @@ export class RoleService {
   }
 
   /**
-   * 
-   * @param roleId  
-   * @param permissionId 
-   * @returns 
+   *
+   * @param roleId
+   * @param permissionId
+   * @returns
    */
   async addPermissionToRole(roleId: any, permissionId: any) {
-    return await this.roleRepository.manager.transaction(async transactionalEntityManager => {
-      const role = await transactionalEntityManager.findOne(Role, {
-        where: { id: roleId },
-        relations: ["permissions"]
-      });
-      const permission = await transactionalEntityManager.findOneBy(Permission, {
-        id: permissionId,
-      });
+    return await this.roleRepository.manager.transaction(
+      async (transactionalEntityManager) => {
+        const role = await transactionalEntityManager.findOne(Role, {
+          where: { id: roleId },
+          relations: ["permissions"],
+        });
+        const permission = await transactionalEntityManager.findOneBy(
+          Permission,
+          {
+            id: permissionId,
+          },
+        );
 
-      if (role && permission) {
-        const hasPermission = role.permissions.some((perm) => perm.id === permission.id);
-        if (!hasPermission) {
-          role.permissions.push(permission);
-          await transactionalEntityManager.save(role);
+        if (role && permission) {
+          const hasPermission = role.permissions.some(
+            (perm) => perm.id === permission.id,
+          );
+          if (!hasPermission) {
+            role.permissions.push(permission);
+            await transactionalEntityManager.save(role);
+          }
+        } else {
+          throw new Error("Role or Permission not found");
         }
-      } else {
-        throw new Error("Role or Permission not found");
-      }
-    });
+      },
+    );
   }
 
   async assignRoleToUser(userId: User, roleId: Role) {

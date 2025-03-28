@@ -1,20 +1,22 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { ItemService } from "@services/ItemService";
 
-
-
-export const filterItemsHandler = async (req: NextApiRequest, res: NextApiResponse,) => {
-  const itemService =new ItemService(req.db);
+export const filterItemsHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const itemService = new ItemService(req.db);
   try {
-    const { search, excludeGrouped } = req.query; if (!search) {
+    const { search, excludeGrouped } = req.query;
+    if (!search) {
       return res.status(400).json({ message: "Search term is required" });
     }
     const criteria = {
       search,
-      excludeGrouped: excludeGrouped === 'true'
+      excludeGrouped: excludeGrouped === "true",
     };
 
-    console.log('criteria' + JSON.stringify(criteria));
+    console.log("criteria" + JSON.stringify(criteria));
     const items = await itemService.filterItems(criteria);
     return res.status(200).json(items);
   } catch (error) {
@@ -22,7 +24,6 @@ export const filterItemsHandler = async (req: NextApiRequest, res: NextApiRespon
     return res.status(500).json({ message: "Failed to filter items", error });
   }
 };
-
 
 export const fetchItemsHandler = async (
   req: NextApiRequest,
@@ -32,9 +33,13 @@ export const fetchItemsHandler = async (
   try {
     const { category, billing } = req.query;
     const user_id = req.user.id;
-    const targetUsage = billing === 'true' ? true : false;
+    const targetUsage = billing === "true" ? true : false;
 
-    const items = await itemService.fetchItems(parseInt(category), user_id, targetUsage);
+    const items = await itemService.fetchItems(
+      parseInt(category),
+      user_id,
+      targetUsage,
+    );
     res.status(200).json(items);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch items", error });
@@ -45,7 +50,7 @@ export const createItemHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
-  const itemService =new ItemService(req.db);
+  const itemService = new ItemService(req.db);
   try {
     const { name, code, price, category, pricelistId, isGroup } = req.body;
     const user_id = req.user.id;
@@ -71,7 +76,7 @@ export const updateItemHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
-  const itemService =new ItemService(req.db);
+  const itemService = new ItemService(req.db);
   try {
     console.log("Updating Item:", req.body);
     const {
@@ -112,7 +117,7 @@ export const fetchGroupedItemsHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
-  const itemService =new ItemService(req.db);
+  const itemService = new ItemService(req.db);
   try {
     const { groupId } = req.query;
 
@@ -128,12 +133,12 @@ export const createGroupItemHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
-  const itemService =new ItemService(req.db);
+  const itemService = new ItemService(req.db);
   const { itemId, subItemId, portionSize } = req.body;
   const groupItemRequest = {
     itemId,
     subItemId,
-    portionSize
+    portionSize,
   };
 
   try {
@@ -149,7 +154,7 @@ export const fetchGroupItemsHandler = async (
   res: NextApiResponse,
 ) => {
   const { groupId } = req.query;
-  const itemService =new ItemService(req.db);
+  const itemService = new ItemService(req.db);
   try {
     const groupItems = await itemService.fetchGroupItems(groupId);
     res.status(201).json(groupItems);
@@ -159,18 +164,24 @@ export const fetchGroupItemsHandler = async (
 };
 
 export const removeItemFromGroupHandler = async (
-  req: NextApiRequest, res: NextApiResponse
+  req: NextApiRequest,
+  res: NextApiResponse,
 ) => {
-  const itemService =new ItemService(req.db);
+  const itemService = new ItemService(req.db);
   try {
     const { groupId, itemId } = req.query;
     if (!groupId || !itemId) {
-      return res.status(400).json({ message: 'Group ID and Item ID are required' });
+      return res
+        .status(400)
+        .json({ message: "Group ID and Item ID are required" });
     }
     itemService.removeItemFromGroup(groupId, itemId);
-    res.status(200).json({ message: 'Item removed successfully' });
+    res.status(200).json({ message: "Item removed successfully" });
   } catch (error) {
-    console.error('Error removing item from group:', error);
-    res.status(500).json({ message: 'Error removing item from group', error: error.message });
+    console.error("Error removing item from group:", error);
+    res.status(500).json({
+      message: "Error removing item from group",
+      error: error.message,
+    });
   }
 };

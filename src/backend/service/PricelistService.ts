@@ -19,13 +19,13 @@ export class PricelistService {
     user_id: number,
   ): Promise<Pricelist> {
     const foundStation = await this.stationRepository.findOneBy({
-      id: Number(payload.station)
+      id: Number(payload.station),
     });
     const pricelist: Pricelist = this.pricelistRepository.create({
       ...payload,
       status: PriceListStatus.ACTIVE,
       created_by: user_id,
-      station: foundStation ? foundStation.id : null
+      station: foundStation ? foundStation.id : null,
     });
     return this.pricelistRepository.save(pricelist);
   }

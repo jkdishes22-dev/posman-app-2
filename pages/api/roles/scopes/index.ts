@@ -18,7 +18,4 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-export default withMiddleware(
-  dbMiddleware,
-)(handler);
-
+export default withMiddleware(dbMiddleware)(handler);

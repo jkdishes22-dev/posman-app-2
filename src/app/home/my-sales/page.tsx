@@ -21,7 +21,7 @@ const MySales = () => {
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
-    setSelectedBill(null)
+    setSelectedBill(null);
   };
 
   const handleBillIdChange = (e) => {
@@ -31,7 +31,9 @@ const MySales = () => {
     if (filter === "") {
       setFilteredBills(bills);
     } else {
-      const filtered = bills.filter((bill: Bill) => bill.id.toString().includes(filter));
+      const filtered = bills.filter((bill: Bill) =>
+        bill.id.toString().includes(filter),
+      );
       setFilteredBills(filtered);
 
       if (filtered.length === 0) {
@@ -42,7 +44,7 @@ const MySales = () => {
 
   const fetchBills = async (date?: Date, status?: string) => {
     const token = localStorage.getItem("token");
-    let url = `/api/bills?`;
+    let url = "/api/bills?";
     let formattedDate;
 
     if (date && !status) {
@@ -77,7 +79,6 @@ const MySales = () => {
     }
   };
 
-
   const fetchBillsByBillId = async (billId: number) => {
     const token = localStorage.getItem("token");
 
@@ -105,7 +106,7 @@ const MySales = () => {
   };
 
   const openSubmitModal = () => {
-    if(selectedBill && selectedBill.bill_items.length === 0) {
+    if (selectedBill && selectedBill.bill_items.length === 0) {
       setErrorMessage("Cannot submit bill with no items.");
       return;
     }
@@ -117,8 +118,16 @@ const MySales = () => {
   };
 
   const handleBillSubmitted = (updatedBill: Bill) => {
-    setBills((prevBills) => prevBills.map((bill) => (bill.id === updatedBill.id ? updatedBill : bill)));
-    setFilteredBills((prevFilteredBills) => prevFilteredBills.map((bill) => (bill.id === updatedBill.id ? updatedBill : bill)));
+    setBills((prevBills) =>
+      prevBills.map((bill) =>
+        bill.id === updatedBill.id ? updatedBill : bill,
+      ),
+    );
+    setFilteredBills((prevFilteredBills) =>
+      prevFilteredBills.map((bill) =>
+        bill.id === updatedBill.id ? updatedBill : bill,
+      ),
+    );
     setSelectedBill(updatedBill);
   };
 
@@ -163,7 +172,9 @@ const MySales = () => {
                         <tr
                           key={bill.id}
                           onClick={() => handleBillClick(bill)}
-                          className={selectedBill?.id === bill.id ? "table-active" : ""}
+                          className={
+                            selectedBill?.id === bill.id ? "table-active" : ""
+                          }
                         >
                           <td>{bill.id}</td>
                           <td>{bill.status}</td>
@@ -181,7 +192,11 @@ const MySales = () => {
               </div>
             </div>
             <div className="col-7">
-              <div className="btn-group mb-2" role="group" aria-label="Filter actions">
+              <div
+                className="btn-group mb-2"
+                role="group"
+                aria-label="Filter actions"
+              >
                 <button
                   className="btn btn-outline-primary"
                   onClick={() => fetchBills(undefined, "submitted")}
@@ -204,7 +219,9 @@ const MySales = () => {
               {selectedBill ? (
                 <div>
                   <div className="card">
-                  {errorMessage && <p className="text-danger">{errorMessage}</p>}
+                    {errorMessage && (
+                      <p className="text-danger">{errorMessage}</p>
+                    )}
                     <div className="card-body">
                       {selectedBill.status === "pending" ? (
                         <Button
@@ -216,7 +233,8 @@ const MySales = () => {
                         </Button>
                       ) : (
                         <span className="text-success">
-                          Bill is {selectedBill.status} <strong> Total: {selectedBill.total} </strong>
+                          Bill is {selectedBill.status}{" "}
+                          <strong> Total: {selectedBill.total} </strong>
                         </span>
                       )}
 
@@ -235,14 +253,18 @@ const MySales = () => {
                           {selectedBill.bill_items.length > 0 ? (
                             selectedBill.bill_items.map((item) => (
                               <tr key={item.id}>
-                                <td>{new Date(item.created_at).toLocaleString()}</td>
+                                <td>
+                                  {new Date(item.created_at).toLocaleString()}
+                                </td>
                                 <td>{item.item.name}</td>
                                 <td>KES {item.item.price}</td>
                                 <td>{item.quantity}</td>
                                 <td>KES {item.subtotal}</td>
                                 <td>
                                   {selectedBill.status === "pending" ? (
-                                    <Button variant="danger">Void Request</Button>
+                                    <Button variant="danger">
+                                      Void Request
+                                    </Button>
                                   ) : null}
                                 </td>
                               </tr>

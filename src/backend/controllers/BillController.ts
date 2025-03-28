@@ -1,8 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { BillService } from "@services/BillService";
 
-
-
 export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
   try {
@@ -14,11 +12,7 @@ export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-
-export const fetchBills = async (
-  req: NextApiRequest,
-  res: NextApiResponse,
-) => {
+export const fetchBills = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
   const currentUserId = req.user?.id;
   const { date, status, billId, billingUserId } = req.query;
@@ -30,14 +24,18 @@ export const fetchBills = async (
   }
 
   try {
-    const bills = await billService.fetchBills(currentUserId, { targetDate, status, billId, billingUserId });
+    const bills = await billService.fetchBills(currentUserId, {
+      targetDate,
+      status,
+      billId,
+      billingUserId,
+    });
     res.status(200).json(bills);
   } catch (error) {
     console.error("Error fetching bills:", error);
     res.status(500).json({ error: `Error fetching bills: ${error.message}` });
   }
 };
-
 
 export const cancelBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const { billId } = req.query;
@@ -84,10 +82,7 @@ export const fetchBillItems = async (
   }
 };
 
-export const submitBill = async (
-  req: NextApiRequest,
-  res: NextApiResponse,
-) => {
+export const submitBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
   try {
     const billPayment = req.body;
@@ -103,9 +98,7 @@ export const submitBill = async (
   }
 };
 
-export const closeBill = async (req: NextApiRequest,
-  res: NextApiResponse,
-) => {
+export const closeBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
   const { billId } = req.query;
   try {
@@ -113,6 +106,5 @@ export const closeBill = async (req: NextApiRequest,
     res.status(200).json(closedBill);
   } catch (error) {
     res.status(500).json({ message: "Error closing bill", error });
-
   }
 };

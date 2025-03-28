@@ -1,11 +1,10 @@
-'use client';
-import React, { useState, useEffect } from 'react';
-import AdminLayout from 'src/app/shared/AdminLayout';
-import StationNew from './station-new';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import { Button } from 'react-bootstrap';
-import { stat } from 'fs';
-import { AuthError } from 'src/app/types/types';
+"use client";
+import React, { useState, useEffect } from "react";
+import AdminLayout from "src/app/shared/AdminLayout";
+import StationNew from "./station-new";
+import "bootstrap/dist/css/bootstrap.min.css";
+import { Button } from "react-bootstrap";
+import { AuthError } from "src/app/types/types";
 
 export default function StationPage() {
   const [stations, setStations] = useState([]);
@@ -20,24 +19,26 @@ export default function StationPage() {
     const fetchData = async () => {
       const token = localStorage.getItem("token");
       try {
-        const response = await fetch('/api/stations', {
-          method: 'GET',
+        const response = await fetch("/api/stations", {
+          method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
+            Authorization: `Bearer ${token}`,
           },
         });
         const data = await response.json();
 
-      if (response.ok) {
-        setStations(response.ok ? data : []);
-      } else if(response.status === 403) {
-        setAuthError(data);
-      } else {
-        setFetchStationsError("Failed to fetch items " +JSON.stringify(data));
-      }
+        if (response.ok) {
+          setStations(response.ok ? data : []);
+        } else if (response.status === 403) {
+          setAuthError(data);
+        } else {
+          setFetchStationsError(
+            "Failed to fetch items " + JSON.stringify(data),
+          );
+        }
       } catch (error) {
-        console.error('Failed to fetch stations', error);
+        console.error("Failed to fetch stations", error);
         setStations([]);
       }
     };
@@ -57,8 +58,8 @@ export default function StationPage() {
     try {
       const response = await fetch(`/api/stations/${stationId}/pricelists`, {
         headers: {
-          Authorization: `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {
@@ -67,9 +68,8 @@ export default function StationPage() {
         const pricelistData = await response.json();
         setPricelists(pricelistData);
       }
-
     } catch (error) {
-      console.error('Failed to fetch station details', error);
+      console.error("Failed to fetch station details", error);
       setPricelists([]);
     }
   };
@@ -79,8 +79,8 @@ export default function StationPage() {
     try {
       const response = await fetch(`/api/station/${stationId}/users`, {
         headers: {
-          Authorization: `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!response.ok) {
@@ -89,18 +89,17 @@ export default function StationPage() {
         const dataUsers = await response.json();
         setUsers(dataUsers);
       }
-    }
-    catch (error) {
-      console.error('Failed to fetch station users', error);
+    } catch (error) {
+      console.error("Failed to fetch station users", error);
       setUsers([]);
     }
-  }
+  };
 
   const handleAddStation = async (name: string) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch('/api/station', {
-        method: 'POST',
+      const response = await fetch("/api/station", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -125,7 +124,9 @@ export default function StationPage() {
       <div className="container">
         <div className="row">
           <div className="col-md-4">
-            <Button variant="primary" onClick={() => setShowModal(true)}>Add Station</Button>
+            <Button variant="primary" onClick={() => setShowModal(true)}>
+              Add Station
+            </Button>
             <StationNew
               show={showModal}
               handleClose={() => setShowModal(false)}
@@ -140,19 +141,22 @@ export default function StationPage() {
                 </tr>
               </thead>
               <tbody>
-                {stations.map(station => (
-                  <tr key={station.id} onClick={() => setSelectedStationId(station.id)}>
+                {stations.map((station) => (
+                  <tr
+                    key={station.id}
+                    onClick={() => setSelectedStationId(station.id)}
+                  >
                     <td>{station.id}</td>
                     <td>{station.name}</td>
                     <td>
-                      {(!(station.status) || station.status === "disabled")
-                        &&
+                      {(!station.status || station.status === "disabled") && (
                         <Button variant="success">Enable</Button>
-                      }
-                      {station.status === "enabled"
-                        &&
-                        <Button variant="danger" className='w-12'>Disable</Button>
-                      }
+                      )}
+                      {station.status === "enabled" && (
+                        <Button variant="danger" className="w-12">
+                          Disable
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -165,35 +169,48 @@ export default function StationPage() {
               <div className="col-md-6">
                 <h3>Linked Pricelists</h3>
                 <ul className="list-group">
-                  {
-                    pricelists.length > 0 ? (
-                      pricelists.map(pricelist => (
-                        <li key={pricelist.id} className="list-group-item">
-                          {pricelist.name}
-                          {(!(pricelist.status) || pricelist.status === "inactive") &&
-                            <Button variant="success"> Enable</Button>
-                          }
-                          {pricelist.status === "active" &&
-                            <Button variant="danger" className='w-12'> Disable</Button>
-                          }
-                        </li>
-                      ))
-                    ) : (
-                      <li className="list-group-item">No pricelist added yet</li>
-                    )
-                  }
+                  {pricelists.length > 0 ? (
+                    pricelists.map((pricelist) => (
+                      <li key={pricelist.id} className="list-group-item">
+                        {pricelist.name}
+                        {(!pricelist.status ||
+                          pricelist.status === "inactive") && (
+                          <Button variant="success"> Enable</Button>
+                        )}
+                        {pricelist.status === "active" && (
+                          <Button variant="danger" className="w-12">
+                            {" "}
+                            Disable
+                          </Button>
+                        )}
+                      </li>
+                    ))
+                  ) : (
+                    <li className="list-group-item">No pricelist added yet</li>
+                  )}
                 </ul>
-
               </div>
 
               <div className="col-md-6">
                 <h3>Linked Users</h3>
                 <ul className="list-group">
-                  {users.map(user => (
+                  {users.map((user) => (
                     <li key={user.id} className="list-group-item">
                       {user.firstName} {user.lastName}
-                      <Button variant="danger" className="btn-sm ml-2" style={{ padding: '0.25rem 0.5rem', width: '4rem' }}>Disable</Button>
-                      <Button variant="success" className="btn-sm ml-2" style={{ padding: '0.25rem 0.5rem', width: '4rem' }}>Enable</Button>
+                      <Button
+                        variant="danger"
+                        className="btn-sm ml-2"
+                        style={{ padding: "0.25rem 0.5rem", width: "4rem" }}
+                      >
+                        Disable
+                      </Button>
+                      <Button
+                        variant="success"
+                        className="btn-sm ml-2"
+                        style={{ padding: "0.25rem 0.5rem", width: "4rem" }}
+                      >
+                        Enable
+                      </Button>
                     </li>
                   ))}
                 </ul>

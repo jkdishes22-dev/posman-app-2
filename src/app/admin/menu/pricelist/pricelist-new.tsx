@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { headers } from "next/headers";
 
 export default function PricelistAdd({
   showModal,
@@ -22,8 +21,8 @@ export default function PricelistAdd({
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
-          }
-      });
+          },
+        });
         const data = await response.json();
         setStations(data);
       } catch (error) {

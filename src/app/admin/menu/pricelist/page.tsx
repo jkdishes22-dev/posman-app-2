@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import AdminLayout from "../../../shared/AdminLayout";
 import PricelistAdd from "./pricelist-new";
 import ViewItems from "../category/components/items/items-view";
-import station from "pages/api/stations";
 import { Button } from "react-bootstrap";
 import { AuthError } from "src/app/types/types";
 
@@ -14,7 +13,7 @@ export default function PricelistPage() {
   const [pricelistItems, setPricelistItems] = useState([]);
   const [selectedPricelistId, setSelectedPricelistId] = useState(null);
   const [authError, setAuthError] = useState<AuthError>(null);
-  const [fetchPricelistError, setFetchPricelistError] = useState();
+  const [setFetchPricelistError] = useState();
 
   useEffect(() => {
     async function fetchPricelists() {
@@ -30,13 +29,11 @@ export default function PricelistPage() {
         const data = await response.json();
         if (response.ok) {
           setPricelists(data);
-        }
-        else if (response.status === 403) {
-          setAuthError(data)
+        } else if (response.status === 403) {
+          setAuthError(data);
         } else {
           setFetchPricelistError(data);
         }
-
       } catch (error) {
         console.error("Failed to fetch pricelists", error);
       }
@@ -125,14 +122,16 @@ export default function PricelistPage() {
                   <td>{pricelist.id}</td>
                   <td>{pricelist.name}</td>
                   <td>
-                    {(!(pricelist.status) || pricelist.status === "inactive")
-                      &&
-                      <Button variant="success" className='w-8'>Enable</Button>
-                    }
-                    {pricelist.status === "active"
-                      &&
-                      <Button variant="danger" className='w-8'>Disable</Button>
-                    }
+                    {(!pricelist.status || pricelist.status === "inactive") && (
+                      <Button variant="success" className="w-8">
+                        Enable
+                      </Button>
+                    )}
+                    {pricelist.status === "active" && (
+                      <Button variant="danger" className="w-8">
+                        Disable
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}

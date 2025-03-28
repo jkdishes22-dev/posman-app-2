@@ -110,7 +110,7 @@ const QuantityModal: React.FC<QuantityModalProps> = ({
                 onChange={handleInputChange}
                 className="form-control"
                 placeholder="Enter quantity (1 or more)"
-                style={{ marginTop: '10px' }}
+                style={{ marginTop: "10px" }}
               />
             </div>
             <div className="col col-4 d-flex align-items-center">
@@ -118,7 +118,7 @@ const QuantityModal: React.FC<QuantityModalProps> = ({
                 variant="danger"
                 onClick={handleClear}
                 className="w-100"
-                style={{ marginTop: '10px' }}
+                style={{ marginTop: "10px" }}
               >
                 Clear
               </Button>

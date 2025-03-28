@@ -1,4 +1,4 @@
-import { NextApiHandler } from 'next';
+import { NextApiHandler } from "next";
 
 export const withMiddleware = (...middlewares: any[]) => {
   return (handler: NextApiHandler) => {

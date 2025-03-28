@@ -45,7 +45,11 @@ export class ItemService {
     );
   }
 
-  public async fetchItems(categoryId: number, user_id: number, billing: boolean = false): Promise<any[]> {
+  public async fetchItems(
+    categoryId: number,
+    user_id: number,
+    billing: boolean = false,
+  ): Promise<any[]> {
     const query = this.itemRepository
       .createQueryBuilder("item")
       .leftJoinAndSelect("item.category", "category")
@@ -59,14 +63,14 @@ export class ItemService {
         "pi.is_enabled AS pricelist_item_isEnabled",
         "pi.id AS pricelistId",
         "pricelist.name AS pricelistName",
-        "s.name as stationName"
+        "s.name as stationName",
       ]);
 
     if (billing) {
       query.andWhere("pi.is_enabled = :enabled", { enabled: 1 });
-      query.andWhere("us.status = :status", { status: 'enabled' })
-      query.andWhere("us.is_default = :is_default", { is_default: 1 })
-      query.andWhere("u.id = :id", { id: user_id })
+      query.andWhere("us.status = :status", { status: "enabled" });
+      query.andWhere("us.is_default = :is_default", { is_default: 1 });
+      query.andWhere("u.id = :id", { id: user_id });
     }
 
     if (categoryId) {
@@ -89,7 +93,6 @@ export class ItemService {
       pricelistName: item.pricelistName,
     }));
   }
-
 
   async findItemById(id: number): Promise<Item> {
     const item = await this.itemRepository.findOne({ where: { id } });
@@ -197,7 +200,11 @@ export class ItemService {
     const queryBuilder = this.itemRepository
       .createQueryBuilder("group")
       .leftJoinAndSelect("group.subItems", "subItem")
-      .leftJoin("item_group", "groupSubItem", "groupSubItem.item_id = group.id AND groupSubItem.sub_item_id = subItem.id")
+      .leftJoin(
+        "item_group",
+        "groupSubItem",
+        "groupSubItem.item_id = group.id AND groupSubItem.sub_item_id = subItem.id",
+      )
       .where("group.isGroup = :isGroup", { isGroup: true });
 
     if (groupId) {
@@ -210,24 +217,24 @@ export class ItemService {
         "group.name AS group_name",
         "subItem.id AS subItem_id",
         "subItem.name AS subItem_name",
-        "groupSubItem.portion_size AS portion_size"
+        "groupSubItem.portion_size AS portion_size",
       ])
       .getRawMany();
 
     const groupsWithItems = rawResults.reduce((acc, row) => {
-      let group = acc.find(g => g.id === row.group_id);
+      let group = acc.find((g) => g.id === row.group_id);
       if (!group) {
         group = {
           id: row.group_id,
           name: row.group_name,
-          items: []
+          items: [],
         };
         acc.push(group);
       }
       group.items.push({
         id: row.subItem_id,
         name: row.subItem_name,
-        portionSize: row.portion_size
+        portionSize: row.portion_size,
       });
       return acc;
     }, []);
@@ -235,9 +242,11 @@ export class ItemService {
     return groupsWithItems;
   }
 
-  async createGroupedItem(
-    groupItemRequest: { itemId: any; subItemId: any; portionSize: any; }
-  ) {
+  async createGroupedItem(groupItemRequest: {
+    itemId: any;
+    subItemId: any;
+    portionSize: any;
+  }) {
     try {
       const { itemId, subItemId, portionSize } = groupItemRequest;
       const items = await this.itemRepository.find({
@@ -273,28 +282,24 @@ export class ItemService {
       console.error("Error adding group item:", error);
       throw error;
     }
-  };
+  }
 
   async filterItems(criteria: Record<string, any>) {
-    const queryBuilder = this.itemRepository.
-      createQueryBuilder("item").
-      where("item.name LIKE :search", { search: `%${criteria.search}%` });
+    const queryBuilder = this.itemRepository
+      .createQueryBuilder("item")
+      .where("item.name LIKE :search", { search: `%${criteria.search}%` });
     if (criteria.excludeGrouped) {
       queryBuilder.andWhere("item.is_group = :isGroup", { isGroup: false });
     }
     return await queryBuilder.getMany();
   }
 
-
-  async fetchGroupItems(groupId: number) {
-
-  }
+  // async fetchGroupItems(groupId: number) { }
 
   async removeItemFromGroup(groupId: number, itemId: number) {
-    await this.itemGroupRepository.delete(
-      {
-        item: { id: parseInt(groupId) },
-        subItem: { id: parseInt(itemId) },
-      });
-  };
-};
+    await this.itemGroupRepository.delete({
+      item: { id: parseInt(groupId) },
+      subItem: { id: parseInt(itemId) },
+    });
+  }
+}

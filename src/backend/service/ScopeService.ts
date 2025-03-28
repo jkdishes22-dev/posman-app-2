@@ -2,7 +2,6 @@ import { PermissionScope } from "@entities/PermissionScope";
 import { DataSource, Repository } from "typeorm";
 
 export class ScopeService {
-
   private permissionScopeRepository: Repository<PermissionScope>;
 
   constructor(datasource: DataSource) {
@@ -16,10 +15,9 @@ export class ScopeService {
   async fetchScopePermissions(scopeId: number) {
     return await this.permissionScopeRepository.find({
       where: {
-        id: scopeId
+        id: scopeId,
       },
-      relations: ["permissions"]
+      relations: ["permissions"],
     });
   }
-
 }

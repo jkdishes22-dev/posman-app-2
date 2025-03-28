@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form } from 'react-bootstrap';
+import React, { useState, useEffect } from "react";
+import { Modal, Button, Form } from "react-bootstrap";
 
 function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem }) {
   const [items, setItems] = useState([]);
-  const [subItemId, setSubItemId] = useState('');
-  const [deductiblePortion, setDeductiblePortion] = useState('');
+  const [subItemId, setSubItemId] = useState("");
+  const [deductiblePortion, setDeductiblePortion] = useState("");
 
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const response = await fetch('/api/items');
+        const response = await fetch("/api/items");
         const data = await response.json();
         setItems(data);
       } catch (error) {
-        console.error('Error fetching items:', error);
+        console.error("Error fetching items:", error);
       }
     };
 

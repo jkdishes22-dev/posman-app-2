@@ -24,9 +24,11 @@ export default function UsersPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [permissionToDelete, setPermissionToDelete] = useState<string | null>(
-    null
+    null,
   );
-  const [availablePermissions, setAvailablePermissions] = useState<string[]>([]);
+  const [availablePermissions, setAvailablePermissions] = useState<string[]>(
+    [],
+  );
   const [selectedPermission, setSelectedPermission] = useState(null);
   const [authError, setAuthError] = useState<AuthError>(null);
 
@@ -46,7 +48,7 @@ export default function UsersPage() {
       const data = await response.json();
       if (!response.ok) {
         setError(data);
-      } else if(response.status === 403) {
+      } else if (response.status === 403) {
         setAuthError(data);
       } else {
         setRoles(data);
@@ -133,18 +135,21 @@ export default function UsersPage() {
       return [];
     }
     const token = localStorage.getItem("token");
-    const response = await fetch(`/api/roles/scopes/${selectedScope.id}/permissions`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
+    const response = await fetch(
+      `/api/roles/scopes/${selectedScope.id}/permissions`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       },
-    });
+    );
     const data = await response.json();
 
     const allPermissions = data[0].permissions;
     const existingPermissions = permissionsByScope[selectedScope.name] || [];
 
     const filteredPermissions = allPermissions.filter(
-      (permission) => !existingPermissions.includes(permission.name)
+      (permission) => !existingPermissions.includes(permission.name),
     );
     const formattedPermissions = filteredPermissions.map((permission) => ({
       label: permission.name,
@@ -163,17 +168,20 @@ export default function UsersPage() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/roles/${selectedRole.id}/permissions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        `/api/roles/${selectedRole.id}/permissions`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            roleId: selectedRole.id,
+            permissionId: selectedPermission.value,
+          }),
         },
-        body: JSON.stringify({
-          roleId: selectedRole.id,
-          permissionId: selectedPermission.value,
-        }),
-      });
+      );
 
       if (!response.ok) {
         console.error("Failed to add permission");
@@ -243,7 +251,6 @@ export default function UsersPage() {
                 <p>Please select a role to see the available scopes.</p>
               )}
 
-
               <div>
                 {selectedScope && (
                   <div key={selectedScope.id} className="card mb-3">
@@ -296,15 +303,13 @@ export default function UsersPage() {
         </div>
 
         {/* Delete Modal */}
-        <Modal
-          show={showDeleteModal}
-          onHide={() => setShowDeleteModal(false)}
-        >
+        <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
           <Modal.Header closeButton>
             <Modal.Title>Delete Permission</Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            Are you sure you want to delete the permission "{permissionToDelete}"?
+            Are you sure you want to delete the permission "{permissionToDelete}
+            "?
           </Modal.Body>
           <Modal.Footer>
             <Button
@@ -320,10 +325,7 @@ export default function UsersPage() {
         </Modal>
 
         {/* Add Permission Modal */}
-        <Modal
-          show={showAddModal}
-          onHide={() => setShowAddModal(false)}
-        >
+        <Modal show={showAddModal} onHide={() => setShowAddModal(false)}>
           <Modal.Header closeButton>
             <Modal.Title>Add permission</Modal.Title>
           </Modal.Header>
@@ -338,7 +340,6 @@ export default function UsersPage() {
                 onChange={setSelectedPermission} // Update the selected permission
               />
             </Form.Group>
-
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowAddModal(false)}>

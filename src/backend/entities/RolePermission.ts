@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne } from "typeorm";
+import { Entity, ManyToOne } from "typeorm";
 import { Role } from "@entities/Role";
 import { Permission } from "@entities/Permission";
 import { BaseEntity } from "./BaseEntity";

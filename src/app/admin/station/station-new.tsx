@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Modal, Button, Form } from 'react-bootstrap';
+import React, { useState } from "react";
+import { Modal, Button, Form } from "react-bootstrap";
 
 interface StationNewProps {
   show: boolean;
@@ -7,12 +7,16 @@ interface StationNewProps {
   handleAddStation: (name: string) => void;
 }
 
-const StationNew: React.FC<StationNewProps> = ({ show, handleClose, handleAddStation }) => {
-  const [newStationName, setNewStationName] = useState('');
+const StationNew: React.FC<StationNewProps> = ({
+  show,
+  handleClose,
+  handleAddStation,
+}) => {
+  const [newStationName, setNewStationName] = useState("");
 
   const handleSave = () => {
     handleAddStation(newStationName);
-    setNewStationName('');
+    setNewStationName("");
     handleClose();
   };
 

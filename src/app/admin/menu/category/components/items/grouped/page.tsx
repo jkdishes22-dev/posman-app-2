@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import AdminLayout from "../../../../../../shared/AdminLayout";
 import AddGroupItemModal from "./add-group-item";
-import { Modal, Button } from 'react-bootstrap';
+import { Modal, Button } from "react-bootstrap";
 
 function GroupedItemsPage() {
   const [groups, setGroups] = useState([]);
@@ -22,9 +22,11 @@ function GroupedItemsPage() {
   }, []);
 
   useEffect(() => {
-    setFilteredGroups(groups.filter(group =>
-      group.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ));
+    setFilteredGroups(
+      groups.filter((group) =>
+        group.name.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    );
   }, [searchTerm, groups]);
 
   const fetchGroups = async () => {
@@ -47,7 +49,7 @@ function GroupedItemsPage() {
   const handleGroupSelect = async (groupId) => {
     const groupData = groups.find((group) => group.id === groupId);
 
-    console.log("group  Data " + JSON.stringify(groupData))
+    console.log("group  Data " + JSON.stringify(groupData));
     if (groupData) {
       setSelectedGroup(groupId);
       setSelectedGroupName(groupData.name);
@@ -95,7 +97,7 @@ function GroupedItemsPage() {
       const data = await response.json();
 
       // Ensure the items are extracted and set correctly
-      console.log("data fetched from the backend " + JSON.stringify(data))
+      console.log("data fetched from the backend " + JSON.stringify(data));
 
       const items = data[0].items || [];
       setGroupItems(items);
@@ -106,7 +108,7 @@ function GroupedItemsPage() {
   };
 
   const updateGroupsInState = (groupId, updatedItems) => {
-    const updatedGroups = groups.map(group => {
+    const updatedGroups = groups.map((group) => {
       if (group.id === groupId) {
         return { ...group, items: updatedItems };
       }
@@ -132,12 +134,15 @@ function GroupedItemsPage() {
   const removeItemFromGroup = async (itemId: number) => {
     const token = localStorage.getItem("token");
     try {
-      const response = await fetch(`/api/menu/items/groups/${selectedGroup}/items/${itemId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        }
-      });
+      const response = await fetch(
+        `/api/menu/items/groups/${selectedGroup}/items/${itemId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
       if (!response.ok) throw new Error("Failed to remove item");
 
       await fetchGroupItemsFromBackend(selectedGroup);
@@ -169,7 +174,10 @@ function GroupedItemsPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="list-group" style={{ maxHeight: "400px", overflowY: "auto" }}>
+            <div
+              className="list-group"
+              style={{ maxHeight: "400px", overflowY: "auto" }}
+            >
               {filteredGroups.length > 0 ? (
                 filteredGroups.map((group) => (
                   <li
@@ -188,10 +196,14 @@ function GroupedItemsPage() {
           </div>
 
           <div className="col-md-8">
-            <h4>Items in Group {selectedGroup ? `: ${selectedGroupName}` : ""}</h4>
+            <h4>
+              Items in Group {selectedGroup ? `: ${selectedGroupName}` : ""}
+            </h4>
             {selectedGroup ? (
               <>
-                <button className="btn btn-success mb-3" onClick={openModal}>Add New Item</button>
+                <button className="btn btn-success mb-3" onClick={openModal}>
+                  Add New Item
+                </button>
                 <table className="table table-striped">
                   <thead>
                     <tr>
@@ -207,7 +219,12 @@ function GroupedItemsPage() {
                           <td>{item.name}</td>
                           <td>{item.portionSize}</td>
                           <td>
-                            <button className="btn btn-danger btn-sm" onClick={() => confirmRemoveItem(item.id)}>Remove</button>
+                            <button
+                              className="btn btn-danger btn-sm"
+                              onClick={() => confirmRemoveItem(item.id)}
+                            >
+                              Remove
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -238,9 +255,14 @@ function GroupedItemsPage() {
         <Modal.Header closeButton>
           <Modal.Title>Confirm Action</Modal.Title>
         </Modal.Header>
-        <Modal.Body>Are you sure you want to remove this item from the group?</Modal.Body>
+        <Modal.Body>
+          Are you sure you want to remove this item from the group?
+        </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirmation(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowConfirmation(false)}
+          >
             Cancel
           </Button>
           <Button variant="danger" onClick={handleConfirmRemove}>

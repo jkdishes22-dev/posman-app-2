@@ -32,19 +32,19 @@ export class BillItem {
   @Column({ default: 0 })
   quantity: number;
 
-  @Column({ type: 'double', default: 0.00 })
+  @Column({ type: "double", default: 0.0 })
   subtotal: number;
 
   @Column({
     type: "enum",
     enum: BillItemStatus,
-    nullable: true
+    nullable: true,
   })
   status: BillItemStatus;
 
-  @Column({ type: 'datetime', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;
 
-  @Column({ type: 'datetime', nullable: true })
+  @Column({ type: "datetime", nullable: true })
   updated_at: Date;
 }

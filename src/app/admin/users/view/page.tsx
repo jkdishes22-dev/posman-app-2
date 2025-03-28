@@ -69,10 +69,11 @@ export default function UsersPage() {
     }
   }
 
-  const filteredUsers = users.filter((user: User) =>
-    user.firstName.toLowerCase().includes(filter.toLowerCase()) ||
-    user.lastName.toLowerCase().includes(filter.toLowerCase()) ||
-    user.username.toLowerCase().includes(filter.toLowerCase())
+  const filteredUsers = users.filter(
+    (user: User) =>
+      user.firstName.toLowerCase().includes(filter.toLowerCase()) ||
+      user.lastName.toLowerCase().includes(filter.toLowerCase()) ||
+      user.username.toLowerCase().includes(filter.toLowerCase()),
   );
 
   const handleUserSelect = (user) => {
@@ -120,7 +121,7 @@ export default function UsersPage() {
                     <td>{user.firstName}</td>
                     <td>{user.lastName}</td>
                     <td>{user.username}</td>
-                    <td>{user.locked ? 'Yes' : 'No'}</td>
+                    <td>{user.locked ? "Yes" : "No"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -133,12 +134,32 @@ export default function UsersPage() {
                 <h3>User Details: {selectedUser.firstName}</h3>
                 <h3>Role: {selectedUser.role_name}</h3>
 
-                <button type="button" className=" btn btn-outline-warning btn-sm mr-5" onClick={() => console.log('Update User', selectedUser)}>
+                <button
+                  type="button"
+                  className=" btn btn-outline-warning btn-sm mr-5"
+                  onClick={() => console.log("Update User", selectedUser)}
+                >
                   Update
                 </button>
-                <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => console.log('Delete User', selectedUser)}>Delete</button>
-                <button className="btn btn-outline-info btn-sm" onClick={() => console.log('Lock User', selectedUser)}>Lock</button>
-                <button className="btn btn-outline-secondary btn-sm" onClick={() => console.log('Assign Role', selectedUser)}>Assign Role</button>
+                <button
+                  type="button"
+                  className="btn btn-outline-danger btn-sm"
+                  onClick={() => console.log("Delete User", selectedUser)}
+                >
+                  Delete
+                </button>
+                <button
+                  className="btn btn-outline-info btn-sm"
+                  onClick={() => console.log("Lock User", selectedUser)}
+                >
+                  Lock
+                </button>
+                <button
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={() => console.log("Assign Role", selectedUser)}
+                >
+                  Assign Role
+                </button>
 
                 <table className="table table-sm table-striped">
                   <thead className="table-dark">
@@ -158,11 +179,12 @@ export default function UsersPage() {
                     </tr>
                     <tr>
                       <td className="p-1 m-0">Locked</td>
-                      <td className="p-1 m-0">{selectedUser.locked ? 'Yes' : 'No'}</td>
+                      <td className="p-1 m-0">
+                        {selectedUser.locked ? "Yes" : "No"}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
-
               </div>
             ) : (
               <p>Select a user to view their details.</p>
@@ -171,7 +193,11 @@ export default function UsersPage() {
         </div>
       </div>
       {showModal && (
-        <NewUser onClose={handleClose} onSave={handleCreateUser} error={error} />
+        <NewUser
+          onClose={handleClose}
+          onSave={handleCreateUser}
+          error={error}
+        />
       )}
     </AdminLayout>
   );

@@ -8,10 +8,10 @@ import { AuthError } from "../types/types";
 
 export default function AdminLayout({
   children,
-  authError
+  authError,
 }: {
   children: React.ReactNode;
-  authError: AuthError | null; 
+  authError: AuthError | null;
 }) {
   const router = useRouter();
   useEffect(() => {
@@ -51,29 +51,29 @@ export default function AdminLayout({
   };
 
   const manageStations = () => {
-      router.push("/admin/station");
+    router.push("/admin/station");
   };
 
   const manageStationStaff = () => {
-      router.push("/admin/station/user")
+    router.push("/admin/station/user");
   };
 
   const manageProduction = () => {
-      router.push("/admin/production/items")
+    router.push("/admin/production/items");
   };
 
   const productionItemDefinition = () => {
-    router.push("/admin/production/definitions")
+    router.push("/admin/production/definitions");
   };
 
   const dailyProduction = () => {
-    router.push("/admin/production")
-  }
+    router.push("/admin/production");
+  };
 
   const issue = () => {
-    router.push("admin/production/restock")
-  }
-  
+    router.push("admin/production/restock");
+  };
+
   return (
     <SecureRoute roleRequired="admin">
       <div className="container">
@@ -129,12 +129,20 @@ export default function AdminLayout({
                   aria-labelledby="navbarDarkDropdownMenuLink"
                 >
                   <li>
-                    <a className="dropdown-item" href="#" onClick={manageStations}>
+                    <a
+                      className="dropdown-item"
+                      href="#"
+                      onClick={manageStations}
+                    >
                       Station
                     </a>
                   </li>
                   <li>
-                    <a className="dropdown-item" href="#" onClick={manageStationStaff}>
+                    <a
+                      className="dropdown-item"
+                      href="#"
+                      onClick={manageStationStaff}
+                    >
                       Station users
                     </a>
                   </li>
@@ -202,17 +210,29 @@ export default function AdminLayout({
                   aria-labelledby="navbarDarkDropdownMenuLink"
                 >
                   <li>
-                    <a className="dropdown-item" href="#" onClick={manageProduction}>
-                      Stock Menu Items 
+                    <a
+                      className="dropdown-item"
+                      href="#"
+                      onClick={manageProduction}
+                    >
+                      Stock Menu Items
                     </a>
                   </li>
                   <li>
-                    <a className="dropdown-item" href="#" onClick={productionItemDefinition}>
+                    <a
+                      className="dropdown-item"
+                      href="#"
+                      onClick={productionItemDefinition}
+                    >
                       Ratio definition
                     </a>
                   </li>
                   <li>
-                    <a className="dropdown-item" href="#" onClick={dailyProduction}>
+                    <a
+                      className="dropdown-item"
+                      href="#"
+                      onClick={dailyProduction}
+                    >
                       Daily Production
                     </a>
                   </li>

@@ -1,5 +1,3 @@
-import { Double } from "typeorm";
-
 export type Category = {
   id: string;
   name: string;
@@ -40,42 +38,42 @@ export type User = {
 
 export type Bill = {
   id: number;
-  total: number,
-  status: string,
-  bill_payments: Record<string, any>
-  user: User,
-  created_at: Date
-}
+  total: number;
+  status: string;
+  bill_payments: Record<string, any>;
+  user: User;
+  created_at: Date;
+};
 
 export type BillPayment = {
-  id: number,
-  payment: Payment,
-  created_at: Date
-}
+  id: number;
+  payment: Payment;
+  created_at: Date;
+};
 
-export type Payment ={
-  id: number,
-  creditAmount: number,
-  paymentType: string,
-  created_at: Date,
-  reference: string
-}
+export type Payment = {
+  id: number;
+  creditAmount: number;
+  paymentType: string;
+  created_at: Date;
+  reference: string;
+};
 
 export type Scope = {
- id: number;
- name: string;
-}
+  id: number;
+  name: string;
+};
 
 export type Role = {
   id: number;
   name: string;
-}
+};
 
 export type Permission = {
   id: number;
   name: string;
   scopeId: number;
-}
+};
 
 export type AuthError = {
   message: string;

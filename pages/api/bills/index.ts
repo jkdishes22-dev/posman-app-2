@@ -19,9 +19,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   if (req.method === "GET") {
-    return authMiddleware(
-      authorize([permissions.CAN_VIEW_BILL])(fetchBills),
-    )(req, res);
+    return authMiddleware(authorize([permissions.CAN_VIEW_BILL])(fetchBills))(
+      req,
+      res,
+    );
   }
 
   if (req.method === "PATCH") {
@@ -44,6 +45,4 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   return res.status(405).end(`Method ${req.method} Not Allowed`);
 };
 
-export default withMiddleware(
-  dbMiddleware,
-)(handler);
+export default withMiddleware(dbMiddleware)(handler);

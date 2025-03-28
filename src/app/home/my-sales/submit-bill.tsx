@@ -25,8 +25,12 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
   };
 
   const totalPaid =
-    (paymentMethod === "cash" || paymentMethod === "cash_mpesa" ? Number(cashAmount) : 0) +
-    (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa" ? Number(mpesaAmount) : 0);
+    (paymentMethod === "cash" || paymentMethod === "cash_mpesa"
+      ? Number(cashAmount)
+      : 0) +
+    (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa"
+      ? Number(mpesaAmount)
+      : 0);
 
   const pendingAmount = totalAmount - totalPaid;
 
@@ -35,8 +39,9 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
     if (/^\d*\.?\d*$/.test(value)) {
       const newCashAmount = value;
       const newTotalPaid =
-        (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa" ? Number(mpesaAmount) : 0) +
-        Number(newCashAmount);
+        (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa"
+          ? Number(mpesaAmount)
+          : 0) + Number(newCashAmount);
 
       if (newTotalPaid <= totalAmount) {
         setCashAmount(newCashAmount);
@@ -44,8 +49,10 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
         setCashAmount(
           (
             totalAmount -
-            (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa" ? Number(mpesaAmount) : 0)
-          ).toString()
+            (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa"
+              ? Number(mpesaAmount)
+              : 0)
+          ).toString(),
         );
       }
     }
@@ -56,8 +63,9 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
     if (/^\d*\.?\d*$/.test(value)) {
       const newMpesaAmount = value;
       const newTotalPaid =
-        (paymentMethod === "cash" || paymentMethod === "cash_mpesa" ? Number(cashAmount) : 0) +
-        Number(newMpesaAmount);
+        (paymentMethod === "cash" || paymentMethod === "cash_mpesa"
+          ? Number(cashAmount)
+          : 0) + Number(newMpesaAmount);
 
       if (newTotalPaid <= totalAmount) {
         setMpesaAmount(newMpesaAmount);
@@ -65,30 +73,45 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
         setMpesaAmount(
           (
             totalAmount -
-            (paymentMethod === "cash" || paymentMethod === "cash_mpesa" ? Number(cashAmount) : 0)
-          ).toString()
+            (paymentMethod === "cash" || paymentMethod === "cash_mpesa"
+              ? Number(cashAmount)
+              : 0)
+          ).toString(),
         );
       }
     }
   };
 
   const handleSubmit = async () => {
-    if ((paymentMethod === "mpesa" || paymentMethod === "cash_mpesa") && !mpesaCode && Number(mpesaAmount) > 0) {
+    if (
+      (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa") &&
+      !mpesaCode &&
+      Number(mpesaAmount) > 0
+    ) {
       setErrorMessage("Please enter an M-Pesa payment code.");
       return;
     }
-    if(selectedBill.bill_items.length === 0) {
+    if (selectedBill.bill_items.length === 0) {
       setErrorMessage("Cannot submit bill with no items.");
       return;
     }
 
     const paymentDetails = {
       paymentMethod,
-      cashAmount: paymentMethod === "cash" || paymentMethod === "cash_mpesa" ? Number(cashAmount) : 0,
-      mpesaAmount: paymentMethod === "mpesa" || paymentMethod === "cash_mpesa" ? Number(mpesaAmount) : 0,
-      mpesaCode: paymentMethod === "mpesa" || paymentMethod === "cash_mpesa" ? mpesaCode : null,
+      cashAmount:
+        paymentMethod === "cash" || paymentMethod === "cash_mpesa"
+          ? Number(cashAmount)
+          : 0,
+      mpesaAmount:
+        paymentMethod === "mpesa" || paymentMethod === "cash_mpesa"
+          ? Number(mpesaAmount)
+          : 0,
+      mpesaCode:
+        paymentMethod === "mpesa" || paymentMethod === "cash_mpesa"
+          ? mpesaCode
+          : null,
       pendingAmount: pendingAmount > 0 ? pendingAmount : 0,
-      billId: selectedBill?.id
+      billId: selectedBill?.id,
     };
 
     try {
@@ -109,13 +132,17 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
         throw new Error(`Failed to submit bill: ${response.statusText}`);
       }
 
-      const responseData = await response.json(); 
+      const responseData = await response.json();
 
       onBillSubmitted(responseData.bill);
 
       handleClose();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "An unexpected error occurred.");
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -131,7 +158,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
       <Modal.Body>
         {selectedBill ? (
           <Form>
-              {errorMessage && <p className="text-danger">{errorMessage}</p>}
+            {errorMessage && <p className="text-danger">{errorMessage}</p>}
             <Form.Group>
               <Form.Label>Select Payment Method</Form.Label>
               <div>
@@ -205,7 +232,8 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
               <strong>Total Paid:</strong> KES {totalPaid}
             </p>
             <p>
-              <strong>Pending Amount:</strong> KES {pendingAmount > 0 ? pendingAmount : "0"}
+              <strong>Pending Amount:</strong> KES{" "}
+              {pendingAmount > 0 ? pendingAmount : "0"}
             </p>
           </Form>
         ) : (
@@ -213,11 +241,23 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
         )}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={handleClose} disabled={isSubmitting}>
+        <Button
+          variant="secondary"
+          onClick={handleClose}
+          disabled={isSubmitting}
+        >
           Cancel
         </Button>
-        <Button variant="primary" onClick={handleSubmit} disabled={isSubmitting || !selectedBill}>
-          {isSubmitting ? <Spinner animation="border" size="sm" /> : "Submit Bill"}
+        <Button
+          variant="primary"
+          onClick={handleSubmit}
+          disabled={isSubmitting || !selectedBill}
+        >
+          {isSubmitting ? (
+            <Spinner animation="border" size="sm" />
+          ) : (
+            "Submit Bill"
+          )}
         </Button>
       </Modal.Footer>
     </Modal>

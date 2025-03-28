@@ -14,7 +14,7 @@ function StationUsersPage() {
   const [stations, setStations] = useState([]);
   const [selectedStation, setSelectedStation] = useState("");
   const [userStations, setUserStations] = useState([]);
-  const [authError, setAuthError] = useState<AuthError>(null)
+  const [authError, setAuthError] = useState<AuthError>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -24,8 +24,8 @@ function StationUsersPage() {
   useEffect(() => {
     setFilteredUsers(
       users.filter((user: User) =>
-        user.firstName.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+        user.firstName.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
     );
   }, [searchTerm, users]);
 
@@ -47,7 +47,6 @@ function StationUsersPage() {
       } else {
         throw new Error("Failed to fetch users");
       }
-
     } catch (error) {
       console.error("Error fetching users:", error);
     }
@@ -93,7 +92,6 @@ function StationUsersPage() {
       } else {
         throw new Error("Failed to fetch users");
       }
-
     } catch (error) {
       console.error("Error fetching user stations:", error);
     }
@@ -134,7 +132,7 @@ function StationUsersPage() {
 
   const makeDefaultSation = async (stationId: number) => {
     if (!selectedUser || !stationId) {
-      alert("Please select user and station")
+      alert("Please select user and station");
       return;
     }
     try {
@@ -143,10 +141,10 @@ function StationUsersPage() {
         method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          stationId: stationId
+          stationId: stationId,
         }),
       });
       if (!response.ok) {
@@ -161,7 +159,7 @@ function StationUsersPage() {
 
   const disableUserStation = async (userStationId: number) => {
     if (!selectedUser || !userStationId) {
-      alert("Please select user and station")
+      alert("Please select user and station");
       return;
     }
     try {
@@ -171,10 +169,10 @@ function StationUsersPage() {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
-          "x-action": "disable"
+          "x-action": "disable",
         },
         body: JSON.stringify({
-          userStationId: userStationId
+          userStationId: userStationId,
         }),
       });
       if (!response.ok) {
@@ -186,8 +184,6 @@ function StationUsersPage() {
       console.error("Error updating user station:", error);
     }
   };
-
-
 
   return (
     <AdminLayout authError={authError}>
@@ -246,7 +242,9 @@ function StationUsersPage() {
                 </div>
                 <div className="col-md-8">
                   <Card>
-                    <Card.Header>Add {selectedUser.firstName} to a station</Card.Header>
+                    <Card.Header>
+                      Add {selectedUser.firstName} to a station
+                    </Card.Header>
                     <Card.Body>
                       <Form.Group>
                         <Form.Label>Select Station</Form.Label>
@@ -284,25 +282,44 @@ function StationUsersPage() {
                           </thead>
                           <tbody>
                             {userStations && userStations.length > 0 ? (
-                              userStations.map((station) => (
-                                station && (
-                                  <tr key={station.id}>
-                                    <td>{station.name}</td>
-                                    <td>
-                                      {station.is_default ? (
-                                        <span>Yes</span>
-                                      ) : (
-                                        <Button variant="success" className="w-12" onClick={() => makeDefaultSation(station.station_id)}>Make Default </Button>
-                                      )}
-                                    </td>
-                                    <td>
-                                      {station.status === "enabled" && (
-                                        <Button variant="danger" className="w-12" onClick={() => disableUserStation(station.id)}>Disable</Button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                )
-                              ))
+                              userStations.map(
+                                (station) =>
+                                  station && (
+                                    <tr key={station.id}>
+                                      <td>{station.name}</td>
+                                      <td>
+                                        {station.is_default ? (
+                                          <span>Yes</span>
+                                        ) : (
+                                          <Button
+                                            variant="success"
+                                            className="w-12"
+                                            onClick={() =>
+                                              makeDefaultSation(
+                                                station.station_id,
+                                              )
+                                            }
+                                          >
+                                            Make Default{" "}
+                                          </Button>
+                                        )}
+                                      </td>
+                                      <td>
+                                        {station.status === "enabled" && (
+                                          <Button
+                                            variant="danger"
+                                            className="w-12"
+                                            onClick={() =>
+                                              disableUserStation(station.id)
+                                            }
+                                          >
+                                            Disable
+                                          </Button>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ),
+                              )
                             ) : (
                               <tr>
                                 <td colSpan="3">No stations assigned</td>

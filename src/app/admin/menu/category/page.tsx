@@ -66,10 +66,10 @@ const CategoryPage: React.FC = () => {
       const data = await response.json();
       if (response.ok) {
         setItems(data);
-      } else if(response.status === 403) {
+      } else if (response.status === 403) {
         setAuthError(data);
       } else {
-        setItemError("Failed to fetch items" +JSON.stringify(data));
+        setItemError("Failed to fetch items" + JSON.stringify(data));
       }
     } catch (e) {
       setItemError("Failed to fetch items: " + e.message);
@@ -124,8 +124,7 @@ const CategoryPage: React.FC = () => {
           setCategories(data);
         } else if (response.status === 403) {
           setAuthError(data);
-        }
-          else {
+        } else {
           setFetchError(data.message || "Failed to fetch categories");
         }
       } catch (e) {

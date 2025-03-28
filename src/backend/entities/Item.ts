@@ -41,9 +41,8 @@ export class Item {
   @Column({ nullable: true, name: "is_group" })
   isGroup: boolean;
 
-  @Column({ nullable: true, name: "is_stock" , default: false })
+  @Column({ nullable: true, name: "is_stock", default: false })
   isStock: boolean;
-
 
   @ManyToMany(() => Item)
   @JoinTable({

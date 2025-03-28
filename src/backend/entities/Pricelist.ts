@@ -1,6 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
 import { BaseEntity } from "@entities/BaseEntity";
-import { BillStatus } from "@entities/Bill";
 import { Station } from "./Station";
 
 export enum PriceListStatus {
