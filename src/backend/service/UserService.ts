@@ -104,7 +104,7 @@ export class UserService {
       .where("ur.user_id = :userId", { userId })
       .getMany();
 
-    let permissions = [];
+    let permissions: Permission[] = [];
     if (roles.length > 0) {
       permissions = await this.permissionRepository
         .createQueryBuilder("permission")

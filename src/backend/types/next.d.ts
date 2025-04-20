@@ -1,7 +1,6 @@
-/*
-declare module 'next' {
-    interface NextApiRequest {
-    userId?: string;
-    }
-}
-*/
+// declare module "next" {
+//  interface NextApiRequest {
+//     userId?: string;
+//     db?: any;
+//  }
+// }

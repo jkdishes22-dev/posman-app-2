@@ -1,5 +1,6 @@
-import { Entity } from "typeorm";
+import { Entity, JoinColumn, ManyToOne } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
+import { Item } from "./Item";
 
 @Entity()
 export class InventoryItem extends BaseEntity {

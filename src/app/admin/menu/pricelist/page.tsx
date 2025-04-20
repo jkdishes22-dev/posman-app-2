@@ -9,11 +9,18 @@ import { AuthError } from "src/app/types/types";
 
 export default function PricelistPage() {
   const [showModal, setShowModal] = useState(false);
-  const [pricelists, setPricelists] = useState([]);
+  interface Pricelist {
+    id: number;
+    name: string;
+    status?: string;
+    description?: string;
+    station?: string;
+  }
+  const [pricelists, setPricelists] = useState<Pricelist[]>([]);
   const [pricelistItems, setPricelistItems] = useState([]);
-  const [selectedPricelistId, setSelectedPricelistId] = useState(null);
+  const [selectedPricelistId, setSelectedPricelistId] = useState<number | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
-  const [setFetchPricelistError] = useState();
+  const [pricelistError, setFetchPricelistError] = useState();
 
   useEffect(() => {
     async function fetchPricelists() {
@@ -34,7 +41,7 @@ export default function PricelistPage() {
         } else {
           setFetchPricelistError(data);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch pricelists", error);
       }
     }
@@ -48,7 +55,7 @@ export default function PricelistPage() {
     }
   }, [selectedPricelistId]);
 
-  const fetchPricelistItems = async (pricelistId) => {
+  const fetchPricelistItems = async (pricelistId: number) => {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
@@ -63,14 +70,21 @@ export default function PricelistPage() {
       );
       const pricelistItems = await response.json();
       setPricelistItems(response.ok ? pricelistItems : []);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch pricelist items", error);
     }
   };
 
   const handleShowModal = () => setShowModal(true);
   const handleCloseModal = () => setShowModal(false);
-  const handleAddPricelist = async ({ name, description, station }) => {
+
+  interface PricelistParams {
+    name: string;
+    description: string;
+    station: string;
+  }
+
+  const handleAddPricelist = async ({ name, description, station }: PricelistParams) => {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch("/api/menu/pricelists", {
@@ -88,7 +102,7 @@ export default function PricelistPage() {
       } else {
         console.error("Failed to add pricelist");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to add pricelist", error);
     }
   };
@@ -105,6 +119,11 @@ export default function PricelistPage() {
             handleCloseModal={handleCloseModal}
             handleAddPricelist={handleAddPricelist}
           />
+          {pricelistError && (
+            <div className="alert alert-danger" role="alert">
+              {pricelistError}
+            </div>
+          )}
           <table className="table table-striped mt-3">
             <thead>
               <tr>

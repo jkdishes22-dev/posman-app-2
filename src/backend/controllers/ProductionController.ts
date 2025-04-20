@@ -7,13 +7,13 @@ export const createProductionItemHandler = async (
 ) => {
   const productionService = new ProductionService(req.db);
   try {
-    const user_id = req.user.id;
+    const user_id = parseInt(req.user.id, 10);
     const newItem = await productionService.createProductionItem(
       req.body,
       user_id,
     );
     res.status(201).json(newItem);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating production item:", error);
     res.status(500).json({ message: "Internal server error" });
   }
@@ -27,7 +27,7 @@ export const fetchProdutionItemsHandler = async (
   try {
     const items = await productionService.fetchProductionItems();
     res.status(200).json(items);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching production items:", error);
     res.status(500).json({ message: "Internal server error" });
   }

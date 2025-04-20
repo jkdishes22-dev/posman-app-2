@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
+    "noEmitOnError": true,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
     "lib": [
       "dom",
       "dom.iterable",

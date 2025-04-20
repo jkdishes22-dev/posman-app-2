@@ -17,7 +17,7 @@ function AuditLog() {
       });
       const data = await response.json();
       setActivities(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch inventory activities", error);
     }
   };

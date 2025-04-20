@@ -47,7 +47,7 @@ function StationUsersPage() {
       } else {
         throw new Error("Failed to fetch users");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching users:", error);
     }
   };
@@ -68,7 +68,7 @@ function StationUsersPage() {
       } else {
         throw new Error("Failed to fetch users");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching stations:", error);
     }
   };
@@ -92,7 +92,7 @@ function StationUsersPage() {
       } else {
         throw new Error("Failed to fetch users");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching user stations:", error);
     }
   };
@@ -125,7 +125,7 @@ function StationUsersPage() {
       } else {
         fetchUserStations(selectedUser.id);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding user to station:", error);
     }
   };
@@ -152,7 +152,7 @@ function StationUsersPage() {
       } else {
         fetchUserStations(selectedUser.id);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating user station:", error);
     }
   };
@@ -180,7 +180,7 @@ function StationUsersPage() {
       } else {
         fetchUserStations(selectedUser.id);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating user station:", error);
     }
   };

@@ -10,7 +10,7 @@ export const fetchRolesHandler = async (
   try {
     const roles = await roleService.fetchRoles();
     res.status(200).json(roles);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Failed to fetch roles", error });
   }
 };
@@ -24,7 +24,7 @@ export const createRoleHandler = async (
     const newRole = req.body;
     const role = await roleService.createRole(newRole);
     res.status(201).json(role);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Failed to create role", error });
   }
 };
@@ -38,7 +38,7 @@ export const addPermissionToRoleHandler = async (
     const { roleId, permissionId } = req.body;
     await roleService.addPermissionToRole(roleId, permissionId);
     res.status(200).json({ message: "Permission added to role" });
-  } catch (error) {
+  } catch (error: any) {
     console.log(error);
     res
       .status(500)
@@ -55,7 +55,7 @@ export const assignRoleToUserHandler = async (
     const { userId, roleId } = req.body;
     await roleService.assignRoleToUser(userId, roleId);
     res.status(200).json({ message: "Role assigned to user" });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Failed to assign role to user", error });
   }
 };
@@ -69,7 +69,7 @@ export const fetchPermissionsByRoleHandler = async (
   try {
     const permissions = await permissionService.fetchPermissionsByRole(roleId);
     res.status(200).json(permissions);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Error fetching permissions", error });
   }
 };

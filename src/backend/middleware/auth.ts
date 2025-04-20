@@ -3,22 +3,35 @@ import jwt from "jsonwebtoken";
 import NodeCache from "node-cache";
 import { UserService } from "@backend/service/UserService";
 
+interface AuthUser {
+  id: string;
+  roles: any[];
+  permissions: any[];
+}
+
+declare module 'next' {
+  interface NextApiRequest {
+    user: AuthUser;
+  }
+}
+
 const secret = process.env.JWT_SECRET;
+interface CachedUserDetails {
+  roles: any[];
+  permissions: any[];
+}
+
 const userCache = new NodeCache({ stdTTL: 60 * 60 }); // 30 minutes
 
 export const authMiddleware = (handler) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
-    const token = req.headers.authorization?.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
-    }
-
     try {
-      const decoded = jwt.verify(token, secret);
-      req.user = decoded;
-
-      const cacheKey = `user_${req.user.id}`;
-      const cachedUserDetails = userCache.get(cacheKey);
+      const token = req.headers.authorization?.split(" ")[1];
+      if (!token) {
+        return res.status(401).json({ message: "No token provided" });
+      }
+      const cacheKey = `user_${parseInt(req.user.id, 10)}`;
+      const cachedUserDetails = userCache.get<CachedUserDetails>(cacheKey);
 
       if (cachedUserDetails) {
         req.user.roles = cachedUserDetails.roles;
@@ -26,7 +39,7 @@ export const authMiddleware = (handler) => {
       } else {
         const userService = new UserService(req.db);
         const userDetails = await userService.getUserWithRolesAndPermissions(
-          req.user.id,
+          parseInt(req.user.id, 10),
         );
         req.user.roles = userDetails.roles;
         req.user.permissions = userDetails.permissions;
@@ -39,7 +52,7 @@ export const authMiddleware = (handler) => {
       }
 
       return handler(req, res);
-    } catch (error) {
+    } catch (error: any) {
       return res.status(401).json({ message: "Invalid token" });
     }
   };

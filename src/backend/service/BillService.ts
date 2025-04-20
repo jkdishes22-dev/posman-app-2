@@ -39,7 +39,7 @@ export class BillService {
 
     return await this.billRepository.manager.transaction(
       async (transactionalEntityManager) => {
-        const newBill = await transactionalEntityManager.save("Bill", {
+        const newBill = await transactionalEntityManager.save(Bill, {
           user: { id: user_id },
           total,
           status: BillStatus.PENDING,
@@ -54,7 +54,7 @@ export class BillService {
           status: BillItemStatus.SUBMITTED,
         }));
 
-        await transactionalEntityManager.save("BillItem", billItems);
+        await transactionalEntityManager.save(BillItem, billItems);
         return newBill;
       },
     );
@@ -208,7 +208,7 @@ export class BillService {
           };
         },
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting bill:", error.message);
       throw new Error("Failed to submit bill. Please try again.");
     }

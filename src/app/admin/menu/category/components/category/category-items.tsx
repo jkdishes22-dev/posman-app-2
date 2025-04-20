@@ -32,7 +32,7 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
     setShowModal(false);
   };
 
-  const handleDeleteItem = (itemId: string) => {
+  const handleDeleteItem = (itemId: number) => {
     if (selectedCategory) {
       fetchItems(selectedCategory.id);
     }
@@ -50,7 +50,7 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
         isBillingSection={false}
         isPricelistSection={false}
         isCategoryItemsSection={true}
-        onItemPick={null}
+        onItemPick={() => { }}
       />
       <NewItemModal
         selectedCategory={selectedCategory}

@@ -19,7 +19,7 @@ export const createUserHandler = async (
       role,
     );
     res.status(201).json(newUser);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: "Error creating user " + error });
   }
 };
@@ -30,10 +30,10 @@ export const getUsersHandler = async (
 ) => {
   const userService = new UserService(req.db);
   try {
-    const { role } = req.query;
+    const role = Array.isArray(req.query.role) ? req.query.role[0] : req.query.role;
     const users = await userService.getUsers(role);
     res.status(200).json(users);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: "Error fetching users" + error });
   }
 };
@@ -59,7 +59,7 @@ export const loginUserHandler = async (
       expiresIn: process.env.JWT_EXPIRES_IN,
     });
     return res.status(200).json({ token });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Internal server error" + error.message });
   }
 };
@@ -73,7 +73,7 @@ export const fetchUserStations = async (
     const { userId } = req.query;
     const users = await userService.fetchUserStations(Number(userId));
     res.status(200).json(users);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: "Error fetching user stations" + error });
   }
 };
@@ -94,7 +94,7 @@ export const addUserStation = async (
 
     const newUserStation = await userService.addUserStation(userStationRequest);
     res.status(201).json(newUserStation);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating user station:", error);
     res.status(500).json({ error: "Error creating user station" + error });
   }
@@ -108,19 +108,19 @@ export const setDefaultUserStation = async (
   try {
     const { stationId } = req.body;
     const { userId } = req.query;
-    const currentUser = req.user?.id;
+    const currentUserId = req.user?.id;
 
     const userStationRequest = {
-      station: stationId,
-      user: userId,
+      station: Number(stationId),
+      user: Number(userId),
     };
 
     const updatedUserStation = await userService.setDefaultStation(
       userStationRequest,
-      currentUser,
+      Number(currentUserId),
     );
     res.status(200).json(updatedUserStation);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: "Error updating user station" + error });
   }
 };
@@ -141,10 +141,10 @@ export const disableUserStation = async (
 
     const updatedUserStation = await userService.disableUserStation(
       userStationRequest,
-      currentUser,
+      Number(currentUser),
     );
     res.status(200).json(updatedUserStation);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ error: "Error disabling user station" + error });
   }
 };

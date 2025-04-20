@@ -54,7 +54,7 @@ export default function UsersPage() {
         setRoles(data);
         setError(null);
       }
-    } catch (error) {
+    } catch (error: any) {
       setError({ message: "An unexpected error occurred: " + error.message });
     }
   };
@@ -79,7 +79,7 @@ export default function UsersPage() {
         setPermissionsByScope(emptyPermissionsByScope);
         setError(null);
       }
-    } catch (error) {
+    } catch (error: any) {
       setError({ message: "An unexpected error occurred: " + error.message });
     }
   };
@@ -110,7 +110,7 @@ export default function UsersPage() {
         });
         setPermissionsByScope(updatedPermissionsByScope);
       }
-    } catch (error) {
+    } catch (error: any) {
       setError({ message: "An unexpected error occurred: " + error.message });
     }
   };
@@ -191,7 +191,7 @@ export default function UsersPage() {
       console.log("Permission added successfully!");
       setShowAddModal(false);
       // Update the permissions list if necessary
-    } catch (error) {
+    } catch (error: any) {
       console.error("An unexpected error occurred:", error.message);
     }
   };

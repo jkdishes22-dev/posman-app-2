@@ -73,7 +73,7 @@ export class PricelistService {
         pricelistItemId: item.pricelistItemId,
         pricelistName: item.pricelist_name,
       }));
-    } catch (error) {
+    } catch (error: any) {
       throw new Error("Failed to fetch pricelist items: " + error);
     }
   }

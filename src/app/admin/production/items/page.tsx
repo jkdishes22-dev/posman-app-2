@@ -12,7 +12,7 @@ export default function InventoryPage() {
   const [inventoryItems, setInventoryItems] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [authError, setAuthError] = useState(null);
-  const [setFetchError] = useState(null);
+  const [fetchError, setFetchError] = useState(null);
 
   useEffect(() => {
     async function fetchInventoryItems() {
@@ -33,7 +33,7 @@ export default function InventoryPage() {
         } else {
           setFetchError(data);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch inventory items", error);
       }
     }
@@ -72,7 +72,7 @@ export default function InventoryPage() {
       } else {
         console.error("Failed to add inventory item");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to add inventory item", error);
     }
   };
@@ -89,36 +89,42 @@ export default function InventoryPage() {
             handleCloseModal={handleCloseModal}
             handleAddInventoryItem={handleAddInventoryItem}
           />
-          <table className="table table-striped mt-3">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Code</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inventoryItems.map((item) => (
-                <tr key={item.id} onClick={() => setSelectedItemId(item.id)}>
-                  <td>{item.id}</td>
-                  <td>{item.name}</td>
-                  <td>{item.code}</td>
-                  <td>{item.isStock}</td>
-                  <td>
-                    <Button
-                      variant="secondary"
-                      className="w-8"
-                      onClick={() => console.log("Adjust stock")}
-                    >
-                      Adjust Stock
-                    </Button>
-                  </td>
+          {fetchError ? (
+            <div className="alert alert-danger mt-3" role="alert">
+              Failed to fetch inventory items: {fetchError}
+            </div>
+          ) : (
+            <table className="table table-striped mt-3">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Code</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {inventoryItems.map((item) => (
+                  <tr key={item.id} onClick={() => setSelectedItemId(item.id)}>
+                    <td>{item.id}</td>
+                    <td>{item.name}</td>
+                    <td>{item.code}</td>
+                    <td>{item.isStock}</td>
+                    <td>
+                      <Button
+                        variant="secondary"
+                        className="w-8"
+                        onClick={() => console.log("Adjust stock")}
+                      >
+                        Adjust Stock
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
         <div className="col-8">
           <AuditLog />

@@ -9,13 +9,13 @@ export const createPricelistHandler = async (
   try {
     console.log("pricelist payload " + JSON.stringify(req.body));
     const newPricelist = req.body;
-    const user_id = req.user.id;
+    const user_id = parseInt(req.user.id, 10);
     const pricelist = await pricelistService.createPricelist(
       newPricelist,
       user_id,
     );
     res.status(201).json(pricelist);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating pricelist:", error);
     res.status(500).json({ error: "Error creating pricelist" + error });
   }
@@ -29,7 +29,7 @@ export const fetchPricelistsHandler = async (
   try {
     const pricelists = await pricelistService.fetchPricelists();
     res.status(200).json(pricelists);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching pricelists:", error);
     return [];
   }
@@ -45,7 +45,7 @@ export const fetchPricelistItems = async (
     const pricelistItems =
       await pricelistService.fetchPricelistItems(pricelistId);
     res.status(200).json(pricelistItems);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching pricelist items:", error);
     return [];
   }

@@ -9,7 +9,7 @@ export const fetchScopesHandler = async (
   try {
     const scopes = await scopeService.fetchScopes();
     res.status(200).json(scopes);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Error fetching scopes", error });
   }
 };
@@ -25,7 +25,7 @@ export const fetchScopePermisionsHandler = async (
       parseInt(scopeId as string),
     );
     res.status(200).json(scopePermisions);
-  } catch (error) {
+  } catch (error: any) {
     res
       .status(500)
       .json({ message: "Error fetching scope permissions", error });

@@ -137,7 +137,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
       onBillSubmitted(responseData.bill);
 
       handleClose();
-    } catch (error) {
+    } catch (error: any) {
       setErrorMessage(
         error instanceof Error
           ? error.message

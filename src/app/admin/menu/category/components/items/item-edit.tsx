@@ -8,6 +8,7 @@ import {
   ModalFooter,
 } from "react-bootstrap";
 import { Item } from "../../../../../types/types";
+import { Pricelist } from "@backend/entities/Pricelist";
 
 interface EditItemModalProps {
   show: boolean;
@@ -25,7 +26,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
   const [editedItem, setEditedItem] = useState<Item | null>(item);
   const [error, setError] = useState<string | null>(null); // Error state
   const [pricelists, setPricelists] = useState([]);
-  const [pricelistId, setPricelistId] = useState<number>(
+  const [pricelistId, setPricelistId] = useState<number | null>(
     item?.pricelistId || null,
   );
   const [loadingPricelists, setLoadingPricelists] = useState(true);
@@ -44,8 +45,8 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
         });
         const data = await response.json();
         setPricelists(data);
-      } catch (error) {
-        setAddItemError("Failed to fetch pricelists: " + error.message);
+      } catch (error: any) {
+        setAddItemError("Failed to fetch pricelists: " + error?.message);
       } finally {
         setLoadingPricelists(false); // Set loading to false after fetching
       }
@@ -69,7 +70,8 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     if (editedItem) {
-      const { name, value, type, checked } = e.target;
+      const { name, value, type } = e.target;
+      const checked = (e.target as HTMLInputElement).checked;
 
       setEditedItem({
         ...editedItem,
@@ -98,8 +100,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
         const updatedItem = await response.json(); // Get the updated item from the response
         onSave(updatedItem); // Call save function with the updated item
         onClose(); // Close modal
-      } catch (error) {
-        console.error("Error updating item:", error);
+      } catch (error: any) {
         setError("Error updating item: " + error.message);
       }
     }
@@ -145,11 +146,11 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
                 <label>Pricelist</label>
                 <select
                   className="form-control"
-                  value={pricelistId} // Controlled component
+                  value={Number(pricelistId)} // Controlled component
                   onChange={(e) => setPricelistId(parseInt(e.target.value))}
                 >
                   <option value="">Select Pricelist</option>
-                  {pricelists.map((pricelist) => (
+                  {pricelists.map((pricelist: any) => (
                     <option key={pricelist.id} value={pricelist.id}>
                       {pricelist.name}
                     </option>

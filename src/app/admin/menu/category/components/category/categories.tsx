@@ -4,7 +4,7 @@ import Image from "next/image";
 interface Category {
   id: string;
   name: string;
-  status: string;
+  status?: string;
 }
 
 interface CategoriesProps {

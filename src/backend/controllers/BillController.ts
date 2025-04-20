@@ -6,7 +6,7 @@ export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     const newBill = await billService.createBill(req.body);
     res.status(201).json(newBill);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating bill:", error);
     res.status(500).json({ error: `Error creating bill: ${error.message}` });
   }
@@ -14,7 +14,7 @@ export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
 
 export const fetchBills = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
-  const currentUserId = req.user?.id;
+  const currentUserId = Number(req.user?.id);
   const { date, status, billId, billingUserId } = req.query;
 
   // todo this should be optional
@@ -31,7 +31,7 @@ export const fetchBills = async (req: NextApiRequest, res: NextApiResponse) => {
       billingUserId,
     });
     res.status(200).json(bills);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching bills:", error);
     res.status(500).json({ error: `Error fetching bills: ${error.message}` });
   }
@@ -44,7 +44,7 @@ export const cancelBill = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     const result = await billService.cancelBill(Number(billId));
     res.status(200).json({ message: "Bill cancelled successfully", result });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error cancelling bill:", error);
     res.status(500).json({ error: `Error cancelling bill: ${error.message}` });
   }

@@ -9,7 +9,7 @@ export const fetchPermissionsHandler = async (
   try {
     const permissions = await permissionService.fetchPermissions();
     res.status(200).json(permissions);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Failed to fetch permissions", error });
   }
 };
@@ -26,7 +26,7 @@ export const createPermissionHandler = async (
       scope,
     });
     res.status(201).json(permission);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Failed to create permission", error });
   }
 };

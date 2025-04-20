@@ -30,6 +30,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   const [pricelists, setPricelists] = useState([]);
   const [addItemError, setAddItemError] = useState("");
   const [authError, setAuthError] = useState<AuthError>(null);
+  const [priceListError, setFetchPricelistError] = useState(null);
 
   useEffect(() => {
     async function fetchPricelists() {
@@ -50,7 +51,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         } else {
           setFetchPricelistError(data);
         }
-      } catch (error) {
+      } catch (error: any) {
         setAddItemError("Failed to fetch pricelists: " + error.message);
       }
     }
@@ -102,8 +103,11 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
       } else {
         setAddItemError("Failed to create item");
       }
-    } catch (e) {
-      setAddItemError("Failed to create item: " + e.message);
+    } catch (error: any) {
+      if (error) {
+        setAddItemError("Failed to create item: " + error.message);
+      }
+
     }
   };
 
@@ -153,7 +157,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
               onChange={(e) => setPricelistId(e.target.value)}
             >
               <option value="">Select Pricelist</option>
-              {pricelists.map((pricelist) => (
+              {pricelists.map((pricelist: any) => (
                 <option key={pricelist.id} value={pricelist.id}>
                   {pricelist.name}
                 </option>

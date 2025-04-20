@@ -25,7 +25,7 @@ export default function NewUser({ onClose, onSave, error }) {
       if (!response.ok) throw new Error("Failed to fetch roles");
       const data = await response.json();
       setRoles(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching roles:", error);
     }
   };

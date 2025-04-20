@@ -12,7 +12,7 @@ function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem }) {
         const response = await fetch("/api/items");
         const data = await response.json();
         setItems(data);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching items:", error);
       }
     };

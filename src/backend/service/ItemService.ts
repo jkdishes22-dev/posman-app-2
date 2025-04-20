@@ -278,7 +278,7 @@ export class ItemService {
       await this.itemGroupRepository.save(newItemGroup);
 
       return newItemGroup;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding group item:", error);
       throw error;
     }
@@ -298,8 +298,8 @@ export class ItemService {
 
   async removeItemFromGroup(groupId: number, itemId: number) {
     await this.itemGroupRepository.delete({
-      item: { id: parseInt(groupId) },
-      subItem: { id: parseInt(itemId) },
+      item: { id: groupId },
+      subItem: { id: itemId },
     });
   }
 }

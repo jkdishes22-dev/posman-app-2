@@ -8,17 +8,30 @@ import {
   ModalFooter,
 } from "react-bootstrap";
 import AsyncSelect from "react-select/async";
+import { Item } from "src/app/types/types";
+
+interface AddGroupItemModalProps {
+  isModalOpen: boolean;
+  closeModal: () => void;
+  selectedGroupName: string;
+  addItemToGroup: (itemId: number, portionSize: number) => void;
+}
+
+interface ItemOption {
+  label: string;
+  value: number;
+}
 
 const AddGroupItemModal = ({
   isModalOpen,
   closeModal,
   selectedGroupName,
   addItemToGroup,
-}) => {
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [portionSize, setPortionSize] = useState("");
+}: AddGroupItemModalProps) => {
+  const [selectedItem, setSelectedItem] = useState<ItemOption | null>(null);
+  const [portionSize, setPortionSize] = useState<number | null>(null);
 
-  const fetchModalItems = async (inputValue) => {
+  const fetchModalItems = async (inputValue: string) => {
     if (inputValue.length <= 2) {
       return [];
     }
@@ -35,12 +48,11 @@ const AddGroupItemModal = ({
       );
       if (!response.ok) throw new Error("Failed to fetch items");
       const data = await response.json();
-      console.log("Fetched items:", data);
-      return data.map((item) => ({
+      return data.map((item: Item) => ({
         label: item.name,
         value: item.id,
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching items:", error);
       return [];
     }
@@ -70,7 +82,7 @@ const AddGroupItemModal = ({
             onChange={setSelectedItem}
             value={selectedItem}
             getOptionLabel={(e) => e.label}
-            getOptionValue={(e) => e.value}
+            getOptionValue={(e) => e.value.toString()}
             placeholder="Search for an item"
           />
         </div>
@@ -80,8 +92,8 @@ const AddGroupItemModal = ({
             type="number"
             id="portion-size"
             className="form-control"
-            value={portionSize}
-            onChange={(e) => setPortionSize(e.target.value)}
+            value={portionSize?.toString()}
+            onChange={(e) => setPortionSize(Number(e.target.value))}
             placeholder="Enter portion size"
           />
         </div>

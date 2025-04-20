@@ -4,7 +4,11 @@ import { UserService } from "@services/UserService";
 import permissions from "@backend/config/managed-roles";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  const userService = new UserService(req.db);
+  const reqDb = {
+    db: req.body,
+    ...req,
+  };
+  const userService = new UserService(reqDb.db);
   const users = await userService.getUserById(Number(req.query.id));
   res.status(200).json(users);
 };

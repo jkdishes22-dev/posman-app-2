@@ -19,8 +19,7 @@ export const filterItemsHandler = async (
     console.log("criteria" + JSON.stringify(criteria));
     const items = await itemService.filterItems(criteria);
     return res.status(200).json(items);
-  } catch (error) {
-    console.error("Error filtering items:", error);
+  } catch (error: any) {
     return res.status(500).json({ message: "Failed to filter items", error });
   }
 };
@@ -32,16 +31,17 @@ export const fetchItemsHandler = async (
   const itemService = new ItemService(req.db);
   try {
     const { category, billing } = req.query;
-    const user_id = req.user.id;
+    const user_id = parseInt(req.user.id, 10);
     const targetUsage = billing === "true" ? true : false;
 
+    const categoryValue = Array.isArray(category) ? category[0] : category;
     const items = await itemService.fetchItems(
-      parseInt(category),
+      parseInt(categoryValue),
       user_id,
       targetUsage,
     );
     res.status(200).json(items);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Failed to fetch items", error });
   }
 };
@@ -53,7 +53,7 @@ export const createItemHandler = async (
   const itemService = new ItemService(req.db);
   try {
     const { name, code, price, category, pricelistId, isGroup } = req.body;
-    const user_id = req.user.id;
+    const user_id = parseInt(req.user.id, 10);
 
     const itemData = {
       name,
@@ -67,7 +67,7 @@ export const createItemHandler = async (
       user_id,
     );
     res.status(201).json(item);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Failed to create item", error });
   }
 };
@@ -89,7 +89,7 @@ export const updateItemHandler = async (
       isGroup,
       pricelistId,
     } = req.body;
-    const user_id = req.user.id;
+    const user_id = parseInt(req.user.id, 10);
 
     const itemData = {
       id,
@@ -107,7 +107,7 @@ export const updateItemHandler = async (
     );
 
     res.status(200).json(updatedItem);
-  } catch (error) {
+  } catch (error: any) {
     console.log("Error updating item:", error);
     res.status(500).json({ message: "Failed to update item", error });
   }
@@ -123,7 +123,7 @@ export const fetchGroupedItemsHandler = async (
 
     const items = await itemService.fetchGroupedItems(groupId);
     res.status(200).json(items);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching group items:", error);
     res.status(500).json({ message: "Failed to fetch grouped items", error });
   }
@@ -144,7 +144,7 @@ export const createGroupItemHandler = async (
   try {
     const newGroupItem = await itemService.createGroupedItem(groupItemRequest);
     res.status(201).json(newGroupItem);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Failed to create group item", error });
   }
 };
@@ -158,7 +158,7 @@ export const fetchGroupItemsHandler = async (
   try {
     const groupItems = await itemService.fetchGroupItems(groupId);
     res.status(201).json(groupItems);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Failed to fetch group items", error });
   }
 };
@@ -177,7 +177,7 @@ export const removeItemFromGroupHandler = async (
     }
     itemService.removeItemFromGroup(groupId, itemId);
     res.status(200).json({ message: "Item removed successfully" });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error removing item from group:", error);
     res.status(500).json({
       message: "Error removing item from group",

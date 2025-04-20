@@ -62,7 +62,7 @@ export default function UsersPage() {
           setError(data.error);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       setError(err.message);
     } finally {
       await fetchUsers();

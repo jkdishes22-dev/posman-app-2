@@ -25,7 +25,7 @@ export default function PricelistAdd({
         });
         const data = await response.json();
         setStations(data);
-      } catch (error) {
+      } catch (error: any) {
         setAddPricelistError("Failed to fetch stations: " + error.message);
       }
     }
@@ -47,7 +47,7 @@ export default function PricelistAdd({
       setDescription("");
       setStation("");
       setAddPricelistError("");
-    } catch (error) {
+    } catch (error: any) {
       setAddPricelistError("Failed to add pricelist: " + error.message);
     }
   };
@@ -55,7 +55,7 @@ export default function PricelistAdd({
   if (!showModal) return null;
 
   return (
-    <div className="modal show d-block" tabIndex="-1" role="dialog">
+    <div className="modal show d-block" tabIndex={-1} role="dialog">
       <div className="modal-dialog" role="document">
         <div className="modal-content">
           <div className="modal-header">

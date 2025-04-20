@@ -14,8 +14,13 @@ const secret =
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { username, password } = req.body;
 
+  const dbConn = {
+    db: req.body,
+    ...req,
+  };
+
   try {
-    const userService = new UserService(req.db);
+    const userService = new UserService(dbConn.db);
     const user = await userService.getUserByUsername(username);
     if (!user) {
       return res.status(401).json({ message: "Invalid username or password" });
@@ -40,8 +45,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     );
 
     res.status(200).json({ token, role: user.roles[0].name });
-  } catch (error) {
-    console.error("Error logging in:", error);
+  } catch (error: any) {
     res.status(500).json({ message: "Internal Server Error" + error });
   }
 };

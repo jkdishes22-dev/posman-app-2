@@ -15,7 +15,7 @@ function GroupedItemsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [itemToRemove, setItemToRemove] = useState(null);
+  const [itemToRemove, setItemToRemove] = useState<number | null>(null);
 
   useEffect(() => {
     fetchGroups();
@@ -23,7 +23,7 @@ function GroupedItemsPage() {
 
   useEffect(() => {
     setFilteredGroups(
-      groups.filter((group) =>
+      groups.filter((group: any) =>
         group.name.toLowerCase().includes(searchTerm.toLowerCase()),
       ),
     );
@@ -41,15 +41,14 @@ function GroupedItemsPage() {
       const data = await response.json();
       setGroups(data);
       setFilteredGroups(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching groups:", error);
     }
   };
 
-  const handleGroupSelect = async (groupId) => {
-    const groupData = groups.find((group) => group.id === groupId);
+  const handleGroupSelect = async (groupId: any) => {
+    const groupData: any = groups.find((group: any) => group?.id === groupId);
 
-    console.log("group  Data " + JSON.stringify(groupData));
     if (groupData) {
       setSelectedGroup(groupId);
       setSelectedGroupName(groupData.name);
@@ -57,7 +56,7 @@ function GroupedItemsPage() {
     }
   };
 
-  const addItemToGroup = async (itemId, portionSize) => {
+  const addItemToGroup = async (itemId: number, portionSize: number) => {
     if (!selectedGroup) {
       return;
     }
@@ -79,12 +78,12 @@ function GroupedItemsPage() {
 
       await fetchGroupItemsFromBackend(selectedGroup);
       closeModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding item to group:", error);
     }
   };
 
-  const fetchGroupItemsFromBackend = async (groupId) => {
+  const fetchGroupItemsFromBackend = async (groupId: number) => {
     const token = localStorage.getItem("token");
     try {
       const response = await fetch(`/api/menu/items/groups/${groupId}`, {
@@ -102,13 +101,13 @@ function GroupedItemsPage() {
       const items = data[0].items || [];
       setGroupItems(items);
       updateGroupsInState(groupId, items);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching group items:", error);
     }
   };
 
-  const updateGroupsInState = (groupId, updatedItems) => {
-    const updatedGroups = groups.map((group) => {
+  const updateGroupsInState = (groupId: number, updatedItems: any) => {
+    const updatedGroups: any = groups.map((group: any) => {
       if (group.id === groupId) {
         return { ...group, items: updatedItems };
       }
@@ -132,6 +131,9 @@ function GroupedItemsPage() {
   };
 
   const removeItemFromGroup = async (itemId: number) => {
+    if (!selectedGroup) {
+      return;
+    }
     const token = localStorage.getItem("token");
     try {
       const response = await fetch(
@@ -146,7 +148,7 @@ function GroupedItemsPage() {
       if (!response.ok) throw new Error("Failed to remove item");
 
       await fetchGroupItemsFromBackend(selectedGroup);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error removing item from group:", error);
     }
   };
@@ -160,7 +162,7 @@ function GroupedItemsPage() {
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout authError={null}>
       <div className="container my-5">
         <div className="row">
           <div className="col-md-4">
@@ -179,7 +181,7 @@ function GroupedItemsPage() {
               style={{ maxHeight: "400px", overflowY: "auto" }}
             >
               {filteredGroups.length > 0 ? (
-                filteredGroups.map((group) => (
+                filteredGroups.map((group: any) => (
                   <li
                     key={group.id}
                     className="list-group-item list-group-item-action"
@@ -214,7 +216,7 @@ function GroupedItemsPage() {
                   </thead>
                   <tbody>
                     {groupItems.length > 0 ? (
-                      groupItems.map((item) => (
+                      groupItems.map((item: any) => (
                         <tr key={item.id}>
                           <td>{item.name}</td>
                           <td>{item.portionSize}</td>
@@ -230,7 +232,7 @@ function GroupedItemsPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="3">No items available.</td>
+                        <td colSpan={3}>No items available.</td>
                       </tr>
                     )}
                   </tbody>
@@ -246,7 +248,7 @@ function GroupedItemsPage() {
       <AddGroupItemModal
         isModalOpen={isModalOpen}
         closeModal={closeModal}
-        selectedGroup={selectedGroup}
+        // selectedGroup={selectedGroup}
         selectedGroupName={selectedGroupName}
         addItemToGroup={addItemToGroup}
       />

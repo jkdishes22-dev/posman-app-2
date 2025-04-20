@@ -74,7 +74,7 @@ const MySales = () => {
       const data = await response.json();
       setBills(data);
       setFilteredBills(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching bills:", error);
     }
   };
@@ -96,7 +96,7 @@ const MySales = () => {
       const data = await response.json();
       setBills(data);
       setFilteredBills(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching bills by Bill ID:", error);
     }
   };

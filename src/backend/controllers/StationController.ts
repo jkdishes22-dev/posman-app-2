@@ -10,7 +10,7 @@ export const addStationHandler = async (
     const request = req.body;
     const newStation = await stationService.createStation(request);
     res.status(201).json(newStation);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Error fetching scopes", error });
   }
 };
@@ -26,7 +26,7 @@ export const fetchStationsHandler = async (
     };
     const stations = await stationService.fetchStations(criteria);
     res.status(200).json(stations);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Error fetching stations", error });
   }
 };
@@ -42,7 +42,7 @@ export const fetchStationPricelistHandler = async (
       Number(stationId),
     );
     res.status(200).json(stationPricelist);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({
       message: "Error fetching station pricelist",
       error,

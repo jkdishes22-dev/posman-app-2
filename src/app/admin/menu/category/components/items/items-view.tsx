@@ -10,12 +10,12 @@ interface ViewItemsProps {
   pricelistItems?: Item[];
   itemError: string;
   handleAddItemClick?: () => void;
-  handleDeleteItem?: (itemId: string) => void;
+  handleDeleteItem?: (itemId: number) => void;
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
   isBillingSection?: boolean;
   isPricelistSection?: boolean;
   isCategoryItemsSection?: boolean;
-  onItemPick: (item: Item) => void;
+  onItemPick?: (item: Item) => void;
 }
 
 const ViewItems: React.FC<ViewItemsProps> = ({
@@ -27,11 +27,11 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   handleDeleteItem,
   setItems,
   isBillingSection = false,
-  onItemPick,
   isPricelistSection = false,
   isCategoryItemsSection = false,
+  onItemPick,
 }) => {
-  // const [searchTerm, setSearchTerm] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
@@ -39,8 +39,8 @@ const ViewItems: React.FC<ViewItemsProps> = ({
 
   const filteredItems = searchTerm
     ? (pricelistItems || items).filter((item) =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
     : pricelistItems || items;
 
   const handleEditItem = (item: Item) => {
@@ -67,7 +67,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
           <div className="col-4">
             {selectedCategory
               ? `${selectedCategory.name}`
-              : { isPricelistSection }
+              : isPricelistSection
                 ? "Pricelist items"
                 : "Items"}
           </div>
@@ -147,7 +147,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                             className="btn btn-sm btn-success"
                             onClick={() => {
                               if (item.price > 0) {
-                                onItemPick(item);
+                                onItemPick?.(item);
                               } else {
                                 alert("Price must be greater than zero");
                               }

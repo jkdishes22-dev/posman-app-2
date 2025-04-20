@@ -10,7 +10,7 @@ export const createCategoryHandler = async (
   try {
     const newCategory = await categoryService.createCategory(name);
     res.status(201).json(newCategory);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating category:", error);
     res.status(500).json({ error: "Error creating category" + error });
   }
@@ -24,7 +24,7 @@ export const fetchCategoriesHandler = async (
   try {
     const categories = await categoryService.fetchCategories();
     res.status(200).json(categories);
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Failed to fetch categories", error });
   }
 };
@@ -38,7 +38,7 @@ export const deleteCategoryHandler = async (
     const { id } = req.query;
     await categoryService.deleteCategory(Number(id));
     res.status(204).end();
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ message: "Failed to delete category", error });
   }
 };

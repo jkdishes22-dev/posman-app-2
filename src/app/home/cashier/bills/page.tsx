@@ -32,7 +32,7 @@ const CashierBillsPage = () => {
     fetchSalesPersons();
   }, []);
 
-  const fetchBills = async () => {
+  const fetchBills = async (billStatus: string = "") => {
     const token = localStorage.getItem("token");
     const { status, billingDate, selectedWaitress } = filters;
     let url = `/api/bills?status=${status}`;
@@ -55,7 +55,7 @@ const CashierBillsPage = () => {
 
       const data = await response.json();
       setBills(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching bills:", error);
     }
   };
@@ -73,7 +73,7 @@ const CashierBillsPage = () => {
 
       const data = await response.json();
       setBills([data]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching bill by ID:", error);
     }
   };
@@ -89,7 +89,7 @@ const CashierBillsPage = () => {
       if (!response.ok) throw new Error("Failed to fetch user");
       const data = await response.json();
       setWaitresses(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching user:", error);
     }
   };
@@ -158,7 +158,7 @@ const CashierBillsPage = () => {
 
       fetchBills();
       setSelectedBills([]);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error processing bills:", error);
     }
   };
@@ -199,7 +199,7 @@ const CashierBillsPage = () => {
 
       fetchBills();
       setSelectedBill(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error closing bill:", error);
     } finally {
       setShowCloseBillModal(false);
@@ -418,11 +418,11 @@ const CashierBillsPage = () => {
                       {" "}
                       {selectedBill.status === "submitted" ? (
                         selectedBill.total ===
-                        selectedBill.bill_payments.reduce(
-                          (sum, billPayment) =>
-                            sum + billPayment.payment.creditAmount,
-                          0,
-                        ) ? (
+                          selectedBill.bill_payments.reduce(
+                            (sum, billPayment) =>
+                              sum + billPayment.payment.creditAmount,
+                            0,
+                          ) ? (
                           <button
                             className="btn btn-success mb-2"
                             onClick={showCloseBillModal}

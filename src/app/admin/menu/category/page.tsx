@@ -12,7 +12,7 @@ const CategoryPage: React.FC = () => {
   const [name, setName] = useState("");
   const [formError, setFormError] = useState("");
   const [fetchError, setFetchError] = useState("");
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedCategory, setSelectedCategory] = useState<{
     id: string;
     name: string;
@@ -50,8 +50,8 @@ const CategoryPage: React.FC = () => {
       } else {
         setFormError(data.message || "Failed to create category");
       }
-    } catch (e) {
-      setFormError("Login failed: " + e.message);
+    } catch (error: any) {
+      setFormError("Error occurred creating category: " + error.message);
     }
   };
 
@@ -71,8 +71,8 @@ const CategoryPage: React.FC = () => {
       } else {
         setItemError("Failed to fetch items" + JSON.stringify(data));
       }
-    } catch (e) {
-      setItemError("Failed to fetch items: " + e.message);
+    } catch (error: any) {
+      setItemError("Failed to fetch items: " + error.message);
     }
   };
 
@@ -91,8 +91,8 @@ const CategoryPage: React.FC = () => {
         },
       });
       if (response.ok) {
-        setCategories((prevCategories) =>
-          prevCategories.filter((category) => category.id !== categoryId),
+        setCategories((prevCategories: any) =>
+          prevCategories.filter((category: any) => category.id !== categoryId),
         );
         setShowDeleteModal(false);
         setCategoryToDelete(null);
@@ -100,7 +100,7 @@ const CategoryPage: React.FC = () => {
         const errorData = await response.json();
         setFormError(errorData.message || "Failed to delete category");
       }
-    } catch (e) {
+    } catch (e: any) {
       setFormError("Failed to delete category: " + e.message);
     }
   };
@@ -127,7 +127,7 @@ const CategoryPage: React.FC = () => {
         } else {
           setFetchError(data.message || "Failed to fetch categories");
         }
-      } catch (e) {
+      } catch (e: any) {
         setFetchError("Failed to fetch categories: " + e.message);
       }
     };

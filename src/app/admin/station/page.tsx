@@ -37,7 +37,7 @@ export default function StationPage() {
             "Failed to fetch items " + JSON.stringify(data),
           );
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Failed to fetch stations", error);
         setStations([]);
       }
@@ -68,7 +68,7 @@ export default function StationPage() {
         const pricelistData = await response.json();
         setPricelists(pricelistData);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch station details", error);
       setPricelists([]);
     }
@@ -89,7 +89,7 @@ export default function StationPage() {
         const dataUsers = await response.json();
         setUsers(dataUsers);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch station users", error);
       setUsers([]);
     }
@@ -114,7 +114,7 @@ export default function StationPage() {
       } else {
         console.error("Failed to add station");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to add station", error);
     }
   };
@@ -175,8 +175,8 @@ export default function StationPage() {
                         {pricelist.name}
                         {(!pricelist.status ||
                           pricelist.status === "inactive") && (
-                          <Button variant="success"> Enable</Button>
-                        )}
+                            <Button variant="success"> Enable</Button>
+                          )}
                         {pricelist.status === "active" && (
                           <Button variant="danger" className="w-12">
                             {" "}

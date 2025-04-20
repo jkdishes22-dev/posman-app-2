@@ -41,7 +41,7 @@ function InventoryItemsPage() {
       const data = await response.json();
       setItems(data);
       setFilteredItems(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching items:", error);
     }
   };
@@ -80,7 +80,7 @@ function InventoryItemsPage() {
 
       await fetchSubItemsFromBackend(selectedItem);
       closeModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding sub-item to item:", error);
     }
   };
@@ -100,7 +100,7 @@ function InventoryItemsPage() {
       const items = data[0].subItems || [];
       setSubItems(items);
       updateItemsInState(itemId, items);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching sub-items:", error);
     }
   };
@@ -144,7 +144,7 @@ function InventoryItemsPage() {
       if (!response.ok) throw new Error("Failed to remove sub-item");
 
       await fetchSubItemsFromBackend(selectedItem);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error removing sub-item from item:", error);
     }
   };
@@ -226,7 +226,7 @@ function InventoryItemsPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="3">No sub-items available.</td>
+                        <td colSpan={3}>No sub-items available.</td>
                       </tr>
                     )}
                   </tbody>

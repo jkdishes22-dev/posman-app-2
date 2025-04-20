@@ -47,7 +47,7 @@ const BillingSection = () => {
           throw new Error("Failed to fetch categories");
         }
         setCategories(data);
-      } catch (error) {
+      } catch (error: any) {
         setFetchCategoryError("Failed to fetch categories: " + error);
       }
     };
@@ -70,7 +70,7 @@ const BillingSection = () => {
       }
       const data = await response.json();
       setItems(data);
-    } catch (error) {
+    } catch (error: any) {
       setItemError("Failed to fetch items for the selected category: " + error);
     }
   };
@@ -144,7 +144,7 @@ const BillingSection = () => {
       }
       setShowSubmitModal(false);
       window.location.reload();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error submitting items:", error);
     }
   };

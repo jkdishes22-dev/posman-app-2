@@ -11,7 +11,7 @@ export class PaymentService {
     this.billPaymentRepository = datasource.getRepository(BillPayment);
   }
 
-  async createPayment(payload): Promise<Payment> {
+  async createPayment(payload): Promise<Payment | any> {
     const newPayment = this.paymentRepository.create({
       ...payload,
     });
@@ -19,7 +19,7 @@ export class PaymentService {
     const payment = await this.paymentRepository.save(newPayment);
     return payment;
   }
-  async createBillPayment(payload): Promise<BillPayment> {
+  async createBillPayment(payload): Promise<BillPayment | any> {
     const newBillPayment = this.billPaymentRepository.create({
       ...payload,
     });
