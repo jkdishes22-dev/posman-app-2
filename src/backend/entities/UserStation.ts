@@ -8,7 +8,7 @@ export enum UserStationStatus {
   DISABLED = "disabled",
 }
 
-@Entity()
+@Entity("user_station")
 export class UserStation extends BaseEntity {
   @Column({ nullable: true, name: "is_default" })
   isDefault!: boolean;

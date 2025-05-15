@@ -34,6 +34,7 @@ export type User = {
   firstName: string;
   lastName: string;
   username: string;
+  role: Role;
 };
 
 export type Bill = {

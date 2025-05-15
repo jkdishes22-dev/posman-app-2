@@ -14,7 +14,7 @@ export enum ItemStatus {
   DELETED = "DELETED",
 }
 
-@Entity()
+@Entity("item")
 export class Item {
   @PrimaryGeneratedColumn()
   id: number;

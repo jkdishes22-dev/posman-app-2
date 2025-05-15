@@ -43,7 +43,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     if (selectedItemId) {
-      fetchInventoryItems(selectedItemId);
+      // fetchInventoryItems(selectedItemId);
     }
   }, [selectedItemId]);
 

@@ -17,8 +17,8 @@ export default function AdminPage() {
       <AdminLayout authError={null}>
         <div>
           <BillingSection
-            activeTab={activeTab}
-            handleTabClick={handleTabClick}
+          // activeTab={activeTab}
+          // handleTabClick={handleTabClick}
           />
         </div>{" "}
       </AdminLayout>

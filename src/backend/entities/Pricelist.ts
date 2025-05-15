@@ -7,7 +7,7 @@ export enum PriceListStatus {
   INACTIVE = "inactive",
 }
 
-@Entity()
+@Entity("pricelist")
 export class Pricelist extends BaseEntity {
   @Column()
   name: string;

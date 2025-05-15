@@ -65,13 +65,18 @@ const BillingSection = () => {
           },
         },
       );
-      if (!response.ok) {
-        throw new Error("Failed to fetch items");
-      }
+
       const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 403 && data.missingPermissions) {
+          throw new Error(`Access denied: Missing ${data.missingPermissions.join(", ")} permission(s)`);
+        }
+        throw new Error(data.message || "Failed to fetch items");
+      }
       setItems(data);
     } catch (error: any) {
-      setItemError("Failed to fetch items for the selected category: " + error);
+      const errorMessage = error.message || "Failed to fetch items for the selected category";
+      setItemError(errorMessage);
     }
   };
 
@@ -228,7 +233,7 @@ const BillingSection = () => {
               setSelectedCategory(category);
               fetchItems(category.id);
             }}
-            fetchCategoryError={fetchCategoryError}
+            fetchError={fetchCategoryError}
           />
         </div>
       </div>

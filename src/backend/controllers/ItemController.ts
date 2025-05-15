@@ -120,8 +120,9 @@ export const fetchGroupedItemsHandler = async (
   const itemService = new ItemService(req.db);
   try {
     const { groupId } = req.query;
+    const groupIdValue = Array.isArray(groupId) ? groupId[0] : groupId;
 
-    const items = await itemService.fetchGroupedItems(groupId);
+    const items = await itemService.fetchGroupedItems(parseInt(groupIdValue));
     res.status(200).json(items);
   } catch (error: any) {
     console.error("Error fetching group items:", error);
@@ -156,7 +157,8 @@ export const fetchGroupItemsHandler = async (
   const { groupId } = req.query;
   const itemService = new ItemService(req.db);
   try {
-    const groupItems = await itemService.fetchGroupItems(groupId);
+    const groupIdValue = Array.isArray(groupId) ? groupId[0] : groupId;
+    const groupItems = await itemService.fetchGroupedItems(parseInt(groupIdValue));
     res.status(201).json(groupItems);
   } catch (error: any) {
     res.status(500).json({ message: "Failed to fetch group items", error });
@@ -175,7 +177,10 @@ export const removeItemFromGroupHandler = async (
         .status(400)
         .json({ message: "Group ID and Item ID are required" });
     }
-    itemService.removeItemFromGroup(groupId, itemId);
+    const groupIdValue = Array.isArray(groupId) ? groupId[0] : groupId;
+    const itemIdValue = Array.isArray(itemId) ? itemId[0] : itemId;
+
+    itemService.removeItemFromGroup(parseInt(groupIdValue), parseInt(itemIdValue));
     res.status(200).json({ message: "Item removed successfully" });
   } catch (error: any) {
     console.error("Error removing item from group:", error);

@@ -7,7 +7,7 @@ export enum PaymentType {
   MPESA = "MPESA",
 }
 
-@Entity()
+@Entity("payment")
 export class Payment extends BaseEntity {
   @Column({ type: "double", default: 0.0, name: "debit_amount" })
   debitAmount: number;

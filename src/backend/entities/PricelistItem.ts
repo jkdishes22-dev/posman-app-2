@@ -7,7 +7,7 @@ export enum Currency {
   USD = "USD",
   KES = "KES",
 }
-@Entity()
+@Entity("pricelist_item")
 export class PricelistItem extends BaseEntity {
   @ManyToOne(() => Pricelist)
   @JoinColumn({ name: "pricelist_id" })

@@ -21,12 +21,13 @@ export class PricelistService {
     const foundStation = await this.stationRepository.findOneBy({
       id: Number(payload.station),
     });
-    const pricelist: Pricelist = this.pricelistRepository.create({
+    const newPricelist = {
       ...payload,
       status: PriceListStatus.ACTIVE,
       created_by: user_id,
-      station: foundStation ? foundStation.id : null,
-    });
+      station: foundStation ? { id: foundStation.id } : null,
+    }
+    const pricelist: Pricelist = this.pricelistRepository.create(newPricelist);
     return this.pricelistRepository.save(pricelist);
   }
 

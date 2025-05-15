@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import AdminLayout from "../../../shared/AdminLayout";
 import NewUser from "../register/new-user";
-import { User } from "../../../types/types";
+import { AuthError, User } from "../../../types/types";
 
 export default function UsersPage() {
   const [showModal, setShowModal] = useState(false);
@@ -11,6 +11,9 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [filter, setFilter] = useState("");
   const [error, setError] = useState("");
+  const [authError, setAuthError] = useState<AuthError>(null);
+  const [fetchUserError, setFetchUserError] = useState<string>("");
+
 
   const handleClose = () => {
     setShowModal(false);
@@ -31,11 +34,13 @@ export default function UsersPage() {
         Authorization: `Bearer ${token}`,
       },
     });
+    const data = await response.json();
     if (response.ok) {
-      const data = await response.json();
       setUsers(data);
+    } else if (response.status === 403) {
+      setAuthError(data);
     } else {
-      console.error("Failed to fetch users" + JSON.stringify(response));
+      setFetchUserError("Failed to fetch users" + JSON.stringify(data));
     }
   }
 
@@ -81,7 +86,7 @@ export default function UsersPage() {
   };
 
   return (
-    <AdminLayout>
+    <AdminLayout authError={null}>
       <div className="container-fluid">
         <div className="row">
           <div className="col-6">

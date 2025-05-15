@@ -242,8 +242,8 @@ function InventoryItemsPage() {
       <AddSubItemModal
         isModalOpen={isModalOpen}
         closeModal={closeModal}
-        selectedItem={selectedItem}
-        selectedItemName={selectedItemName}
+        // selectedItem={selectedItem}
+        // selectedItemName={selectedItemName}
         addSubItemToItem={addSubItemToItem}
       />
 

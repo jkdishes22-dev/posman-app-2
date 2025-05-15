@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { BillService } from "@services/BillService";
+import {BillFilter, BillService} from "@services/BillService";
 
 export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
@@ -23,13 +23,14 @@ export const fetchBills = async (req: NextApiRequest, res: NextApiResponse) => {
     return res.status(400).json({ error: "Invalid date format" });
   }
 
+  const billFilter: BillFilter = {
+    targetDate,
+    status,
+    billId,
+    billingUserId,
+  }
   try {
-    const bills = await billService.fetchBills(currentUserId, {
-      targetDate,
-      status,
-      billId,
-      billingUserId,
-    });
+    const bills = await billService.fetchBills(currentUserId, billFilter);
     res.status(200).json(bills);
   } catch (error: any) {
     console.error("Error fetching bills:", error);

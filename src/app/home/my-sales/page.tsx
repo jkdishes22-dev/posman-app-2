@@ -18,13 +18,14 @@ const MySales = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billIdFilter, setBillIdFilter] = useState("");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [itemError, setItemError] = useState("");
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
     setSelectedBill(null);
   };
 
-  const handleBillIdChange = (e) => {
+  const handleBillIdChange = async (e) => {
     const filter = e.target.value;
     setBillIdFilter(filter);
 
@@ -37,7 +38,7 @@ const MySales = () => {
       setFilteredBills(filtered);
 
       if (filtered.length === 0) {
-        fetchBillsByBillId(filter);
+        await fetchBillsByBillId(filter);
       }
     }
   };
@@ -66,16 +67,18 @@ const MySales = () => {
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch bills");
-      }
-
       const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 403 && data.missingPermissions) {
+          throw new Error(`Access denied: Missing ${data.missingPermissions.join(", ")} permission(s)`);
+        }
+        throw new Error(data.message || "Failed to fetch bills");
+      }
       setBills(data);
       setFilteredBills(data);
     } catch (error: any) {
-      console.error("Error fetching bills:", error);
+      const errorMessage = error.message || "Failed to fetch items for the selected category";
+      setItemError(errorMessage);
     }
   };
 
@@ -184,7 +187,7 @@ const MySales = () => {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="4">No bills available</td>
+                        <td colSpan={4}>No bills available</td>
                       </tr>
                     )}
                   </tbody>
@@ -271,7 +274,7 @@ const MySales = () => {
                             ))
                           ) : (
                             <tr>
-                              <td colSpan="6">No items for this bill</td>
+                              <td colSpan={6}>No items for this bill</td>
                             </tr>
                           )}
                         </tbody>

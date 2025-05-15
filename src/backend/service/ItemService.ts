@@ -294,8 +294,6 @@ export class ItemService {
     return await queryBuilder.getMany();
   }
 
-  // async fetchGroupItems(groupId: number) { }
-
   async removeItemFromGroup(groupId: number, itemId: number) {
     await this.itemGroupRepository.delete({
       item: { id: groupId },

@@ -4,7 +4,7 @@ import { BaseEntity } from "./BaseEntity";
 import { Bill } from "@entities/Bill";
 import { Payment } from "@entities/Payment";
 
-@Entity()
+@Entity("bill_payment")
 export class BillPayment extends BaseEntity {
   @ManyToOne(() => Bill, (bill) => bill.bill_payments)
   @JoinColumn({ name: "bill_id" })

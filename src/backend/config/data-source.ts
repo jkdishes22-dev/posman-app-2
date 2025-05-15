@@ -49,7 +49,7 @@ export const AppDataSource = new DataSource({
     UserStation,
   ],
   synchronize: false,
-  logging: true,
+  // logging: true,
   timezone: "Africa/Nairobi",
   poolSize: 20,
   connectTimeout: 20000,

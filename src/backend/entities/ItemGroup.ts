@@ -2,7 +2,7 @@ import { Entity, ManyToOne, JoinColumn, Column } from "typeorm";
 import { Item } from "./Item";
 import { BaseEntity } from "@entities/BaseEntity";
 
-@Entity()
+@Entity("item_group")
 export class ItemGroup extends BaseEntity {
   @Column("decimal", { precision: 10, scale: 2 })
   portion_size!: number;

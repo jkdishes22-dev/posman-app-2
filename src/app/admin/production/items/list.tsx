@@ -20,11 +20,11 @@ function InventoryList({ items }) {
                 type="number"
                 className="form-control"
                 placeholder="New Quantity"
-                onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+              // onChange={(e) => handleQuantityChange(item.id, e.target.value)}
               />
               <button
                 className="btn btn-outline-primary"
-                onClick={() => handleUpdateClick(item.id)}
+              // onClick={() => handleUpdateClick(item.id)}
               >
                 Update
               </button>

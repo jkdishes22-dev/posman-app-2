@@ -5,13 +5,13 @@ import {
   getUsersHandler,
 } from "@controllers/UserController";
 import { config } from "dotenv";
-import * as process from "process";
 import permissions from "@backend/config/managed-roles";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
+import * as process from "process";
 
 config();
-const isAuthEnabled = process.env.AUTH_ENABLED || "false";
+const isAuthEnabled = (process.env.AUTH_ENABLED as string) || "false";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
@@ -28,8 +28,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     )(req, res);
   } else {
     res.setHeader("Allow", ["GET", "POST"]);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+    res.setHeader("Content-Type", "application/json");
+    res.status(405).json({
+      error: "Method Not Allowed",
+      message: `Method ${req.method} is not supported`,
+      allowedMethods: ["GET", "POST"]
+    });
   }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware([dbMiddleware])(handler);

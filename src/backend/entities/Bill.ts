@@ -17,12 +17,13 @@ export enum BillStatus {
   CLOSED = "closed",
 }
 
-@Entity()
+@Entity("bill")
 export class Bill {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User, (user) => user.bills)
+  // @ManyToOne(() => User, (user) => user.bills)
+  @ManyToOne(() => User)
   @JoinColumn({ name: "user_id" })
   user: User;
 

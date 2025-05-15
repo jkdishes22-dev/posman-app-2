@@ -4,6 +4,15 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import * as process from "process";
 
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     description: create user api
+ *     responses:
+ *       200:
+ *         description: Hello World!
+ */
 export const createUserHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,

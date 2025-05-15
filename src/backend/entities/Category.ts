@@ -6,7 +6,7 @@ export enum CategoryStatus {
   DELETED = "deleted",
 }
 
-@Entity()
+@Entity("category")
 export class Category {
   @PrimaryGeneratedColumn()
   id: number;

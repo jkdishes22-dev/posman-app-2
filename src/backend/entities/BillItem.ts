@@ -16,7 +16,7 @@ export enum BillItemStatus {
   VOIDED = "voided",
 }
 
-@Entity()
+@Entity("bill_item")
 export class BillItem {
   @PrimaryGeneratedColumn()
   id: number;

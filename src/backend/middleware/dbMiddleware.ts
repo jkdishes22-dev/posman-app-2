@@ -1,11 +1,17 @@
-import { getConnection } from "@backend/config/data-source";
-import { NextApiRequest, NextApiResponse } from "next";
+import {getConnection} from "@backend/config/data-source";
+import {NextApiRequest, NextApiResponse} from "next";
+import {DataSource} from "typeorm";
+
+declare module "next" {
+  interface NextApiRequest {
+    db: DataSource;
+  }
+}
 
 export const dbMiddleware = (handler) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     try {
-      const connection = await getConnection();
-      req.db = connection;
+      req.db = await getConnection();
       return handler(req, res);
     } catch (error: any) {
       return res

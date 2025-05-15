@@ -8,10 +8,8 @@ import {
 } from "@controllers/ItemController";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
-// import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  // await ensureMetadata("Item");
   if (req.method === "GET") {
     const { search } = req.query;
     if (req.query && search) {

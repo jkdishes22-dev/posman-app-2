@@ -10,7 +10,7 @@ import bcrypt from "bcryptjs";
 import { Role } from "@entities/Role";
 import { Exclude } from "class-transformer";
 
-@Entity()
+@Entity("user")
 export class User {
   @PrimaryGeneratedColumn()
   id!: number;

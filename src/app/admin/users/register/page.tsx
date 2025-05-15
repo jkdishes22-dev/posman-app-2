@@ -1,8 +1,15 @@
-import AdminLayout from "../../../shared/AdminLayout";
+"use client";
 
-export default function UsersPage() {
+import { useState } from "react";
+import AdminLayout from "../../../shared/AdminLayout";
+import { AuthError } from "src/app/types/types";
+
+const UsersPage: React.FC = () => {
+
+  const [authError, setAuthError] = useState<AuthError>(null);
+
   return (
-    <AdminLayout>
+    <AdminLayout authError={authError}>
       <div>
         <h1>Users Register</h1>
         {/* Users page content */}
@@ -10,3 +17,5 @@ export default function UsersPage() {
     </AdminLayout>
   );
 }
+
+export default UsersPage;

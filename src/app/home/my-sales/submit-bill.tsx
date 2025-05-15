@@ -169,7 +169,6 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                   value="cash"
                   checked={paymentMethod === "cash"}
                   onChange={() => setPaymentMethod("cash")}
-                  custom
                   style={{ fontSize: "18px" }}
                 />
                 <Form.Check
@@ -179,7 +178,6 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                   value="mpesa"
                   checked={paymentMethod === "mpesa"}
                   onChange={() => setPaymentMethod("mpesa")}
-                  custom
                   style={{ fontSize: "18px" }}
                 />
                 <Form.Check
@@ -189,7 +187,6 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                   value="cash_mpesa"
                   checked={paymentMethod === "cash_mpesa"}
                   onChange={() => setPaymentMethod("cash_mpesa")}
-                  custom
                   style={{ fontSize: "18px" }}
                 />
               </div>

@@ -11,9 +11,9 @@ import { DataSource, EntityNotFoundError, Repository } from "typeorm";
 
 export type BillFilter = {
   targetDate: Date;
-  status?: string;
-  billId?: number;
-  billingUserId?: number;
+  status?: string | string[];
+  billId?: string | string[];
+  billingUserId?: string | string[]
 };
 
 @Service()
@@ -60,10 +60,8 @@ export class BillService {
     );
   }
 
-  async fetchBills(
-    userId: number,
-    { targetDate, status, billId, billingUserId }: BillFilter,
-  ) {
+  async fetchBills(userId: number, billFilter: BillFilter) {
+    const {targetDate, status, billId, billingUserId} = billFilter;
     const startOfDayDate = startOfDay(new Date(targetDate));
     const endOfDayDate = endOfDay(new Date(targetDate));
 
@@ -71,39 +69,44 @@ export class BillService {
 
     const roleNames = ["user", "waitress"];
     const includeBills = currentUser.roles.some((role) =>
-      roleNames.includes(role.name),
+        roleNames.includes(role.name),
     );
 
-    const query = AppDataSource.createQueryBuilder("bill", "bill")
-      .leftJoinAndSelect("bill.bill_items", "billItem")
-      .leftJoinAndSelect("billItem.item", "item")
-      .leftJoinAndSelect("bill.bill_payments", "billPayment")
-      .leftJoinAndSelect("billPayment.payment", "payment")
-      .leftJoinAndSelect("bill.user", "user")
-      .where("bill.created_at BETWEEN :start AND :end", {
-        start: startOfDayDate,
-        end: endOfDayDate,
-      });
+    try {
+      const query = await this.billRepository
+          .createQueryBuilder("bill")
+          .leftJoinAndSelect("bill.bill_items", "billItem")
+          .leftJoinAndSelect("billItem.item", "item")
+          .leftJoinAndSelect("bill.bill_payments", "billPayment")
+          .leftJoinAndSelect("billPayment.payment", "payment")
+          .leftJoinAndSelect("bill.user", "user")
+          .where("bill.created_at BETWEEN :start AND :end", {
+            start: startOfDayDate,
+            end: endOfDayDate,
+          });
 
-    if (status) {
-      query.andWhere("bill.status = :status", { status });
-    }
+      if (status) {
+        query.andWhere("bill.status = :status", { status });
+      }
 
-    if (billId) {
-      query.andWhere("bill.id = :billId", { billId });
-    }
+      if (billId) {
+        query.andWhere("bill.id = :billId", { billId });
+      }
 
-    // if current user is a waitress, fetch their bills
-    if (userId && includeBills) {
-      query.andWhere("bill.user_id = :userId", { userId });
-    }
-    // filters bills by a given user. Eg admin fetching bill by a given user
-    if (billingUserId) {
-      query.andWhere("bill.user_id = :billingUserId", { billingUserId });
-    }
+      if (userId && includeBills) {
+        query.andWhere("bill.user_id = :userId", { userId });
+      }
 
-    const bills = await query.getMany();
-    return bills;
+      if (billingUserId) {
+        query.andWhere("bill.user_id = :billingUserId", { billingUserId });
+      }
+
+      const bills = await query.getMany();
+      return bills;
+    } catch (error) {
+      console.error("Error fetching bills:", error);
+      throw error;
+    }
   }
 
   async cancelBill(billId: number) {

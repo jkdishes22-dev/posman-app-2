@@ -235,7 +235,7 @@ function StationUsersPage() {
                         <br />
                         <strong>Last Name:</strong> {selectedUser.lastName}
                         <br />
-                        <strong>Role:</strong> {selectedUser.role}
+                        <strong>Role:</strong> {selectedUser?.role?.name}
                       </Card.Text>
                     </Card.Body>
                   </Card>
@@ -322,7 +322,7 @@ function StationUsersPage() {
                               )
                             ) : (
                               <tr>
-                                <td colSpan="3">No stations assigned</td>
+                                <td colSpan={3}>No stations assigned</td>
                               </tr>
                             )}
                           </tbody>

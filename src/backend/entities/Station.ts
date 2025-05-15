@@ -6,7 +6,7 @@ export enum StationStatus {
   DISABLED = "disabled",
 }
 
-@Entity()
+@Entity("station")
 export class Station extends BaseEntity {
   @Column({ nullable: false })
   name: string;
