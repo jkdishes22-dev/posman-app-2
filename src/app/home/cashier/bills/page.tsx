@@ -7,6 +7,7 @@ import { formatISO } from "date-fns";
 import { Bill, BillPayment, User } from "src/app/types/types";
 import { Modal, Button } from "react-bootstrap";
 import Pagination from "src/app/components/Pagination";
+import jwt from "jsonwebtoken";
 
 const CashierBillsPage = () => {
   // Debug: log mount (should only see once per mount)
@@ -32,6 +33,20 @@ const CashierBillsPage = () => {
   const [bulkCloseResults, setBulkCloseResults] = useState<null | { billId: number, status: string, error?: string }[]>(null);
   const [showBulkCloseModal, setShowBulkCloseModal] = useState(false);
   const [error, setError] = useState<string>("");
+  const [bulkSubmitResults, setBulkSubmitResults] = useState<null | { billId: number, status: string, error?: string }[]>(null);
+  const [showBulkSubmitModal, setShowBulkSubmitModal] = useState(false);
+
+  // Get user role from token
+  let userRole = "";
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("token");
+    if (token) {
+      const decoded: any = jwt.decode(token);
+      if (decoded && decoded.roles && decoded.roles.length > 0) {
+        userRole = decoded.roles[0];
+      }
+    }
+  }
 
   // Fetch bills when filters change
   useEffect(() => {
@@ -116,7 +131,7 @@ const CashierBillsPage = () => {
   const handleFilterChange = (key: string, value: any) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
-  const handleDateChange = (date: Date) => handleFilterChange("billingDate", date);
+  const handleDateChange = (date: Date | null) => handleFilterChange("billingDate", date);
   const handleBillIdSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     const billId = event.target.value;
     if (/^\d*$/.test(billId)) {
@@ -124,9 +139,9 @@ const CashierBillsPage = () => {
       if (billId === "") {
         fetchBills();
       } else {
-        const existingBill = bills.find((bill) => bill.id === parseInt(billId));
-        if (existingBill) {
-          setBills([existingBill]);
+        const filtered = bills.filter((bill) => bill.id.toString().includes(billId));
+        if (filtered.length > 0) {
+          setBills(filtered);
         } else {
           fetchBillById(Number(billId));
         }
@@ -211,6 +226,40 @@ const CashierBillsPage = () => {
   };
   const showCloseBillModal = () => setShowCloseBillModal(true);
   const handleCloseModal = () => setShowCloseBillModal(false);
+  const handleBulkSubmit = async () => {
+    const token = localStorage.getItem("token");
+    setBulkSubmitResults(null);
+    // For demo, assume all selected bills use cash payment and full amount
+    const billPayments = bills
+      .filter((bill) => selectedBills.includes(bill.id) && bill.status === "pending")
+      .map((bill) => ({
+        billId: bill.id,
+        paymentMethod: "cash",
+        cashAmount: bill.total,
+        mpesaAmount: 0,
+        mpesaCode: "",
+      }));
+    try {
+      const url = "/api/bills/bulk-submit";
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ billPayments }),
+      });
+      if (!response.ok) throw new Error("Failed to bulk submit bills");
+      const data = await response.json();
+      setBulkSubmitResults(data.results);
+      setShowBulkSubmitModal(true);
+      fetchBills();
+      setSelectedBills([]);
+    } catch (error: any) {
+      setBulkSubmitResults([{ billId: 0, status: "failed", error: error.message }]);
+      setShowBulkSubmitModal(true);
+    }
+  };
 
   return (
     <div className="container mt-3">
@@ -230,11 +279,12 @@ const CashierBillsPage = () => {
                       className="form-control"
                       id="billingDate"
                       selected={filters.billingDate}
-                      onChange={handleDateChange}
+                      onChange={(date: Date | null) => handleDateChange(date)}
                       dateFormat="yyyy-MM-dd"
                       placeholderText="Select billing date"
                       maxDate={new Date()}
                       minDate={null}
+                      isClearable
                     />
                   </div>
                 </div>
@@ -330,6 +380,21 @@ const CashierBillsPage = () => {
                 </button>
               </div>
             )}
+            {/* Bulk Submit button for pending bills */}
+            {bills.some((bill) => selectedBills.includes(bill.id) && bill.status === "pending") && (
+              <div className="col-2 mb-2">
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleBulkSubmit}
+                  disabled={selectedBills.filter((id) => {
+                    const bill = bills.find((b) => b.id === id);
+                    return bill && bill.status === "pending";
+                  }).length === 0}
+                >
+                  Bulk Submit
+                </button>
+              </div>
+            )}
           </div>
           <div className="border p-3">
             {bills.length > 0 ? (
@@ -381,20 +446,46 @@ const CashierBillsPage = () => {
                       </td>
                       <td>{new Date(bill.created_at).toLocaleString()}</td>
                       <td>
-                        {["submitted", "voided"].includes(bill.status) ? (
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => handleProcessClick(bill)}
-                          >
-                            Process
-                          </button>
+                        {/* Role-based actions */}
+                        {userRole === "cashier" ? (
+                          bill.status === "submitted" ? (
+                            <button
+                              className="btn btn-sm btn-primary"
+                              onClick={() => handleProcessClick(bill)}
+                            >
+                              Process
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => setSelectedBill(bill)}
+                            >
+                              View
+                            </button>
+                          )
+                        ) : userRole === "user" || userRole === "waitress" ? (
+                          bill.status === "pending" ? (
+                            <button
+                              className="btn btn-sm btn-success"
+                              onClick={() => setSelectedBill(bill)}
+                            >
+                              Submit
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => setSelectedBill(bill)}
+                            >
+                              View
+                            </button>
+                          )
                         ) : (
-                          <span
-                            className="btn btn-secondary"
-                            onClick={() => handleProcessClick(bill)}
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => setSelectedBill(bill)}
                           >
                             View
-                          </span>
+                          </button>
                         )}
                       </td>
                     </tr>
@@ -537,6 +628,28 @@ const CashierBillsPage = () => {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowBulkCloseModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      <Modal show={showBulkSubmitModal} onHide={() => setShowBulkSubmitModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Bulk Submit Results</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {bulkSubmitResults && (
+            <ul>
+              {bulkSubmitResults.map((result) => (
+                <li key={result.billId}>
+                  Bill {result.billId}: {result.status}
+                  {result.error && <span style={{ color: "red" }}> ({result.error})</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowBulkSubmitModal(false)}>
             Close
           </Button>
         </Modal.Footer>

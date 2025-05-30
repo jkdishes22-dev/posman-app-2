@@ -1,0 +1,84 @@
+/* Improved collapsed navbar appearance */
+.navbar-collapse {
+    background: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 0.5rem 1rem;
+}
+
+@media (max-width: 991.98px) {
+    .navbar-nav .nav-link {
+        padding: 1rem 0.5rem;
+        font-size: 1.1rem;
+    }
+
+    .navbar-nav .dropdown-menu {
+        position: static;
+        float: none;
+        background: #e9ecef;
+        box-shadow: none;
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* Optional: Add a little more space below the navbar on mobile */
+@media (max-width: 991.98px) {
+    .navbar {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Profile dropdown: more shade and distinction */
+.navbar-nav .dropdown-menu[aria-labelledby="userActionsDropdown"] {
+    background: #f1f3f5;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    min-width: 180px;
+    border: none;
+    padding-top: 1rem;
+}
+
+.navbar-nav .dropdown-menu[aria-labelledby="userActionsDropdown"] .dropdown-item {
+    color: #333;
+    font-weight: 500;
+}
+
+.navbar-nav .dropdown-menu[aria-labelledby="userActionsDropdown"] .dropdown-item:hover {
+    background: #e2e6ea;
+    color: #212529;
+}
+
+/* Profile avatar at the top of the dropdown */
+.profile-dropdown-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+.profile-dropdown-avatar img {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #dee2e6;
+}
+
+/* Improved filter card border and appearance */
+.filter-card {
+    border: 1.5px solid #dee2e6 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    padding: 1.5rem 1.5rem 1rem 1.5rem !important;
+    background: #fff;
+    overflow: hidden;
+}
+
+.filter-card .btn-group {
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+.filter-card .btn {
+    min-width: 100px;
+}

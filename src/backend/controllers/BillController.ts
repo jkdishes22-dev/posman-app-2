@@ -126,3 +126,17 @@ export const bulkCloseBills = async (req: NextApiRequest, res: NextApiResponse) 
     res.status(500).json({ error: error.message });
   }
 };
+
+export const bulkSubmitBills = async (req: NextApiRequest, res: NextApiResponse) => {
+  const billService = new BillService(req.db);
+  const { billPayments } = req.body; // [{ billId, paymentMethod, ... }]
+  if (!Array.isArray(billPayments) || billPayments.length === 0) {
+    return res.status(400).json({ error: "billPayments must be a non-empty array" });
+  }
+  try {
+    const results = await billService.submitBillsBulk(billPayments, req.user?.id);
+    res.status(200).json({ results });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};

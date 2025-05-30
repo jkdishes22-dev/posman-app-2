@@ -305,4 +305,18 @@ export class BillService {
     }
     return results;
   }
+
+  async submitBillsBulk(billPayments: BillPaymentInterface[], userId: number) {
+    const results = [];
+    for (const billPayment of billPayments) {
+      try {
+        billPayment.userId = userId;
+        await this.submitBill(billPayment);
+        results.push({ billId: billPayment.billId, status: "submitted" });
+      } catch (error: any) {
+        results.push({ billId: billPayment.billId, status: "failed", error: error.message });
+      }
+    }
+    return results;
+  }
 }

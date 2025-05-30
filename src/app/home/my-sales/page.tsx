@@ -9,6 +9,7 @@ import { Button, Form } from "react-bootstrap";
 import SubmitBillModal from "./submit-bill";
 import TimeZoneAwareDatePicker from "src/app/shared/TimezoneAwareDatePicker";
 import { Bill } from "src/app/types/types";
+import Pagination from "src/app/components/Pagination";
 
 const MySales = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -19,6 +20,11 @@ const MySales = () => {
   const [billIdFilter, setBillIdFilter] = useState("");
   const [error, setError] = useState<string>("");
   const [itemError, setItemError] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const [total, setTotal] = useState(0);
+  const [selectedBills, setSelectedBills] = useState<number[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("pending");
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
@@ -28,15 +34,13 @@ const MySales = () => {
   const handleBillIdChange = async (e) => {
     const filter = e.target.value;
     setBillIdFilter(filter);
+    setError("");
 
     if (filter === "") {
-      setFilteredBills(bills);
+      fetchBills(selectedDate, statusFilter);
     } else {
-      const filtered = bills.filter((bill: Bill) =>
-        bill.id.toString().includes(filter),
-      );
+      const filtered = bills.filter((bill: Bill) => bill.id.toString().includes(filter));
       setFilteredBills(filtered);
-
       if (filtered.length === 0) {
         await fetchBillsByBillId(filter);
       }
@@ -46,23 +50,22 @@ const MySales = () => {
   const fetchBills = async (date?: Date, status?: string) => {
     const token = localStorage.getItem("token");
     let url = "/api/bills?";
-    let formattedDate;
-
-    if (date && !status) {
-      formattedDate = formatISO(date, { representation: "date" });
-      url += `date=${formattedDate}`;
-    } else if (status && !date) {
-      if (selectedDate) {
-        formattedDate = formatISO(selectedDate, { representation: "date" });
-        url += `date=${formattedDate}&status=${status}`;
-      } else {
-        url += `status=${status}`;
-      }
-    } else if (date && status) {
-      formattedDate = formatISO(date, { representation: "date" });
-      url += `date=${formattedDate}&status=${status}`;
+    const params = [];
+    if (date && !isNaN(new Date(date).getTime())) {
+      const formattedDate = formatISO(date, { representation: "date" });
+      params.push(`date=${formattedDate}`);
     }
-
+    if (status && status !== "all") {
+      params.push(`status=${status}`);
+    }
+    if (billIdFilter) {
+      params.push(`billId=${billIdFilter}`);
+    }
+    params.push(`page=${page}`);
+    params.push(`pageSize=${pageSize}`);
+    if (params.length > 0) {
+      url += params.join("&");
+    }
     try {
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -72,8 +75,9 @@ const MySales = () => {
         setError(data.message || "Failed to fetch bills");
         return;
       }
-      setBills(data);
-      setFilteredBills(data);
+      setBills(data.bills || []);
+      setFilteredBills(data.bills || []);
+      setTotal(data.total || 0);
       setError("");
     } catch (error: any) {
       setError(error.message || "Failed to fetch items for the selected category");
@@ -91,16 +95,23 @@ const MySales = () => {
       });
 
       if (!response.ok) {
-        setError("Failed to fetch bills by Bill ID");
+        setError("No bill found with that ID");
+        setFilteredBills([]);
         return;
       }
 
       const data = await response.json();
-      setBills(data);
-      setFilteredBills(data);
+      if (!data.bills || data.bills.length === 0) {
+        setError("No bill found with that ID");
+        setFilteredBills([]);
+        return;
+      }
+      setBills(data.bills);
+      setFilteredBills(data.bills);
       setError("");
     } catch (error: any) {
       setError("Error fetching bills by Bill ID: " + error.message);
+      setFilteredBills([]);
     }
   };
 
@@ -134,40 +145,156 @@ const MySales = () => {
     setSelectedBill(updatedBill);
   };
 
+  // Checkbox handlers
+  const handleCheckboxChange = (billId: number) => {
+    setSelectedBills((prev) =>
+      prev.includes(billId)
+        ? prev.filter((id) => id !== billId)
+        : [...prev, billId]
+    );
+  };
+
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      setSelectedBills(filteredBills.filter((bill) => bill.status === "pending").map((bill) => bill.id));
+    } else {
+      setSelectedBills([]);
+    }
+  };
+
+  // Bulk submit handler (for now, open modal for first selected bill)
+  const handleBulkSubmit = () => {
+    const firstBill = filteredBills.find((bill) => selectedBills.includes(bill.id));
+    if (firstBill) {
+      setSelectedBill(firstBill);
+      setIsModalOpen(true);
+    }
+  };
+
   useEffect(() => {
     if (selectedDate) {
-      fetchBills(selectedDate);
+      fetchBills(selectedDate, statusFilter);
     }
-  }, [selectedDate]);
+  }, [selectedDate, statusFilter]);
+
+  // Clear selectedBill when filters change
+  useEffect(() => {
+    setSelectedBill(null);
+  }, [statusFilter, selectedDate, billIdFilter]);
 
   return (
     <HomePageLayout>
       <SecureRoute roleRequired="user">
         <div className="container">
+          {/* Filter row */}
+          <div className="row">
+            <div className="col-12">
+              <div className="card shadow-sm p-3 mb-3 bg-light border-primary filter-card">
+                <h5 className="card-title text-primary mb-3">Filter My Sales</h5>
+                <div className="row g-3 align-items-end">
+                  <div className="col-md-4">
+                    <div className="form-group">
+                      <label htmlFor="filterDate" className="form-label">Billing Date</label>
+                      <div>
+                        <TimeZoneAwareDatePicker
+                          onDateChange={handleDateChange}
+                          format="yyyy-MM-dd"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-4">
+                    <div className="form-group">
+                      <label htmlFor="billId" className="form-label">Bill ID</label>
+                      <div>
+                        <Form.Control
+                          type="text"
+                          className="form-control"
+                          id="billId"
+                          placeholder="Search by Bill ID"
+                          value={billIdFilter}
+                          onChange={handleBillIdChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-4 d-flex align-items-end">
+                    <div className="btn-group w-100" role="group" aria-label="Filter actions">
+                      <button
+                        className={`btn btn-outline-primary${statusFilter === "pending" ? " active" : ""}`}
+                        onClick={() => setStatusFilter("pending")}
+                      >
+                        Pending
+                      </button>
+                      <button
+                        className={`btn btn-outline-primary${statusFilter === "submitted" ? " active" : ""}`}
+                        onClick={() => setStatusFilter("submitted")}
+                      >
+                        Submitted
+                      </button>
+                      <button
+                        className={`btn btn-outline-primary${statusFilter === "closed" ? " active" : ""}`}
+                        onClick={() => setStatusFilter("closed")}
+                      >
+                        Closed
+                      </button>
+                      <button
+                        className={`btn btn-outline-primary${statusFilter === "voided" ? " active" : ""}`}
+                        onClick={() => setStatusFilter("voided")}
+                      >
+                        Voided
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {/* Bills and details row */}
           <div className="row">
             <div className="col-5">
-              <div className="d-flex align-items-center mb-3">
-                <TimeZoneAwareDatePicker
-                  onDateChange={handleDateChange}
-                  format="yyyy-MM-dd"
-                />
-                <Form.Control
-                  type="text"
-                  className="form-control"
-                  placeholder="Search by Bill ID"
-                  value={billIdFilter}
-                  onChange={handleBillIdChange}
-                />
+              <div className="mb-2">
+                <Button
+                  variant="success"
+                  size="sm"
+                  disabled={true}
+                  onClick={handleBulkSubmit}
+                >
+                  Submit All
+                </Button>
               </div>
               <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
-                {error && <div className="alert alert-danger">{error}</div>}
+                {error && (
+                  <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                    {error}
+                    <button
+                      type="button"
+                      className="btn-close"
+                      aria-label="Close"
+                      onClick={() => setError("")}
+                      style={{ float: "right" }}
+                    ></button>
+                  </div>
+                )}
                 <table className="table stripped">
                   <thead>
                     <tr>
+                      <th>
+                        <input
+                          type="checkbox"
+                          checked={
+                            selectedBills.length > 0 &&
+                            filteredBills.filter((bill) => bill.status === "pending").length > 0 &&
+                            selectedBills.length === filteredBills.filter((bill) => bill.status === "pending").length
+                          }
+                          onChange={handleSelectAll}
+                        />
+                      </th>
                       <th>Bill ID</th>
                       <th>Status</th>
                       <th>Amount</th>
                       <th>Bill Date</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -175,51 +302,59 @@ const MySales = () => {
                       filteredBills.map((bill) => (
                         <tr
                           key={bill.id}
-                          onClick={() => handleBillClick(bill)}
                           className={
                             selectedBill?.id === bill.id ? "table-active" : ""
                           }
                         >
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={selectedBills.includes(bill.id)}
+                              disabled={bill.status !== "pending"}
+                              onChange={() => handleCheckboxChange(bill.id)}
+                            />
+                          </td>
                           <td>{bill.id}</td>
                           <td>{bill.status}</td>
                           <td>KES {bill.total}</td>
                           <td>{new Date(bill.created_at).toLocaleString()}</td>
+                          <td>
+                            {bill.status === "pending" ? (
+                              <Button
+                                variant="success"
+                                size="sm"
+                                onClick={() => handleBillClick(bill)}
+                              >
+                                Submit
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => handleBillClick(bill)}
+                              >
+                                View
+                              </Button>
+                            )}
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={4}>No bills available</td>
+                        <td colSpan={6}>No bills available</td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                onPageChange={setPage}
+              />
             </div>
             <div className="col-7">
-              <div
-                className="btn-group mb-2"
-                role="group"
-                aria-label="Filter actions"
-              >
-                <button
-                  className="btn btn-outline-primary"
-                  onClick={() => fetchBills(undefined, "submitted")}
-                >
-                  Submitted
-                </button>
-                <button
-                  className="btn btn-outline-primary"
-                  onClick={() => fetchBills(undefined, "closed")}
-                >
-                  Closed
-                </button>
-                <button
-                  className="btn btn-outline-primary"
-                  onClick={() => fetchBills(undefined, "voided")}
-                >
-                  Voided
-                </button>
-              </div>
               {selectedBill ? (
                 <div>
                   <div className="card">
@@ -241,7 +376,6 @@ const MySales = () => {
                           <strong> Total: {selectedBill.total} </strong>
                         </span>
                       )}
-
                       <table className="table stripped">
                         <thead>
                           <tr>
@@ -288,14 +422,13 @@ const MySales = () => {
               )}
             </div>
           </div>
+          <SubmitBillModal
+            show={isModalOpen}
+            onHide={closeModal}
+            selectedBill={selectedBill}
+            onBillSubmitted={handleBillSubmitted}
+          />
         </div>
-
-        <SubmitBillModal
-          show={isModalOpen}
-          onHide={closeModal}
-          selectedBill={selectedBill}
-          onBillSubmitted={handleBillSubmitted}
-        />
       </SecureRoute>
     </HomePageLayout>
   );
