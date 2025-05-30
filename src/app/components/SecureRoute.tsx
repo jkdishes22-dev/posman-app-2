@@ -15,23 +15,27 @@ const SecureRoute = ({ children, roleRequired }) => {
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
+  // Set isClient only once on mount
   useEffect(() => {
     setIsClient(true);
-    if (isClient) {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        router.push("/login");
-      } else {
-        const decodedToken = jwt.decode(token) as DecodedToken;
-        if (!decodedToken || !decodedToken.roles.includes(roleRequired)) {
-          router.push("/not-authorized");
-        }
+  }, []);
+
+  // Auth logic runs only when isClient is true
+  useEffect(() => {
+    if (!isClient) return;
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");
+    } else {
+      const decodedToken = jwt.decode(token) as DecodedToken;
+      if (!decodedToken || !decodedToken.roles.includes(roleRequired)) {
+        router.push("/not-authorized");
       }
     }
   }, [isClient, router, roleRequired]);
 
   if (!isClient) {
-    return <div>Loading...</div>;
+    return null; // or a loading spinner
   }
 
   return <>{children}</>;
