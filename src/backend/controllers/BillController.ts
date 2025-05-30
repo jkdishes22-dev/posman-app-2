@@ -112,3 +112,17 @@ export const closeBill = async (req: NextApiRequest, res: NextApiResponse) => {
     res.status(500).json({ message: "Error closing bill", error });
   }
 };
+
+export const bulkCloseBills = async (req: NextApiRequest, res: NextApiResponse) => {
+  const billService = new BillService(req.db);
+  const { billIds } = req.body;
+  if (!Array.isArray(billIds) || billIds.length === 0) {
+    return res.status(400).json({ error: "billIds must be a non-empty array" });
+  }
+  try {
+    const results = await billService.closeBillsBulk(billIds.map(Number));
+    res.status(200).json({ results });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};

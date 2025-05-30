@@ -17,7 +17,7 @@ const MySales = () => {
   const [selectedBill, setSelectedBill] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billIdFilter, setBillIdFilter] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [error, setError] = useState<string>("");
   const [itemError, setItemError] = useState("");
 
   const handleDateChange = (date) => {
@@ -69,16 +69,14 @@ const MySales = () => {
       });
       const data = await response.json();
       if (!response.ok) {
-        if (response.status === 403 && data.missingPermissions) {
-          throw new Error(`Access denied: Missing ${data.missingPermissions.join(", ")} permission(s)`);
-        }
-        throw new Error(data.message || "Failed to fetch bills");
+        setError(data.message || "Failed to fetch bills");
+        return;
       }
       setBills(data);
       setFilteredBills(data);
+      setError("");
     } catch (error: any) {
-      const errorMessage = error.message || "Failed to fetch items for the selected category";
-      setItemError(errorMessage);
+      setError(error.message || "Failed to fetch items for the selected category");
     }
   };
 
@@ -93,14 +91,16 @@ const MySales = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch bills by Bill ID");
+        setError("Failed to fetch bills by Bill ID");
+        return;
       }
 
       const data = await response.json();
       setBills(data);
       setFilteredBills(data);
+      setError("");
     } catch (error: any) {
-      console.error("Error fetching bills by Bill ID:", error);
+      setError("Error fetching bills by Bill ID: " + error.message);
     }
   };
 
@@ -110,7 +110,7 @@ const MySales = () => {
 
   const openSubmitModal = () => {
     if (selectedBill && selectedBill.bill_items.length === 0) {
-      setErrorMessage("Cannot submit bill with no items.");
+      setError("Cannot submit bill with no items.");
       return;
     }
     setIsModalOpen(true);
@@ -160,6 +160,7 @@ const MySales = () => {
                 />
               </div>
               <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
+                {error && <div className="alert alert-danger">{error}</div>}
                 <table className="table stripped">
                   <thead>
                     <tr>
@@ -222,8 +223,8 @@ const MySales = () => {
               {selectedBill ? (
                 <div>
                   <div className="card">
-                    {errorMessage && (
-                      <p className="text-danger">{errorMessage}</p>
+                    {error && (
+                      <p className="text-danger">{error}</p>
                     )}
                     <div className="card-body">
                       {selectedBill.status === "pending" ? (

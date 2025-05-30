@@ -76,10 +76,21 @@ export default function AdminLayout({
 
   return (
     <SecureRoute roleRequired="admin">
-      <div className="container">
-        <nav className="navbar navbar-expand-lg navbar-light bg-body-secondary m-0 px-2">
+      <div>
+        <nav className="navbar navbar-expand-lg navbar-light bg-body-secondary m-0 px-2 container-fluid">
           <NavbarTitleSection onClick={adminPage} />
-          <div className="collapse navbar-collapse">
+          <button
+            className="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#adminNavbarSupportedContent"
+            aria-controls="adminNavbarSupportedContent"
+            aria-expanded="false"
+            aria-label="Toggle navigation"
+          >
+            <span className="navbar-toggler-icon"></span>
+          </button>
+          <div className="collapse navbar-collapse" id="adminNavbarSupportedContent">
             <ul className="navbar-nav mr-auto mt-2 mt-lg-0">
               <li className="nav-item dropdown">
                 <a
@@ -90,7 +101,7 @@ export default function AdminLayout({
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                 >
-                  Users
+                  <i className="bi bi-people me-2"></i>Users
                 </a>
                 <ul
                   className="dropdown-menu dropdown-menu-dark"
@@ -122,7 +133,7 @@ export default function AdminLayout({
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                 >
-                  Configuration
+                  <i className="bi bi-gear me-2"></i>Configuration
                 </a>
                 <ul
                   className="dropdown-menu dropdown-menu-dark"
@@ -158,7 +169,7 @@ export default function AdminLayout({
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                 >
-                  Menu & Pricing
+                  <i className="bi bi-list-ul me-2"></i>Menu & Pricing
                 </a>
                 <ul
                   className="dropdown-menu dropdown-menu-dark"
@@ -203,7 +214,7 @@ export default function AdminLayout({
                   data-bs-toggle="dropdown"
                   aria-expanded="false"
                 >
-                  Production
+                  <i className="bi bi-box-seam me-2"></i>Production
                 </a>
                 <ul
                   className="dropdown-menu dropdown-menu-dark"
@@ -246,12 +257,12 @@ export default function AdminLayout({
               </li>
               <li className="nav-item">
                 <a className="nav-link" href="#">
-                  Suppliers
+                  <i className="bi bi-truck me-2"></i>Suppliers
                 </a>
               </li>
               <li className="nav-item">
                 <a className="nav-link" href="#">
-                  Reports
+                  <i className="bi bi-bar-chart me-2"></i>Reports
                 </a>
               </li>
             </ul>
@@ -299,7 +310,7 @@ export default function AdminLayout({
             )}
           </div>
         )}
-        <main>{children}</main>
+        <main className="container">{children}</main>
       </div>
     </SecureRoute>
   );

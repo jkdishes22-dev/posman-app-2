@@ -16,9 +16,20 @@ export default function CashierPageLayout({ children }: { children: React.ReactN
   };
 
   return (
-    <div className="container">
-      <nav className="navbar navbar-expand-lg navbar-light bg-body-secondary m-2 px-5">
+    <div>
+      <nav className="navbar navbar-expand-lg navbar-light bg-body-secondary m-2 px-3 container-fluid">
         <NavbarTitleSection onClick={bills} />
+        <button
+          className="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarSupportedContent"
+          aria-controls="navbarSupportedContent"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span className="navbar-toggler-icon"></span>
+        </button>
         <div className="collapse navbar-collapse" id="navbarSupportedContent">
           <ul className="navbar-nav mr-auto">
             <li className="nav-item active">
@@ -58,7 +69,7 @@ export default function CashierPageLayout({ children }: { children: React.ReactN
           </div>
         </div>
       </nav>
-      <main>{children}</main>
+      <main className="container">{children}</main>
     </div>
   );
 }

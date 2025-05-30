@@ -292,4 +292,17 @@ export class BillService {
 
     return updateBill;
   }
+
+  async closeBillsBulk(billIds: number[]) {
+    const results = [];
+    for (const billId of billIds) {
+      try {
+        await this.closeBill(billId);
+        results.push({ billId, status: "closed" });
+      } catch (error: any) {
+        results.push({ billId, status: "failed", error: error.message });
+      }
+    }
+    return results;
+  }
 }

@@ -29,6 +29,9 @@ const CashierBillsPage = () => {
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [total, setTotal] = useState(0);
+  const [bulkCloseResults, setBulkCloseResults] = useState<null | { billId: number, status: string, error?: string }[]>(null);
+  const [showBulkCloseModal, setShowBulkCloseModal] = useState(false);
+  const [error, setError] = useState<string>("");
 
   // Fetch bills when filters change
   useEffect(() => {
@@ -83,11 +86,15 @@ const CashierBillsPage = () => {
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!response.ok) throw new Error("Failed to fetch bill by ID");
+      if (!response.ok) {
+        setError("Failed to fetch bill by ID");
+        return;
+      }
       const data = await response.json();
       setBills([data]);
+      setError("");
     } catch (error: any) {
-      console.error("Error fetching bill by ID:", error);
+      setError("Error fetching bill by ID: " + error.message);
     }
   };
 
@@ -144,8 +151,9 @@ const CashierBillsPage = () => {
   };
   const handleBulkProcess = async () => {
     const token = localStorage.getItem("token");
+    setBulkCloseResults(null);
     try {
-      const url = "/api/bills/process";
+      const url = "/api/bills/bulk-close";
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -154,11 +162,15 @@ const CashierBillsPage = () => {
         },
         body: JSON.stringify({ billIds: selectedBills }),
       });
-      if (!response.ok) throw new Error("Failed to process bills");
+      if (!response.ok) throw new Error("Failed to bulk close bills");
+      const data = await response.json();
+      setBulkCloseResults(data.results);
+      setShowBulkCloseModal(true);
       fetchBills();
       setSelectedBills([]);
     } catch (error: any) {
-      console.error("Error processing bills:", error);
+      setBulkCloseResults([{ billId: 0, status: "failed", error: error.message }]);
+      setShowBulkCloseModal(true);
     }
   };
   const handleProcessClick = (bill: Bill) => {
@@ -203,101 +215,121 @@ const CashierBillsPage = () => {
   return (
     <div className="container mt-3">
       {/* Filtering Section */}
-      <div className="row mb-1 pb-2 border-bottom-1">
-        <div className="col-md-3">
-          <div className="form-group">
-            <label htmlFor="billingDate" className="form-label">
-              Billing Date
-            </label>
-            <DatePicker
-              className="form-control"
-              id="billingDate"
-              selected={filters.billingDate}
-              onChange={handleDateChange}
-              dateFormat="yyyy-MM-dd"
-              placeholderText="Select billing date"
-              maxDate={new Date()}
-              minDate={null}
-            />
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="form-group">
-            <label htmlFor="billId" className="form-label">
-              Bill ID
-            </label>
-            <input
-              type="text"
-              className="form-control"
-              id="billId"
-              placeholder="Enter Bill ID"
-              value={searchBillId}
-              onChange={handleBillIdSearch}
-            />
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="form-group">
-            <label htmlFor="waitress" className="form-label">
-              Select Waitress
-            </label>
-            <select
-              id="waitress"
-              className="form-control"
-              value={filters.selectedWaitress}
-              onChange={handleWaitressChange}
-            >
-              <option value="">Select waitress</option>
-              {waitresses.map((waitress) => (
-                <option key={waitress.id} value={waitress.id}>
-                  {waitress.firstName} {waitress.lastName}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="col-md-3 d-flex align-items-end">
-          <div className="btn-group" role="group" aria-label="Filter actions">
-            <button
-              className="btn btn-outline-primary"
-              onClick={() => handleFilterChange("status", "submitted")}
-            >
-              Submitted
-            </button>
-            <button
-              className="btn btn-outline-primary"
-              onClick={() => handleFilterChange("status", "closed")}
-            >
-              Closed
-            </button>
-            <button
-              className="btn btn-outline-primary"
-              onClick={() => handleFilterChange("status", "voided")}
-            >
-              Voided
-            </button>
-            <button
-              className="btn btn-outline-primary"
-              onClick={() => handleFilterChange("status", "all")}
-            >
-              All
-            </button>
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card shadow-sm p-3 mb-3 bg-light border-primary">
+            <h5 className="card-title text-primary mb-3">Filter Bills</h5>
+            <div className="row g-3 align-items-end">
+              <div className="col-md-3">
+                <div className="form-group">
+                  <label htmlFor="billingDate" className="form-label">
+                    Billing Date
+                  </label>
+                  <div>
+                    <DatePicker
+                      className="form-control"
+                      id="billingDate"
+                      selected={filters.billingDate}
+                      onChange={handleDateChange}
+                      dateFormat="yyyy-MM-dd"
+                      placeholderText="Select billing date"
+                      maxDate={new Date()}
+                      minDate={null}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-3">
+                <div className="form-group">
+                  <label htmlFor="billId" className="form-label">
+                    Bill ID
+                  </label>
+                  <div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      id="billId"
+                      placeholder="Enter Bill ID"
+                      value={searchBillId}
+                      onChange={handleBillIdSearch}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-3">
+                <div className="form-group">
+                  <label htmlFor="waitress" className="form-label">
+                    Select Waitress
+                  </label>
+                  <div>
+                    <select
+                      id="waitress"
+                      className="form-control"
+                      value={filters.selectedWaitress}
+                      onChange={handleWaitressChange}
+                    >
+                      <option value="">Select waitress</option>
+                      {waitresses.map((waitress) => (
+                        <option key={waitress.id} value={waitress.id}>
+                          {waitress.firstName} {waitress.lastName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="col-md-3 d-flex align-items-end">
+                <div className="btn-group" role="group" aria-label="Filter actions">
+                  <button
+                    className="btn btn-outline-primary"
+                    onClick={() => handleFilterChange("status", "submitted")}
+                  >
+                    Submitted
+                  </button>
+                  <button
+                    className="btn btn-outline-primary"
+                    onClick={() => handleFilterChange("status", "closed")}
+                  >
+                    Closed
+                  </button>
+                  <button
+                    className="btn btn-outline-primary"
+                    onClick={() => handleFilterChange("status", "voided")}
+                  >
+                    Voided
+                  </button>
+                  <button
+                    className="btn btn-outline-primary"
+                    onClick={() => handleFilterChange("status", "all")}
+                  >
+                    All
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+      <hr className="mb-4" />
       {/* Display Section */}
-      <div className="row border border-0 border-top-1">
+      <div className="row">
+        <div className="col-12 mb-2">
+          <h5 className="text-secondary">Bills Display</h5>
+        </div>
         <div className="col-7">
+          {error && <div className="alert alert-danger">{error}</div>}
           <div className="row">
-            <div className="col-2 mb-2">
-              <button
-                className="btn btn-success btn-sm"
-                onClick={handleBulkProcess}
-                disabled={selectedBills.length === 0}
-              >
-                Bulk Close
-              </button>
-            </div>
+            {filters.status === "submitted" && (
+              <div className="col-2 mb-2">
+                <button
+                  className="btn btn-success btn-sm"
+                  onClick={handleBulkProcess}
+                  disabled={selectedBills.length === 0}
+                >
+                  Bulk Close
+                </button>
+              </div>
+            )}
           </div>
           <div className="border p-3">
             {bills.length > 0 ? (
@@ -484,6 +516,28 @@ const CashierBillsPage = () => {
           </Button>
           <Button variant="success" onClick={handleConfirmCloseBill}>
             Close Bill
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      <Modal show={showBulkCloseModal} onHide={() => setShowBulkCloseModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Bulk Close Results</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {bulkCloseResults && (
+            <ul>
+              {bulkCloseResults.map((result) => (
+                <li key={result.billId}>
+                  Bill {result.billId}: {result.status}
+                  {result.error && <span style={{ color: "red" }}> ({result.error})</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowBulkCloseModal(false)}>
+            Close
           </Button>
         </Modal.Footer>
       </Modal>

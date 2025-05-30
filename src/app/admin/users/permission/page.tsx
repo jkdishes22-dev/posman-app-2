@@ -200,15 +200,15 @@ export default function UsersPage() {
     <AdminLayout authError={authError}>
       <div>
         {error && (
-          <div className="alert alert-danger">
-            <strong>Error:</strong> {error.message}
-            {error.missingPermissions && (
-              <ul>
-                {error.missingPermissions.map((perm) => (
-                  <li key={perm}>{perm}</li>
-                ))}
-              </ul>
-            )}
+          <div className="alert alert-danger alert-dismissible fade show" role="alert">
+            {typeof error === "string" ? error : error.message}
+            <button
+              type="button"
+              className="btn-close"
+              aria-label="Close"
+              onClick={() => setError(null)}
+              style={{ float: "right" }}
+            ></button>
           </div>
         )}
         <div className="container">
