@@ -60,30 +60,36 @@ export class BillService {
     );
   }
 
-  async fetchBills(userId: number, billFilter: BillFilter) {
-    const {targetDate, status, billId, billingUserId} = billFilter;
-    const startOfDayDate = startOfDay(new Date(targetDate));
-    const endOfDayDate = endOfDay(new Date(targetDate));
+  async fetchBills(userId: number, billFilter: BillFilter, page = 1, pageSize = 20) {
+    const { targetDate, status, billId, billingUserId } = billFilter;
+    let startOfDayDate, endOfDayDate;
+    if (targetDate) {
+      startOfDayDate = startOfDay(new Date(targetDate));
+      endOfDayDate = endOfDay(new Date(targetDate));
+    }
 
     const currentUser = await this.userService.getUserById(userId);
 
     const roleNames = ["user", "waitress"];
     const includeBills = currentUser.roles.some((role) =>
-        roleNames.includes(role.name),
+      roleNames.includes(role.name),
     );
 
     try {
-      const query = await this.billRepository
-          .createQueryBuilder("bill")
-          .leftJoinAndSelect("bill.bill_items", "billItem")
-          .leftJoinAndSelect("billItem.item", "item")
-          .leftJoinAndSelect("bill.bill_payments", "billPayment")
-          .leftJoinAndSelect("billPayment.payment", "payment")
-          .leftJoinAndSelect("bill.user", "user")
-          .where("bill.created_at BETWEEN :start AND :end", {
-            start: startOfDayDate,
-            end: endOfDayDate,
-          });
+      const query = this.billRepository
+        .createQueryBuilder("bill")
+        .leftJoinAndSelect("bill.bill_items", "billItem")
+        .leftJoinAndSelect("billItem.item", "item")
+        .leftJoinAndSelect("bill.bill_payments", "billPayment")
+        .leftJoinAndSelect("billPayment.payment", "payment")
+        .leftJoinAndSelect("bill.user", "user");
+
+      if (targetDate) {
+        query.where("bill.created_at BETWEEN :start AND :end", {
+          start: startOfDayDate,
+          end: endOfDayDate,
+        });
+      }
 
       if (status) {
         query.andWhere("bill.status = :status", { status });
@@ -101,8 +107,14 @@ export class BillService {
         query.andWhere("bill.user_id = :billingUserId", { billingUserId });
       }
 
+      // Get total count before pagination
+      const total = await query.getCount();
+
+      // Pagination
+      query.skip((page - 1) * pageSize).take(pageSize);
+
       const bills = await query.getMany();
-      return bills;
+      return { bills, total };
     } catch (error) {
       console.error("Error fetching bills:", error);
       throw error;

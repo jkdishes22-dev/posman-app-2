@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import {BillFilter, BillService} from "@services/BillService";
+import { BillFilter, BillService } from "@services/BillService";
+import { DEFAULT_PAGE_SIZE } from "@backend/config/constants";
 
 export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
@@ -15,12 +16,14 @@ export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
 export const fetchBills = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
   const currentUserId = Number(req.user?.id);
-  const { date, status, billId, billingUserId } = req.query;
+  const { date, status, billId, billingUserId, page = 1, pageSize = DEFAULT_PAGE_SIZE } = req.query;
 
-  // todo this should be optional
-  const targetDate = date ? new Date(date as string) : new Date();
-  if (isNaN(targetDate.getTime())) {
-    return res.status(400).json({ error: "Invalid date format" });
+  let targetDate: Date | undefined = undefined;
+  if (date) {
+    targetDate = new Date(date as string);
+    if (isNaN(targetDate.getTime())) {
+      return res.status(400).json({ error: "Invalid date format" });
+    }
   }
 
   const billFilter: BillFilter = {
@@ -30,8 +33,8 @@ export const fetchBills = async (req: NextApiRequest, res: NextApiResponse) => {
     billingUserId,
   }
   try {
-    const bills = await billService.fetchBills(currentUserId, billFilter);
-    res.status(200).json(bills);
+    const { bills, total } = await billService.fetchBills(currentUserId, billFilter, Number(page), Number(pageSize));
+    res.status(200).json({ bills, total });
   } catch (error: any) {
     console.error("Error fetching bills:", error);
     res.status(500).json({ error: `Error fetching bills: ${error.message}` });

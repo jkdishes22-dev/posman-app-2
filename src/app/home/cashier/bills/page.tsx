@@ -6,6 +6,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { formatISO } from "date-fns";
 import { Bill, BillPayment, User } from "src/app/types/types";
 import { Modal, Button } from "react-bootstrap";
+import Pagination from "src/app/components/Pagination";
 
 const CashierBillsPage = () => {
   // Debug: log mount (should only see once per mount)
@@ -25,12 +26,15 @@ const CashierBillsPage = () => {
   const [closeBillError, setCloseBillError] = useState("");
   const [showModal, setShowCloseBillModal] = useState(false);
   const [searchBillId, setSearchBillId] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const [total, setTotal] = useState(0);
 
   // Fetch bills when filters change
   useEffect(() => {
     fetchBills();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
+  }, [filters, page]);
 
   // Fetch sales persons on initial render
   useEffect(() => {
@@ -40,23 +44,35 @@ const CashierBillsPage = () => {
   const fetchBills = async () => {
     const token = localStorage.getItem("token");
     const { status, billingDate, selectedWaitress } = filters;
-    let url = `/api/bills?status=${status}`;
+    let url = "/api/bills";
+    const params = [];
+
+    if (status && status !== "all") {
+      params.push(`status=${status}`);
+    }
     if (billingDate) {
       const formattedDate = formatISO(billingDate, { representation: "date" });
-      url += `&date=${formattedDate}`;
+      params.push(`date=${formattedDate}`);
     }
     if (selectedWaitress) {
-      url += `&billingUserId=${selectedWaitress}`;
+      params.push(`billingUserId=${selectedWaitress}`);
     }
+    params.push(`page=${page}`);
+    params.push(`pageSize=${pageSize}`);
+    if (params.length > 0) {
+      url += "?" + params.join("&");
+    }
+
     try {
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!response.ok) throw new Error("Failed to fetch bills");
       const data = await response.json();
-      setBills(data);
-    } catch (error: any) {
-      console.error("Error fetching bills:", error);
+      setBills(data.bills || []);
+      setTotal(data.total || 0);
+    } catch (error) {
+      setBills([]);
+      setTotal(0);
     }
   };
 
@@ -114,9 +130,14 @@ const CashierBillsPage = () => {
     handleFilterChange("selectedWaitress", event.target.value);
   };
   const handleCheckboxChange = (billId: number) => {
-    setSelectedBills((prev) =>
-      prev.includes(billId) ? prev.filter((id) => id !== billId) : [...prev, billId]
-    );
+    if (selectedBills.length === bills.length) {
+      // If all are selected, allow toggling individual ones
+      setSelectedBills([billId]);
+    } else if (selectedBills.includes(billId)) {
+      setSelectedBills([]);
+    } else {
+      setSelectedBills([billId]);
+    }
   };
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedBills(event.target.checked ? bills.map((bill) => bill.id) : []);
@@ -143,6 +164,7 @@ const CashierBillsPage = () => {
   const handleProcessClick = (bill: Bill) => {
     setCloseBillError("");
     setSelectedBill(bill);
+    setSelectedBills([bill.id]);
   };
   const handleConfirmCloseBill = async () => {
     if (!selectedBill) return;
@@ -315,10 +337,7 @@ const CashierBillsPage = () => {
                       <td>
                         <input
                           type="checkbox"
-                          checked={
-                            selectedBills.includes(bill.id) ||
-                            bill.id === selectedBill?.id
-                          }
+                          checked={selectedBills.includes(bill.id)}
                           onChange={() => handleCheckboxChange(bill.id)}
                         />
                       </td>
@@ -330,7 +349,7 @@ const CashierBillsPage = () => {
                       </td>
                       <td>{new Date(bill.created_at).toLocaleString()}</td>
                       <td>
-                        {bill.status === "submitted" ? (
+                        {["submitted", "voided"].includes(bill.status) ? (
                           <button
                             className="btn btn-sm btn-primary"
                             onClick={() => handleProcessClick(bill)}
@@ -354,10 +373,16 @@ const CashierBillsPage = () => {
               <p>No bills found.</p>
             )}
           </div>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+          />
         </div>
         <div className="col-5 mt-4">
           {closeBillError && <p style={{ color: "red" }}>{closeBillError}</p>}
-          {selectedBill ? (
+          {selectedBills.length === 1 && selectedBill ? (
             <div className="row">
               <div className="col-6">
                 <div>
@@ -439,6 +464,8 @@ const CashierBillsPage = () => {
                 )}
               </div>
             </div>
+          ) : selectedBills.length > 1 ? (
+            <p>Select a single bill to see details.</p>
           ) : (
             <p>Select a bill to see the details</p>
           )}
@@ -449,7 +476,7 @@ const CashierBillsPage = () => {
           <Modal.Title>Close Bill</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Are you sure you want to close bill <strong>{selectedBill?.id}</strong> ?
+          Are you sure you want to close bill with total amount <strong>{selectedBill?.total}</strong> ?
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCloseModal}>
