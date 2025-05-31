@@ -29,7 +29,7 @@ export default function UsersPage() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showLockModal, setShowLockModal] = useState(false);
   const [showAssignRoleConfirmModal, setShowAssignRoleConfirmModal] = useState(false);
-  const [updateForm, setUpdateForm] = useState({ firstName: '', lastName: '', username: '' });
+  const [updateForm, setUpdateForm] = useState({ firstName: "", lastName: "", username: "" });
   const [lockLoading, setLockLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [reactivateError, setReactivateError] = useState("");
@@ -337,7 +337,7 @@ export default function UsersPage() {
                 <button
                   type="button"
                   className="btn btn-primary d-flex align-items-center"
-                  style={{ fontWeight: 'bold', fontSize: '1rem', borderRadius: 0, padding: '0.5rem 1rem' }}
+                  style={{ fontWeight: "bold", fontSize: "1rem", borderRadius: 0, padding: "0.5rem 1rem" }}
                   onClick={handleShow}
                 >
                   <Image
@@ -377,7 +377,7 @@ export default function UsersPage() {
                   <tr
                     key={user.id}
                     onClick={() => handleUserSelect(user)}
-                    style={{ cursor: 'pointer' }}
+                    style={{ cursor: "pointer" }}
                   >
                     <td>
                       <input

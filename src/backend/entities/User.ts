@@ -1,6 +1,5 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
   Column,
   BeforeInsert,
   JoinTable,
@@ -9,12 +8,10 @@ import {
 import bcrypt from "bcryptjs";
 import { Role } from "@entities/Role";
 import { Exclude } from "class-transformer";
+import { BaseEntity } from "./BaseEntity";
 
 @Entity("user")
-export class User {
-  @PrimaryGeneratedColumn()
-  id!: number;
-
+export class User extends BaseEntity {
   @Column()
   username!: string;
 
@@ -28,7 +25,7 @@ export class User {
   @Exclude()
   password!: string;
 
-  @Column({ default: 'ACTIVE' })
+  @Column({ default: "ACTIVE" })
   status!: string;
 
   @Column({ nullable: true })

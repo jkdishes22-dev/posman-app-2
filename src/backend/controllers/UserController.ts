@@ -188,14 +188,14 @@ export const deleteUserHandler = async (
   const userService = new UserService(req.db);
   try {
     const { userId } = req.query;
-    if (!userId) return res.status(400).json({ error: 'Missing userId' });
+    if (!userId) return res.status(400).json({ error: "Missing userId" });
     const user = await userService.softDeleteUser(Number(userId));
     res.status(200).json(user);
   } catch (error: any) {
-    if (error.message === 'User not found') {
+    if (error.message === "User not found") {
       res.status(404).json({ error: error.message });
     } else {
-      res.status(500).json({ error: 'Error deleting user: ' + error.message });
+      res.status(500).json({ error: "Error deleting user: " + error.message });
     }
   }
 };
@@ -207,14 +207,14 @@ export const reactivateUserHandler = async (
   const userService = new UserService(req.db);
   try {
     const { userId } = req.query;
-    if (!userId) return res.status(400).json({ error: 'Missing userId' });
+    if (!userId) return res.status(400).json({ error: "Missing userId" });
     const user = await userService.reactivateUser(Number(userId));
     res.status(200).json(user);
   } catch (error: any) {
-    if (error.message === 'User not found') {
+    if (error.message === "User not found") {
       res.status(404).json({ error: error.message });
     } else {
-      res.status(500).json({ error: 'Error reactivating user: ' + error.message });
+      res.status(500).json({ error: "Error reactivating user: " + error.message });
     }
   }
 };
@@ -226,22 +226,22 @@ export const updateOrLockUserHandler = async (
   const userService = new UserService(req.db);
   try {
     const { userId } = req.query;
-    if (!userId) return res.status(400).json({ error: 'Missing userId' });
+    if (!userId) return res.status(400).json({ error: "Missing userId" });
     const action = req.body.action;
-    if (action === 'update') {
+    if (action === "update") {
       const { firstName, lastName, username } = req.body;
       const user = await userService.updateUser(Number(userId), { firstName, lastName, username });
       return res.status(200).json(user);
-    } else if (action === 'lock') {
+    } else if (action === "lock") {
       const user = await userService.lockUser(Number(userId));
       return res.status(200).json(user);
-    } else if (action === 'unlock') {
+    } else if (action === "unlock") {
       const user = await userService.unlockUser(Number(userId));
       return res.status(200).json(user);
     } else {
-      return res.status(400).json({ error: 'Invalid action' });
+      return res.status(400).json({ error: "Invalid action" });
     }
   } catch (error: any) {
-    res.status(500).json({ error: 'Error updating/locking user: ' + error.message });
+    res.status(500).json({ error: "Error updating/locking user: " + error.message });
   }
 };

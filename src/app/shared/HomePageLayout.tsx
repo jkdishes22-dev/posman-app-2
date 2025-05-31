@@ -78,7 +78,7 @@ export default function HomePageLayout({
                 aria-labelledby="userActionsDropdown"
               >
                 <li>
-                  <a className="dropdown-item" href="#">
+                  <a className="dropdown-item" href="/profile">
                     Settings
                   </a>
                 </li>

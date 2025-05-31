@@ -8,6 +8,7 @@ import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
 import AsyncSelect from "react-select/async";
 import { AuthError, Role, Scope } from "src/app/types/types";
+import jwt from "jsonwebtoken";
 
 type ErrorState = {
   message: string;
@@ -192,8 +193,14 @@ export default function UsersPage() {
       // If the current user has this role, refresh their token
       const userToken = localStorage.getItem("token");
       if (userToken) {
-        const decoded = require("jsonwebtoken").decode(userToken);
-        if (decoded && decoded.roles && decoded.roles.includes(selectedRole.name)) {
+        const decoded = jwt.decode(userToken);
+        if (
+          decoded &&
+          typeof decoded === "object" &&
+          "roles" in decoded &&
+          Array.isArray((decoded as any).roles) &&
+          (decoded as any).roles.includes(selectedRole.name)
+        ) {
           // Call refresh endpoint
           try {
             const refreshResp = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });

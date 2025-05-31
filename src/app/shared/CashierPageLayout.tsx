@@ -53,7 +53,7 @@ export default function CashierPageLayout({ children }: { children: React.ReactN
               aria-labelledby="userActionsDropdown"
             >
               <li>
-                <a className="dropdown-item" href="#">
+                <a className="dropdown-item" href="/profile">
                   Settings
                 </a>
               </li>
