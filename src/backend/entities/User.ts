@@ -28,6 +28,15 @@ export class User {
   @Exclude()
   password!: string;
 
+  @Column({ default: 'ACTIVE' })
+  status!: string;
+
+  @Column({ nullable: true })
+  refreshToken?: string;
+
+  @Column({ default: false })
+  is_locked!: boolean;
+
   @ManyToMany(() => Role, (role) => role.users)
   @JoinTable({
     name: "user_roles",

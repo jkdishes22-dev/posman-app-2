@@ -3,6 +3,9 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import {
   createUserHandler,
   getUsersHandler,
+  deleteUserHandler,
+  reactivateUserHandler,
+  updateOrLockUserHandler,
 } from "@controllers/UserController";
 import { config } from "dotenv";
 import permissions from "@backend/config/managed-roles";
@@ -26,13 +29,29 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     await authMiddleware(
       authorize([permissions.CAN_VIEW_USER])(getUsersHandler),
     )(req, res);
+  } else if (req.method === "DELETE") {
+    await authMiddleware(
+      authorize([permissions.CAN_DELETE_USER])(deleteUserHandler),
+    )(req, res);
+  } else if (req.method === "PATCH") {
+    if (req.body.action === "reactivate") {
+      await authMiddleware(
+        authorize([permissions.CAN_EDIT_USER])(reactivateUserHandler),
+      )(req, res);
+    } else if (["update", "lock", "unlock"].includes(req.body.action)) {
+      await authMiddleware(
+        authorize([permissions.CAN_EDIT_USER])(updateOrLockUserHandler),
+      )(req, res);
+    } else {
+      res.status(400).json({ error: "Invalid action" });
+    }
   } else {
-    res.setHeader("Allow", ["GET", "POST"]);
+    res.setHeader("Allow", ["GET", "POST", "DELETE", "PATCH"]);
     res.setHeader("Content-Type", "application/json");
     res.status(405).json({
       error: "Method Not Allowed",
       message: `Method ${req.method} is not supported`,
-      allowedMethods: ["GET", "POST"]
+      allowedMethods: ["GET", "POST", "DELETE", "PATCH"]
     });
   }
 };

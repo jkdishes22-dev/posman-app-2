@@ -43,7 +43,7 @@ const LoginForm = () => {
         } else if (role === "cashier") {
           router.push("/home/cashier");
         } else {
-          router.push("/");
+          router.push("/pages");
         }
       } else {
         setError("Login Failed! Invalid credentials");

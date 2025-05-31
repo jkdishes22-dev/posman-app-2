@@ -59,11 +59,16 @@ export class RoleService {
     );
   }
 
-  async assignRoleToUser(userId: User, roleId: Role) {
-    const userRole = new UserRole();
-    userRole.user = userId;
-    userRole.role = roleId;
-
-    return await this.userRoleRepository.save(userRole);
+  async assignRoleToUser(userId: number, roleId: number) {
+    await this.userRoleRepository.delete({ user: { id: userId } });
+    const existing = await this.userRoleRepository.findOne({ where: { user: { id: userId }, role: { id: roleId } } });
+    if (!existing) {
+      const userRole = new UserRole();
+      userRole.user = { id: userId } as any;
+      userRole.role = { id: roleId } as any;
+      return await this.userRoleRepository.save(userRole);
+    }
+    // If already exists, return existing
+    return existing;
   }
 }

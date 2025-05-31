@@ -134,7 +134,7 @@ export const bulkSubmitBills = async (req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "billPayments must be a non-empty array" });
   }
   try {
-    const results = await billService.submitBillsBulk(billPayments, req.user?.id);
+    const results = await billService.submitBillsBulk(billPayments, parseInt(req.user?.id as string));
     res.status(200).json({ results });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

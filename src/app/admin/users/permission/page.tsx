@@ -31,6 +31,7 @@ export default function UsersPage() {
   );
   const [selectedPermission, setSelectedPermission] = useState(null);
   const [authError, setAuthError] = useState<AuthError>(null);
+  const [sessionError, setSessionError] = useState("");
 
   useEffect(() => {
     fetchRoles();
@@ -188,6 +189,26 @@ export default function UsersPage() {
         return;
       }
 
+      // If the current user has this role, refresh their token
+      const userToken = localStorage.getItem("token");
+      if (userToken) {
+        const decoded = require("jsonwebtoken").decode(userToken);
+        if (decoded && decoded.roles && decoded.roles.includes(selectedRole.name)) {
+          // Call refresh endpoint
+          try {
+            const refreshResp = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
+            if (refreshResp.ok) {
+              const data = await refreshResp.json();
+              localStorage.setItem("token", data.token);
+            } else {
+              setSessionError("Session updated, but failed to refresh your token. Please re-login.");
+            }
+          } catch {
+            setSessionError("Session updated, but failed to refresh your token. Please re-login.");
+          }
+        }
+      }
+
       console.log("Permission added successfully!");
       setShowAddModal(false);
       // Update the permissions list if necessary
@@ -209,6 +230,12 @@ export default function UsersPage() {
               onClick={() => setError(null)}
               style={{ float: "right" }}
             ></button>
+          </div>
+        )}
+        {sessionError && (
+          <div className="alert alert-warning alert-dismissible fade show" role="alert">
+            {sessionError}
+            <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close" onClick={() => setSessionError("")}></button>
           </div>
         )}
         <div className="container">

@@ -58,27 +58,19 @@ export class UserService {
     );
   }
 
-  public async getUsers(role?: string): Promise<User[]> {
+  public async getUsers(role?: string, page = 1, pageSize = 10): Promise<{ users: User[]; total: number }> {
     const query = this.userRepository
       .createQueryBuilder("user")
-      .leftJoinAndSelect("user.roles", "role")
-      .addSelect([
-        "user.id",
-        "user.lastName",
-        "user.firstName",
-        "user.username",
-        "user.locked",
-        "user.last_login_date",
-        "role.id",
-        "role.name",
-      ]);
+      .leftJoinAndSelect("user.roles", "role");
 
     if (role) {
       query.andWhere("role.name = :role", { role });
     }
 
+    const total = await query.getCount();
+    query.skip((page - 1) * pageSize).take(pageSize);
     const users = await query.getMany();
-    return users;
+    return { users, total };
   }
 
   async getUserByUsername(username: string) {
@@ -210,5 +202,44 @@ export class UserService {
     existingStation.isDefault = false;
 
     return await this.userStationRepository.save(existingStation);
+  }
+
+  async softDeleteUser(userId: number) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new Error('User not found');
+    user.status = 'DELETED';
+    await this.userRepository.save(user);
+    return user;
+  }
+
+  async reactivateUser(userId: number) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new Error('User not found');
+    user.status = 'ACTIVE';
+    await this.userRepository.save(user);
+    return user;
+  }
+
+  async updateUser(userId: number, updates: { firstName?: string; lastName?: string; username?: string }) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new Error('User not found');
+    if (updates.firstName !== undefined) user.firstName = updates.firstName;
+    if (updates.lastName !== undefined) user.lastName = updates.lastName;
+    if (updates.username !== undefined) user.username = updates.username;
+    return await this.userRepository.save(user);
+  }
+
+  async lockUser(userId: number) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new Error('User not found');
+    user.is_locked = true;
+    return await this.userRepository.save(user);
+  }
+
+  async unlockUser(userId: number) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new Error('User not found');
+    user.is_locked = false;
+    return await this.userRepository.save(user);
   }
 }
