@@ -1,7 +1,6 @@
 import React from "react";
 
-const ReceiptPrint = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
-    if (!bill) return null;
+const ReceiptContent = ({ bill, label }: { bill: any; label: string }) => {
     const dateObj = bill.created_at ? new Date(bill.created_at) : new Date();
     const dateStr = dateObj.toLocaleDateString();
     const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -9,19 +8,7 @@ const ReceiptPrint = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, 
     const tax = grossTotal * 0.16;
     const finalTotal = grossTotal + tax;
     return (
-        <div
-            ref={ref}
-            style={{
-                width: 320,
-                padding: 16,
-                fontFamily: 'monospace',
-                background: '#fff',
-                color: '#000',
-                boxSizing: 'border-box',
-                margin: '0 auto',
-                position: 'relative',
-            }}
-        >
+        <div className="receipt-container">
             <div style={{ textAlign: 'center', marginBottom: 4 }}>
                 <img
                     src="/icons/JKlogo-96.png"
@@ -30,6 +17,7 @@ const ReceiptPrint = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, 
                 />
                 <div style={{ fontWeight: 'bold', fontSize: 22, letterSpacing: 1 }}>JKPOSMAN</div>
                 <div style={{ fontSize: 12, marginBottom: 2 }}>World Leader of Restaurant Software</div>
+                <div style={{ fontWeight: 'bold', fontSize: 16, margin: '8px 0 4px 0', color: '#333' }}>{label}</div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
                 <span>Date: {dateStr}</span>
@@ -74,6 +62,60 @@ const ReceiptPrint = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, 
                 ******************************************
             </div>
         </div>
+    );
+};
+
+const ReceiptPrint = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
+    if (!bill) return null;
+    return (
+        <>
+            <style>{`
+                .receipt-wrapper {
+                    margin: 0;
+                    padding: 0;
+                }
+                .receipt-container {
+                    width: 100%;
+                    max-width: 320px;
+                    padding: 1em;
+                    font-family: monospace;
+                    background: #fff;
+                    color: #000;
+                    box-sizing: border-box;
+                    margin: 0 auto;
+                    position: relative;
+                }
+                @media print {
+                    .receipt-wrapper {
+                        break-inside: avoid !important;
+                        page-break-inside: avoid !important;
+                    }
+                    .receipt-container {
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        padding: 0.5cm !important;
+                        font-size: 12pt !important;
+                        box-shadow: none !important;
+                        background: #fff !important;
+                        margin: 0 auto !important;
+                        break-inside: avoid !important;
+                        page-break-inside: avoid !important;
+                    }
+                    .print-page-break {
+                        break-before: page !important;
+                        page-break-before: always !important;
+                    }
+                }
+            `}</style>
+            <div ref={ref}>
+                <div className="receipt-wrapper">
+                    <ReceiptContent bill={bill} label="Order Copy" />
+                </div>
+                <div className="receipt-wrapper print-page-break">
+                    <ReceiptContent bill={bill} label="Customer Copy" />
+                </div>
+            </div>
+        </>
     );
 });
 
