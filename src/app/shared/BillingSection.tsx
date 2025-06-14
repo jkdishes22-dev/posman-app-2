@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ViewItems from "../admin/menu/category/components/items/items-view";
 import Categories from "../admin/menu/category/components/category/categories";
 import { Item } from "../types/types";
@@ -8,6 +8,7 @@ import QuantityModal from "./QuantityModal";
 import jwt from "jsonwebtoken";
 import { DecodedToken } from "../components/SecureRoute";
 import { Button, Modal } from "react-bootstrap";
+import ReceiptPrint from './ReceiptPrint';
 
 const BillingSection = () => {
   const [categories, setCategories] = useState([]);
@@ -22,6 +23,8 @@ const BillingSection = () => {
   const [userId, setUserId] = useState("");
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [createdBill, setCreatedBill] = useState(null);
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -147,11 +150,36 @@ const BillingSection = () => {
       if (!response.ok) {
         throw new Error("Failed to submit picked items");
       }
+      const data = await response.json();
       setShowSubmitModal(false);
-      window.location.reload();
+      setCreatedBill({
+        ...data.bill,
+        bill_items: selectedItems.map(item => ({
+          ...item,
+          item: { name: item.name, price: item.price },
+        })),
+        user: { firstName: waitress },
+        currency: "KES",
+      });
     } catch (error: any) {
       console.error("Error submitting items:", error);
     }
+  };
+
+  const handlePrint = () => {
+    if (!createdBill || !receiptRef.current) return;
+    const printContents = receiptRef.current.innerHTML;
+    const win = window.open('', '', 'width=350,height=600');
+    win.document.write('<html><head><title>Print Receipt</title>');
+    win.document.write('</head><body >');
+    win.document.write(printContents);
+    win.document.write('</body></html>');
+    win.document.close();
+    win.focus();
+    setTimeout(() => {
+      win.print();
+      win.close();
+    }, 500);
   };
 
   const handleConfirmCancel = () => {
@@ -175,7 +203,7 @@ const BillingSection = () => {
             isBillingSection={true}
             isPricelistSection={false}
             isCategoryItemsSection={false}
-            onItemPick={handlePickItem}
+            onItemPick={createdBill ? undefined : handlePickItem}
           />
         </div>
         <div className="col">
@@ -190,32 +218,56 @@ const BillingSection = () => {
               </tr>
             </thead>
             <tbody>
-              {selectedItems.map((item) => (
+              {(createdBill ? createdBill.bill_items : selectedItems).map((item) => (
                 <tr key={item.id}>
-                  <td>{item.name}</td>
+                  <td>{item.item?.name || item.name}</td>
                   <td>{item.quantity}</td>
-                  <td>${item.subtotal.toFixed(2)}</td>
+                  <td>${(item.subtotal || (item.price * item.quantity)).toFixed(2)}</td>
                   <td>
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleRemoveItem(item.id)}
-                    >
-                      Remove
-                    </button>
+                    {!createdBill && (
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleRemoveItem(item.id)}
+                      >
+                        Remove
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <h5>Total Amount: ${totalAmount.toFixed(2)}</h5>
-          <h5>Served By: {waitress}</h5>
+          <div className="mt-3">
+            <div style={{ fontWeight: 600, fontSize: 18 }}>
+              Total Amount: $
+              {createdBill && !isNaN(Number(createdBill.total))
+                ? Number(createdBill.total).toFixed(2)
+                : totalAmount.toFixed(2)
+              }
+            </div>
+            <div style={{ fontSize: 16 }}>
+              Served By: {waitress}
+            </div>
+          </div>
           <Button
             variant="success"
             onClick={handleShowSubmitModal}
-            disabled={selectedItems.length === 0}
+            disabled={selectedItems.length === 0 || !!createdBill}
           >
             Create Bill
           </Button>
+          {createdBill && (
+            <Button
+              className="m-2"
+              variant="secondary"
+              onClick={handlePrint}
+            >
+              Print Receipt
+            </Button>
+          )}
+          <div style={{ display: 'none' }}>
+            {createdBill && <ReceiptPrint ref={receiptRef} bill={createdBill} />}
+          </div>
           <Button
             className="m-2"
             variant="secondary"

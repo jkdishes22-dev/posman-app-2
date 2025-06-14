@@ -1,20 +1,18 @@
 "use client";
 
-import SecureRoute from "../components/SecureRoute";
+import { withSecureRoute } from "../components/withSecureRoute";
 
 import BillingSection from "../shared/BillingSection";
 import HomePageLayout from "../shared/HomePageLayout";
 
 const UserHomePage = () => {
   return (
-    <SecureRoute roleRequired="user">
-      <HomePageLayout>
-        <div>
-          <BillingSection />
-        </div>
-      </HomePageLayout>
-    </SecureRoute>
+    <HomePageLayout>
+      <div>
+        <BillingSection />
+      </div>
+    </HomePageLayout>
   );
 };
 
-export default UserHomePage;
+export default withSecureRoute(UserHomePage, { roleRequired: "user" });

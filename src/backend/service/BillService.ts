@@ -224,7 +224,6 @@ export class BillService {
         },
       );
     } catch (error: any) {
-      console.error("Error submitting bill:", error.message);
       throw new Error("Failed to submit bill. Please try again.");
     }
   }

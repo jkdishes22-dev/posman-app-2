@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import SecureRoute from "../../components/SecureRoute";
 import HomePageLayout from "../../shared/HomePageLayout";
 import "react-datepicker/dist/react-datepicker.css";
@@ -10,6 +10,44 @@ import SubmitBillModal from "./submit-bill";
 import TimeZoneAwareDatePicker from "src/app/shared/TimezoneAwareDatePicker";
 import { Bill } from "src/app/types/types";
 import Pagination from "src/app/components/Pagination";
+
+// Receipt component for printing
+const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
+  if (!bill) return null;
+  return (
+    <div ref={ref} style={{ width: 300, padding: 16, fontFamily: 'monospace', background: '#fff', color: '#000' }}>
+      <h4 style={{ textAlign: 'center', marginBottom: 8 }}>POS RECEIPT</h4>
+      <div>Bill ID: <b>{bill.id}</b></div>
+      <div>Date: {new Date(bill.created_at).toLocaleString()}</div>
+      <div>User: {bill.user?.firstName} {bill.user?.lastName}</div>
+      <hr />
+      <table style={{ width: '100%', fontSize: 12 }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: 'left' }}>Item</th>
+            <th>Qty</th>
+            <th>Price</th>
+            <th>Subt</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bill.bill_items?.map((item) => (
+            <tr key={item.id}>
+              <td>{item.item?.name}</td>
+              <td style={{ textAlign: 'center' }}>{item.quantity}</td>
+              <td style={{ textAlign: 'right' }}>{item.item?.price}</td>
+              <td style={{ textAlign: 'right' }}>{item.subtotal}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <hr />
+      <div style={{ textAlign: 'right', fontWeight: 'bold' }}>TOTAL: KES {bill.total}</div>
+      <div style={{ textAlign: 'center', marginTop: 12 }}>Thank you!</div>
+    </div>
+  );
+});
+Receipt.displayName = "Receipt";
 
 const MySales = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -25,6 +63,7 @@ const MySales = () => {
   const [total, setTotal] = useState(0);
   const [selectedBills, setSelectedBills] = useState<number[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("pending");
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
@@ -169,6 +208,22 @@ const MySales = () => {
       setSelectedBill(firstBill);
       setIsModalOpen(true);
     }
+  };
+
+  const handlePrint = () => {
+    if (!selectedBill || !receiptRef.current) return;
+    const printContents = receiptRef.current.innerHTML;
+    const win = window.open('', '', 'width=350,height=600');
+    win.document.write('<html><head><title>Print Receipt</title>');
+    win.document.write('</head><body >');
+    win.document.write(printContents);
+    win.document.write('</body></html>');
+    win.document.close();
+    win.focus();
+    setTimeout(() => {
+      win.print();
+      win.close();
+    }, 500);
   };
 
   useEffect(() => {
@@ -362,20 +417,29 @@ const MySales = () => {
                       <p className="text-danger">{error}</p>
                     )}
                     <div className="card-body">
-                      {selectedBill.status === "pending" ? (
-                        <Button
-                          className="m-2"
-                          variant="success"
-                          onClick={openSubmitModal}
-                        >
-                          Submit Bill (KES: {selectedBill.total})
-                        </Button>
-                      ) : (
-                        <span className="text-success">
-                          Bill is {selectedBill.status}{" "}
-                          <strong> Total: {selectedBill.total} </strong>
-                        </span>
-                      )}
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        {selectedBill.status === "pending" ? (
+                          <Button
+                            className="m-2"
+                            variant="success"
+                            onClick={openSubmitModal}
+                          >
+                            Submit Bill (KES: {selectedBill.total})
+                          </Button>
+                        ) : (
+                          <span className="text-success">
+                            Bill is {selectedBill.status} <strong> Total: {selectedBill.total} </strong>
+                          </span>
+                        )}
+                        {(selectedBill.status === "submitted" || selectedBill.status === "closed") && (
+                          <Button variant="secondary" size="sm" onClick={handlePrint}>
+                            Print Receipt
+                          </Button>
+                        )}
+                      </div>
+                      <div style={{ display: 'none' }}>
+                        <Receipt ref={receiptRef} bill={selectedBill} />
+                      </div>
                       <table className="table stripped">
                         <thead>
                           <tr>

@@ -5,11 +5,12 @@ import AdminLayout from "../../../shared/AdminLayout";
 import NewUser from "../register/new-user";
 import { AuthError, User } from "../../../types/types";
 import Pagination from "../../../components/Pagination";
+import { withSecureRoute } from "../../../components/withSecureRoute";
 
 const DEFAULT_PAGE_SIZE = parseInt(process.env.NEXT_PUBLIC_PAGE_SIZE || "10", 10);
 const DEFAULT_REFRESH_INTERVAL_SECONDS = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS || "300", 10);
 
-export default function UsersPage() {
+function UsersPage() {
   const [showModal, setShowModal] = useState(false);
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -662,3 +663,5 @@ export default function UsersPage() {
     </AdminLayout>
   );
 }
+
+export default withSecureRoute(UsersPage, { roleRequired: "admin" });

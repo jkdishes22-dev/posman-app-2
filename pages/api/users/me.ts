@@ -32,7 +32,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 return res.status(400).json({ error: "Current password is incorrect" });
             }
             user.password = await bcrypt.hash(newPassword, 10);
-            user.updated_by = userId;
+            user.updated_by = Number(userId);
             await req.db.getRepository("User").save(user);
             res.status(200).json({ message: "Password updated successfully" });
         } else {

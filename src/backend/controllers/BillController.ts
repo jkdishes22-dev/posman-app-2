@@ -93,8 +93,6 @@ export const submitBill = async (req: NextApiRequest, res: NextApiResponse) => {
     const userId = req.user?.id;
     billPayment.userId = userId;
 
-    console.log(billPayment);
-
     const submittedBill = await billService.submitBill(billPayment);
     res.status(200).json(submittedBill);
   } catch (error) {

@@ -6,7 +6,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { formatISO } from "date-fns";
 import { Bill, BillPayment, User } from "src/app/types/types";
 import { Modal, Button } from "react-bootstrap";
-import Pagination from "src/app/components/Pagination";
+import Pagination from "../../../components/Pagination";
 import jwt from "jsonwebtoken";
 
 const CashierBillsPage = () => {
@@ -48,13 +48,10 @@ const CashierBillsPage = () => {
     }
   }
 
-  // Fetch bills when filters change
   useEffect(() => {
     fetchBills();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters, page]);
 
-  // Fetch sales persons on initial render
   useEffect(() => {
     fetchSalesPersons();
   }, []);
@@ -122,8 +119,9 @@ const CashierBillsPage = () => {
       });
       if (!response.ok) throw new Error("Failed to fetch user");
       const data = await response.json();
-      setWaitresses(data);
+      setWaitresses(Array.isArray(data.users) ? data.users : []);
     } catch (error: any) {
+      setWaitresses([]);
       console.error("Error fetching user:", error);
     }
   };
@@ -153,7 +151,6 @@ const CashierBillsPage = () => {
   };
   const handleCheckboxChange = (billId: number) => {
     if (selectedBills.length === bills.length) {
-      // If all are selected, allow toggling individual ones
       setSelectedBills([billId]);
     } else if (selectedBills.includes(billId)) {
       setSelectedBills([]);
@@ -319,7 +316,7 @@ const CashierBillsPage = () => {
                       onChange={handleWaitressChange}
                     >
                       <option value="">Select waitress</option>
-                      {waitresses.map((waitress) => (
+                      {Array.isArray(waitresses) && waitresses.map((waitress) => (
                         <option key={waitress.id} value={waitress.id}>
                           {waitress.firstName} {waitress.lastName}
                         </option>
