@@ -66,8 +66,9 @@ export class BillService {
     const { targetDate, status, billId, billingUserId } = billFilter;
     let startOfDayDate, endOfDayDate;
     if (targetDate) {
+      // Database stores timestamps in local timezone, so we can use the date range directly
       startOfDayDate = targetDate;
-      endOfDayDate = new Date(targetDate.getTime() + (24 * 60 * 60 * 1000) - 1); // Full 24-hour day in UTC
+      endOfDayDate = new Date(targetDate.getTime() + (24 * 60 * 60 * 1000) - 1);
     }
 
     const currentUser = await this.userService.getUserById(userId);
@@ -116,6 +117,16 @@ export class BillService {
       query.skip((page - 1) * pageSize).take(pageSize);
 
       const bills = await query.getMany();
+
+      console.log("=== fetchBills results ===");
+      console.log("Total bills found:", total);
+      console.log("Bills returned:", bills.length);
+      console.log("Bill details:", bills.map(bill => ({
+        id: bill.id,
+        status: bill.status,
+        created_at: bill.created_at,
+        total: bill.total
+      })));
 
       return { bills, total };
     } catch (error) {

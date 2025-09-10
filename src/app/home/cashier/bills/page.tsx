@@ -536,7 +536,7 @@ const CashierBillsPage = () => {
                         </button>
                       ) : (
                         <button className="btn btn-warning mb-2" disabled>
-                          Bill is pending - Not closable
+                          Bill is not fully paid - Not closable
                         </button>
                       )
                     ) : (
