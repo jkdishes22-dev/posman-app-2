@@ -22,11 +22,13 @@ function StationUsersPage() {
   }, []);
 
   useEffect(() => {
-    setFilteredUsers(
-      users.filter((user: User) =>
-        user.firstName.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
-    );
+    if (Array.isArray(users)) {
+      setFilteredUsers(
+        users.filter((user: User) =>
+          user.firstName.toLowerCase().includes(searchTerm.toLowerCase()),
+        ),
+      );
+    }
   }, [searchTerm, users]);
 
   const fetchUsers = async () => {
@@ -40,15 +42,23 @@ function StationUsersPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setUsers(data);
-        setFilteredUsers(data);
+        // Ensure data is an array
+        const usersArray = Array.isArray(data) ? data : [];
+        setUsers(usersArray);
+        setFilteredUsers(usersArray);
       } else if (response.status === 403) {
         setAuthError(data);
+        // Set empty arrays on auth error
+        setUsers([]);
+        setFilteredUsers([]);
       } else {
         throw new Error("Failed to fetch users");
       }
     } catch (error: any) {
       console.error("Error fetching users:", error);
+      // Set empty arrays on error
+      setUsers([]);
+      setFilteredUsers([]);
     }
   };
 
@@ -98,10 +108,12 @@ function StationUsersPage() {
   };
 
   const handleUserSelect = (userId: number) => {
-    const userData = users.find((user: User) => user.id === userId);
-    if (userData) {
-      setSelectedUser(userData);
-      fetchUserStations(userId);
+    if (Array.isArray(users)) {
+      const userData = users.find((user: User) => user.id === userId);
+      if (userData) {
+        setSelectedUser(userData);
+        fetchUserStations(userId);
+      }
     }
   };
 

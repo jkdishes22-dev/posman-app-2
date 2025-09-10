@@ -431,7 +431,7 @@ function UsersPage() {
                     onClick={() => setShowDeleteModal(true)}
                     disabled={selectedUser.status === "DELETED"}
                   >
-                    Delete
+                    Deactivate
                   </button>
                   <button
                     className="btn btn-outline-info btn-sm"
@@ -538,10 +538,10 @@ function UsersPage() {
           <div className="modal-dialog modal-dialog-centered" role="document">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Confirm Delete</h5>
+                <h5 className="modal-title">Confirm Deactivate</h5>
               </div>
               <div className="modal-body">
-                <p>Are you sure you want to delete user <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>?</p>
+                <p>Are you sure you want to deactivate user <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong>?</p>
                 {deleteError && <div className="alert alert-danger py-1 my-2">{deleteError}</div>}
               </div>
               <div className="modal-footer">
@@ -549,7 +549,7 @@ function UsersPage() {
                   Cancel
                 </button>
                 <button type="button" className="btn btn-danger" onClick={handleDeleteUser}>
-                  Delete
+                  Deactivate
                 </button>
               </div>
             </div>

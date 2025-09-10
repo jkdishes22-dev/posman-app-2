@@ -18,6 +18,17 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "JK PosMan",
   description: "Sales retail app",
+  manifest: "/manifest.json",
+  themeColor: "#000000",
+  icons: {
+    icon: [
+      { url: "/icons/JKlogo-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/JKlogo-512.png", sizes: "512x512", type: "image/png" }
+    ],
+    apple: [
+      { url: "/icons/JKlogo-192.png", sizes: "192x192", type: "image/png" }
+    ]
+  }
 };
 
 export default function RootLayout({
