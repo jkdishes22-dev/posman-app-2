@@ -20,7 +20,13 @@ export const fetchBills = async (req: NextApiRequest, res: NextApiResponse) => {
 
   let targetDate: Date | undefined = undefined;
   if (date) {
-    targetDate = new Date(date as string);
+    // Parse YYYY-MM-DD format as UTC date to avoid timezone issues
+    const dateStr = date as string;
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      targetDate = new Date(dateStr + "T00:00:00.000Z"); // Force UTC
+    } else {
+      targetDate = new Date(dateStr);
+    }
     if (isNaN(targetDate.getTime())) {
       return res.status(400).json({ error: "Invalid date format" });
     }
@@ -31,7 +37,8 @@ export const fetchBills = async (req: NextApiRequest, res: NextApiResponse) => {
     status,
     billId,
     billingUserId,
-  }
+  };
+
   try {
     const { bills, total } = await billService.fetchBills(currentUserId, billFilter, Number(page), Number(pageSize));
     res.status(200).json({ bills, total });

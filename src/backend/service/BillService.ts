@@ -4,6 +4,8 @@ import { AppDataSource } from "@backend/config/data-source";
 import { UserService } from "./UserService";
 import { BillPaymentInterface } from "@backend/interfaces/BillPayment";
 import { startOfDay, endOfDay } from "date-fns";
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
+import { getAppTimezone } from "@backend/config/timezone";
 import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment, PaymentType } from "@backend/entities/Payment";
 import { Service } from "typedi";
@@ -64,8 +66,8 @@ export class BillService {
     const { targetDate, status, billId, billingUserId } = billFilter;
     let startOfDayDate, endOfDayDate;
     if (targetDate) {
-      startOfDayDate = startOfDay(new Date(targetDate));
-      endOfDayDate = endOfDay(new Date(targetDate));
+      startOfDayDate = targetDate;
+      endOfDayDate = new Date(targetDate.getTime() + (24 * 60 * 60 * 1000) - 1); // Full 24-hour day in UTC
     }
 
     const currentUser = await this.userService.getUserById(userId);
@@ -114,6 +116,7 @@ export class BillService {
       query.skip((page - 1) * pageSize).take(pageSize);
 
       const bills = await query.getMany();
+
       return { bills, total };
     } catch (error) {
       console.error("Error fetching bills:", error);

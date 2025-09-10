@@ -9,6 +9,7 @@ import jwt from "jsonwebtoken";
 import { DecodedToken } from "../components/SecureRoute";
 import { Button, Modal } from "react-bootstrap";
 import ReceiptPrint, { CaptainOrderPrint, CustomerCopyPrint } from './ReceiptPrint';
+import { printReceiptWithTimestamp, downloadReceiptAsFile } from './printUtils';
 import ReactDOM from "react-dom/client";
 
 const BillingSection = () => {
@@ -180,59 +181,22 @@ const BillingSection = () => {
   };
 
   const printReceipt = async (Component: any, bill: any, title: string) => {
-    return new Promise<void>((resolve) => {
-      // Create a temporary div for the receipt
-      const tempDiv = document.createElement('div');
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '-9999px';
-      document.body.appendChild(tempDiv);
+    // Determine the type based on the component
+    let type: 'customer' | 'captain' | 'receipt' = 'receipt';
+    if (Component === CustomerCopyPrint) {
+      type = 'customer';
+    } else if (Component === CaptainOrderPrint) {
+      type = 'captain';
+    }
 
-      // Render the component
-      const root = ReactDOM.createRoot(tempDiv);
-      root.render(<Component bill={bill} />);
+    return printReceiptWithTimestamp(Component, bill, title, type);
+  };
 
-      // Wait for render, then print
-      setTimeout(() => {
-        const printContents = tempDiv.innerHTML;
-        const win = window.open('', '', 'width=350,height=600');
+  const handleDownload = async () => {
+    if (!createdBill) return;
 
-        // Check if pop-up was blocked
-        if (!win) {
-          alert('Pop-up blocked! Please allow pop-ups for this site and try again.');
-          // Clean up
-          root.unmount();
-          document.body.removeChild(tempDiv);
-          resolve();
-          return;
-        }
-
-        try {
-          win.document.write('<html><head><title>' + title + '</title>');
-          win.document.write('</head><body>');
-          win.document.write(printContents);
-          win.document.write('</body></html>');
-          win.document.close();
-          win.focus();
-
-          setTimeout(() => {
-            win.print();
-            win.close();
-
-            // Clean up
-            root.unmount();
-            document.body.removeChild(tempDiv);
-            resolve();
-          }, 500);
-        } catch (error) {
-          console.error('Print error:', error);
-          // Clean up
-          root.unmount();
-          document.body.removeChild(tempDiv);
-          resolve();
-        }
-      }, 100);
-    });
+    // Download Customer Copy
+    await downloadReceiptAsFile(CustomerCopyPrint, createdBill, 'customer');
   };
 
   const handleConfirmCancel = () => {
@@ -310,13 +274,22 @@ const BillingSection = () => {
             Create Bill
           </Button>
           {createdBill && (
-            <Button
-              className="m-2"
-              variant="secondary"
-              onClick={handlePrint}
-            >
-              Print Receipt
-            </Button>
+            <>
+              <Button
+                className="m-2"
+                variant="secondary"
+                onClick={handlePrint}
+              >
+                Print Receipt
+              </Button>
+              <Button
+                className="m-2"
+                variant="outline-primary"
+                onClick={handleDownload}
+              >
+                Download Receipt
+              </Button>
+            </>
           )}
           <div style={{ display: 'none' }}>
             {createdBill && <ReceiptPrint ref={receiptRef} bill={createdBill} />}

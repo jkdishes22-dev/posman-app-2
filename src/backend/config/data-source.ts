@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import * as process from "process";
+import { getAppTimezone } from "./timezone";
 
 import { User } from "@entities/User";
 import { Role } from "@entities/Role";
@@ -50,7 +51,7 @@ export const AppDataSource = new DataSource({
   ],
   synchronize: false,
   // logging: true,
-  timezone: "Africa/Nairobi",
+  timezone: getAppTimezone(),
   poolSize: 20,
   connectTimeout: 20000,
 });

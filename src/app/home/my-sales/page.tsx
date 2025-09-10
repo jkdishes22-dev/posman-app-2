@@ -8,9 +8,11 @@ import { formatISO } from "date-fns";
 import { Button, Form } from "react-bootstrap";
 import SubmitBillModal from "./submit-bill";
 import TimeZoneAwareDatePicker from "src/app/shared/TimezoneAwareDatePicker";
+import DatePicker from "react-datepicker";
 import { Bill } from "src/app/types/types";
 import Pagination from "src/app/components/Pagination";
 import { CaptainOrderPrint, CustomerCopyPrint } from "../../shared/ReceiptPrint";
+import { printReceiptWithTimestamp, downloadReceiptAsFile } from "../../shared/printUtils";
 import ReactDOM from "react-dom/client";
 
 // Receipt component for printing
@@ -93,7 +95,11 @@ const MySales = () => {
     let url = "/api/bills?";
     const params = [];
     if (date && !isNaN(new Date(date).getTime())) {
-      const formattedDate = formatISO(date, { representation: "date" });
+      // Format date as YYYY-MM-DD without timezone conversion
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
       params.push(`date=${formattedDate}`);
     }
     if (status && status !== "all") {
@@ -225,59 +231,22 @@ const MySales = () => {
   };
 
   const printReceipt = async (Component: any, bill: any, title: string) => {
-    return new Promise<void>((resolve) => {
-      // Create a temporary div for the receipt
-      const tempDiv = document.createElement('div');
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '-9999px';
-      document.body.appendChild(tempDiv);
+    // Determine the type based on the component
+    let type: 'customer' | 'captain' | 'receipt' = 'receipt';
+    if (Component === CustomerCopyPrint) {
+      type = 'customer';
+    } else if (Component === CaptainOrderPrint) {
+      type = 'captain';
+    }
 
-      // Render the component
-      const root = ReactDOM.createRoot(tempDiv);
-      root.render(<Component bill={bill} />);
+    return printReceiptWithTimestamp(Component, bill, title, type);
+  };
 
-      // Wait for render, then print
-      setTimeout(() => {
-        const printContents = tempDiv.innerHTML;
-        const win = window.open('', '', 'width=350,height=600');
+  const handleDownload = async () => {
+    if (!selectedBill) return;
 
-        // Check if pop-up was blocked
-        if (!win) {
-          alert('Pop-up blocked! Please allow pop-ups for this site and try again.');
-          // Clean up
-          root.unmount();
-          document.body.removeChild(tempDiv);
-          resolve();
-          return;
-        }
-
-        try {
-          win.document.write('<html><head><title>' + title + '</title>');
-          win.document.write('</head><body>');
-          win.document.write(printContents);
-          win.document.write('</body></html>');
-          win.document.close();
-          win.focus();
-
-          setTimeout(() => {
-            win.print();
-            win.close();
-
-            // Clean up
-            root.unmount();
-            document.body.removeChild(tempDiv);
-            resolve();
-          }, 500);
-        } catch (error) {
-          console.error('Print error:', error);
-          // Clean up
-          root.unmount();
-          document.body.removeChild(tempDiv);
-          resolve();
-        }
-      }, 100);
-    });
+    // Download Customer Copy
+    await downloadReceiptAsFile(CustomerCopyPrint, selectedBill, 'customer');
   };
 
   useEffect(() => {
@@ -305,9 +274,14 @@ const MySales = () => {
                     <div className="form-group">
                       <label htmlFor="filterDate" className="form-label">Billing Date</label>
                       <div>
-                        <TimeZoneAwareDatePicker
-                          onDateChange={handleDateChange}
-                          format="yyyy-MM-dd"
+                        <DatePicker
+                          selected={selectedDate}
+                          onChange={handleDateChange}
+                          dateFormat="yyyy-MM-dd"
+                          className="form-control"
+                          placeholderText="Select billing date"
+                          maxDate={new Date()}
+                          isClearable
                         />
                       </div>
                     </div>
@@ -486,9 +460,14 @@ const MySales = () => {
                           </span>
                         )}
                         {(selectedBill.status === "submitted" || selectedBill.status === "closed") && (
-                          <Button variant="secondary" size="sm" onClick={handlePrint}>
-                            Print Receipt
-                          </Button>
+                          <>
+                            <Button variant="secondary" size="sm" onClick={handlePrint} className="me-2">
+                              Print Receipt
+                            </Button>
+                            <Button variant="outline-primary" size="sm" onClick={handleDownload}>
+                              Download Receipt
+                            </Button>
+                          </>
                         )}
                       </div>
                       <div style={{ display: 'none' }}>
