@@ -40,4 +40,28 @@ export class StationService {
       `;
     return await AppDataSource.query(query, [stationId]);
   }
+
+  async fetchStationUsers(stationId: number) {
+    console.log("StationService: fetchStationUsers called with stationId:", stationId);
+    const query = `
+        SELECT 
+            u.id,
+            u.firstName,
+            u.lastName,
+            u.username,
+            us.status,
+            us.is_default
+        FROM 
+          station s
+        JOIN user_station us ON us.station_id = s.id
+        JOIN \`user\` u ON u.id = us.user_id
+        WHERE 
+          s.id = ?
+      `;
+    console.log("StationService: Executing query:", query);
+    console.log("StationService: With parameters:", [stationId]);
+    const result = await AppDataSource.query(query, [stationId]);
+    console.log("StationService: Query result:", result);
+    return result;
+  }
 }

@@ -162,6 +162,7 @@ export default function UsersPage() {
     return formattedPermissions;
   };
 
+
   const handleAddPermission = async () => {
     if (!selectedScope || !selectedRole || !selectedPermission) {
       console.log("Scope, Role, or Permission not selected!");
