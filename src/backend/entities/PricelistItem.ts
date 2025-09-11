@@ -1,7 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
 import { Pricelist } from "./Pricelist";
 import { Item } from "./Item";
-import { BaseEntity } from "@entities/BaseEntity";
+import { BaseEntity } from "./BaseEntity";
 
 export enum Currency {
   USD = "USD",

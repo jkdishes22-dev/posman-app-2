@@ -6,8 +6,8 @@ import {
   JoinColumn,
 } from "typeorm";
 import type { Relation } from "typeorm";
-import { Item } from "@entities/Item";
-import { Bill } from "@entities/Bill";
+import { Item } from "./Item";
+import { Bill } from "./Bill";
 
 export enum BillItemStatus {
   ACTIVE = "active",

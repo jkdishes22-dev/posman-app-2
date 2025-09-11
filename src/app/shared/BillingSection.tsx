@@ -7,12 +7,19 @@ import { Item } from "../types/types";
 import QuantityModal from "./QuantityModal";
 import jwt from "jsonwebtoken";
 import { DecodedToken } from "../components/SecureRoute";
-import { Button, Modal } from "react-bootstrap";
+import { Button, Modal, Alert, Row, Col } from "react-bootstrap";
 import ReceiptPrint, { CaptainOrderPrint, CustomerCopyPrint } from './ReceiptPrint';
 import { printReceiptWithTimestamp, downloadReceiptAsFile } from './printUtils';
 import ReactDOM from "react-dom/client";
+import { useStation } from "../contexts/StationContext";
+import StationSelector from "../components/StationSelector";
+import StationStatus from "../components/StationStatus";
 
 const BillingSection = () => {
+  // Station context
+  const { currentStation, isLoading: stationLoading, error: stationError, loadStationsIfNeeded } = useStation();
+
+  // Existing state
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [items, setItems] = useState([]);
@@ -35,7 +42,10 @@ const BillingSection = () => {
       setWaitress(decodedToken.user.firstname);
       setUserId(decodedToken.id.toString());
     }
-  }, []);
+
+    // Load stations if needed
+    loadStationsIfNeeded();
+  }, [loadStationsIfNeeded]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -59,11 +69,23 @@ const BillingSection = () => {
     fetchCategories();
   }, []);
 
+  // Refetch items when station changes
+  useEffect(() => {
+    if (currentStation && selectedCategory) {
+      fetchItems(selectedCategory.id);
+    }
+  }, [currentStation, selectedCategory]);
+
   const fetchItems = async (categoryId: string) => {
+    if (!currentStation) {
+      setItemError("No station selected. Please select a station first.");
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
       const response = await fetch(
-        `/api/menu/items?category=${categoryId}&billing=true`,
+        `/api/menu/items/station?stationId=${currentStation.id}&categoryId=${categoryId}&userId=${userId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -76,11 +98,11 @@ const BillingSection = () => {
         if (response.status === 403 && data.missingPermissions) {
           throw new Error(`Access denied: Missing ${data.missingPermissions.join(", ")} permission(s)`);
         }
-        throw new Error(data.message || "Failed to fetch items");
+        throw new Error(data.message || "Failed to fetch items for this station");
       }
-      setItems(data);
+      setItems(data.items || []);
     } catch (error: any) {
-      const errorMessage = error.message || "Failed to fetch items for the selected category";
+      const errorMessage = error.message || "Failed to fetch items for the selected category and station";
       setItemError(errorMessage);
     }
   };
@@ -129,6 +151,11 @@ const BillingSection = () => {
   const handleCloseCancelModal = () => setShowCancelModal(false);
 
   const handleConfirmSubmit = async () => {
+    if (!currentStation) {
+      alert("Please select a station before creating a bill");
+      return;
+    }
+
     const token = localStorage.getItem("token");
     const total = selectedItems.reduce((sum, item) => sum + item.subtotal, 0);
     const payload = {
@@ -138,6 +165,7 @@ const BillingSection = () => {
         subtotal: item.subtotal,
       })),
       user_id: userId,
+      station_id: currentStation.id,
       total,
     };
     try {
@@ -208,112 +236,268 @@ const BillingSection = () => {
     0,
   );
 
-  return (
-    <div className="container">
-      <div className="row">
-        <div className="col-6">
-          <ViewItems
-            selectedCategory={selectedCategory}
-            items={items}
-            itemError={itemError}
-            setItems={setItems}
-            isBillingSection={true}
-            isPricelistSection={false}
-            isCategoryItemsSection={false}
-            onItemPick={createdBill ? undefined : handlePickItem}
-          />
-        </div>
-        <div className="col">
-          <h5>Billing</h5>
-          <table className="table stripped">
-            <thead>
-              <tr>
-                <th>Item Name</th>
-                <th>Quantity</th>
-                <th>Subtotal</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(createdBill ? createdBill.bill_items : selectedItems).map((item) => (
-                <tr key={item.id}>
-                  <td>{item.item?.name || item.name}</td>
-                  <td>{item.quantity}</td>
-                  <td>${(item.subtotal || (item.price * item.quantity)).toFixed(2)}</td>
-                  <td>
-                    {!createdBill && (
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleRemoveItem(item.id)}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-3">
-            <div style={{ fontWeight: 600, fontSize: 18 }}>
-              Total Amount: $
-              {createdBill && !isNaN(Number(createdBill.total))
-                ? Number(createdBill.total).toFixed(2)
-                : totalAmount.toFixed(2)
-              }
+  // Show loading state if station is loading
+  if (stationLoading) {
+    return (
+      <div className="container">
+        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+          <div className="text-center">
+            <div className="spinner-border text-primary mb-3" role="status">
+              <span className="visually-hidden">Loading...</span>
             </div>
-            <div style={{ fontSize: 16 }}>
-              Served By: {waitress}
-            </div>
+            <p className="text-muted">Loading station information...</p>
           </div>
-          <Button
-            variant="success"
-            onClick={handleShowSubmitModal}
-            disabled={selectedItems.length === 0 || !!createdBill}
-          >
-            Create Bill
-          </Button>
-          {createdBill && (
-            <>
-              <Button
-                className="m-2"
-                variant="secondary"
-                onClick={handlePrint}
-              >
-                Print Receipt
-              </Button>
-              <Button
-                className="m-2"
-                variant="outline-primary"
-                onClick={handleDownload}
-              >
-                Download Receipt
-              </Button>
-            </>
-          )}
-          <div style={{ display: 'none' }}>
-            {createdBill && <ReceiptPrint ref={receiptRef} bill={createdBill} />}
-          </div>
-          <Button
-            className="m-2"
-            variant="secondary"
-            onClick={handleShowCancelModal}
-          >
-            Cancel
-          </Button>
         </div>
       </div>
-      <div className="row">
-        <div className="col mt-5">
-          <Categories
-            categories={categories}
-            onCategoryClick={(category) => {
-              setSelectedCategory(category);
-              fetchItems(category.id);
-            }}
-            fetchError={fetchCategoryError}
-          />
+    );
+  }
+
+  // Show error state if station has error
+  if (stationError) {
+    return (
+      <div className="container">
+        <Alert variant="danger">
+          <Alert.Heading>Station Error</Alert.Heading>
+          <p>{stationError}</p>
+          <Button variant="outline-danger" onClick={() => window.location.reload()}>
+            Retry
+          </Button>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Show warning if no station selected
+  if (!currentStation) {
+    return (
+      <div className="container">
+        <Alert variant="warning">
+          <Alert.Heading>No Station Selected</Alert.Heading>
+          <p>Please select a station to start billing.</p>
+          <StationSelector />
+        </Alert>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-fluid px-3 py-2">
+      {/* Minimal Header with Collapsible Station Selection */}
+      <div className="row mb-2">
+        <div className="col-12">
+          <div className="d-flex justify-content-between align-items-center">
+            <h4 className="mb-0 text-primary">
+              <i className="bi bi-cart-check me-2"></i>
+              Point of Sale
+            </h4>
+            <div className="d-flex align-items-center gap-2">
+              <StationStatus variant="minimal" />
+              <button
+                className="btn btn-primary btn-sm"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#stationSelector"
+                aria-expanded="false"
+                aria-controls="stationSelector"
+                title="Choose Station"
+              >
+                <i className="bi bi-gear me-1"></i>
+                Choose Station
+              </button>
+            </div>
+          </div>
+
+          {/* Collapsible Station Selector - Right Aligned */}
+          <div className="collapse mt-2" id="stationSelector">
+            <div className="d-flex justify-content-end">
+              <div className="card border-0 bg-light" style={{ width: '300px' }}>
+                <div className="card-body py-2">
+                  <StationSelector showLabel={false} size="sm" />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Main Content - Balanced Layout */}
+      <div className="row g-3">
+        {/* Available Items Section */}
+        <div className="col-lg-6">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-header bg-light border-0 py-2">
+              <h6 className="mb-0 text-dark">
+                <i className="bi bi-box-seam me-1"></i>
+                Available Items
+              </h6>
+            </div>
+            <div className="card-body p-0">
+              <ViewItems
+                selectedCategory={selectedCategory}
+                items={items}
+                itemError={itemError}
+                setItems={setItems}
+                isBillingSection={true}
+                isPricelistSection={false}
+                isCategoryItemsSection={false}
+                onItemPick={createdBill ? undefined : handlePickItem}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Billing Section - Balanced Layout */}
+        <div className="col-lg-6">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-header bg-success text-white border-0 py-2">
+              <h5 className="mb-0">
+                <i className="bi bi-receipt me-2"></i>
+                Current Bill
+              </h5>
+            </div>
+            <div className="card-body p-0">
+              <div className="table-responsive">
+                <table className="table table-hover mb-0 table-sm">
+                  <thead className="table-light">
+                    <tr>
+                      <th className="border-0 small">Item</th>
+                      <th className="border-0 text-center small">Qty</th>
+                      <th className="border-0 text-end small">Price</th>
+                      <th className="border-0 text-center small">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(createdBill ? createdBill.bill_items : selectedItems).length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="text-center text-muted py-3">
+                          <i className="bi bi-cart-x fs-3 d-block mb-1"></i>
+                          <small>No items in bill</small>
+                        </td>
+                      </tr>
+                    ) : (
+                      (createdBill ? createdBill.bill_items : selectedItems).map((item) => (
+                        <tr key={item.id}>
+                          <td className="fw-medium">{item.item?.name || item.name}</td>
+                          <td className="text-center">
+                            <span className="badge bg-secondary">{item.quantity}</span>
+                          </td>
+                          <td className="text-end fw-medium">
+                            ${(item.subtotal || (item.price * item.quantity)).toFixed(2)}
+                          </td>
+                          <td className="text-center">
+                            {!createdBill && (
+                              <button
+                                className="btn btn-outline-danger btn-sm"
+                                onClick={() => handleRemoveItem(item.id)}
+                                title="Remove item"
+                              >
+                                <i className="bi bi-trash"></i>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="card-footer bg-light border-0 py-2">
+              <div className="row align-items-center">
+                <div className="col-md-6">
+                  <div className="d-flex flex-column">
+                    <div className="h5 mb-1 text-success">
+                      Total: ${createdBill && !isNaN(Number(createdBill.total))
+                        ? Number(createdBill.total).toFixed(2)
+                        : totalAmount.toFixed(2)
+                      }
+                    </div>
+                    <small className="text-muted">
+                      <i className="bi bi-person me-1"></i>
+                      Served by: {waitress}
+                    </small>
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="d-grid gap-1 d-md-flex justify-content-md-end">
+                    {!createdBill ? (
+                      <>
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={handleShowSubmitModal}
+                          disabled={selectedItems.length === 0 || !currentStation}
+                          className="px-3"
+                        >
+                          <i className="bi bi-check-circle me-1"></i>
+                          Create Bill
+                        </Button>
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={handleShowCancelModal}
+                          disabled={selectedItems.length === 0}
+                        >
+                          <i className="bi bi-x-circle me-1"></i>
+                          Clear
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={handlePrint}
+                          className="me-1"
+                        >
+                          <i className="bi bi-printer me-1"></i>
+                          Print
+                        </Button>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={handleDownload}
+                        >
+                          <i className="bi bi-download me-1"></i>
+                          Download
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Categories Section - Compact */}
+      <div className="row mt-2">
+        <div className="col-12">
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-light border-0 py-1">
+              <h6 className="mb-0 text-dark">
+                <i className="bi bi-grid me-1"></i>
+                Item Categories
+              </h6>
+            </div>
+            <div className="card-body py-1">
+              <Categories
+                categories={categories}
+                onCategoryClick={(category) => {
+                  setSelectedCategory(category);
+                  fetchItems(category.id);
+                }}
+                fetchError={fetchCategoryError}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hidden Receipt Component */}
+      <div style={{ display: 'none' }}>
+        {createdBill && <ReceiptPrint ref={receiptRef} bill={createdBill} />}
       </div>
       {/* Quantity Modal */}
       {showQuantityModal && (

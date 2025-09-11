@@ -6,9 +6,10 @@ import {
   JoinColumn,
   ManyToOne,
 } from "typeorm";
-import { User } from "@entities/User";
-import { BillItem } from "@entities/BillItem";
+import { User } from "./User";
+import { BillItem } from "./BillItem";
 import { BillPayment } from "./BillPayment";
+import { Station } from "./Station";
 
 export enum BillStatus {
   PENDING = "pending",
@@ -54,6 +55,10 @@ export class Bill {
 
   @Column({ nullable: true })
   updated_by: number;
+
+  @ManyToOne(() => Station, { nullable: true })
+  @JoinColumn({ name: "station_id" })
+  station: Station;
 
   @OneToMany(() => BillItem, (billItem) => billItem.bill, { eager: true })
   bill_items: BillItem[];

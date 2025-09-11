@@ -78,4 +78,45 @@ export class PricelistService {
       throw new Error("Failed to fetch pricelist items: " + error);
     }
   }
+
+  // Get all pricelists for a specific station
+  async getPricelistsByStation(stationId: number): Promise<any[]> {
+    try {
+      const pricelists = await this.pricelistRepository.find({
+        where: { station: { id: stationId } },
+        relations: ["station"],
+        order: { is_default: "DESC", name: "ASC" }
+      });
+
+      return pricelists.map(pricelist => ({
+        id: pricelist.id,
+        name: pricelist.name,
+        is_default: pricelist.is_default,
+        status: pricelist.status,
+        station_id: pricelist.station?.id,
+        station_name: pricelist.station?.name
+      }));
+    } catch (error: any) {
+      throw new Error("Failed to fetch pricelists for station: " + error);
+    }
+  }
+
+  // Get all pricelists that are not linked to any station
+  async getAvailablePricelists(): Promise<any[]> {
+    try {
+      const pricelists = await this.pricelistRepository.find({
+        where: { station: null },
+        order: { name: "ASC" }
+      });
+
+      return pricelists.map(pricelist => ({
+        id: pricelist.id,
+        name: pricelist.name,
+        is_default: pricelist.is_default,
+        status: pricelist.status
+      }));
+    } catch (error: any) {
+      throw new Error("Failed to fetch available pricelists: " + error);
+    }
+  }
 }

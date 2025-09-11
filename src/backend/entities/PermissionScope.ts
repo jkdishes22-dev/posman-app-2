@@ -1,5 +1,5 @@
 import { Entity, Column, OneToMany } from "typeorm";
-import { Permission } from "@entities/Permission";
+import { Permission } from "./Permission";
 import { BaseEntity } from "./BaseEntity";
 
 @Entity("permission_scope")

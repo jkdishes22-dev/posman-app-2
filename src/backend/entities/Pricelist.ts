@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
-import { BaseEntity } from "@entities/BaseEntity";
+import { BaseEntity } from "./BaseEntity";
 import { Station } from "./Station";
 
 export enum PriceListStatus {
@@ -23,6 +23,9 @@ export class Pricelist extends BaseEntity {
   @ManyToOne(() => Station)
   @JoinColumn({ name: "station_id" })
   station: Station;
+
+  @Column({ type: "boolean", default: false })
+  is_default: boolean;
 
   // @OneToMany(() => PricelistItem, (pricelistItem) => pricelistItem.pricelist)
   // pricelistItems: PricelistItem[];

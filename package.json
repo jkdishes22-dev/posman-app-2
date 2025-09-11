@@ -8,7 +8,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "NODE_ENV=production next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/backend/config/data-source.ts",
+    "migration:run": "node src/backend/config/run-migrations.cjs",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/backend/config/data-source.ts",
+    "migration:show": "typeorm-ts-node-commonjs migration:show -d src/backend/config/data-source.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -26,6 +30,7 @@
     "next-pwa": "^5.6.0",
     "next-swagger-doc": "^0.4.1",
     "node-cache": "^5.1.2",
+    "node-fetch": "^3.3.2",
     "process": "^0.11.10",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.5",
@@ -56,6 +61,7 @@
     "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-react": "^7.37.1",
     "prettier": "^3.3.3",
+    "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
   }
 }

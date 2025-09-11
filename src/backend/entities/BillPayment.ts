@@ -1,8 +1,8 @@
 import { Entity, ManyToOne, Column, JoinColumn } from "typeorm";
 import type { Relation } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
-import { Bill } from "@entities/Bill";
-import { Payment } from "@entities/Payment";
+import { Bill } from "./Bill";
+import { Payment } from "./Payment";
 
 @Entity("bill_payment")
 export class BillPayment extends BaseEntity {

@@ -6,7 +6,7 @@ import {
   ManyToMany,
 } from "typeorm";
 import bcrypt from "bcryptjs";
-import { Role } from "@entities/Role";
+import { Role } from "./Role";
 import { Exclude } from "class-transformer";
 import { BaseEntity } from "./BaseEntity";
 

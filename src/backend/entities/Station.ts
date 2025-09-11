@@ -1,5 +1,5 @@
 import { Column, Entity } from "typeorm";
-import { BaseEntity } from "@entities/BaseEntity";
+import { BaseEntity } from "./BaseEntity";
 
 export enum StationStatus {
   ENABLED = "enabled",

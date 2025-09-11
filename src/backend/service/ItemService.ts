@@ -94,6 +94,63 @@ export class ItemService {
     }));
   }
 
+  /**
+   * Fetch items for a specific station using the station's default pricelist
+   */
+  public async fetchItemsForStation(
+    stationId: number,
+    categoryId?: number,
+    userId?: number
+  ): Promise<any[]> {
+    const query = this.itemRepository
+      .createQueryBuilder("item")
+      .leftJoinAndSelect("item.category", "category")
+      .leftJoin("pricelist_item", "pi", "pi.item_id = item.id")
+      .leftJoin("pi.pricelist", "pricelist")
+      .leftJoin("station", "s", "s.id = pricelist.station_id")
+      .addSelect([
+        "pi.price AS price",
+        "pi.is_enabled AS pricelist_item_isEnabled",
+        "pi.id AS pricelistId",
+        "pricelist.name AS pricelistName",
+        "pricelist.is_default AS pricelist_is_default",
+        "s.name as stationName",
+        "s.id as stationId",
+      ])
+      .where("s.id = :stationId", { stationId })
+      .andWhere("pi.is_enabled = :enabled", { enabled: 1 })
+      .andWhere("pricelist.is_default = :isDefault", { isDefault: 1 });
+
+    if (categoryId) {
+      query.andWhere("category.id = :categoryId", { categoryId });
+    }
+
+    // If userId is provided, validate user has access to this station
+    if (userId) {
+      query
+        .leftJoin("user_station", "us", "us.station_id = s.id AND us.user_id = :userId", { userId })
+        .andWhere("us.status = :userStatus", { userStatus: "enabled" });
+    }
+
+    const items = await query.getRawMany();
+
+    return items.map((item) => ({
+      id: item.item_id,
+      name: item.item_name,
+      code: item.item_code,
+      isGroup: item.item_isGroup,
+      category: {
+        id: item.category_id,
+        name: item.category_name,
+      },
+      price: item.price,
+      pricelistId: item.pricelistId,
+      pricelistName: item.pricelistName,
+      stationId: item.stationId,
+      stationName: item.stationName,
+    }));
+  }
+
   async findItemById(id: number): Promise<Item> {
     const item = await this.itemRepository.findOne({ where: { id } });
     if (!item) {

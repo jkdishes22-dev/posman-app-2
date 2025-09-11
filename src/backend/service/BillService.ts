@@ -37,12 +37,13 @@ export class BillService {
   }
 
   async createBill(payload) {
-    const { items, total, user_id } = payload;
+    const { items, total, user_id, station_id } = payload;
 
     return await this.billRepository.manager.transaction(
       async (transactionalEntityManager) => {
         const newBill = await transactionalEntityManager.save(Bill, {
           user: { id: user_id },
+          station: station_id ? { id: station_id } : undefined,
           total,
           status: BillStatus.PENDING,
           created_by: user_id,

@@ -1,6 +1,6 @@
 import { Entity, Column, ManyToMany, ManyToOne, JoinColumn } from "typeorm";
-import { Role } from "@entities/Role";
-import { PermissionScope } from "@entities/PermissionScope";
+import { Role } from "./Role";
+import { PermissionScope } from "./PermissionScope";
 import { BaseEntity } from "./BaseEntity";
 
 @Entity("permissions")

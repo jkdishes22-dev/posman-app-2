@@ -1,6 +1,6 @@
 import { Entity, ManyToOne, JoinColumn } from "typeorm";
-import { User } from "@entities/User";
-import { Role } from "@entities/Role";
+import { User } from "./User";
+import { Role } from "./Role";
 import { BaseEntity } from "./BaseEntity";
 
 @Entity("user_roles")

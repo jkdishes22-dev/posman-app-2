@@ -1,6 +1,6 @@
 import { Entity, ManyToOne, JoinColumn, Column } from "typeorm";
 import { Item } from "./Item";
-import { BaseEntity } from "@entities/BaseEntity";
+import { BaseEntity } from "./BaseEntity";
 
 @Entity("item_group")
 export class ItemGroup extends BaseEntity {

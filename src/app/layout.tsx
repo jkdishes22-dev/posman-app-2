@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import "bootstrap/dist/css/bootstrap.css";
 import BootstrapClient from "./components/BootstrapClient";
+import { StationProvider } from "./contexts/StationContext";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -39,7 +40,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
+        <StationProvider>
+          {children}
+        </StationProvider>
         <BootstrapClient />
       </body>
     </html>

@@ -49,6 +49,7 @@ export const AppDataSource = new DataSource({
     Station,
     UserStation,
   ],
+  // migrations: ["src/backend/config/migrations/*.cjs"],
   synchronize: false,
   // logging: true,
   // timezone: getAppTimezone(),

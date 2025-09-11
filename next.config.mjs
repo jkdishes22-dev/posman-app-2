@@ -10,6 +10,7 @@ const nextConfig = {
     webpack: (config, { dev, isServer }) => {
         config.resolve.alias["@entities"] = path.resolve(__dirname, "src/backend/entities");
         config.resolve.alias["@services"] = path.resolve(__dirname, "src/backend/service");
+        config.resolve.alias["@backend"] = path.resolve(__dirname, "src/backend");
         return config;
     }
 };

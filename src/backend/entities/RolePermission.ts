@@ -1,6 +1,6 @@
 import { Entity, ManyToOne } from "typeorm";
-import { Role } from "@entities/Role";
-import { Permission } from "@entities/Permission";
+import { Role } from "./Role";
+import { Permission } from "./Permission";
 import { BaseEntity } from "./BaseEntity";
 
 @Entity("role_permissions")

@@ -7,7 +7,7 @@ import {
   ManyToMany,
   JoinTable,
 } from "typeorm";
-import { Category } from "@entities/Category";
+import { Category } from "./Category";
 
 export enum ItemStatus {
   ACTIVE = "ACTIVE",
