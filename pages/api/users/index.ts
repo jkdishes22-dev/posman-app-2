@@ -16,8 +16,15 @@ import * as process from "process";
 config();
 const isAuthEnabled = (process.env.AUTH_ENABLED as string) || "false";
 
+// Simple in-memory cache for users
+let usersCache: any = null;
+let usersCacheTimestamp: number = 0;
+const USERS_CACHE_DURATION = 30000; // 30 seconds
+
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
+    // Clear cache when adding new user
+    usersCache = null;
     if (isAuthEnabled === "true") {
       await authMiddleware(
         authorize([permissions.CAN_ADD_USER])(createUserHandler),
@@ -26,14 +33,37 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       await createUserHandler(req, res);
     }
   } else if (req.method === "GET") {
+    // Check cache first
+    const now = Date.now();
+    const cacheKey = `${req.query.page || 1}_${req.query.pageSize || 10}`;
+
+    if (usersCache && usersCache[cacheKey] && (now - usersCacheTimestamp) < USERS_CACHE_DURATION) {
+      return res.status(200).json(usersCache[cacheKey]);
+    }
+
+    // Cache miss or expired, fetch from database
+    const originalJson = res.json;
+    res.json = function (data: any) {
+      if (res.statusCode === 200) {
+        if (!usersCache) usersCache = {};
+        usersCache[cacheKey] = data;
+        usersCacheTimestamp = now;
+      }
+      return originalJson.call(this, data);
+    };
+
     await authMiddleware(
       authorize([permissions.CAN_VIEW_USER])(getUsersHandler),
     )(req, res);
   } else if (req.method === "DELETE") {
+    // Clear cache when deleting user
+    usersCache = null;
     await authMiddleware(
       authorize([permissions.CAN_DELETE_USER])(deleteUserHandler),
     )(req, res);
   } else if (req.method === "PATCH") {
+    // Clear cache when modifying users
+    usersCache = null;
     if (req.body.action === "reactivate") {
       await authMiddleware(
         authorize([permissions.CAN_EDIT_USER])(reactivateUserHandler),
@@ -56,4 +86,4 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-export default withMiddleware(dbMiddleware, authMiddleware)(handler);
+export default withMiddleware(dbMiddleware)(handler);

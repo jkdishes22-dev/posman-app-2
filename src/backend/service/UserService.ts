@@ -119,12 +119,38 @@ export class UserService {
       relations: ["roles"],
     });
     if (!user) throw new Error("User not found");
+
     // Get stations for the user
     const stations = await this.userStationRepository.find({
       where: { user: { id: userId } },
       relations: ["station"],
     });
-    // Return user, roles, and stations (with station details)
+
+    // Get default pricelists for each station
+    const stationIds = stations.map(us => us.station.id);
+    let defaultPricelists = [];
+
+    if (stationIds.length > 0) {
+      const pricelistRepository = this.userRepository.manager.getRepository("Pricelist");
+      defaultPricelists = await pricelistRepository
+        .createQueryBuilder("pricelist")
+        .leftJoinAndSelect("pricelist.station", "station")
+        .where("station.id IN (:...stationIds)", { stationIds })
+        .andWhere("pricelist.is_default = :isDefault", { isDefault: true })
+        .select(["pricelist.id", "pricelist.name", "station.id"])
+        .getMany();
+    }
+
+    // Create a map of station ID to default pricelist
+    const pricelistMap = new Map();
+    defaultPricelists.forEach(pricelist => {
+      pricelistMap.set(pricelist.station.id, {
+        id: pricelist.id,
+        name: pricelist.name
+      });
+    });
+
+    // Return user, roles, and stations (with station details and default pricelist)
     return {
       ...user,
       roles: user.roles,
@@ -133,6 +159,7 @@ export class UserService {
         name: us.station.name,
         isDefault: us.isDefault,
         status: us.status,
+        defaultPricelist: pricelistMap.get(us.station.id) || null
       })),
     };
   }
@@ -165,7 +192,7 @@ export class UserService {
         user: payload.user,
         station: payload.station,
       });
-    return this.userStationRepository.save(userStation);
+    return await this.userStationRepository.save(userStation);
   }
 
   async setDefaultStation(

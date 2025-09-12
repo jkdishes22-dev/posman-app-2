@@ -12,10 +12,15 @@ import ReceiptPrint, { CaptainOrderPrint, CustomerCopyPrint } from './ReceiptPri
 import { printReceiptWithTimestamp, downloadReceiptAsFile } from './printUtils';
 import ReactDOM from "react-dom/client";
 import { useStation } from "../contexts/StationContext";
+import { useAuth } from "../contexts/AuthContext";
+import ErrorDisplay from "../components/ErrorDisplay";
 import StationSelector from "../components/StationSelector";
 import StationStatus from "../components/StationStatus";
 
 const BillingSection = () => {
+  // Auth context
+  const { isAuthenticated, logout } = useAuth();
+
   // Station context
   const { currentStation, isLoading: stationLoading, error: stationError, loadStationsIfNeeded } = useStation();
 
@@ -36,6 +41,11 @@ const BillingSection = () => {
   const receiptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      logout();
+      return;
+    }
+
     const token = localStorage.getItem("token");
     const decodedToken = jwt.decode(token) as DecodedToken;
     if (decodedToken && decodedToken.user) {
@@ -45,7 +55,7 @@ const BillingSection = () => {
 
     // Load stations if needed
     loadStationsIfNeeded();
-  }, [loadStationsIfNeeded]);
+  }, [isAuthenticated]); // Remove loadStationsIfNeeded from dependencies to prevent infinite loop
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -332,6 +342,10 @@ const BillingSection = () => {
               </h6>
             </div>
             <div className="card-body p-0">
+              <ErrorDisplay
+                error={itemError}
+                onDismiss={() => setItemError("")}
+              />
               <ViewItems
                 selectedCategory={selectedCategory}
                 items={items}

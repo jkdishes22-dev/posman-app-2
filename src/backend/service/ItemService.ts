@@ -102,53 +102,93 @@ export class ItemService {
     categoryId?: number,
     userId?: number
   ): Promise<any[]> {
+    // First, get the default pricelist for this station
+    const pricelistQuery = this.pricelistItemRepository
+      .createQueryBuilder("pi")
+      .leftJoinAndSelect("pi.pricelist", "pricelist")
+      .leftJoinAndSelect("pricelist.station", "station")
+      .leftJoinAndSelect("pi.item", "item") // Always join with item and select it
+      .where("station.id = :stationId", { stationId })
+      .andWhere("pricelist.is_default = :isDefault", { isDefault: 1 })
+      .andWhere("pi.is_enabled = :enabled", { enabled: 1 });
+
+    if (categoryId) {
+      pricelistQuery.andWhere("item.item_category_id = :categoryId", { categoryId });
+    }
+
+    const pricelistItems = await pricelistQuery.getMany();
+
+    if (pricelistItems.length === 0) {
+      console.log(`No pricelist items found for station ${stationId}`);
+      return [];
+    }
+
+    console.log(`Found ${pricelistItems.length} pricelist items for station ${stationId}`);
+
+    // Extract item IDs from pricelist items
+    const itemIds = pricelistItems.map(pi => {
+      if (!pi.item) {
+        console.error('Pricelist item missing item data:', pi);
+        return null;
+      }
+      return pi.item.id;
+    }).filter(id => id !== null);
+
+    // Now fetch items with their details
     const query = this.itemRepository
       .createQueryBuilder("item")
       .leftJoinAndSelect("item.category", "category")
-      .leftJoin("pricelist_item", "pi", "pi.item_id = item.id")
-      .leftJoin("pi.pricelist", "pricelist")
-      .leftJoin("station", "s", "s.id = pricelist.station_id")
-      .addSelect([
-        "pi.price AS price",
-        "pi.is_enabled AS pricelist_item_isEnabled",
-        "pi.id AS pricelistId",
-        "pricelist.name AS pricelistName",
-        "pricelist.is_default AS pricelist_is_default",
-        "s.name as stationName",
-        "s.id as stationId",
-      ])
-      .where("s.id = :stationId", { stationId })
-      .andWhere("pi.is_enabled = :enabled", { enabled: 1 })
-      .andWhere("pricelist.is_default = :isDefault", { isDefault: 1 });
+      .where("item.id IN (:...itemIds)", { itemIds })
+      .orderBy("item.name", "ASC");
 
     if (categoryId) {
       query.andWhere("category.id = :categoryId", { categoryId });
     }
 
+    const items = await query.getMany();
+
     // If userId is provided, validate user has access to this station
     if (userId) {
-      query
-        .leftJoin("user_station", "us", "us.station_id = s.id AND us.user_id = :userId", { userId })
+      const userStationQuery = this.itemRepository.manager
+        .createQueryBuilder()
+        .select("us.user_id")
+        .from("user_station", "us")
+        .where("us.station_id = :stationId", { stationId })
+        .andWhere("us.user_id = :userId", { userId })
         .andWhere("us.status = :userStatus", { userStatus: "enabled" });
+
+      const userAccess = await userStationQuery.getRawOne();
+      if (!userAccess) {
+        return []; // User doesn't have access to this station
+      }
     }
 
-    const items = await query.getRawMany();
-
-    return items.map((item) => ({
-      id: item.item_id,
-      name: item.item_name,
-      code: item.item_code,
-      isGroup: item.item_isGroup,
-      category: {
-        id: item.category_id,
-        name: item.category_name,
-      },
-      price: item.price,
-      pricelistId: item.pricelistId,
-      pricelistName: item.pricelistName,
-      stationId: item.stationId,
-      stationName: item.stationName,
-    }));
+    // Map items with their pricelist data
+    return items.map(item => {
+      const pricelistItem = pricelistItems.find(pi => pi.item.id === item.id);
+      return {
+        id: item.id,
+        name: item.name,
+        code: item.code,
+        status: item.status,
+        default_unit_id: item.defaultUnitId,
+        is_group: item.isGroup,
+        is_stock: item.isStock,
+        item_category_id: item.category.id,
+        category: {
+          id: item.category.id,
+          name: item.category.name,
+          status: item.category.status
+        },
+        price: pricelistItem?.price || 0,
+        pricelist_item_isEnabled: pricelistItem?.is_enabled || false,
+        pricelistId: pricelistItem?.id || null,
+        pricelistName: pricelistItem?.pricelist?.name || null,
+        pricelist_is_default: pricelistItem?.pricelist?.is_default || false,
+        stationName: pricelistItem?.pricelist?.station?.name || null,
+        stationId: stationId
+      };
+    });
   }
 
   async findItemById(id: number): Promise<Item> {

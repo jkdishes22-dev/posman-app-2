@@ -3,16 +3,113 @@ import { fetchStationUsersHandler } from "@backend/controllers/StationController
 import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
+import { StationService } from "@backend/service/StationService";
 import { NextApiRequest, NextApiResponse } from "next";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-    if (req.method === "GET") {
-        await authMiddleware(
-            authorize([permissions.CAN_VIEW_STATION])(fetchStationUsersHandler),
-        )(req, res);
-    } else {
-        res.setHeader("Allow", ["GET"]);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
+    const { stationId } = req.query;
+
+    if (!stationId || isNaN(Number(stationId))) {
+        return res.status(400).json({ message: "Invalid station ID" });
+    }
+
+    const stationService = new StationService(req.db);
+
+    try {
+        switch (req.method) {
+            case "GET":
+                await authMiddleware(
+                    authorize([permissions.CAN_VIEW_STATION])(fetchStationUsersHandler),
+                )(req, res);
+                break;
+
+            case "POST":
+                // Add a user to a station
+                await authMiddleware(
+                    authorize([permissions.CAN_EDIT_USER_STATION])(async (req, res) => {
+                        const { userId } = req.body;
+
+                        if (!userId || isNaN(Number(userId))) {
+                            return res.status(400).json({ message: "Invalid user ID" });
+                        }
+
+                        await stationService.addUserToStation(
+                            Number(stationId),
+                            Number(userId)
+                        );
+
+                        res.status(200).json({
+                            message: "User added to station successfully"
+                        });
+                    })
+                )(req, res);
+                break;
+
+            case "DELETE":
+                // Remove a user from a station
+                await authMiddleware(
+                    authorize([permissions.CAN_EDIT_USER_STATION])(async (req, res) => {
+                        const { userId } = req.query;
+
+                        if (!userId || isNaN(Number(userId))) {
+                            return res.status(400).json({ message: "Invalid user ID" });
+                        }
+
+                        await stationService.removeUserFromStation(
+                            Number(stationId),
+                            Number(userId)
+                        );
+
+                        res.status(200).json({
+                            message: "User removed from station successfully"
+                        });
+                    })
+                )(req, res);
+                break;
+
+            case "PATCH":
+                // Enable/Disable a user for a station
+                await authMiddleware(
+                    authorize([permissions.CAN_EDIT_USER_STATION])(async (req, res) => {
+                        const { userId, action } = req.body;
+
+                        if (!userId || isNaN(Number(userId))) {
+                            return res.status(400).json({ message: "Invalid user ID" });
+                        }
+
+                        if (action === "disable") {
+                            await stationService.disableUserFromStation(
+                                Number(stationId),
+                                Number(userId)
+                            );
+                            res.status(200).json({
+                                message: "User disabled for station successfully"
+                            });
+                        } else if (action === "enable") {
+                            await stationService.enableUserForStation(
+                                Number(stationId),
+                                Number(userId)
+                            );
+                            res.status(200).json({
+                                message: "User enabled for station successfully"
+                            });
+                        } else {
+                            res.status(400).json({ message: "Invalid action. Use 'enable' or 'disable'" });
+                        }
+                    })
+                )(req, res);
+                break;
+
+            default:
+                res.setHeader("Allow", ["GET", "POST", "DELETE", "PATCH"]);
+                res.status(405).end(`Method ${req.method} Not Allowed`);
+        }
+    } catch (error: any) {
+        console.error("Station user management error:", error);
+        res.status(500).json({
+            message: "Internal server error",
+            error: error.message
+        });
     }
 };
 

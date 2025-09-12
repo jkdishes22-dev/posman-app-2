@@ -6,6 +6,7 @@ import PricelistAdd from "./pricelist-new";
 import ViewItems from "../category/components/items/items-view";
 import { Button } from "react-bootstrap";
 import { AuthError } from "src/app/types/types";
+import ErrorDisplay from "../../../components/ErrorDisplay";
 
 export default function PricelistPage() {
   const [showModal, setShowModal] = useState(false);
@@ -20,7 +21,9 @@ export default function PricelistPage() {
   const [pricelistItems, setPricelistItems] = useState([]);
   const [selectedPricelistId, setSelectedPricelistId] = useState<number | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
-  const [pricelistError, setFetchPricelistError] = useState();
+  const [pricelistError, setFetchPricelistError] = useState<string | null>(null);
+  const [addPricelistError, setAddPricelistError] = useState<string | null>(null);
+  const [addPricelistErrorDetails, setAddPricelistErrorDetails] = useState<any>(null);
 
   useEffect(() => {
     async function fetchPricelists() {
@@ -36,13 +39,16 @@ export default function PricelistPage() {
         const data = await response.json();
         if (response.ok) {
           setPricelists(data);
+          setFetchPricelistError(null);
         } else if (response.status === 403) {
           setAuthError(data);
+          setFetchPricelistError(null);
         } else {
-          setFetchPricelistError(data);
+          setFetchPricelistError(data.message || "Failed to fetch pricelists");
         }
       } catch (error: any) {
         console.error("Failed to fetch pricelists", error);
+        setFetchPricelistError("Failed to fetch pricelists: " + error.message);
       }
     }
 
@@ -86,6 +92,8 @@ export default function PricelistPage() {
 
   const handleAddPricelist = async ({ name, description, station }: PricelistParams) => {
     try {
+      setAddPricelistError(null);
+      setAddPricelistErrorDetails(null);
       const token = localStorage.getItem("token");
       const response = await fetch("/api/menu/pricelists", {
         method: "POST",
@@ -95,15 +103,30 @@ export default function PricelistPage() {
         },
         body: JSON.stringify({ name, description, station }),
       });
+
+      const data = await response.json();
+
       if (response.ok) {
-        const newPricelist = await response.json();
-        setPricelists([...pricelists, newPricelist]);
+        setPricelists([...pricelists, data]);
         handleCloseModal();
+        setAddPricelistError(null);
+        setAddPricelistErrorDetails(null);
+      } else if (response.status === 403) {
+        setAddPricelistError(data.message || "Access denied: You don't have permission to add pricelists");
+        setAddPricelistErrorDetails({
+          missingPermissions: data.missingPermissions,
+          isAdmin: data.isAdmin,
+          userRoles: data.userRoles,
+          requiredPermissions: data.requiredPermissions
+        });
       } else {
-        console.error("Failed to add pricelist");
+        setAddPricelistError(data.message || data.error || "Failed to add pricelist");
+        setAddPricelistErrorDetails(null);
       }
     } catch (error: any) {
       console.error("Failed to add pricelist", error);
+      setAddPricelistError("Failed to add pricelist: " + error.message);
+      setAddPricelistErrorDetails(null);
     }
   };
 
@@ -118,12 +141,15 @@ export default function PricelistPage() {
             showModal={showModal}
             handleCloseModal={handleCloseModal}
             handleAddPricelist={handleAddPricelist}
+            addPricelistError={addPricelistError}
+            setAddPricelistError={setAddPricelistError}
+            addPricelistErrorDetails={addPricelistErrorDetails}
+            setAddPricelistErrorDetails={setAddPricelistErrorDetails}
           />
-          {pricelistError && (
-            <div className="alert alert-danger" role="alert">
-              {pricelistError}
-            </div>
-          )}
+          <ErrorDisplay
+            error={pricelistError}
+            onDismiss={() => setFetchPricelistError(null)}
+          />
           <table className="table table-striped mt-3">
             <thead>
               <tr>

@@ -21,7 +21,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       case "GET":
         // Get all pricelists for a station
         await authMiddleware(
-          authorize([permissions.CAN_VIEW_PRICELISTS])(async (req, res) => {
+          authorize([permissions.CAN_VIEW_PRICELIST])(async (req, res) => {
             const pricelists = await pricelistService.getPricelistsByStation(Number(stationId));
             res.status(200).json({
               message: "Pricelists fetched successfully",
@@ -34,7 +34,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       case "POST":
         // Link a pricelist to a station
         await authMiddleware(
-          authorize([permissions.CAN_MANAGE_PRICELISTS])(async (req, res) => {
+          authorize([permissions.CAN_EDIT_STATION_PRICELIST])(async (req, res) => {
             const { pricelistId } = req.body;
 
             if (!pricelistId || isNaN(Number(pricelistId))) {
@@ -52,7 +52,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       case "DELETE":
         // Unlink a pricelist from a station
         await authMiddleware(
-          authorize([permissions.CAN_MANAGE_PRICELISTS])(async (req, res) => {
+          authorize([permissions.CAN_EDIT_STATION_PRICELIST])(async (req, res) => {
             const { pricelistId } = req.query;
 
             if (!pricelistId || isNaN(Number(pricelistId))) {

@@ -144,7 +144,7 @@ export class BillService {
     }
 
     bill.status = BillStatus.CANCELLED;
-    return this.billRepository.save(bill);
+    return await this.billRepository.save(bill);
   }
 
   // Void a specific item from a bill
@@ -158,7 +158,7 @@ export class BillService {
     }
 
     billItem.status = BillItemStatus.VOIDED;
-    return this.billItemRepository.save(billItem);
+    return await this.billItemRepository.save(billItem);
   }
 
   async fetchBillItems(billId: number) {

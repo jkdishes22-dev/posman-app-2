@@ -1,21 +1,34 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import ErrorDisplay from "../../../components/ErrorDisplay";
 
 export default function PricelistAdd({
   showModal,
   handleCloseModal,
   handleAddPricelist,
+  addPricelistError,
+  setAddPricelistError,
+  addPricelistErrorDetails,
+  setAddPricelistErrorDetails,
 }) {
   const [name, setName] = useState("");
   const [station, setStation] = useState("");
   const [description, setDescription] = useState("");
   const [stations, setStations] = useState([]);
-  const [addPricelistError, setAddPricelistError] = useState("");
+  const [isLoadingStations, setIsLoadingStations] = useState(false);
 
   useEffect(() => {
     async function fetchStations() {
+      setIsLoadingStations(true);
+      setAddPricelistError("");
+
       try {
         const token = localStorage.getItem("token");
+        if (!token) {
+          setAddPricelistError("No authentication token found. Please log in again.");
+          return;
+        }
+
         const response = await fetch("/api/station?status=enabled", {
           method: "GET",
           headers: {
@@ -23,10 +36,23 @@ export default function PricelistAdd({
             Authorization: `Bearer ${token}`,
           },
         });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            setAddPricelistError("Authentication expired. Please log in again.");
+            return;
+          }
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const data = await response.json();
         setStations(data);
+        setAddPricelistError(""); // Clear any previous errors
       } catch (error: any) {
+        console.error("Failed to fetch stations:", error);
         setAddPricelistError("Failed to fetch stations: " + error.message);
+      } finally {
+        setIsLoadingStations(false);
       }
     }
     if (showModal) {
@@ -42,11 +68,13 @@ export default function PricelistAdd({
     }
 
     try {
-      handleAddPricelist({ name, description, station });
-      setName("");
-      setDescription("");
-      setStation("");
-      setAddPricelistError("");
+      await handleAddPricelist({ name, description, station });
+      // Only clear form if successful (handled in parent component)
+      if (!addPricelistError) {
+        setName("");
+        setDescription("");
+        setStation("");
+      }
     } catch (error: any) {
       setAddPricelistError("Failed to add pricelist: " + error.message);
     }
@@ -65,9 +93,14 @@ export default function PricelistAdd({
             </button>
           </div>
           <div className="modal-body">
-            {addPricelistError && (
-              <p style={{ color: "red" }}>{addPricelistError}</p>
-            )}
+            <ErrorDisplay
+              error={addPricelistError}
+              onDismiss={() => {
+                setAddPricelistError(null);
+                setAddPricelistErrorDetails(null);
+              }}
+              errorDetails={addPricelistErrorDetails}
+            />
             <form className="px-4 py-3" onSubmit={handleSubmit}>
               <div className="form-group">
                 <label htmlFor="name" className="form-label">
@@ -92,14 +125,25 @@ export default function PricelistAdd({
                   value={station}
                   onChange={(e) => setStation(e.target.value)}
                   required
+                  disabled={isLoadingStations}
                 >
-                  <option value="">Select station</option>
+                  <option value="">
+                    {isLoadingStations ? "Loading stations..." : "Select station"}
+                  </option>
                   {stations.map((station) => (
                     <option key={station.id} value={station.id}>
                       {station.name}
                     </option>
                   ))}
                 </select>
+                {isLoadingStations && (
+                  <div className="mt-2">
+                    <div className="spinner-border spinner-border-sm text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <small className="text-muted ms-2">Loading stations...</small>
+                  </div>
+                )}
               </div>
               <div className="form-group">
                 <label htmlFor="description" className="form-label">

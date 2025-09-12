@@ -8,6 +8,7 @@ import {
   ModalHeader,
   ModalTitle,
 } from "react-bootstrap";
+import ErrorDisplay from "../../../../../components/ErrorDisplay";
 
 interface NewItemModalProps {
   selectedCategory: Category | null;
@@ -28,7 +29,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   const [pricelistId, setPricelistId] = useState<string>("");
   const [isGroup, setIsGroup] = useState(false);
   const [pricelists, setPricelists] = useState([]);
-  const [addItemError, setAddItemError] = useState("");
+  const [addItemError, setAddItemError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
   const [priceListError, setFetchPricelistError] = useState(null);
 
@@ -99,7 +100,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         setItemPrice("");
         setPricelistId("");
         setIsGroup(false);
-        setAddItemError("");
+        setAddItemError(null);
       } else {
         setAddItemError("Failed to create item");
       }
@@ -129,7 +130,10 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         <ModalTitle>Add Item</ModalTitle>
       </ModalHeader>
       <ModalBody>
-        {addItemError && <p style={{ color: "red" }}>{addItemError}</p>}
+        <ErrorDisplay
+          error={addItemError}
+          onDismiss={() => setAddItemError(null)}
+        />
         <form onSubmit={handleItemSubmit} className="row g-3">
           <div className="form-group">
             <label>Item Name</label>

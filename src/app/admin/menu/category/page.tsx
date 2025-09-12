@@ -7,11 +7,12 @@ import Categories from "./components/category/categories";
 import Image from "next/image";
 import CategoryDeleteModal from "./components/category/category-delete";
 import { AuthError } from "src/app/types/types";
+import ErrorDisplay from "../../../components/ErrorDisplay";
 
 const CategoryPage: React.FC = () => {
   const [name, setName] = useState("");
-  const [formError, setFormError] = useState("");
-  const [fetchError, setFetchError] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedCategory, setSelectedCategory] = useState<{
     id: string;
@@ -65,11 +66,11 @@ const CategoryPage: React.FC = () => {
       });
       const data = await response.json();
       if (response.ok) {
-        setItems(data);
+        setItems(Array.isArray(data) ? data : []);
       } else if (response.status === 403) {
         setAuthError(data);
       } else {
-        setItemError("Failed to fetch items" + JSON.stringify(data));
+        setItemError("Failed to fetch items: " + (data.message || JSON.stringify(data)));
       }
     } catch (error: any) {
       setItemError("Failed to fetch items: " + error.message);
@@ -182,6 +183,14 @@ const CategoryPage: React.FC = () => {
           </div>
         </div>
         <div className="row px-1">
+          <ErrorDisplay
+            error={formError}
+            onDismiss={() => setFormError(null)}
+          />
+          <ErrorDisplay
+            error={fetchError}
+            onDismiss={() => setFetchError(null)}
+          />
           <CategoryItems
             selectedCategory={selectedCategory}
             items={items}

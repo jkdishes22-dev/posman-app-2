@@ -130,6 +130,7 @@ const permissions = {
   CAN_ADD_PRICELIST: "can_add_pricelist",
   CAN_EDIT_PRICELIST: "can_edit_pricelist",
   CAN_DELETE_PRICELIST: "can_delete_pricelist",
+  CAN_MANAGE_PRICELIST: "can_manage_pricelist",
 };
 
 export default permissions;

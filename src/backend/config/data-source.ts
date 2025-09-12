@@ -22,6 +22,7 @@ import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment } from "@backend/entities/Payment";
 
 let connectionInstance: DataSource | null = null;
+let isInitializing = false;
 
 export const AppDataSource = new DataSource({
   type: "mysql",
@@ -53,13 +54,64 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   // logging: true,
   // timezone: getAppTimezone(),
-  poolSize: 20,
-  connectTimeout: 20000,
+  poolSize: 5,
+  connectTimeout: 10000,
+  acquireTimeout: 10000,
+  extra: {
+    connectionLimit: 5,
+    acquireTimeout: 10000,
+    timeout: 10000,
+  },
 });
 
-export const getConnection = async () => {
-  if (!connectionInstance) {
-    connectionInstance = await AppDataSource.initialize();
+export const getConnection = async (): Promise<DataSource> => {
+  if (connectionInstance && connectionInstance.isInitialized) {
+    return connectionInstance;
   }
-  return connectionInstance;
+
+  if (isInitializing) {
+    // Wait for initialization to complete
+    while (isInitializing) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    return connectionInstance!;
+  }
+
+  isInitializing = true;
+  try {
+    if (!connectionInstance) {
+      console.log("Initializing database connection...");
+      connectionInstance = await AppDataSource.initialize();
+      console.log("Database connection initialized successfully");
+    }
+    return connectionInstance;
+  } catch (error) {
+    console.error("Failed to initialize database connection:", error);
+    // Reset connection instance on error
+    connectionInstance = null;
+    throw error;
+  } finally {
+    isInitializing = false;
+  }
 };
+
+export const closeConnection = async (): Promise<void> => {
+  if (connectionInstance && connectionInstance.isInitialized) {
+    await connectionInstance.destroy();
+    connectionInstance = null;
+    console.log("Database connection closed");
+  }
+};
+
+// Graceful shutdown handler
+process.on('SIGINT', async () => {
+  console.log('Received SIGINT, closing database connection...');
+  await closeConnection();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('Received SIGTERM, closing database connection...');
+  await closeConnection();
+  process.exit(0);
+});

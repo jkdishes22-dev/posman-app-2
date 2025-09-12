@@ -57,7 +57,7 @@ export const authMiddleware = (handler) => {
       }
       return handler(req, res);
     } catch (error: any) {
-      return res.status(401).json({ message: "Invalid token" , object : error});
+      return res.status(401).json({ message: "Invalid token", object: error });
     }
   };
 };
@@ -71,9 +71,16 @@ export const authorize = (requiredPermissions: any[]) => {
       );
 
       if (missingPermissions.length > 0) {
+        // Check if user has admin role
+        const userRoles = req.user.roles.map((role) => role.name);
+        const isAdmin = userRoles.includes('admin');
+
         return res.status(403).json({
           message: "Forbidden (Missing permissions)",
           missingPermissions,
+          isAdmin,
+          userRoles,
+          requiredPermissions,
         });
       }
       return handler(req, res);

@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { ProductionService } from "@backend/service/ProductionService";
+import { DataSource } from "typeorm";
 
 export const createProductionItemHandler = async (
   req: NextApiRequest,
@@ -32,3 +33,16 @@ export const fetchProdutionItemsHandler = async (
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export class ProductionController {
+  private db: DataSource;
+
+  constructor(db: DataSource) {
+    this.db = db;
+  }
+
+  async fetchProductionItems() {
+    const productionService = new ProductionService(this.db);
+    return await productionService.fetchProductionItems();
+  }
+}

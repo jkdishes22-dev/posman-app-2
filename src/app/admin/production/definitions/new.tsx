@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 
-function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem }) {
+function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem, addSubItemError, setAddSubItemError }) {
   const [items, setItems] = useState([]);
   const [subItemId, setSubItemId] = useState("");
   const [deductiblePortion, setDeductiblePortion] = useState("");
@@ -11,9 +11,11 @@ function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem }) {
       try {
         const response = await fetch("/api/items");
         const data = await response.json();
-        setItems(data);
+        // Ensure data is an array before setting it
+        setItems(Array.isArray(data) ? data : []);
       } catch (error: any) {
         console.error("Error fetching items:", error);
+        setItems([]); // Set empty array on error
       }
     };
 
@@ -22,6 +24,10 @@ function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!subItemId || !deductiblePortion) {
+      setAddSubItemError("Please fill in all fields");
+      return;
+    }
     await addSubItemToItem(subItemId, deductiblePortion);
   };
 
@@ -31,6 +37,11 @@ function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem }) {
         <Modal.Title>Add Related Item</Modal.Title>
       </Modal.Header>
       <Modal.Body>
+        {addSubItemError && (
+          <div className="alert alert-danger" role="alert">
+            {addSubItemError}
+          </div>
+        )}
         <Form onSubmit={handleSubmit}>
           <Form.Group controlId="formSubItemId">
             <Form.Label>Sub-Item Name</Form.Label>

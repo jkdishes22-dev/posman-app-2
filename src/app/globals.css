@@ -1,0 +1,289 @@
+/* Material Design Theme - Clean & Consistent */
+
+/* Material Design Color Palette */
+:root {
+    --md-primary: #1976d2;
+    --md-primary-dark: #1565c0;
+    --md-primary-light: #42a5f5;
+    --md-secondary: #424242;
+    --md-accent: #ff4081;
+    --md-success: #4caf50;
+    --md-warning: #ff9800;
+    --md-danger: #f44336;
+    --md-info: #2196f3;
+    --md-light: #f5f5f5;
+    --md-dark: #212121;
+    --md-surface: #ffffff;
+    --md-background: #fafafa;
+    --md-text-primary: #212121;
+    --md-text-secondary: #757575;
+    --md-divider: #e0e0e0;
+}
+
+/* Material Design Shadows */
+.shadow-1 {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.shadow-2 {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.shadow-3 {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.14);
+}
+
+.shadow-4 {
+    box-shadow: 0 16px 24px rgba(0, 0, 0, 0.16);
+}
+
+/* Material Design Cards */
+.card {
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+}
+
+.card-header {
+    background-color: var(--md-surface);
+    border-bottom: 1px solid var(--md-divider);
+    border-radius: 8px 8px 0 0 !important;
+    font-weight: 500;
+}
+
+/* Material Design Buttons */
+.btn {
+    border-radius: 4px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background-color: var(--md-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--md-primary-dark);
+}
+
+.btn-secondary {
+    background-color: var(--md-secondary);
+    color: white;
+}
+
+.btn-success {
+    background-color: var(--md-success);
+    color: white;
+}
+
+.btn-danger {
+    background-color: var(--md-danger);
+    color: white;
+}
+
+.btn-warning {
+    background-color: var(--md-warning);
+    color: white;
+}
+
+.btn-info {
+    background-color: var(--md-info);
+    color: white;
+}
+
+.btn-light {
+    background-color: var(--md-light);
+    color: var(--md-text-primary);
+    border: 1px solid var(--md-divider);
+}
+
+.btn-dark {
+    background-color: var(--md-dark);
+    color: white;
+}
+
+/* Material Design Tables */
+.table {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.table thead th {
+    background-color: var(--md-primary);
+    color: white;
+    border: none;
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    letter-spacing: 0.5px;
+}
+
+.table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(25, 118, 210, 0.04);
+}
+
+.table tbody td {
+    border-color: var(--md-divider);
+    vertical-align: middle;
+}
+
+/* Material Design Alerts */
+.alert {
+    border: none;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.alert-danger {
+    background-color: #ffebee;
+    color: #c62828;
+    border-left: 4px solid var(--md-danger);
+}
+
+.alert-warning {
+    background-color: #fff3e0;
+    color: #ef6c00;
+    border-left: 4px solid var(--md-warning);
+}
+
+.alert-info {
+    background-color: #e3f2fd;
+    color: #1565c0;
+    border-left: 4px solid var(--md-info);
+}
+
+.alert-success {
+    background-color: #e8f5e8;
+    color: #2e7d32;
+    border-left: 4px solid var(--md-success);
+}
+
+/* Material Design Badges */
+.badge {
+    border-radius: 12px;
+    font-weight: 500;
+    padding: 0.375rem 0.75rem;
+}
+
+/* Material Design Forms */
+.form-control {
+    border: 1px solid var(--md-divider);
+    border-radius: 4px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: var(--md-primary);
+    box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
+}
+
+/* Material Design Navigation */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: var(--md-surface) !important;
+}
+
+/* Utility Classes */
+.rotate-180 {
+    transform: rotate(180deg);
+    transition: transform 0.2s ease;
+}
+
+.text-primary {
+    color: var(--md-primary) !important;
+}
+
+.text-secondary {
+    color: var(--md-text-secondary) !important;
+}
+
+.bg-primary {
+    background-color: var(--md-primary) !important;
+}
+
+.bg-light {
+    background-color: var(--md-light) !important;
+}
+
+.bg-dark {
+    background-color: var(--md-dark) !important;
+}
+
+/* Remove excessive gradients and shadows */
+.gradient-text {
+    background: none;
+    -webkit-background-clip: unset;
+    -webkit-text-fill-color: unset;
+    background-clip: unset;
+    color: var(--md-primary);
+    font-weight: 500;
+}
+
+/* Material Design Utility Classes */
+.min-vh-100 {
+    min-height: 100vh;
+}
+
+.bg-opacity-10 {
+    background-color: rgba(var(--bs-danger-rgb), 0.1) !important;
+}
+
+.bg-opacity-25 {
+    background-color: rgba(var(--bs-primary-rgb), 0.25) !important;
+}
+
+/* Enhanced Button Variants */
+.btn-outline-secondary {
+    color: var(--md-secondary);
+    border-color: var(--md-secondary);
+    background-color: transparent;
+}
+
+.btn-outline-secondary:hover {
+    color: white;
+    background-color: var(--md-secondary);
+    border-color: var(--md-secondary);
+}
+
+/* Enhanced Alert Styling */
+.alert-info {
+    background-color: #e3f2fd;
+    color: #1565c0;
+    border-left: 4px solid var(--md-info);
+}
+
+/* Icon Styling */
+.bi {
+    vertical-align: -0.125em;
+}
+
+/* Responsive Text Sizing */
+@media (max-width: 576px) {
+    .fs-5 {
+        font-size: 1rem !important;
+    }
+
+    h1 {
+        font-size: 2rem !important;
+    }
+}

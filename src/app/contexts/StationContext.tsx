@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Station } from '../types/types';
+import { useAuth } from './AuthContext';
 
 interface StationContextType {
     currentStation: Station | null;
@@ -21,23 +22,30 @@ interface StationProviderProps {
 }
 
 export const StationProvider: React.FC<StationProviderProps> = ({ children }) => {
+    const { isAuthenticated, logout, checkAuth } = useAuth();
     const [currentStation, setCurrentStation] = useState<Station | null>(null);
     const [availableStations, setAvailableStations] = useState<Station[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Fetch user's available stations
     const fetchUserStations = async (): Promise<Station[]> => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            throw new Error("No authentication token found");
+        if (!checkAuth()) {
+            throw new Error("Authentication expired");
         }
 
+        const token = localStorage.getItem("token");
         const response = await fetch("/api/users/me/stations", {
             headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!response.ok) {
+            if (response.status === 401) {
+                // Token is invalid, logout user
+                logout();
+                throw new Error("Authentication expired");
+            }
             throw new Error(`Failed to fetch stations: ${response.statusText}`);
         }
 
@@ -47,16 +55,21 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
 
     // Get user's default station
     const fetchDefaultStation = async (): Promise<Station | null> => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            throw new Error("No authentication token found");
+        if (!checkAuth()) {
+            throw new Error("Authentication expired");
         }
 
+        const token = localStorage.getItem("token");
         const response = await fetch("/api/users/me/default-station", {
             headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!response.ok) {
+            if (response.status === 401) {
+                // Token is invalid, logout user
+                logout();
+                throw new Error("Authentication expired");
+            }
             if (response.status === 404) {
                 return null; // No default station set
             }
@@ -69,17 +82,20 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
 
     // Validate user access to a station
     const validateStationAccess = async (stationId: number): Promise<boolean> => {
-        const token = localStorage.getItem("token");
-        if (!token) {
+        if (!checkAuth()) {
             return false;
         }
 
         try {
+            const token = localStorage.getItem("token");
             const response = await fetch(`/api/validation/user-station-access?stationId=${stationId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    logout();
+                }
                 return false;
             }
 
@@ -93,6 +109,12 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
 
     // Refresh stations and set default
     const refreshStations = async (): Promise<void> => {
+        // Prevent multiple simultaneous refresh calls
+        if (isRefreshing) {
+            return;
+        }
+
+        setIsRefreshing(true);
         setIsLoading(true);
         setError(null);
 
@@ -117,6 +139,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
             console.error("Error refreshing stations:", err);
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
     };
 
@@ -157,18 +180,17 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     // Load stations if needed (when user is authenticated and stations not loaded)
     const loadStationsIfNeeded = async (): Promise<void> => {
         const token = localStorage.getItem("token");
-        if (token && availableStations.length === 0 && !isLoading) {
+        if (token && availableStations.length === 0 && !isLoading && !isRefreshing) {
             await refreshStations();
         }
     };
 
     // Load stations on mount (only if user is authenticated)
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (token) {
+        if (isAuthenticated && !isRefreshing) {
             refreshStations();
         }
-    }, []);
+    }, [isAuthenticated]);
 
     const contextValue: StationContextType = {
         currentStation,

@@ -28,7 +28,7 @@ export class PricelistService {
       station: foundStation ? { id: foundStation.id } : null,
     }
     const pricelist: Pricelist = this.pricelistRepository.create(newPricelist);
-    return this.pricelistRepository.save(pricelist);
+    return await this.pricelistRepository.save(pricelist);
   }
 
   async fetchPricelists() {
@@ -101,11 +101,14 @@ export class PricelistService {
     }
   }
 
-  // Get all pricelists that are not linked to any station
+  // Get all pricelists that are not linked to any station and are active
   async getAvailablePricelists(): Promise<any[]> {
     try {
       const pricelists = await this.pricelistRepository.find({
-        where: { station: null },
+        where: {
+          station: null,
+          status: PriceListStatus.ACTIVE
+        },
         order: { name: "ASC" }
       });
 

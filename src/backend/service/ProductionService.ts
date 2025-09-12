@@ -22,7 +22,7 @@ export class ProductionService {
   }
 
   async fetchProductionItems() {
-    const items = this.itemRepository.find({
+    const items = await this.itemRepository.find({
       where: {
         isStock: true,
       },

@@ -5,6 +5,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { Modal, Button } from "react-bootstrap";
 import AdminLayout from "src/app/shared/AdminLayout";
 import AddSubItemModal from "./new";
+import ErrorDisplay from "src/app/components/ErrorDisplay";
 
 function InventoryItemsPage() {
   const [items, setItems] = useState([]);
@@ -16,6 +17,8 @@ function InventoryItemsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [itemToRemove, setItemToRemove] = useState(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [addSubItemError, setAddSubItemError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchItems();
@@ -39,10 +42,15 @@ function InventoryItemsPage() {
       });
       if (!response.ok) throw new Error("Failed to fetch items");
       const data = await response.json();
-      setItems(data);
-      setFilteredItems(data);
+      // Ensure data is an array before setting it
+      const itemsArray = Array.isArray(data) ? data : [];
+      setItems(itemsArray);
+      setFilteredItems(itemsArray);
     } catch (error: any) {
       console.error("Error fetching items:", error);
+      setFetchError("Error fetching items: " + error.message);
+      setItems([]);
+      setFilteredItems([]);
     }
   };
 
@@ -58,10 +66,12 @@ function InventoryItemsPage() {
 
   const addSubItemToItem = async (subItemId, portionSize) => {
     if (!selectedItem) {
+      setAddSubItemError("No item selected");
       return;
     }
     const token = localStorage.getItem("token");
     try {
+      setAddSubItemError(null);
       const response = await fetch(
         `/api/production/${selectedItem}/sub-items`,
         {
@@ -76,12 +86,19 @@ function InventoryItemsPage() {
           }),
         },
       );
-      if (!response.ok) throw new Error("Failed to add sub-item");
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setAddSubItemError(data.message || "Failed to add sub-item");
+        return;
+      }
 
       await fetchSubItemsFromBackend(selectedItem);
       closeModal();
     } catch (error: any) {
       console.error("Error adding sub-item to item:", error);
+      setAddSubItemError("Error adding sub-item: " + error.message);
     }
   };
 
@@ -160,6 +177,14 @@ function InventoryItemsPage() {
   return (
     <AdminLayout authError={null}>
       <div className="container my-5">
+        <ErrorDisplay 
+          error={fetchError} 
+          onDismiss={() => setFetchError(null)}
+        />
+        <ErrorDisplay 
+          error={addSubItemError} 
+          onDismiss={() => setAddSubItemError(null)}
+        />
         <div className="row">
           <div className="col-md-4">
             <h4>Stock Menu Items</h4>
@@ -242,9 +267,9 @@ function InventoryItemsPage() {
       <AddSubItemModal
         isModalOpen={isModalOpen}
         closeModal={closeModal}
-        // selectedItem={selectedItem}
-        // selectedItemName={selectedItemName}
         addSubItemToItem={addSubItemToItem}
+        addSubItemError={addSubItemError}
+        setAddSubItemError={setAddSubItemError}
       />
 
       <Modal show={showConfirmation} onHide={() => setShowConfirmation(false)}>

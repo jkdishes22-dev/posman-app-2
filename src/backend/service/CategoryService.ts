@@ -13,11 +13,11 @@ export class CategoryService {
       name,
       status: CategoryStatus.ACTIVE,
     });
-    return this.categoryRepository.save(category);
+    return await this.categoryRepository.save(category);
   }
 
   public async fetchCategories(): Promise<Category[]> {
-    return this.categoryRepository.find();
+    return await this.categoryRepository.find();
   }
 
   async deleteCategory(id: number): Promise<void> {

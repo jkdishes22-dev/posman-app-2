@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import React from "react";
 import Image from "next/image";
 import jwt from "jsonwebtoken";
 import { DecodedToken } from "./components/SecureRoute";
+import { useAuth } from "./contexts/AuthContext";
 
 const LoginForm = () => {
   const [username, setUsername] = useState("");
@@ -12,6 +13,32 @@ const LoginForm = () => {
   const [error, setError] = useState("");
   const [activeField, setActiveField] = useState("username");
   const router = useRouter();
+  const { login, isAuthenticated, isLoading } = useAuth();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const decodedToken = jwt.decode(token) as DecodedToken;
+          if (decodedToken && decodedToken.role) {
+            if (decodedToken.role === "admin") {
+              router.push("/admin");
+            } else if (decodedToken.role === "user") {
+              router.push("/home");
+            } else if (decodedToken.role === "cashier") {
+              router.push("/home/cashier");
+            } else {
+              router.push("/pages");
+            }
+          }
+        } catch (error) {
+          console.error("Error decoding token:", error);
+        }
+      }
+    }
+  }, [isAuthenticated, router]);
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
@@ -30,11 +57,11 @@ const LoginForm = () => {
       });
       if (response.status === 200) {
         const { token, role } = await response.json();
-        localStorage.setItem("token", token);
         const decodedToken = jwt.decode(token) as DecodedToken;
-        if (decodedToken && decodedToken.user) {
-          localStorage.setItem("user", decodedToken.user.toString());
-        }
+        const userData = decodedToken && decodedToken.user ? decodedToken.user : null;
+
+        // Use the auth context to handle login
+        login(token, userData);
 
         if (role === "admin") {
           router.push("/admin");
@@ -73,6 +100,21 @@ const LoginForm = () => {
       }
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="container p-5">
+        <div className="row px-5">
+          <div className="col d-flex flex-column justify-content-center align-items-center">
+            <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <p className="mt-3 text-muted">Checking authentication...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container p-5">

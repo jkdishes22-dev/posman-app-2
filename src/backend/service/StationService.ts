@@ -25,11 +25,24 @@ export class StationService {
   }
 
   async fetchStations(options: Record<string, any>) {
-    return await this.stationRepository.find({
-      where: {
-        status: options.status,
-      },
-    });
+    const queryBuilder = this.stationRepository.createQueryBuilder("station");
+
+    if (options.status) {
+      queryBuilder.where("station.status = :status", { status: options.status });
+    }
+
+    return await queryBuilder
+      .select(["station.id", "station.name", "station.status"])
+      .orderBy("station.name", "ASC")
+      .getMany();
+  }
+
+  async getEnabledStations() {
+    return await this.fetchStations({ status: StationStatus.ENABLED });
+  }
+
+  async getAllStations() {
+    return await this.fetchStations({});
   }
 
   async fetchStationPricelist(stationId: number) {
@@ -212,5 +225,132 @@ export class StationService {
     // Remove the station link
     pricelist.station = null;
     await this.pricelistRepository.save(pricelist);
+  }
+
+  // Set a pricelist as default for a station
+  async setDefaultPricelist(stationId: number, pricelistId: number): Promise<void> {
+    // First, unset any existing default pricelist for this station
+    await this.pricelistRepository.update(
+      { station: { id: stationId }, is_default: 1 },
+      { is_default: 0 }
+    );
+
+    // Set the new pricelist as default
+    const result = await this.pricelistRepository.update(
+      { id: pricelistId, station: { id: stationId } },
+      { is_default: 1 }
+    );
+
+    if (result.affected === 0) {
+      throw new Error("Pricelist not found or not linked to this station");
+    }
+  }
+
+  // Remove default pricelist for a station
+  async removeDefaultPricelist(stationId: number): Promise<void> {
+    await this.pricelistRepository.update(
+      { station: { id: stationId }, is_default: 1 },
+      { is_default: 0 }
+    );
+  }
+
+  // User management methods
+
+  /**
+   * Add a user to a station (gives them permission to bill at this station)
+   */
+  async addUserToStation(stationId: number, userId: number): Promise<void> {
+    // Check if user is already linked to this station
+    const existingLink = await this.userStationRepository.findOne({
+      where: {
+        station: { id: stationId },
+        user: { id: userId }
+      }
+    });
+
+    if (existingLink) {
+      throw new Error("User is already linked to this station");
+    }
+
+    // Create new user-station link
+    const userStation = this.userStationRepository.create({
+      station: { id: stationId },
+      user: { id: userId },
+      status: UserStationStatus.ENABLED,
+      isDefault: false // Always false since there's no concept of default user
+    });
+
+    await this.userStationRepository.save(userStation);
+  }
+
+  /**
+   * Remove a user from a station
+   */
+  async removeUserFromStation(stationId: number, userId: number): Promise<void> {
+    const result = await this.userStationRepository.delete({
+      station: { id: stationId },
+      user: { id: userId }
+    });
+
+    if (result.affected === 0) {
+      throw new Error("User is not linked to this station");
+    }
+  }
+
+  /**
+   * Disable a user from a station (keeps them linked but disabled)
+   */
+  async disableUserFromStation(stationId: number, userId: number): Promise<void> {
+    const result = await this.userStationRepository.update(
+      { station: { id: stationId }, user: { id: userId } },
+      { status: UserStationStatus.DISABLED }
+    );
+
+    if (result.affected === 0) {
+      throw new Error("User is not linked to this station");
+    }
+  }
+
+  /**
+   * Enable a user for a station
+   */
+  async enableUserForStation(stationId: number, userId: number): Promise<void> {
+    const result = await this.userStationRepository.update(
+      { station: { id: stationId }, user: { id: userId } },
+      { status: UserStationStatus.ENABLED }
+    );
+
+    if (result.affected === 0) {
+      throw new Error("User is not linked to this station");
+    }
+  }
+
+
+  /**
+   * Get available users (not yet linked to this station)
+   * Only returns users with 'waiter' or 'admin' roles who are not locked
+   */
+  async getAvailableUsers(stationId: number): Promise<any[]> {
+    const query = `
+      SELECT DISTINCT
+        u.id,
+        u.firstName,
+        u.lastName,
+        u.username,
+        r.name as role_name
+      FROM \`user\` u
+      JOIN user_roles ur ON ur.user_id = u.id
+      JOIN roles r ON r.id = ur.role_id
+      WHERE u.id NOT IN (
+        SELECT us.user_id 
+        FROM user_station us 
+        WHERE us.station_id = ?
+      )
+      AND r.name IN ('waiter', 'admin')
+      AND (u.is_locked IS NULL OR u.is_locked = 0)
+      ORDER BY u.firstName, u.lastName
+    `;
+
+    return await AppDataSource.query(query, [stationId]);
   }
 }

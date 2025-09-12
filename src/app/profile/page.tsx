@@ -80,16 +80,33 @@ const ProfilePage = () => {
 
     return (
         <RoleAwareLayout>
-            <div className="container mt-4">
+            <div className="container mt-4" style={{
+                background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                minHeight: '100vh',
+                padding: '2rem 0'
+            }}>
                 {loading ? (
-                    <div>Loading...</div>
+                    <div className="text-center py-5">
+                        <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+                            <span className="visually-hidden">Loading...</span>
+                        </div>
+                        <p className="mt-3 text-muted">Loading profile...</p>
+                    </div>
                 ) : error ? (
-                    <div className="alert alert-danger">{error}</div>
+                    <div className="alert alert-danger shadow-sm">{error}</div>
                 ) : user ? (
-                    <div className="row">
+                    <div className="row g-4">
                         <div className="col-md-6">
-                            <div className="card mb-4">
-                                <div className="card-header">Personal Details</div>
+                            <div className="card mb-4 shadow-lg border-0" style={{ borderRadius: '12px' }}>
+                                <div className="card-header bg-gradient text-white border-0" style={{
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    borderRadius: '12px 12px 0 0'
+                                }}>
+                                    <h5 className="mb-0">
+                                        <i className="bi bi-person-circle me-2"></i>
+                                        Personal Details
+                                    </h5>
+                                </div>
                                 <div className="card-body">
                                     <div className="row">
                                         <div className="col-6">
@@ -98,6 +115,9 @@ const ProfilePage = () => {
                                             <p><strong>Username:</strong> {user.username}</p>
                                             <p><strong>Email:</strong> {user.email || <span className="text-muted">N/A</span>}</p>
                                             <p><strong>Status:</strong> {user.status || <span className="text-muted">N/A</span>}</p>
+                                            <p><strong>User Role:</strong> {user.roles && user.roles.length > 0 ? (
+                                                <span className="badge bg-primary ms-2">{user.roles[0].name}</span>
+                                            ) : <span className="text-muted">N/A</span>}</p>
                                         </div>
                                         <div className="col-6">
                                             <p><strong>Locked:</strong> {user.is_locked ? "Yes" : "No"}</p>
@@ -109,28 +129,53 @@ const ProfilePage = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div className="card mb-4">
-                                <div className="card-header">Roles</div>
-                                <div className="card-body">
-                                    {user.roles && user.roles.length > 0 ? (
-                                        <ul>
-                                            {user.roles.map((role) => (
-                                                <li key={role.id}>{role.name}</li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <span className="text-muted">No roles assigned</span>
-                                    )}
+                            <div className="card mb-4 shadow-lg border-0" style={{ borderRadius: '12px' }}>
+                                <div className="card-header bg-gradient text-white border-0" style={{
+                                    background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                                    borderRadius: '12px 12px 0 0'
+                                }}>
+                                    <h5 className="mb-0">
+                                        <i className="bi bi-hdd-stack me-2"></i>
+                                        Stations
+                                    </h5>
                                 </div>
-                            </div>
-                            <div className="card mb-4">
-                                <div className="card-header">Stations</div>
                                 <div className="card-body">
                                     {user.stations && user.stations.length > 0 ? (
-                                        <ul>
+                                        <ul className="list-unstyled">
                                             {user.stations.map((station) => (
-                                                <li key={station.id}>
-                                                    {station.name} {station.isDefault && <span className="badge bg-primary ms-2">Default</span>} <span className="badge bg-secondary ms-2">{station.status}</span>
+                                                <li key={station.id} className="mb-3 p-3 border rounded shadow-sm hover-shadow" style={{
+                                                    transition: 'all 0.3s ease',
+                                                    borderRadius: '8px',
+                                                    backgroundColor: '#f8f9fa'
+                                                }}>
+                                                    <div className="d-flex justify-content-between align-items-start">
+                                                        <div className="flex-grow-1">
+                                                            <h6 className="mb-2 fw-semibold text-primary">
+                                                                <i className="bi bi-hdd me-2"></i>
+                                                                {station.name}
+                                                            </h6>
+                                                            <div className="d-flex gap-2 mb-2">
+                                                                {station.isDefault && (
+                                                                    <span className="badge bg-primary">
+                                                                        <i className="bi bi-star-fill me-1"></i>
+                                                                        Default Station
+                                                                    </span>
+                                                                )}
+                                                                <span className={`badge ${station.status === 'enabled' ? 'bg-success' : 'bg-secondary'}`}>
+                                                                    <i className={`bi ${station.status === 'enabled' ? 'bi-check-circle' : 'bi-pause-circle'} me-1`}></i>
+                                                                    {station.status}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {station.defaultPricelist && (
+                                                        <div className="mt-2">
+                                                            <span className="badge bg-info text-dark">
+                                                                <i className="bi bi-tag me-1"></i>
+                                                                Default Pricelist: {station.defaultPricelist.name}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </li>
                                             ))}
                                         </ul>
@@ -141,8 +186,16 @@ const ProfilePage = () => {
                             </div>
                         </div>
                         <div className="col-md-6">
-                            <div className="card mb-4">
-                                <div className="card-header">Change Password</div>
+                            <div className="card mb-4 shadow-lg border-0" style={{ borderRadius: '12px' }}>
+                                <div className="card-header bg-gradient text-white border-0" style={{
+                                    background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                                    borderRadius: '12px 12px 0 0'
+                                }}>
+                                    <h5 className="mb-0">
+                                        <i className="bi bi-key me-2"></i>
+                                        Change Password
+                                    </h5>
+                                </div>
                                 <div className="card-body">
                                     {pwError && <div className="alert alert-danger py-1">{pwError}</div>}
                                     {pwSuccess && <div className="alert alert-success py-1">{pwSuccess}</div>}

@@ -37,11 +37,21 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
 
+  // Remove duplicates and filter items
+  const allItems = pricelistItems || items;
+  const uniqueItems = allItems.reduce((acc: Item[], current: Item) => {
+    const existingItem = acc.find(item => item.id === current.id);
+    if (!existingItem) {
+      acc.push(current);
+    }
+    return acc;
+  }, []);
+
   const filteredItems = searchTerm
-    ? (pricelistItems || items).filter((item) =>
+    ? uniqueItems.filter((item) =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase()),
     )
-    : pricelistItems || items;
+    : uniqueItems;
 
   const handleEditItem = (item: Item) => {
     setSelectedItem(item);
@@ -106,8 +116,8 @@ const ViewItems: React.FC<ViewItemsProps> = ({
           </thead>
           <tbody>
             {filteredItems.length > 0 ? (
-              filteredItems.map((item) => (
-                <tr key={item.id}>
+              filteredItems.map((item, index) => (
+                <tr key={`${item.id}-${index}`}>
                   <td>{item.name}</td>
                   {!isBillingSection && (
                     <>
