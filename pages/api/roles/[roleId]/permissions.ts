@@ -4,6 +4,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import {
   addPermissionToRoleHandler,
   fetchPermissionsByRoleHandler,
+  removePermissionFromRoleHandler,
 } from "@controllers/RoleController";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
@@ -21,8 +22,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     await authMiddleware(
       authorize([permissions.CAN_ADD_PERMISSION])(addPermissionToRoleHandler),
     )(req, res);
+  } else if (req.method === "DELETE") {
+    await authMiddleware(
+      authorize([permissions.CAN_DELETE_PERMISSION])(removePermissionFromRoleHandler),
+    )(req, res);
   } else {
-    res.setHeader("Allow", ["GET", "POST"]);
+    res.setHeader("Allow", ["GET", "POST", "DELETE"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 };

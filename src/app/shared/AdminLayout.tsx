@@ -18,7 +18,7 @@ export default function AdminLayout({
     if (!token) {
       router.push("/");
     }
-  }, [router]);
+  }, []); // Remove router dependency to prevent re-renders
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -74,230 +74,232 @@ export default function AdminLayout({
   };
 
   return (
-    <div>
-      <nav className="navbar navbar-expand-lg navbar-light bg-body-secondary m-0 px-2 container-fluid">
-        <NavbarTitleSection onClick={adminPage} />
-        <button
-          className="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#adminNavbarSupportedContent"
-          aria-controls="adminNavbarSupportedContent"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
-        <div className="collapse navbar-collapse" id="adminNavbarSupportedContent">
-          <ul className="navbar-nav mr-auto mt-2 mt-lg-0">
-            <li className="nav-item dropdown">
-              <a
-                className="nav-link dropdown-toggle"
-                href="#"
-                id="navbarDarkDropdownMenuLink"
-                role="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                <i className="bi bi-people me-2"></i>Users
-              </a>
-              <ul
-                className="dropdown-menu dropdown-menu-dark"
-                aria-labelledby="navbarDarkDropdownMenuLink"
-              >
-                <li>
-                  <a className="dropdown-item" href="#" onClick={viewUsers}>
-                    View
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className="dropdown-item"
-                    href="#"
-                    onClick={rolesAndPermissions}
-                  >
-                    Roles and Permissions
-                  </a>
-                </li>
-              </ul>
-            </li>
+    <div className="admin-layout enterprise-pos">
+      <nav className="navbar navbar-expand-lg navbar-enterprise">
+        <div className="navbar-container">
+          <NavbarTitleSection onClick={adminPage} />
+          <button
+            className="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#adminNavbarSupportedContent"
+            aria-controls="adminNavbarSupportedContent"
+            aria-expanded="false"
+            aria-label="Toggle navigation"
+          >
+            <span className="navbar-toggler-icon"></span>
+          </button>
+          <div className="collapse navbar-collapse" id="adminNavbarSupportedContent">
+            <ul className="navbar-nav">
+              <li className="nav-item dropdown">
+                <a
+                  className="nav-link dropdown-toggle nav-link-enterprise"
+                  href="#"
+                  id="navbarDarkDropdownMenuLink"
+                  role="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  <i className="bi bi-people me-2"></i>Users
+                </a>
+                <ul
+                  className="dropdown-menu dropdown-menu-enterprise"
+                  aria-labelledby="navbarDarkDropdownMenuLink"
+                >
+                  <li>
+                    <a className="dropdown-item dropdown-item-enterprise" href="#" onClick={viewUsers}>
+                      <i className="bi bi-eye me-2"></i>View
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      className="dropdown-item dropdown-item-enterprise"
+                      href="#"
+                      onClick={rolesAndPermissions}
+                    >
+                      <i className="bi bi-shield-check me-2"></i>Roles and Permissions
+                    </a>
+                  </li>
+                </ul>
+              </li>
 
-            <li className="nav-item dropdown">
-              <a
-                className="nav-link dropdown-toggle"
-                href="#"
-                id="navbarDarkDropdownMenuLink"
-                role="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                <i className="bi bi-gear me-2"></i>Configuration
-              </a>
-              <ul
-                className="dropdown-menu dropdown-menu-dark"
-                aria-labelledby="navbarDarkDropdownMenuLink"
-              >
-                <li>
-                  <a
-                    className="dropdown-item"
-                    href="#"
-                    onClick={manageStations}
-                  >
-                    Station
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className="dropdown-item"
-                    href="#"
-                    onClick={manageStationStaff}
-                  >
-                    Station users
-                  </a>
-                </li>
-              </ul>
-            </li>
-            {/* Dropdown for Menu & Pricing */}
-            <li className="nav-item dropdown">
-              <a
-                className="nav-link dropdown-toggle"
-                href="#"
-                id="menuAndPricing"
-                role="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                <i className="bi bi-list-ul me-2"></i>Menu & Pricing
-              </a>
-              <ul
-                className="dropdown-menu dropdown-menu-dark"
-                aria-labelledby="menuAndPricing"
-              >
-                <li>
-                  <a
-                    className="dropdown-item"
-                    href="#"
-                    onClick={manageCategory}
-                  >
-                    Category
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className="dropdown-item"
-                    href="#"
-                    onClick={manageGroupItems}
-                  >
-                    Group Items
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className="dropdown-item"
-                    href="#"
-                    onClick={managePricelist}
-                  >
-                    Pricelist
-                  </a>
-                </li>
-              </ul>
-            </li>
+              <li className="nav-item dropdown">
+                <a
+                  className="nav-link dropdown-toggle nav-link-enterprise"
+                  href="#"
+                  id="navbarDarkDropdownMenuLink"
+                  role="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  <i className="bi bi-gear me-2"></i>Configuration
+                </a>
+                <ul
+                  className="dropdown-menu dropdown-menu-enterprise"
+                  aria-labelledby="navbarDarkDropdownMenuLink"
+                >
+                  <li>
+                    <a
+                      className="dropdown-item dropdown-item-enterprise"
+                      href="#"
+                      onClick={manageStations}
+                    >
+                      <i className="bi bi-building me-2"></i>Station
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      className="dropdown-item dropdown-item-enterprise"
+                      href="#"
+                      onClick={manageStationStaff}
+                    >
+                      <i className="bi bi-people-fill me-2"></i>Station users
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              {/* Dropdown for Menu & Pricing */}
+              <li className="nav-item dropdown">
+                <a
+                  className="nav-link dropdown-toggle nav-link-enterprise"
+                  href="#"
+                  id="menuAndPricing"
+                  role="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  <i className="bi bi-list-ul me-2"></i>Menu & Pricing
+                </a>
+                <ul
+                  className="dropdown-menu dropdown-menu-enterprise"
+                  aria-labelledby="menuAndPricing"
+                >
+                  <li>
+                    <a
+                      className="dropdown-item dropdown-item-enterprise"
+                      href="#"
+                      onClick={manageCategory}
+                    >
+                      <i className="bi bi-grid me-2"></i>Category
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      className="dropdown-item dropdown-item-enterprise"
+                      href="#"
+                      onClick={manageGroupItems}
+                    >
+                      <i className="bi bi-collection me-2"></i>Group Items
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      className="dropdown-item dropdown-item-enterprise"
+                      href="#"
+                      onClick={managePricelist}
+                    >
+                      <i className="bi bi-tags me-2"></i>Pricelist
+                    </a>
+                  </li>
+                </ul>
+              </li>
 
-            <li className="nav-item dropdown">
-              <a
-                className="nav-link dropdown-toggle"
-                href="#"
-                id="navbarDarkDropdownMenuLink"
-                role="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                <i className="bi bi-box-seam me-2"></i>Production
-              </a>
-              <ul
-                className="dropdown-menu dropdown-menu-dark"
-                aria-labelledby="navbarDarkDropdownMenuLink"
-              >
-                <li>
-                  <a
-                    className="dropdown-item"
-                    href="#"
-                    onClick={manageProduction}
-                  >
-                    Stock Menu Items
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className="dropdown-item"
-                    href="#"
-                    onClick={productionItemDefinition}
-                  >
-                    Ratio definition
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className="dropdown-item"
-                    href="#"
-                    onClick={dailyProduction}
-                  >
-                    Daily Production
-                  </a>
-                </li>
+              <li className="nav-item dropdown">
+                <a
+                  className="nav-link dropdown-toggle nav-link-enterprise"
+                  href="#"
+                  id="navbarDarkDropdownMenuLink"
+                  role="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  <i className="bi bi-box-seam me-2"></i>Production
+                </a>
+                <ul
+                  className="dropdown-menu dropdown-menu-enterprise"
+                  aria-labelledby="navbarDarkDropdownMenuLink"
+                >
+                  <li>
+                    <a
+                      className="dropdown-item dropdown-item-enterprise"
+                      href="#"
+                      onClick={manageProduction}
+                    >
+                      <i className="bi bi-box me-2"></i>Stock Menu Items
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      className="dropdown-item dropdown-item-enterprise"
+                      href="#"
+                      onClick={productionItemDefinition}
+                    >
+                      <i className="bi bi-calculator me-2"></i>Ratio definition
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      className="dropdown-item dropdown-item-enterprise"
+                      href="#"
+                      onClick={dailyProduction}
+                    >
+                      <i className="bi bi-calendar-day me-2"></i>Daily Production
+                    </a>
+                  </li>
 
-                <li>
-                  <a className="dropdown-item" href="#" onClick={issue}>
-                    Issuing
-                  </a>
-                </li>
-              </ul>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link" href="#">
-                <i className="bi bi-truck me-2"></i>Suppliers
-              </a>
-            </li>
-            <li className="nav-item">
-              <a className="nav-link" href="#">
-                <i className="bi bi-bar-chart me-2"></i>Reports
-              </a>
-            </li>
-          </ul>
-
-          <div className="dropdown ms-auto">
-            <button
-              className="btn btn-secondary dropdown-toggle"
-              type="button"
-              id="userActionsDropdown"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-            >
-              Profile
-            </button>
-            <ul
-              className="dropdown-menu dropdown-menu-end"
-              aria-labelledby="userActionsDropdown"
-            >
-              <li>
-                <a className="dropdown-item" href="/profile">
-                  Settings
+                  <li>
+                    <a className="dropdown-item dropdown-item-enterprise" href="#" onClick={issue}>
+                      <i className="bi bi-arrow-up-circle me-2"></i>Issuing
+                    </a>
+                  </li>
+                </ul>
+              </li>
+              <li className="nav-item">
+                <a className="nav-link nav-link-enterprise" href="#">
+                  <i className="bi bi-truck me-2"></i>Suppliers
                 </a>
               </li>
-              <li>
-                <hr className="dropdown-divider" />
-              </li>
-              <li>
-                <button className="dropdown-item" onClick={handleLogout}>
-                  Logout
-                </button>
+              <li className="nav-item">
+                <a className="nav-link nav-link-enterprise" href="#">
+                  <i className="bi bi-bar-chart me-2"></i>Reports
+                </a>
               </li>
             </ul>
+
+            <div className="dropdown ms-auto">
+              <button
+                className="btn-enterprise btn-enterprise-secondary dropdown-toggle"
+                type="button"
+                id="userActionsDropdown"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                <i className="bi bi-person-circle me-2"></i>Profile
+              </button>
+              <ul
+                className="dropdown-menu dropdown-menu-enterprise dropdown-menu-end"
+                aria-labelledby="userActionsDropdown"
+              >
+                <li>
+                  <a className="dropdown-item dropdown-item-enterprise" href="/profile">
+                    <i className="bi bi-gear me-2"></i>Settings
+                  </a>
+                </li>
+                <li>
+                  <hr className="dropdown-divider" />
+                </li>
+                <li>
+                  <button className="dropdown-item dropdown-item-enterprise" onClick={handleLogout}>
+                    <i className="bi bi-box-arrow-right me-2"></i>Logout
+                  </button>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </nav>
       {authError && (
-        <div className="alert alert-danger">
+        <div className="alert alert-danger alert-enterprise">
           <strong>Error:</strong> {authError.message}
           {authError.missingPermissions && (
             <ul>
@@ -308,7 +310,7 @@ export default function AdminLayout({
           )}
         </div>
       )}
-      <main className="container">{children}</main>
+      <main className="main-content-enterprise">{children}</main>
     </div>
   );
 }

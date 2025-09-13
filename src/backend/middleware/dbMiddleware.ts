@@ -27,6 +27,8 @@ export const dbMiddleware = (handler) => {
       return handler(req, res);
     } catch (error: any) {
       console.error("Database connection error:", error);
+      // Reset cached connection on error
+      cachedConnection = null;
       return res
         .status(500)
         .json({ message: "Database connection failed: " + error.message });

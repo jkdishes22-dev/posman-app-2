@@ -46,7 +46,13 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         });
         const data = await response.json();
         if (response.ok) {
-          setPricelists(data);
+          // Ensure data is an array
+          setPricelists(Array.isArray(data) ? data : []);
+        } else if (response.status === 401) {
+          // Invalid token, logout and redirect to login
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.location.href = "/";
         } else if (response.status === 403) {
           setAuthError(data);
         } else {
@@ -54,6 +60,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         }
       } catch (error: any) {
         setAddItemError("Failed to fetch pricelists: " + error.message);
+        setPricelists([]); // Ensure pricelists is always an array
       }
     }
     fetchPricelists();
@@ -161,7 +168,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
               onChange={(e) => setPricelistId(e.target.value)}
             >
               <option value="">Select Pricelist</option>
-              {pricelists.map((pricelist: any) => (
+              {Array.isArray(pricelists) && pricelists.map((pricelist: any) => (
                 <option key={pricelist.id} value={pricelist.id}>
                   {pricelist.name}
                 </option>

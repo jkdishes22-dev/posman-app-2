@@ -71,4 +71,37 @@ export class RoleService {
     // If already exists, return existing
     return existing;
   }
+
+  /**
+   * Remove a permission from a role
+   * @param roleId
+   * @param permissionId
+   * @returns
+   */
+  async removePermissionFromRole(roleId: any, permissionId: any) {
+    return await this.roleRepository.manager.transaction(
+      async (transactionalEntityManager) => {
+        const role = await transactionalEntityManager.findOne(Role, {
+          where: { id: roleId },
+          relations: ["permissions"],
+        });
+        const permission = await transactionalEntityManager.findOneBy(
+          Permission,
+          {
+            id: permissionId,
+          },
+        );
+
+        if (role && permission) {
+          // Remove the permission from the role's permissions array
+          role.permissions = role.permissions.filter(
+            (perm) => perm.id !== permission.id,
+          );
+          await transactionalEntityManager.save(role);
+        } else {
+          throw new Error("Role or Permission not found");
+        }
+      },
+    );
+  }
 }

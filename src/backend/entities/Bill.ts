@@ -5,6 +5,7 @@ import {
   OneToMany,
   JoinColumn,
   ManyToOne,
+  Index,
 } from "typeorm";
 import { User } from "./User";
 import { BillItem } from "./BillItem";
@@ -19,9 +20,15 @@ export enum BillStatus {
 }
 
 @Entity("bill")
+@Index(["user_id", "created_at"])
+@Index(["status", "created_at"])
+@Index(["station_id", "created_at"])
 export class Bill {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Column({ nullable: true })
+  user_id: number;
 
   // @ManyToOne(() => User, (user) => user.bills)
   @ManyToOne(() => User)
@@ -55,6 +62,9 @@ export class Bill {
 
   @Column({ nullable: true })
   updated_by: number;
+
+  @Column({ nullable: true })
+  station_id: number;
 
   @ManyToOne(() => Station, { nullable: true })
   @JoinColumn({ name: "station_id" })

@@ -259,400 +259,447 @@ const CashierBillsPage = () => {
   };
 
   return (
-    <div className="container mt-3">
+    <div className="container-fluid">
+      {/* Header */}
+      <div className="bg-primary text-white p-3 mb-4">
+        <h1 className="h4 mb-0 fw-bold">
+          <i className="bi bi-receipt me-2"></i>
+          Cashier Bills Management
+        </h1>
+      </div>
+
       {/* Filtering Section */}
       <div className="row mb-4">
         <div className="col-12">
-          <div className="card shadow-sm p-3 mb-3 bg-light border-primary">
-            <h5 className="card-title text-primary mb-3">Filter Bills</h5>
-            <div className="row g-3 align-items-end">
-              <div className="col-md-3">
-                <div className="form-group">
-                  <label htmlFor="billingDate" className="form-label">
-                    Billing Date
-                  </label>
-                  <div>
-                    <DatePicker
-                      className="form-control"
-                      id="billingDate"
-                      selected={filters.billingDate}
-                      onChange={(date: Date | null) => handleDateChange(date)}
-                      dateFormat="yyyy-MM-dd"
-                      placeholderText="Select billing date"
-                      maxDate={new Date()}
-                      minDate={null}
-                      isClearable
-                    />
+          <div className="card shadow-sm">
+            <div className="card-header bg-light">
+              <h5 className="mb-0 fw-bold">
+                <i className="bi bi-funnel me-2 text-primary"></i>
+                Filter Bills
+              </h5>
+            </div>
+            <div className="card-body">
+              <div className="row g-3 align-items-end">
+                <div className="col-md-3">
+                  <div className="form-group">
+                    <label htmlFor="billingDate" className="form-label fw-semibold">
+                      Billing Date
+                    </label>
+                    <div>
+                      <DatePicker
+                        className="form-control"
+                        id="billingDate"
+                        selected={filters.billingDate}
+                        onChange={(date: Date | null) => handleDateChange(date)}
+                        dateFormat="yyyy-MM-dd"
+                        placeholderText="Select billing date"
+                        maxDate={new Date()}
+                        minDate={null}
+                        isClearable
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="col-md-3">
-                <div className="form-group">
-                  <label htmlFor="billId" className="form-label">
-                    Bill ID
-                  </label>
-                  <div>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="billId"
-                      placeholder="Enter Bill ID"
-                      value={searchBillId}
-                      onChange={handleBillIdSearch}
-                    />
+                <div className="col-md-3">
+                  <div className="form-group">
+                    <label htmlFor="billId" className="form-label fw-semibold">
+                      Bill ID
+                    </label>
+                    <div>
+                      <input
+                        type="text"
+                        className="form-control"
+                        id="billId"
+                        placeholder="Enter Bill ID"
+                        value={searchBillId}
+                        onChange={handleBillIdSearch}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="col-md-3">
-                <div className="form-group">
-                  <label htmlFor="waitress" className="form-label">
-                    Select Waitress
-                  </label>
-                  <div>
-                    <select
-                      id="waitress"
-                      className="form-control"
-                      value={filters.selectedWaitress}
-                      onChange={handleWaitressChange}
+                <div className="col-md-3">
+                  <div className="form-group">
+                    <label htmlFor="waitress" className="form-label fw-semibold">
+                      Select Waitress
+                    </label>
+                    <div>
+                      <select
+                        id="waitress"
+                        className="form-control"
+                        value={filters.selectedWaitress}
+                        onChange={handleWaitressChange}
+                      >
+                        <option value="">Select waitress</option>
+                        {Array.isArray(waitresses) && waitresses.map((waitress) => (
+                          <option key={waitress.id} value={waitress.id}>
+                            {waitress.firstName} {waitress.lastName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-3 d-flex align-items-end">
+                  <div className="btn-group" role="group" aria-label="Filter actions">
+                    <button
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => handleFilterChange("status", "submitted")}
                     >
-                      <option value="">Select waitress</option>
-                      {Array.isArray(waitresses) && waitresses.map((waitress) => (
-                        <option key={waitress.id} value={waitress.id}>
-                          {waitress.firstName} {waitress.lastName}
-                        </option>
-                      ))}
-                    </select>
+                      Submitted
+                    </button>
+                    <button
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => handleFilterChange("status", "closed")}
+                    >
+                      Closed
+                    </button>
+                    <button
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => handleFilterChange("status", "voided")}
+                    >
+                      Voided
+                    </button>
+                    <button
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => handleFilterChange("status", "all")}
+                    >
+                      All
+                    </button>
                   </div>
-                </div>
-              </div>
-              <div className="col-md-3 d-flex align-items-end">
-                <div className="btn-group" role="group" aria-label="Filter actions">
-                  <button
-                    className="btn btn-outline-primary"
-                    onClick={() => handleFilterChange("status", "submitted")}
-                  >
-                    Submitted
-                  </button>
-                  <button
-                    className="btn btn-outline-primary"
-                    onClick={() => handleFilterChange("status", "closed")}
-                  >
-                    Closed
-                  </button>
-                  <button
-                    className="btn btn-outline-primary"
-                    onClick={() => handleFilterChange("status", "voided")}
-                  >
-                    Voided
-                  </button>
-                  <button
-                    className="btn btn-outline-primary"
-                    onClick={() => handleFilterChange("status", "all")}
-                  >
-                    All
-                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <hr className="mb-4" />
+
       {/* Display Section */}
-      <div className="row">
-        <div className="col-12 mb-2">
-          <h5 className="text-secondary">Bills Display</h5>
-        </div>
+      <div className="row g-4">
         <div className="col-7">
-          {error && <div className="alert alert-danger">{error}</div>}
-          <div className="row">
-            {filters.status === "submitted" && (
-              <div className="col-2 mb-2">
-                <button
-                  className="btn btn-success btn-sm"
-                  onClick={handleBulkProcess}
-                  disabled={selectedBills.length === 0}
-                >
-                  Bulk Close
-                </button>
-              </div>
-            )}
-            {/* Bulk Submit button for pending bills */}
-            {bills.some((bill) => selectedBills.includes(bill.id) && bill.status === "pending") && (
-              <div className="col-2 mb-2">
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={handleBulkSubmit}
-                  disabled={selectedBills.filter((id) => {
-                    const bill = bills.find((b) => b.id === id);
-                    return bill && bill.status === "pending";
-                  }).length === 0}
-                >
-                  Bulk Submit
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="border p-3">
-            {bills.length > 0 ? (
-              <table className="table table-striped">
-                <thead>
-                  <tr>
-                    <th>
-                      <input
-                        type="checkbox"
-                        checked={
-                          selectedBills.length === bills.length &&
-                          bills.length > 0
-                        }
-                        onChange={handleSelectAll}
-                      />
-                    </th>
-                    <th>Bill ID</th>
-                    <th>Status</th>
-                    <th>Total</th>
-                    <th>Created By</th>
-                    <th>Created At</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bills.map((bill) => (
-                    <tr
-                      key={bill.id}
-                      style={{
-                        backgroundColor:
-                          bill.id === selectedBill?.id
-                            ? "#d3d3d3"
-                            : "transparent",
-                        transition: "background-color 0.3s ease",
-                      }}
+          <div className="card shadow-sm">
+            <div className="card-header bg-light">
+              <div className="d-flex justify-content-between align-items-center">
+                <h5 className="mb-0 fw-bold">
+                  <i className="bi bi-list-ul me-2 text-primary"></i>
+                  Bills Display
+                </h5>
+                <div className="d-flex gap-2">
+                  {filters.status === "submitted" && (
+                    <button
+                      className="btn btn-success btn-sm"
+                      onClick={handleBulkProcess}
+                      disabled={selectedBills.length === 0}
                     >
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedBills.includes(bill.id)}
-                          onChange={() => handleCheckboxChange(bill.id)}
-                        />
-                      </td>
-                      <td>{bill.id}</td>
-                      <td>{bill.status}</td>
-                      <td>{bill.total}</td>
-                      <td>
-                        {bill.user.firstName} {bill.user.lastName}
-                      </td>
-                      <td>{new Date(bill.created_at).toLocaleString()}</td>
-                      <td>
-                        {/* Role-based actions */}
-                        {userRole === "cashier" ? (
-                          bill.status === "submitted" ? (
+                      <i className="bi bi-check-circle me-1"></i>
+                      Bulk Close
+                    </button>
+                  )}
+                  {bills.some((bill) => selectedBills.includes(bill.id) && bill.status === "pending") && (
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleBulkSubmit}
+                      disabled={selectedBills.filter((id) => {
+                        const bill = bills.find((b) => b.id === id);
+                        return bill && bill.status === "pending";
+                      }).length === 0}
+                    >
+                      <i className="bi bi-send me-1"></i>
+                      Bulk Submit
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="col-7">
+              {error && <div className="alert alert-danger">{error}</div>}
+              <div className="row">
+                {filters.status === "submitted" && (
+                  <div className="col-2 mb-2">
+                    <button
+                      className="btn btn-success btn-sm"
+                      onClick={handleBulkProcess}
+                      disabled={selectedBills.length === 0}
+                    >
+                      Bulk Close
+                    </button>
+                  </div>
+                )}
+                {/* Bulk Submit button for pending bills */}
+                {bills.some((bill) => selectedBills.includes(bill.id) && bill.status === "pending") && (
+                  <div className="col-2 mb-2">
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleBulkSubmit}
+                      disabled={selectedBills.filter((id) => {
+                        const bill = bills.find((b) => b.id === id);
+                        return bill && bill.status === "pending";
+                      }).length === 0}
+                    >
+                      Bulk Submit
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="border p-3">
+                {bills.length > 0 ? (
+                  <table className="table table-striped">
+                    <thead>
+                      <tr>
+                        <th>
+                          <input
+                            type="checkbox"
+                            checked={
+                              selectedBills.length === bills.length &&
+                              bills.length > 0
+                            }
+                            onChange={handleSelectAll}
+                          />
+                        </th>
+                        <th>Bill ID</th>
+                        <th>Status</th>
+                        <th>Total</th>
+                        <th>Created By</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bills.map((bill) => (
+                        <tr
+                          key={bill.id}
+                          style={{
+                            backgroundColor:
+                              bill.id === selectedBill?.id
+                                ? "#d3d3d3"
+                                : "transparent",
+                            transition: "background-color 0.3s ease",
+                          }}
+                        >
+                          <td>
+                            <input
+                              type="checkbox"
+                              checked={selectedBills.includes(bill.id)}
+                              onChange={() => handleCheckboxChange(bill.id)}
+                            />
+                          </td>
+                          <td>{bill.id}</td>
+                          <td>{bill.status}</td>
+                          <td>{bill.total}</td>
+                          <td>
+                            {bill.user.firstName} {bill.user.lastName}
+                          </td>
+                          <td>{new Date(bill.created_at).toLocaleString()}</td>
+                          <td>
+                            {/* Role-based actions */}
+                            {userRole === "cashier" ? (
+                              bill.status === "submitted" ? (
+                                <button
+                                  className="btn btn-sm btn-primary"
+                                  onClick={() => handleProcessClick(bill)}
+                                >
+                                  Process
+                                </button>
+                              ) : (
+                                <button
+                                  className="btn btn-sm btn-secondary"
+                                  onClick={() => setSelectedBill(bill)}
+                                >
+                                  View
+                                </button>
+                              )
+                            ) : userRole === "user" || userRole === "waitress" ? (
+                              bill.status === "pending" ? (
+                                <button
+                                  className="btn btn-sm btn-success"
+                                  onClick={() => setSelectedBill(bill)}
+                                >
+                                  Submit
+                                </button>
+                              ) : (
+                                <button
+                                  className="btn btn-sm btn-secondary"
+                                  onClick={() => setSelectedBill(bill)}
+                                >
+                                  View
+                                </button>
+                              )
+                            ) : (
+                              <button
+                                className="btn btn-sm btn-secondary"
+                                onClick={() => setSelectedBill(bill)}
+                              >
+                                View
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>No bills found.</p>
+                )}
+              </div>
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                onPageChange={setPage}
+              />
+            </div>
+            <div className="col-5 mt-4">
+              {closeBillError && <p style={{ color: "red" }}>{closeBillError}</p>}
+              {selectedBills.length === 1 && selectedBill ? (
+                <div className="row">
+                  <div className="col-6">
+                    <div>
+                      <h5>
+                        <u>Bill Details</u>
+                      </h5>
+                      <p>
+                        <strong>Bill ID:</strong> {selectedBill.id}
+                      </p>
+                      <p>
+                        <strong>Total Bill:</strong> {selectedBill.total}
+                      </p>
+                      <p>
+                        <strong>Created By:</strong> {selectedBill.user.firstName} {selectedBill.user.lastName}
+                      </p>
+                      <p>
+                        <strong>Created At:</strong> {new Date(selectedBill.created_at).toLocaleString()}
+                      </p>
+                      <div className="col-5">
+                        {selectedBill.status === "submitted" ? (
+                          selectedBill.total ===
+                            selectedBill.bill_payments.reduce(
+                              (sum, billPayment) => sum + billPayment.payment.creditAmount,
+                              0,
+                            ) ? (
                             <button
-                              className="btn btn-sm btn-primary"
-                              onClick={() => handleProcessClick(bill)}
+                              className="btn btn-success mb-2"
+                              onClick={showCloseBillModal}
                             >
-                              Process
+                              Close Bill
                             </button>
                           ) : (
-                            <button
-                              className="btn btn-sm btn-secondary"
-                              onClick={() => setSelectedBill(bill)}
-                            >
-                              View
-                            </button>
-                          )
-                        ) : userRole === "user" || userRole === "waitress" ? (
-                          bill.status === "pending" ? (
-                            <button
-                              className="btn btn-sm btn-success"
-                              onClick={() => setSelectedBill(bill)}
-                            >
-                              Submit
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn-sm btn-secondary"
-                              onClick={() => setSelectedBill(bill)}
-                            >
-                              View
+                            <button className="btn btn-warning mb-2" disabled>
+                              Bill is not fully paid - Not closable
                             </button>
                           )
                         ) : (
-                          <button
-                            className="btn btn-sm btn-secondary"
-                            onClick={() => setSelectedBill(bill)}
-                          >
-                            View
-                          </button>
+                          <span className="btn btn-warning">Bill is closed</span>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p>No bills found.</p>
-            )}
-          </div>
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={total}
-            onPageChange={setPage}
-          />
-        </div>
-        <div className="col-5 mt-4">
-          {closeBillError && <p style={{ color: "red" }}>{closeBillError}</p>}
-          {selectedBills.length === 1 && selectedBill ? (
-            <div className="row">
-              <div className="col-6">
-                <div>
-                  <h5>
-                    <u>Bill Details</u>
-                  </h5>
-                  <p>
-                    <strong>Bill ID:</strong> {selectedBill.id}
-                  </p>
-                  <p>
-                    <strong>Total Bill:</strong> {selectedBill.total}
-                  </p>
-                  <p>
-                    <strong>Created By:</strong> {selectedBill.user.firstName} {selectedBill.user.lastName}
-                  </p>
-                  <p>
-                    <strong>Created At:</strong> {new Date(selectedBill.created_at).toLocaleString()}
-                  </p>
-                  <div className="col-5">
-                    {selectedBill.status === "submitted" ? (
-                      selectedBill.total ===
-                        selectedBill.bill_payments.reduce(
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-6">
+                    <strong>
+                      <u>
+                        Payments : (
+                        {selectedBill.bill_payments.reduce(
                           (sum, billPayment) => sum + billPayment.payment.creditAmount,
                           0,
-                        ) ? (
-                        <button
-                          className="btn btn-success mb-2"
-                          onClick={showCloseBillModal}
-                        >
-                          Close Bill
-                        </button>
-                      ) : (
-                        <button className="btn btn-warning mb-2" disabled>
-                          Bill is not fully paid - Not closable
-                        </button>
-                      )
+                        )}
+                        )
+                      </u>
+                    </strong>
+                    {selectedBill.bill_payments.length > 0 ? (
+                      <ul>
+                        {selectedBill.bill_payments.map((billPayment: BillPayment) => (
+                          <li key={billPayment.id}>
+                            <p>
+                              <strong>Payment Type :</strong> {billPayment.payment.paymentType}
+                            </p>
+                            <p>
+                              <strong>Amount Paid :</strong> {billPayment.payment.creditAmount}
+                            </p>
+                            <p>
+                              <strong>Paid At :</strong> {new Date(billPayment.created_at).toLocaleString()}
+                            </p>
+                            <p>
+                              <strong>Paid By :</strong> {selectedBill.user.firstName} {selectedBill.user.lastName}
+                            </p>
+                            <p>
+                              <strong>Reference:</strong> {billPayment.payment.reference}
+                            </p>
+                            <hr />
+                          </li>
+                        ))}
+                      </ul>
                     ) : (
-                      <span className="btn btn-warning">Bill is closed</span>
+                      <p>Bill payment missing</p>
                     )}
                   </div>
                 </div>
-              </div>
-              <div className="col-6">
-                <strong>
-                  <u>
-                    Payments : (
-                    {selectedBill.bill_payments.reduce(
-                      (sum, billPayment) => sum + billPayment.payment.creditAmount,
-                      0,
-                    )}
-                    )
-                  </u>
-                </strong>
-                {selectedBill.bill_payments.length > 0 ? (
-                  <ul>
-                    {selectedBill.bill_payments.map((billPayment: BillPayment) => (
-                      <li key={billPayment.id}>
-                        <p>
-                          <strong>Payment Type :</strong> {billPayment.payment.paymentType}
-                        </p>
-                        <p>
-                          <strong>Amount Paid :</strong> {billPayment.payment.creditAmount}
-                        </p>
-                        <p>
-                          <strong>Paid At :</strong> {new Date(billPayment.created_at).toLocaleString()}
-                        </p>
-                        <p>
-                          <strong>Paid By :</strong> {selectedBill.user.firstName} {selectedBill.user.lastName}
-                        </p>
-                        <p>
-                          <strong>Reference:</strong> {billPayment.payment.reference}
-                        </p>
-                        <hr />
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>Bill payment missing</p>
-                )}
-              </div>
+              ) : selectedBills.length > 1 ? (
+                <p>Select a single bill to see details.</p>
+              ) : (
+                <p>Select a bill to see the details</p>
+              )}
             </div>
-          ) : selectedBills.length > 1 ? (
-            <p>Select a single bill to see details.</p>
-          ) : (
-            <p>Select a bill to see the details</p>
-          )}
+          </div>
+          <Modal show={showModal} onHide={handleCloseModal}>
+            <Modal.Header closeButton>
+              <Modal.Title>Close Bill</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              Are you sure you want to close bill with total amount <strong>{selectedBill?.total}</strong> ?
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={handleCloseModal}>
+                Cancel
+              </Button>
+              <Button variant="success" onClick={handleConfirmCloseBill}>
+                Close Bill
+              </Button>
+            </Modal.Footer>
+          </Modal>
+          <Modal show={showBulkCloseModal} onHide={() => setShowBulkCloseModal(false)}>
+            <Modal.Header closeButton>
+              <Modal.Title>Bulk Close Results</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {bulkCloseResults && (
+                <ul>
+                  {bulkCloseResults.map((result) => (
+                    <li key={result.billId}>
+                      Bill {result.billId}: {result.status}
+                      {result.error && <span style={{ color: "red" }}> ({result.error})</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowBulkCloseModal(false)}>
+                Close
+              </Button>
+            </Modal.Footer>
+          </Modal>
+          <Modal show={showBulkSubmitModal} onHide={() => setShowBulkSubmitModal(false)}>
+            <Modal.Header closeButton>
+              <Modal.Title>Bulk Submit Results</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {bulkSubmitResults && (
+                <ul>
+                  {bulkSubmitResults.map((result) => (
+                    <li key={result.billId}>
+                      Bill {result.billId}: {result.status}
+                      {result.error && <span style={{ color: "red" }}> ({result.error})</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowBulkSubmitModal(false)}>
+                Close
+              </Button>
+            </Modal.Footer>
+          </Modal>
         </div>
-      </div>
-      <Modal show={showModal} onHide={handleCloseModal}>
-        <Modal.Header closeButton>
-          <Modal.Title>Close Bill</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          Are you sure you want to close bill with total amount <strong>{selectedBill?.total}</strong> ?
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModal}>
-            Cancel
-          </Button>
-          <Button variant="success" onClick={handleConfirmCloseBill}>
-            Close Bill
-          </Button>
-        </Modal.Footer>
-      </Modal>
-      <Modal show={showBulkCloseModal} onHide={() => setShowBulkCloseModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Bulk Close Results</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {bulkCloseResults && (
-            <ul>
-              {bulkCloseResults.map((result) => (
-                <li key={result.billId}>
-                  Bill {result.billId}: {result.status}
-                  {result.error && <span style={{ color: "red" }}> ({result.error})</span>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowBulkCloseModal(false)}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
-      <Modal show={showBulkSubmitModal} onHide={() => setShowBulkSubmitModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Bulk Submit Results</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {bulkSubmitResults && (
-            <ul>
-              {bulkSubmitResults.map((result) => (
-                <li key={result.billId}>
-                  Bill {result.billId}: {result.status}
-                  {result.error && <span style={{ color: "red" }}> ({result.error})</span>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowBulkSubmitModal(false)}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
-  );
+        );
 };
 
-export default CashierBillsPage;
+        export default CashierBillsPage;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
@@ -53,22 +53,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setIsLoading(false);
     }, []);
 
-    const login = (token: string, userData: any) => {
+    const login = useCallback((token: string, userData: any) => {
         localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(userData));
         setIsAuthenticated(true);
         setUser(userData);
-    };
+    }, []);
 
-    const logout = () => {
+    const logout = useCallback(() => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         setIsAuthenticated(false);
         setUser(null);
         router.push("/");
-    };
+    }, []); // Remove router dependency to stabilize the function
 
-    const checkAuth = (): boolean => {
+    const checkAuth = useCallback((): boolean => {
         const token = localStorage.getItem("token");
         if (!token) {
             logout();
@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             logout();
             return false;
         }
-    };
+    }, [logout]);
 
     const contextValue: AuthContextType = {
         isAuthenticated,

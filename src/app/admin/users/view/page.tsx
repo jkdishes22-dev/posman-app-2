@@ -319,173 +319,378 @@ function UsersPage() {
 
   return (
     <AdminLayout authError={authError}>
-      {sessionError && (
-        <div className="alert alert-warning alert-dismissible fade show" role="alert">
-          {sessionError}
-          <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close" onClick={() => setSessionError("")}></button>
+      <div className="container-fluid">
+        {/* Header */}
+        <div className="bg-primary text-white p-3 mb-4">
+          <div className="d-flex justify-content-between align-items-center">
+            <h1 className="h4 mb-0 fw-bold">
+              <i className="bi bi-people me-2"></i>
+              User Management
+            </h1>
+            <div className="d-flex align-items-center gap-3">
+              <span className="badge bg-light text-dark">
+                <i className="bi bi-people-fill me-1"></i>
+                {total} Total Users
+              </span>
+              <button
+                type="button"
+                className="btn btn-light btn-sm"
+                onClick={handleShow}
+              >
+                <i className="bi bi-person-plus me-1"></i>
+                Add User
+              </button>
+            </div>
+          </div>
         </div>
-      )}
-      <div className="container">
-        <div className="row">
+
+        {/* Main Content */}
+        {sessionError && (
+          <div className="alert alert-warning alert-dismissible fade show mb-4" role="alert">
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            {sessionError}
+            <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close" onClick={() => setSessionError("")}></button>
+          </div>
+        )}
+
+        <div className="row g-4">
           <div className="col-12 col-lg-6">
-            {fetchUserError && (
-              <div className="alert alert-danger my-2" role="alert">
-                {fetchUserError}
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <div className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0 fw-bold">
+                    <i className="bi bi-people me-2 text-primary"></i>
+                    Users
+                    <span className="badge bg-light text-dark ms-2">
+                      {filteredUsers.length} of {total}
+                    </span>
+                  </h5>
+                  <div className="position-relative">
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Search users..."
+                      value={filter}
+                      onChange={(e) => setFilter(e.target.value)}
+                      style={{ width: '220px', paddingRight: '2.5rem' }}
+                    />
+                    <i className="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
+                    {filter && (
+                      <button
+                        type="button"
+                        className="btn btn-sm position-absolute top-50 end-0 translate-middle-y me-1"
+                        onClick={() => setFilter('')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#6b7280',
+                          padding: '0.25rem',
+                          lineHeight: 1
+                        }}
+                        title="Clear search"
+                      >
+                        <i className="bi bi-x"></i>
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-            <div className="row align-items-center mb-3 mt-3">
-              <div className="col-auto">
-                <button
-                  type="button"
-                  className="btn btn-primary d-flex align-items-center"
-                  style={{ fontWeight: "bold", fontSize: "1rem", borderRadius: 0, padding: "0.5rem 1rem" }}
-                  onClick={handleShow}
-                >
-                  <Image
-                    src="/icons/person-add.svg"
-                    alt="Add user"
-                    width={16}
-                    height={16}
-                    className="me-2"
+              <div className="card-body p-0">
+                {fetchUserError && (
+                  <div className="alert alert-danger m-3" role="alert">
+                    {fetchUserError}
+                  </div>
+                )}
+                <div className="table-responsive">
+                  <table className="table table-hover mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th className="text-center" style={{ width: '50px' }}>
+                          <i className="bi bi-check2-square text-muted"></i>
+                        </th>
+                        <th className="fw-semibold">First Name</th>
+                        <th className="fw-semibold">Last Name</th>
+                        <th className="fw-semibold">Username</th>
+                        <th className="fw-semibold text-center">Role</th>
+                        <th className="fw-semibold text-center">Status</th>
+                        <th className="fw-semibold text-center">Locked</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="text-center py-5">
+                            <div className="empty-state">
+                              <i className="bi bi-search text-muted" style={{ fontSize: '3rem' }}></i>
+                              <h5 className="text-muted mt-3 mb-2">No users found</h5>
+                              <p className="text-muted mb-0">
+                                {filter ? 'Try adjusting your search terms' : 'No users available'}
+                              </p>
+                              {filter && (
+                                <button
+                                  className="btn btn-outline-primary btn-sm mt-2"
+                                  onClick={() => setFilter('')}
+                                >
+                                  Clear search
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredUsers.map((user) => (
+                          <tr
+                            key={user.id}
+                            onClick={() => handleUserSelect(user)}
+                            style={{ cursor: "pointer" }}
+                            className={`user-row ${selectedUser && selectedUser.id === user.id ? 'table-primary selected' : ''}`}
+                            title={`Click to view details for ${user.firstName} ${user.lastName}`}
+                          >
+                            <td className="text-center">
+                              <div className="form-check">
+                                <input
+                                  className="form-check-input"
+                                  type="checkbox"
+                                  checked={!!(selectedUser && selectedUser.id === user.id)}
+                                  onChange={() => handleUserSelect(user)}
+                                  onClick={e => e.stopPropagation()}
+                                  title={`Select ${user.firstName} ${user.lastName}`}
+                                />
+                              </div>
+                            </td>
+                            <td className="fw-medium">
+                              <div className="d-flex align-items-center">
+                                <div className="user-avatar me-2">
+                                  <i className="bi bi-person-circle text-muted"></i>
+                                </div>
+                                <div>
+                                  <div className="fw-medium">{user.firstName}</div>
+                                  <small className="text-muted">ID: {user.id}</small>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="fw-medium">{user.lastName}</td>
+                            <td>
+                              <code className="text-muted">@{user.username}</code>
+                            </td>
+                            <td>
+                              {user.roles && user.roles.length > 0 ? (
+                                <span className="badge bg-primary rounded-pill" title={`Role: ${user.roles[0].name}`}>
+                                  <i className="bi bi-shield-check me-1"></i>
+                                  {user.roles[0].name}
+                                </span>
+                              ) : (
+                                <span className="badge bg-light text-muted rounded-pill" title="No role assigned">
+                                  <i className="bi bi-shield-x me-1"></i>
+                                  No role
+                                </span>
+                              )}
+                            </td>
+                            <td className="text-center">
+                              {user.status === "DELETED" ? (
+                                <span className="badge bg-danger rounded-pill" title="User is deleted">
+                                  <i className="bi bi-x-circle me-1"></i>
+                                  Deleted
+                                </span>
+                              ) : (
+                                <span className="badge bg-success rounded-pill" title="User is active">
+                                  <i className="bi bi-check-circle me-1"></i>
+                                  Active
+                                </span>
+                              )}
+                            </td>
+                            <td className="text-center">
+                              {user.is_locked ? (
+                                <span className="badge bg-warning rounded-pill" title="User account is locked">
+                                  <i className="bi bi-lock-fill me-1"></i>
+                                  Locked
+                                </span>
+                              ) : (
+                                <span className="badge bg-light text-success rounded-pill" title="User account is unlocked">
+                                  <i className="bi bi-unlock me-1"></i>
+                                  Unlocked
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="p-3">
+                  <Pagination
+                    page={page}
+                    pageSize={DEFAULT_PAGE_SIZE}
+                    total={total}
+                    onPageChange={setPage}
                   />
-                  Add
-                </button>
-              </div>
-              <div className="col">
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Filter users"
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                />
+                </div>
               </div>
             </div>
-            <table className="table table-striped">
-              <thead>
-                <tr>
-                  <th></th>
-                  <th scope="col">First Name</th>
-                  <th scope="col">Last Name</th>
-                  <th scope="col">Username</th>
-                  <th scope="col">Role</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Locked</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user) => (
-                  <tr
-                    key={user.id}
-                    onClick={() => handleUserSelect(user)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={!!(selectedUser && selectedUser.id === user.id)}
-                        onChange={() => handleUserSelect(user)}
-                        onClick={e => e.stopPropagation()}
-                      />
-                    </td>
-                    <td>{user.firstName}</td>
-                    <td>{user.lastName}</td>
-                    <td>{user.username}</td>
-                    <td>{user.roles && user.roles.length > 0 ? user.roles[0].name : ""}</td>
-                    <td>
-                      {user.status === "DELETED" ? (
-                        <span className="badge bg-danger">Deleted</span>
-                      ) : (
-                        <span className="badge bg-success">Active</span>
-                      )}
-                    </td>
-                    <td>{user.is_locked ? "Yes" : "No"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <Pagination
-              page={page}
-              pageSize={DEFAULT_PAGE_SIZE}
-              total={total}
-              onPageChange={setPage}
-            />
           </div>
-          <div className="col-12 col-lg-6 mt-4 mt-md-0">
-            {selectedUser ? (
-              <div>
-                <h3>User Details: {selectedUser.firstName}</h3>
-                <h3>Role: {selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : ""}</h3>
 
-                <div className="mb-3 d-flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    className="btn btn-outline-warning btn-sm"
-                    onClick={handleShowUpdateModal}
-                  >
-                    Update
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-outline-danger btn-sm"
-                    onClick={() => setShowDeleteModal(true)}
-                    disabled={selectedUser.status === "DELETED"}
-                  >
-                    Deactivate
-                  </button>
-                  <button
-                    className="btn btn-outline-info btn-sm"
-                    onClick={() => setShowLockModal(true)}
-                  >
-                    {selectedUser.is_locked ? "Unlock" : "Lock"}
-                  </button>
-                  <button
-                    className="btn btn-outline-secondary btn-sm"
-                    onClick={() => setShowAssignRoleConfirmModal(true)}
-                  >
-                    Assign Role
-                  </button>
-                  {selectedUser.status === "DELETED" && (
-                    <button
-                      className="btn btn-outline-success btn-sm"
-                      onClick={() => setShowReactivateModal(true)}
-                    >
-                      Reactivate
-                    </button>
+          <div className="col-12 col-lg-6">
+            <div className="card shadow-sm h-100">
+              <div className="card-header bg-light">
+                <div className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0 fw-bold">
+                    <i className="bi bi-person me-2 text-primary"></i>
+                    User Details
+                  </h5>
+                  {selectedUser && (
+                    <div className="d-flex align-items-center gap-2">
+                      {selectedUser.status === "DELETED" ? (
+                        <span className="badge bg-danger">
+                          <i className="bi bi-x-circle me-1"></i>
+                          Deleted
+                        </span>
+                      ) : (
+                        <span className="badge bg-success">
+                          <i className="bi bi-check-circle me-1"></i>
+                          Active
+                        </span>
+                      )}
+                      {selectedUser.is_locked && (
+                        <span className="badge bg-warning">
+                          <i className="bi bi-lock-fill me-1"></i>
+                          Locked
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
-
-                <table className="table table-sm table-striped">
-                  <thead className="table-dark">
-                    <tr>
-                      <th className="p-1 m-0">First Name</th>
-                      <th className="p-1 m-0">{selectedUser.firstName}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="p-1 m-0">Last Name</td>
-                      <td className="p-1 m-0">{selectedUser.lastName}</td>
-                    </tr>
-                    <tr>
-                      <td className="p-1 m-0">Username</td>
-                      <td className="p-1 m-0">{selectedUser.username}</td>
-                    </tr>
-                    <tr>
-                      <td className="p-1 m-0">Locked</td>
-                      <td className="p-1 m-0">
-                        {selectedUser.is_locked ? "Yes" : "No"}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
               </div>
-            ) : (
-              <p>Select a user to view their details.</p>
-            )}
+              <div className="card-body">
+                {selectedUser ? (
+                  <div>
+                    <div className="user-profile-header mb-4">
+                      <div className="d-flex align-items-center mb-3">
+                        <div className="user-avatar-large me-3">
+                          <i className="bi bi-person-circle text-primary"></i>
+                        </div>
+                        <div>
+                          <h4 className="text-primary mb-1">{selectedUser.firstName} {selectedUser.lastName}</h4>
+                          <p className="text-muted mb-0">
+                            <i className="bi bi-at me-1"></i>
+                            @{selectedUser.username}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="role-badge-container">
+                        <span className="badge bg-primary fs-6 px-3 py-2">
+                          <i className="bi bi-shield-check me-2"></i>
+                          {selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : "No role assigned"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="action-buttons mb-4">
+                      <div className="row g-2">
+                        <div className="col-6 col-md-3">
+                          <button
+                            type="button"
+                            className="btn btn-warning btn-sm w-100"
+                            onClick={handleShowUpdateModal}
+                          >
+                            <i className="bi bi-pencil me-1"></i>
+                            Update
+                          </button>
+                        </div>
+                        <div className="col-6 col-md-3">
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm w-100"
+                            onClick={() => setShowDeleteModal(true)}
+                            disabled={selectedUser.status === "DELETED"}
+                          >
+                            <i className="bi bi-trash me-1"></i>
+                            Deactivate
+                          </button>
+                        </div>
+                        <div className="col-6 col-md-3">
+                          <button
+                            className="btn btn-info btn-sm w-100"
+                            onClick={() => setShowLockModal(true)}
+                          >
+                            <i className={`bi ${selectedUser.is_locked ? "bi-unlock" : "bi-lock"} me-1`}></i>
+                            {selectedUser.is_locked ? "Unlock" : "Lock"}
+                          </button>
+                        </div>
+                        <div className="col-6 col-md-3">
+                          <button
+                            className="btn btn-secondary btn-sm w-100"
+                            onClick={() => setShowAssignRoleConfirmModal(true)}
+                          >
+                            <i className="bi bi-person-gear me-1"></i>
+                            Assign Role
+                          </button>
+                        </div>
+                      </div>
+                      {selectedUser.status === "DELETED" && (
+                        <div className="mt-2">
+                          <button
+                            className="btn btn-success w-100"
+                            onClick={() => setShowReactivateModal(true)}
+                          >
+                            <i className="bi bi-arrow-clockwise me-1"></i>
+                            Reactivate User
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="table-responsive">
+                      <table className="table table-sm">
+                        <tbody>
+                          <tr>
+                            <td className="fw-bold">First Name</td>
+                            <td>{selectedUser.firstName}</td>
+                          </tr>
+                          <tr>
+                            <td className="fw-bold">Last Name</td>
+                            <td>{selectedUser.lastName}</td>
+                          </tr>
+                          <tr>
+                            <td className="fw-bold">Username</td>
+                            <td>{selectedUser.username}</td>
+                          </tr>
+                          <tr>
+                            <td className="fw-bold">Status</td>
+                            <td>
+                              {selectedUser.status === "DELETED" ? (
+                                <span className="badge bg-danger">Deleted</span>
+                              ) : (
+                                <span className="badge bg-success">Active</span>
+                              )}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="fw-bold">Locked</td>
+                            <td>
+                              {selectedUser.is_locked ? (
+                                <span className="badge bg-warning">Yes</span>
+                              ) : (
+                                <span className="badge bg-light text-dark">No</span>
+                              )}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <i className="bi bi-person text-muted" style={{ fontSize: '3rem' }}></i>
+                    <p className="text-muted mt-3 mb-0">Select a user to view their details</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
       {showModal && (
         <NewUser
           onClose={handleClose}

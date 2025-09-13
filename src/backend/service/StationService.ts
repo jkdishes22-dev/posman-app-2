@@ -186,15 +186,18 @@ export class StationService {
    * Get user's available stations
    */
   async getUserStations(userId: number): Promise<Station[]> {
-    const userStations = await this.userStationRepository.find({
+    // Get all user stations and filter by status
+    const allUserStations = await this.userStationRepository.find({
       where: {
-        user: { id: userId },
-        status: UserStationStatus.ENABLED
+        user: { id: userId }
       },
       relations: ["station"]
     });
 
-    return userStations.map(us => us.station);
+    // Filter by status
+    const enabledUserStations = allUserStations.filter(us => us.status === UserStationStatus.ENABLED);
+
+    return enabledUserStations.map(us => us.station);
   }
 
   // Link a pricelist to a station

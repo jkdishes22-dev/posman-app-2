@@ -58,6 +58,7 @@ export class BillService {
         }));
 
         await transactionalEntityManager.save(BillItem, billItems);
+
         return newBill;
       },
     );

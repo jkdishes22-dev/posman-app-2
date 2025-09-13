@@ -8,8 +8,12 @@ import Image from "next/image";
 import CategoryDeleteModal from "./components/category/category-delete";
 import { AuthError } from "src/app/types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import { useAuth } from "../../../contexts/AuthContext";
+import { useApiCall } from "../../../utils/apiUtils";
 
 const CategoryPage: React.FC = () => {
+  const apiCall = useApiCall();
+
   const [name, setName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -26,6 +30,7 @@ const CategoryPage: React.FC = () => {
     name: string;
   } | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,25 +39,23 @@ const CategoryPage: React.FC = () => {
       return;
     }
     const formData = { name };
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/menu/categories", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-      const data = await response.json();
-      if (response.status === 201) {
-        setFormError("");
-        setCategories((prevCategories) => [...prevCategories, data]);
-      } else {
-        setFormError(data.message || "Failed to create category");
-      }
-    } catch (error: any) {
-      setFormError("Error occurred creating category: " + error.message);
+
+    const result = await apiCall("/api/menu/categories", {
+      method: "POST",
+      body: JSON.stringify(formData),
+    });
+
+    if (result.status === 401) {
+      // Already handled by apiCall utility
+      return;
+    } else if (result.status === 201) {
+      setFormError("");
+      setCategories((prevCategories) => [...prevCategories, result.data]);
+      setName("");
+    } else if (result.status === 403) {
+      setAuthError(result.data);
+    } else {
+      setFormError(result.error || "Failed to create category");
     }
   };
 
@@ -83,26 +86,23 @@ const CategoryPage: React.FC = () => {
   };
 
   const handleDeleteCategory = async (categoryId: string) => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/menu/categories/${categoryId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (response.ok) {
-        setCategories((prevCategories: any) =>
-          prevCategories.filter((category: any) => category.id !== categoryId),
-        );
-        setShowDeleteModal(false);
-        setCategoryToDelete(null);
-      } else {
-        const errorData = await response.json();
-        setFormError(errorData.message || "Failed to delete category");
-      }
-    } catch (e: any) {
-      setFormError("Failed to delete category: " + e.message);
+    const result = await apiCall(`/api/menu/categories/${categoryId}`, {
+      method: "DELETE",
+    });
+
+    if (result.status === 401) {
+      // Already handled by apiCall utility
+      return;
+    } else if (result.status === 403) {
+      setAuthError(result.data);
+    } else if (result.status === 200) {
+      setCategories((prevCategories) =>
+        prevCategories.filter((category) => category.id !== categoryId)
+      );
+      setShowDeleteModal(false);
+      setCategoryToDelete(null);
+    } else {
+      setFormError(result.error || "Failed to delete category");
     }
   };
 
@@ -112,91 +112,126 @@ const CategoryPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (categoriesLoaded) {
+      return;
+    }
+
     const fetchCategories = async () => {
       try {
         const token = localStorage.getItem("token");
         const response = await fetch("/api/menu/categories", {
           headers: {
-            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
           },
         });
+
         const data = await response.json();
-        if (response.ok) {
-          setCategories(data);
+
+        if (response.status === 401) {
+          // Invalid token, logout and redirect to login
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.location.href = "/";
+          return;
         } else if (response.status === 403) {
           setAuthError(data);
+        } else if (response.ok) {
+          setCategories(data || []);
+          setCategoriesLoaded(true);
         } else {
-          setFetchError(data.message || "Failed to fetch categories");
+          setFetchError(data.message || `Request failed with status ${response.status}`);
         }
-      } catch (e: any) {
-        setFetchError("Failed to fetch categories: " + e.message);
+      } catch (error: any) {
+        setFetchError(error.message || 'Network error');
       }
     };
-    fetchCategories();
-  }, []);
+    fetchCategories(); 
+  }, [categoriesLoaded]); // Only depend on categoriesLoaded
 
   return (
     <AdminLayout authError={authError}>
-      <div className="container p-1">
-        <div className="row px-1">
-          <div className="col-4">
-            <div className="p-3 border bg-light">
-              Add Category
-              <form onSubmit={handleSubmit} className="px-4 py-3">
-                {formError && <p style={{ color: "red" }}>{formError}</p>}
-                <div className="form-group row">
-                  <label className="col-sm-2 col-form-label">Name</label>
-                  <div className="col-sm-10">
+      <div className="container-fluid">
+        {/* Header */}
+        <div className="bg-primary text-white p-3 mb-4">
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-grid me-2"></i>
+            Menu Management
+          </h1>
+        </div>
+
+        {/* Main Content */}
+        <div className="row g-4">
+          <div className="col-12 col-lg-4">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <h5 className="mb-0 fw-bold">
+                  <i className="bi bi-plus-circle me-2 text-primary"></i>
+                  Add Category
+                </h5>
+              </div>
+              <div className="card-body">
+                <form onSubmit={handleSubmit}>
+                  <div className="mb-3">
+                    <label htmlFor="categoryName" className="form-label fw-semibold">
+                      Category Name
+                    </label>
                     <input
                       type="text"
                       className="form-control"
+                      id="categoryName"
+                      value={name}
                       onChange={(e) => setName(e.target.value)}
+                      placeholder="Enter category name"
+                      required
                     />
                   </div>
-                </div>
-                <div className="d-flex justify-content-end mt-3">
-                  <button
-                    type="submit"
-                    className="bg-primary-subtle border border-0"
-                  >
-                    <Image
-                      src="/icons/plus-circle.svg"
-                      alt="Add Category"
-                      width={24}
-                      height={24}
-                      className="m-2"
-                    />
+                  <button type="submit" className="btn btn-primary w-100">
+                    <i className="bi bi-plus-circle me-2"></i>
                     Add Category
                   </button>
-                </div>
-              </form>
+                </form>
+              </div>
             </div>
           </div>
 
-          <div className="col-8">
-            <Categories
-              categories={categories}
-              onCategoryClick={handleCategoryClick}
-              fetchError={fetchError}
-              onDeleteCategory={openDeleteModal}
-            />
+          <div className="col-12 col-lg-8">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <h5 className="mb-0 fw-bold">
+                  <i className="bi bi-grid me-2 text-primary"></i>
+                  Categories
+                </h5>
+              </div>
+              <div className="card-body">
+                <Categories
+                  categories={categories}
+                  onCategoryClick={handleCategoryClick}
+                  fetchError={fetchError}
+                  onDeleteCategory={openDeleteModal}
+                />
+              </div>
+            </div>
           </div>
         </div>
-        <div className="row px-1">
-          <ErrorDisplay
-            error={formError}
-            onDismiss={() => setFormError(null)}
-          />
-          <ErrorDisplay
-            error={fetchError}
-            onDismiss={() => setFetchError(null)}
-          />
-          <CategoryItems
-            selectedCategory={selectedCategory}
-            items={items}
-            itemError={itemError}
-            fetchItems={fetchItems}
-          />
+
+        <div className="row mt-3">
+          <div className="col-12">
+            <ErrorDisplay
+              error={formError}
+              onDismiss={() => setFormError(null)}
+            />
+            <ErrorDisplay
+              error={fetchError}
+              onDismiss={() => setFetchError(null)}
+            />
+            <CategoryItems
+              selectedCategory={selectedCategory}
+              items={items}
+              itemError={itemError}
+              fetchItems={fetchItems}
+            />
+          </div>
         </div>
       </div>
 

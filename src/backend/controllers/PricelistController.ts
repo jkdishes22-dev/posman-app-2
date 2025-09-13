@@ -31,7 +31,7 @@ export const fetchPricelistsHandler = async (
     res.status(200).json(pricelists);
   } catch (error: any) {
     console.error("Error fetching pricelists:", error);
-    return [];
+    res.status(500).json({ error: "Error fetching pricelists" });
   }
 };
 

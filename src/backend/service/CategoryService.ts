@@ -17,7 +17,18 @@ export class CategoryService {
   }
 
   public async fetchCategories(): Promise<Category[]> {
-    return await this.categoryRepository.find();
+    // Optimized query with proper select and filtering
+    return await this.categoryRepository
+      .createQueryBuilder("category")
+      .where("category.status = :status", { status: CategoryStatus.ACTIVE })
+      .select([
+        "category.id",
+        "category.name",
+        "category.status",
+        "category.created_at"
+      ])
+      .orderBy("category.name", "ASC")
+      .getMany();
   }
 
   async deleteCategory(id: number): Promise<void> {

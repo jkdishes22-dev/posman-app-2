@@ -72,32 +72,52 @@ const ViewItems: React.FC<ViewItemsProps> = ({
 
   return (
     <div className="col mt-2">
-      <div className="p-3 border bg-light">
-        <div className="row mb-3">
-          <div className="col-4">
-            {selectedCategory
-              ? `${selectedCategory.name}`
-              : isPricelistSection
-                ? "Pricelist items"
-                : "Items"}
+      <div className="p-2 border bg-light">
+        {/* Category Header - More Conspicuous */}
+        <div className="mb-2">
+          <div className="d-flex align-items-center justify-content-between mb-2">
+            <div className="d-flex align-items-center">
+              <i className={`bi ${selectedCategory ? 'bi-tag-fill' : 'bi-tag'} me-2 text-primary`}></i>
+              <span className="fw-bold text-dark">
+                {selectedCategory
+                  ? `${selectedCategory.name} Items`
+                  : isPricelistSection
+                    ? "Pricelist Items"
+                    : "All Items"}
+              </span>
+              {!selectedCategory && !isPricelistSection && (
+                <span className="badge bg-warning text-dark ms-2">Select a category</span>
+              )}
+            </div>
+            <div className="text-muted small">
+              {filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''} available
+            </div>
           </div>
-          <div className="col-6"> filter items here</div>
-          {!isBillingSection && selectedCategory && (
-            <div
-              className="col-2 border bg-primary-subtle border-1 border-primary-subtle align-items-center justify-content-end"
+          <div className="row">
+            <div className="col-8">
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="Filter items here..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Add Item Button - Only for non-billing sections */}
+        {!isBillingSection && selectedCategory && (
+          <div className="mb-3">
+            <button
+              className="btn btn-primary btn-sm"
               onClick={handleAddItemClick}
             >
-              <Image
-                src="/icons/plus-circle.svg"
-                alt="Add Item"
-                width={24}
-                height={24}
-                className="m-2 cursor-pointer"
-              />
-              Add item
-            </div>
-          )}
-        </div>
+              <i className="bi bi-plus-circle me-1"></i>
+              Add Item
+            </button>
+          </div>
+        )}
         {itemError && <p style={{ color: "red" }}>{itemError}</p>}
         <table className="table table-sm mt-3 table-striped">
           <thead>
@@ -171,13 +191,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                   )}
                 </tr>
               ))
-            ) : (
-              <tr>
-                <td colSpan={isBillingSection ? 1 : 6} className="text-center">
-                  No items found
-                </td>
-              </tr>
-            )}
+            ) : null}
           </tbody>
         </table>
       </div>

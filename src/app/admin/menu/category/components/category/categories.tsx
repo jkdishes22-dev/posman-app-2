@@ -12,6 +12,7 @@ interface CategoriesProps {
   onCategoryClick: (category: Category) => void;
   fetchError: string;
   onDeleteCategory?: (category: { id: string; name: string }) => void;
+  showHeader?: boolean;
 }
 
 const Categories: React.FC<CategoriesProps> = ({
@@ -19,6 +20,7 @@ const Categories: React.FC<CategoriesProps> = ({
   onCategoryClick,
   fetchError,
   onDeleteCategory,
+  showHeader = true,
 }) => {
   const [showAll, setShowAll] = useState(false);
   const [visibleCount, setVisibleCount] = useState(8);
@@ -43,28 +45,30 @@ const Categories: React.FC<CategoriesProps> = ({
       <div className="p-2 border bg-light">
         {fetchError && <p style={{ color: "red" }}>{fetchError}</p>}
 
-        <div className="row mb-3">
-          <div className="col-4">
-            <select
-              className="form-select"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">Show All</option>
-              <option value="active">Show Active</option>
-              <option value="deleted">Show Deleted</option>
-            </select>
+        {showHeader && (
+          <div className="row mb-3">
+            <div className="col-4">
+              <select
+                className="form-select"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">Show All</option>
+                <option value="active">Show Active</option>
+                <option value="deleted">Show Deleted</option>
+              </select>
+            </div>
+            <div className="col">
+              {filteredCategories.length > 8 && (
+                <div className="d-flex justify-content-end">
+                  <button className="btn btn-primary" onClick={toggleShowMore}>
+                    {showAll ? "Show Less" : "Show More"}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="col">
-            {filteredCategories.length > 8 && (
-              <div className="d-flex justify-content-end">
-                <button className="btn btn-primary" onClick={toggleShowMore}>
-                  {showAll ? "Show Less" : "Show More"}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        )}
 
         <div className="row">
           {filteredCategories.slice(0, visibleCount).map((category) => (

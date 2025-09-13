@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, PrimaryGeneratedColumn, Index } from "typeorm";
 
 export enum CategoryStatus {
   ACTIVE = "active",
@@ -7,6 +7,7 @@ export enum CategoryStatus {
 }
 
 @Entity("category")
+@Index(["status"]) // Index for status filtering
 export class Category {
   @PrimaryGeneratedColumn()
   id: number;

@@ -54,13 +54,15 @@ export const AppDataSource = new DataSource({
   synchronize: false,
   // logging: true,
   // timezone: getAppTimezone(),
-  poolSize: 5,
+  poolSize: 20,
   connectTimeout: 10000,
   acquireTimeout: 10000,
   extra: {
-    connectionLimit: 5,
+    connectionLimit: 20,
     acquireTimeout: 10000,
     timeout: 10000,
+    idleTimeout: 30000,
+    maxIdle: 10,
   },
 });
 

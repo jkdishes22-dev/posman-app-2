@@ -80,11 +80,15 @@ const ProfilePage = () => {
 
     return (
         <RoleAwareLayout>
-            <div className="container mt-4" style={{
-                background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-                minHeight: '100vh',
-                padding: '2rem 0'
-            }}>
+            <div className="container-fluid">
+                {/* Header */}
+                <div className="bg-primary text-white p-3 mb-4">
+                    <h1 className="h4 mb-0 fw-bold">
+                        <i className="bi bi-person-circle me-2"></i>
+                        User Profile
+                    </h1>
+                </div>
+
                 {loading ? (
                     <div className="text-center py-5">
                         <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
@@ -93,17 +97,14 @@ const ProfilePage = () => {
                         <p className="mt-3 text-muted">Loading profile...</p>
                     </div>
                 ) : error ? (
-                    <div className="alert alert-danger shadow-sm">{error}</div>
+                    <div className="alert alert-danger mb-4">{error}</div>
                 ) : user ? (
                     <div className="row g-4">
                         <div className="col-md-6">
-                            <div className="card mb-4 shadow-lg border-0" style={{ borderRadius: '12px' }}>
-                                <div className="card-header bg-gradient text-white border-0" style={{
-                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                    borderRadius: '12px 12px 0 0'
-                                }}>
-                                    <h5 className="mb-0">
-                                        <i className="bi bi-person-circle me-2"></i>
+                            <div className="card shadow-sm">
+                                <div className="card-header bg-light">
+                                    <h5 className="mb-0 fw-bold">
+                                        <i className="bi bi-person me-2 text-primary"></i>
                                         Personal Details
                                     </h5>
                                 </div>
@@ -129,25 +130,18 @@ const ProfilePage = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div className="card mb-4 shadow-lg border-0" style={{ borderRadius: '12px' }}>
-                                <div className="card-header bg-gradient text-white border-0" style={{
-                                    background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                                    borderRadius: '12px 12px 0 0'
-                                }}>
-                                    <h5 className="mb-0">
-                                        <i className="bi bi-hdd-stack me-2"></i>
+                            <div className="card shadow-sm mt-4">
+                                <div className="card-header bg-light">
+                                    <h5 className="mb-0 fw-bold">
+                                        <i className="bi bi-hdd-stack me-2 text-primary"></i>
                                         Stations
                                     </h5>
                                 </div>
                                 <div className="card-body">
                                     {user.stations && user.stations.length > 0 ? (
-                                        <ul className="list-unstyled">
+                                        <div className="list-group list-group-flush">
                                             {user.stations.map((station) => (
-                                                <li key={station.id} className="mb-3 p-3 border rounded shadow-sm hover-shadow" style={{
-                                                    transition: 'all 0.3s ease',
-                                                    borderRadius: '8px',
-                                                    backgroundColor: '#f8f9fa'
-                                                }}>
+                                                <div key={station.id} className="list-group-item">
                                                     <div className="d-flex justify-content-between align-items-start">
                                                         <div className="flex-grow-1">
                                                             <h6 className="mb-2 fw-semibold text-primary">
@@ -176,40 +170,40 @@ const ProfilePage = () => {
                                                             </span>
                                                         </div>
                                                     )}
-                                                </li>
+                                                </div>
                                             ))}
-                                        </ul>
+                                        </div>
                                     ) : (
-                                        <span className="text-muted">No stations assigned</span>
+                                        <div className="text-center py-4">
+                                            <i className="bi bi-hdd text-muted" style={{ fontSize: '3rem' }}></i>
+                                            <p className="text-muted mt-3 mb-0">No stations assigned</p>
+                                        </div>
                                     )}
                                 </div>
                             </div>
                         </div>
                         <div className="col-md-6">
-                            <div className="card mb-4 shadow-lg border-0" style={{ borderRadius: '12px' }}>
-                                <div className="card-header bg-gradient text-white border-0" style={{
-                                    background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-                                    borderRadius: '12px 12px 0 0'
-                                }}>
-                                    <h5 className="mb-0">
-                                        <i className="bi bi-key me-2"></i>
+                            <div className="card shadow-sm">
+                                <div className="card-header bg-light">
+                                    <h5 className="mb-0 fw-bold">
+                                        <i className="bi bi-key me-2 text-primary"></i>
                                         Change Password
                                     </h5>
                                 </div>
                                 <div className="card-body">
-                                    {pwError && <div className="alert alert-danger py-1">{pwError}</div>}
-                                    {pwSuccess && <div className="alert alert-success py-1">{pwSuccess}</div>}
+                                    {pwError && <div className="alert alert-danger py-2">{pwError}</div>}
+                                    {pwSuccess && <div className="alert alert-success py-2">{pwSuccess}</div>}
                                     <form onSubmit={handlePwSubmit}>
                                         <div className="mb-3">
-                                            <label className="form-label">Current Password</label>
+                                            <label className="form-label fw-semibold">Current Password</label>
                                             <input type="password" className="form-control" name="current" value={pwForm.current} onChange={handlePwChange} />
                                         </div>
                                         <div className="mb-3">
-                                            <label className="form-label">New Password</label>
+                                            <label className="form-label fw-semibold">New Password</label>
                                             <input type="password" className="form-control" name="new" value={pwForm.new} onChange={handlePwChange} />
                                         </div>
                                         <div className="mb-3">
-                                            <label className="form-label">Confirm New Password</label>
+                                            <label className="form-label fw-semibold">Confirm New Password</label>
                                             <input type="password" className="form-control" name="confirm" value={pwForm.confirm} onChange={handlePwChange} />
                                         </div>
                                         <button type="submit" className="btn btn-primary" disabled={pwLoading}>

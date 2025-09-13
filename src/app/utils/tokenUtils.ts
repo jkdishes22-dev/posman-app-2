@@ -1,0 +1,63 @@
+import jwt from "jsonwebtoken";
+
+export interface DecodedToken {
+    id: number;
+    user: Record<string, string>;
+    roles: string[];
+    iat?: number;
+    exp?: number;
+}
+
+export const isTokenExpiringSoon = (token: string, thresholdMinutes: number = 5): boolean => {
+    try {
+        const decoded = jwt.decode(token) as DecodedToken;
+        if (!decoded || !decoded.exp) return true;
+
+        const currentTime = Date.now() / 1000;
+        const expirationTime = decoded.exp;
+        const timeUntilExpiry = expirationTime - currentTime;
+        const thresholdSeconds = thresholdMinutes * 60;
+
+        return timeUntilExpiry <= thresholdSeconds;
+    } catch (error) {
+        console.error("Error checking token expiry:", error);
+        return true;
+    }
+};
+
+export const refreshToken = async (): Promise<string | null> => {
+    try {
+        const response = await fetch("/api/auth/refresh", {
+            method: "POST",
+            credentials: "include",
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem("token", data.token);
+            return data.token;
+        } else {
+            console.error("Token refresh failed:", response.status);
+            return null;
+        }
+    } catch (error) {
+        console.error("Error refreshing token:", error);
+        return null;
+    }
+};
+
+export const getValidToken = async (): Promise<string | null> => {
+    const currentToken = localStorage.getItem("token");
+
+    if (!currentToken) {
+        return null;
+    }
+
+    // Check if token is expiring soon (within 5 minutes)
+    if (isTokenExpiringSoon(currentToken)) {
+        const newToken = await refreshToken();
+        return newToken;
+    }
+
+    return currentToken;
+};

@@ -1,4 +1,4 @@
-import { Entity, ManyToOne, JoinColumn, Column } from "typeorm";
+import { Entity, ManyToOne, JoinColumn, Column, Index } from "typeorm";
 import { Station } from "./Station";
 import { User } from "./User";
 import { BaseEntity } from "./BaseEntity";
@@ -9,6 +9,8 @@ export enum UserStationStatus {
 }
 
 @Entity("user_station")
+@Index(["user", "status"]) // Composite index for user + status queries
+@Index(["user", "isDefault", "status"]) // Composite index for default station queries
 export class UserStation extends BaseEntity {
   @Column({ nullable: true, name: "is_default" })
   isDefault!: boolean;

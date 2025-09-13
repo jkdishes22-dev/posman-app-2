@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { Station } from '../types/types';
 import { useAuth } from './AuthContext';
 
@@ -28,9 +28,10 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const hasInitiallyLoaded = useRef(false);
 
     // Fetch user's available stations
-    const fetchUserStations = async (): Promise<Station[]> => {
+    const fetchUserStations = useCallback(async (): Promise<Station[]> => {
         if (!checkAuth()) {
             throw new Error("Authentication expired");
         }
@@ -51,10 +52,10 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
 
         const data = await response.json();
         return data.stations || [];
-    };
+    }, [checkAuth, logout]);
 
     // Get user's default station
-    const fetchDefaultStation = async (): Promise<Station | null> => {
+    const fetchDefaultStation = useCallback(async (): Promise<Station | null> => {
         if (!checkAuth()) {
             throw new Error("Authentication expired");
         }
@@ -78,7 +79,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
 
         const data = await response.json();
         return data.station || null;
-    };
+    }, [checkAuth, logout]);
 
     // Validate user access to a station
     const validateStationAccess = async (stationId: number): Promise<boolean> => {
@@ -108,7 +109,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     };
 
     // Refresh stations and set default
-    const refreshStations = async (): Promise<void> => {
+    const refreshStations = useCallback(async (): Promise<void> => {
         // Prevent multiple simultaneous refresh calls
         if (isRefreshing) {
             return;
@@ -119,10 +120,40 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
         setError(null);
 
         try {
-            const [stations, defaultStation] = await Promise.all([
-                fetchUserStations(),
-                fetchDefaultStation()
-            ]);
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            // Fetch stations
+            const stationsResponse = await fetch("/api/users/me/stations", {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (stationsResponse.status === 401) {
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                window.location.href = "/";
+                return;
+            }
+
+            const stationsData = await stationsResponse.json();
+            const stations = stationsData.stations || [];
+
+            // Fetch default station
+            const defaultResponse = await fetch("/api/users/me/default-station", {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            let defaultStation = null;
+            if (defaultResponse.status === 200) {
+                const defaultData = await defaultResponse.json();
+                defaultStation = defaultData.station || null;
+            }
 
             setAvailableStations(stations);
 
@@ -141,7 +172,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    };
+    }, [isRefreshing]);
 
     // Set current station and validate access
     const handleSetCurrentStation = async (station: Station | null): Promise<void> => {
@@ -178,19 +209,80 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     };
 
     // Load stations if needed (when user is authenticated and stations not loaded)
-    const loadStationsIfNeeded = async (): Promise<void> => {
+    const loadStationsIfNeeded = useCallback(async (): Promise<void> => {
         const token = localStorage.getItem("token");
         if (token && availableStations.length === 0 && !isLoading && !isRefreshing) {
             await refreshStations();
         }
-    };
+    }, [availableStations.length, isLoading, isRefreshing, refreshStations]);
 
     // Load stations on mount (only if user is authenticated)
     useEffect(() => {
-        if (isAuthenticated && !isRefreshing) {
-            refreshStations();
+        if (isAuthenticated && !hasInitiallyLoaded.current) {
+            hasInitiallyLoaded.current = true;
+
+            const loadStations = async () => {
+                setIsRefreshing(true);
+                setIsLoading(true);
+                setError(null);
+
+                try {
+                    const token = localStorage.getItem("token");
+                    if (!token) return;
+
+                    // Fetch stations
+                    const stationsResponse = await fetch("/api/users/me/stations", {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                    });
+
+                    if (stationsResponse.status === 401) {
+                        localStorage.removeItem("token");
+                        localStorage.removeItem("user");
+                        window.location.href = "/";
+                        return;
+                    }
+
+                    const stationsData = await stationsResponse.json();
+                    const stations = stationsData.stations || [];
+
+                    // Fetch default station
+                    const defaultResponse = await fetch("/api/users/me/default-station", {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                    });
+
+                    let defaultStation = null;
+                    if (defaultResponse.status === 200) {
+                        const defaultData = await defaultResponse.json();
+                        defaultStation = defaultData.station || null;
+                    }
+
+                    setAvailableStations(stations);
+
+                    // Set current station to default if available, otherwise first available station
+                    if (defaultStation) {
+                        setCurrentStation(defaultStation);
+                    } else if (stations.length > 0) {
+                        setCurrentStation(stations[0]);
+                    } else {
+                        setCurrentStation(null);
+                    }
+                } catch (err: any) {
+                    setError(err.message || "Failed to load stations");
+                    console.error("Error refreshing stations:", err);
+                } finally {
+                    setIsLoading(false);
+                    setIsRefreshing(false);
+                }
+            };
+            loadStations();
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated]); // Only depend on isAuthenticated
 
     const contextValue: StationContextType = {
         currentStation,

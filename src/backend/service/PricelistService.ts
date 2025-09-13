@@ -32,7 +32,21 @@ export class PricelistService {
   }
 
   async fetchPricelists() {
-    return await this.pricelistRepository.find();
+    // Optimized query with proper select and relations
+    return await this.pricelistRepository
+      .createQueryBuilder("pricelist")
+      .leftJoinAndSelect("pricelist.station", "station")
+      .select([
+        "pricelist.id",
+        "pricelist.name",
+        "pricelist.status",
+        "pricelist.is_default",
+        "pricelist.created_at",
+        "station.id",
+        "station.name"
+      ])
+      .orderBy("pricelist.name", "ASC")
+      .getMany();
   }
 
   async fetchPricelistItems(pricelistId: string): Promise<any[]> {

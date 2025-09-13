@@ -16,10 +16,11 @@ import { useAuth } from "../contexts/AuthContext";
 import ErrorDisplay from "../components/ErrorDisplay";
 import StationSelector from "../components/StationSelector";
 import StationStatus from "../components/StationStatus";
+import { getValidToken, isTokenExpiringSoon } from "../utils/tokenUtils";
 
 const BillingSection = () => {
   // Auth context
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
 
   // Station context
   const { currentStation, isLoading: stationLoading, error: stationError, loadStationsIfNeeded } = useStation();
@@ -38,6 +39,10 @@ const BillingSection = () => {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [createdBill, setCreatedBill] = useState(null);
+  const [showStationSelector, setShowStationSelector] = useState(false);
+  const [billError, setBillError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categoriesFetched, setCategoriesFetched] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,20 +51,64 @@ const BillingSection = () => {
       return;
     }
 
-    const token = localStorage.getItem("token");
-    const decodedToken = jwt.decode(token) as DecodedToken;
-    if (decodedToken && decodedToken.user) {
-      setWaitress(decodedToken.user.firstname);
-      setUserId(decodedToken.id.toString());
-    }
+    const initializeUser = async () => {
+      try {
+        const token = await getValidToken();
+        console.log("=== Token Debug ===");
+        console.log("Valid token obtained:", !!token);
+
+        if (!token) {
+          console.log("Error: No valid token available");
+          // Fallback to auth context user
+          if (user && user.id) {
+            console.log("Using fallback user ID from auth context:", user.id);
+            setUserId(user.id.toString());
+            setWaitress(user.firstname || user.firstName || "");
+          }
+          return;
+        }
+
+        const decodedToken = jwt.decode(token) as DecodedToken;
+        console.log("Decoded token:", decodedToken);
+
+        if (decodedToken && decodedToken.user) {
+          setWaitress(decodedToken.user.firstname);
+          // Use the id from the token, not from user object
+          const userId = decodedToken.id ? decodedToken.id.toString() : "";
+          console.log("User ID extracted:", userId);
+          setUserId(userId);
+        } else {
+          console.log("Error: Invalid token structure or no user data");
+          // Fallback to auth context user
+          if (user && user.id) {
+            console.log("Using fallback user ID from auth context:", user.id);
+            setUserId(user.id.toString());
+            setWaitress(user.firstname || user.firstName || "");
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing user:", error);
+        // Fallback to auth context user
+        if (user && user.id) {
+          console.log("Using fallback user ID from auth context after error:", user.id);
+          setUserId(user.id.toString());
+          setWaitress(user.firstname || user.firstName || "");
+        }
+      }
+    };
+
+    initializeUser();
 
     // Load stations if needed
     loadStationsIfNeeded();
-  }, [isAuthenticated]); // Remove loadStationsIfNeeded from dependencies to prevent infinite loop
+  }, [isAuthenticated]);
 
   useEffect(() => {
+    if (categoriesFetched) return;
+
     const fetchCategories = async () => {
       try {
+        setCategoriesFetched(true);
         const token = localStorage.getItem("token");
         const response = await fetch("/api/menu/categories", {
           headers: {
@@ -74,10 +123,11 @@ const BillingSection = () => {
         setCategories(data);
       } catch (error: any) {
         setFetchCategoryError("Failed to fetch categories: " + error);
+        setCategoriesFetched(false); // Reset on error to allow retry
       }
     };
     fetchCategories();
-  }, []);
+  }, []); // Empty dependency array - only run once
 
   // Refetch items when station changes
   useEffect(() => {
@@ -85,6 +135,13 @@ const BillingSection = () => {
       fetchItems(selectedCategory.id);
     }
   }, [currentStation, selectedCategory]);
+
+  // Auto-hide station selector when station is selected
+  useEffect(() => {
+    if (currentStation) {
+      setShowStationSelector(false);
+    }
+  }, [currentStation]);
 
   const fetchItems = async (categoryId: string) => {
     if (!currentStation) {
@@ -156,53 +213,119 @@ const BillingSection = () => {
   };
 
   const handleShowSubmitModal = () => setShowSubmitModal(true);
-  const handleCloseSubmitModal = () => setShowSubmitModal(false);
+  const handleCloseSubmitModal = () => {
+    setShowSubmitModal(false);
+    setBillError(""); // Clear error when modal is closed
+  };
   const handleShowCancelModal = () => setShowCancelModal(true);
   const handleCloseCancelModal = () => setShowCancelModal(false);
 
   const handleConfirmSubmit = async () => {
     if (!currentStation) {
-      alert("Please select a station before creating a bill");
+      setBillError("Please select a station before creating a bill");
       return;
     }
 
-    const token = localStorage.getItem("token");
-    const total = selectedItems.reduce((sum, item) => sum + item.subtotal, 0);
-    const payload = {
-      items: selectedItems.map((item) => ({
-        item_id: item.id,
-        quantity: item.quantity,
-        subtotal: item.subtotal,
-      })),
-      user_id: userId,
-      station_id: currentStation.id,
-      total,
-    };
+    setIsSubmitting(true);
+    setBillError(""); // Clear any previous errors
+
     try {
-      const response = await fetch("/api/bills", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        throw new Error("Failed to submit picked items");
+      // Get a valid token (will refresh if needed)
+      const token = await getValidToken();
+      if (!token) {
+        console.log("Error: No valid token available");
+        setBillError("Unable to process bill. Please log out and log back in.");
+        return;
       }
-      const data = await response.json();
-      setShowSubmitModal(false);
-      setCreatedBill({
-        ...data.bill,
-        bill_items: selectedItems.map(item => ({
-          ...item,
-          item: { name: item.name, price: item.price },
+
+      // Ensure we have a valid user ID
+      let currentUserId = userId;
+      if (!currentUserId || currentUserId === "" || currentUserId === "NaN") {
+        console.log("Error: Invalid user ID, trying to get from auth context");
+        // Try to get user ID from auth context as fallback
+        if (user && user.id) {
+          console.log("Using user ID from auth context:", user.id);
+          currentUserId = user.id.toString();
+          setUserId(currentUserId);
+        } else {
+          console.log("No user ID available, trying to fetch from API");
+          try {
+            const response = await fetch("/api/users/me", {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            if (response.ok) {
+              const userData = await response.json();
+              console.log("Fetched user data:", userData);
+              if (userData.id) {
+                currentUserId = userData.id.toString();
+                setUserId(currentUserId);
+                setWaitress(userData.firstname || userData.firstName || "");
+                console.log("Using user ID from API:", userData.id);
+              } else {
+                throw new Error("No user ID in API response");
+              }
+            } else {
+              throw new Error("Failed to fetch user data");
+            }
+          } catch (error) {
+            console.log("Failed to fetch user data:", error);
+            setBillError("Unable to process bill. Please log out and log back in.");
+            return;
+          }
+        }
+      }
+
+      const total = selectedItems.reduce((sum, item) => sum + item.subtotal, 0);
+      const payload = {
+        items: selectedItems.map((item) => ({
+          item_id: item.id,
+          quantity: item.quantity,
+          subtotal: item.subtotal,
         })),
-        user: { firstName: waitress },
-        currency: "KES",
-      });
+        user_id: parseInt(currentUserId), // Use the validated user ID
+        station_id: currentStation.id,
+        total,
+      };
+      try {
+        const response = await fetch("/api/bills", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Bill submission error:", errorData);
+          throw new Error(errorData.error || errorData.message || "Failed to submit picked items");
+        }
+        const data = await response.json();
+        setShowSubmitModal(false);
+        setBillError(""); // Clear any previous errors
+        setItems([]); // Clear available items instantly
+        setCreatedBill({
+          ...data.bill,
+          bill_items: selectedItems.map(item => ({
+            ...item,
+            item: { name: item.name, price: item.price },
+          })),
+          user: { firstName: waitress },
+          currency: "KES",
+        });
+      } catch (error: any) {
+        console.error("Error submitting items:", error);
+        // Show the actual error message from the API
+        const errorMessage = error.message || "Failed to submit picked items";
+        setBillError(errorMessage);
+      }
     } catch (error: any) {
-      console.error("Error submitting items:", error);
+      console.error("Error in bill submission:", error);
+      setBillError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -238,7 +361,37 @@ const BillingSection = () => {
   };
 
   const handleConfirmCancel = () => {
-    window.location.reload();
+    // Reset bill state without reloading the page
+    setCreatedBill(null);
+    setSelectedItems([]);
+    setSelectedCategory(null);
+    setItems([]); // Clear the available items list
+    setWaitress("");
+    setUserId("");
+    setShowSubmitModal(false);
+    setShowCancelModal(false);
+    setShowQuantityModal(false);
+    setCurrentItem(null);
+    setItemError("");
+    setFetchCategoryError("");
+    setBillError(""); // Clear bill errors
+  };
+
+  const handleNewBill = () => {
+    // Reset all bill-related state without reloading the page
+    setCreatedBill(null);
+    setSelectedItems([]);
+    setSelectedCategory(null);
+    setItems([]); // Clear the available items list
+    setWaitress("");
+    setUserId("");
+    setShowSubmitModal(false);
+    setShowCancelModal(false);
+    setShowQuantityModal(false);
+    setCurrentItem(null);
+    setItemError("");
+    setFetchCategoryError("");
+    setBillError(""); // Clear bill errors
   };
 
   const totalAmount = selectedItems.reduce(
@@ -292,54 +445,59 @@ const BillingSection = () => {
 
   return (
     <div className="container-fluid px-3 py-2">
-      {/* Minimal Header with Collapsible Station Selection */}
-      <div className="row mb-2">
-        <div className="col-12">
-          <div className="d-flex justify-content-between align-items-center">
-            <h4 className="mb-0 text-primary">
-              <i className="bi bi-cart-check me-2"></i>
-              Point of Sale
-            </h4>
-            <div className="d-flex align-items-center gap-2">
-              <StationStatus variant="minimal" />
-              <button
-                className="btn btn-primary btn-sm"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#stationSelector"
-                aria-expanded="false"
-                aria-controls="stationSelector"
-                title="Choose Station"
-              >
-                <i className="bi bi-gear me-1"></i>
-                Choose Station
-              </button>
-            </div>
-          </div>
-
-          {/* Collapsible Station Selector - Right Aligned */}
-          <div className="collapse mt-2" id="stationSelector">
-            <div className="d-flex justify-content-end">
-              <div className="card border-0 bg-light" style={{ width: '300px' }}>
-                <div className="card-body py-2">
-                  <StationSelector showLabel={false} size="sm" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content - Balanced Layout */}
+      {/* Main Content - Improved Layout */}
       <div className="row g-3">
         {/* Available Items Section */}
         <div className="col-lg-6">
           <div className="card border-0 shadow-sm h-100">
-            <div className="card-header bg-light border-0 py-2">
-              <h6 className="mb-0 text-dark">
-                <i className="bi bi-box-seam me-1"></i>
-                Available Items
-              </h6>
+            <div className="card-header bg-primary text-white py-2">
+              <div className="d-flex align-items-center justify-content-between">
+                <h6 className="mb-0 fw-bold">
+                  <i className="bi bi-box-seam me-2"></i>
+                  Available Items
+                </h6>
+                <div className="d-flex align-items-center gap-3">
+                  <small className="text-white-50">
+                    {items.length} items
+                  </small>
+                  <div className="d-flex align-items-center gap-2">
+                    <StationStatus variant="minimal" />
+                    <button
+                      className={`btn btn-sm ${currentStation ? 'btn-success' : 'btn-light'} text-white`}
+                      type="button"
+                      onClick={() => setShowStationSelector(!showStationSelector)}
+                      title={currentStation ? `Current: ${currentStation.name} - Click to change` : "Choose Station"}
+                    >
+                      <i className={`bi ${currentStation ? 'bi-arrow-repeat' : 'bi-gear'} me-1`}></i>
+                      {currentStation ? 'Switch Station' : 'Choose Station'}
+                    </button>
+                    {createdBill && (
+                      <button
+                        className="btn btn-sm btn-warning text-dark fw-bold"
+                        type="button"
+                        onClick={handleNewBill}
+                        title="Start a new bill"
+                      >
+                        <i className="bi bi-plus-circle me-1"></i>
+                        New Bill
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Collapsible Station Selector */}
+              {showStationSelector && (
+                <div className="mt-2">
+                  <div className="d-flex justify-content-end">
+                    <div className="card border-0 bg-light shadow-sm" style={{ width: '300px' }}>
+                      <div className="card-body py-2">
+                        <StationSelector showLabel={false} size="sm" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="card-body p-0">
               <ErrorDisplay
@@ -360,42 +518,54 @@ const BillingSection = () => {
           </div>
         </div>
 
-        {/* Billing Section - Balanced Layout */}
+        {/* Billing Section - Improved */}
         <div className="col-lg-6">
           <div className="card border-0 shadow-sm h-100">
             <div className="card-header bg-success text-white border-0 py-2">
-              <h5 className="mb-0">
-                <i className="bi bi-receipt me-2"></i>
-                Current Bill
-              </h5>
+              <div className="d-flex align-items-center justify-content-between">
+                <h6 className="mb-0 fw-bold">
+                  <i className="bi bi-receipt me-2"></i>
+                  Current Bill
+                </h6>
+                <div className="d-flex align-items-center gap-3">
+                  <small className="text-white-50">
+                    {(createdBill ? createdBill.bill_items : selectedItems).length} items
+                  </small>
+                  {createdBill && (
+                    <span className="badge bg-light text-success fw-bold">
+                      #{createdBill.id}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="card-body p-0">
               <div className="table-responsive">
-                <table className="table table-hover mb-0 table-sm">
+                <table className="table table-hover mb-0">
                   <thead className="table-light">
                     <tr>
-                      <th className="border-0 small">Item</th>
-                      <th className="border-0 text-center small">Qty</th>
-                      <th className="border-0 text-end small">Price</th>
-                      <th className="border-0 text-center small">Action</th>
+                      <th className="border-0 fw-bold">Item</th>
+                      <th className="border-0 text-center fw-bold">Qty</th>
+                      <th className="border-0 text-end fw-bold">Price</th>
+                      <th className="border-0 text-center fw-bold">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(createdBill ? createdBill.bill_items : selectedItems).length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="text-center text-muted py-3">
-                          <i className="bi bi-cart-x fs-3 d-block mb-1"></i>
-                          <small>No items in bill</small>
+                        <td colSpan={4} className="text-center text-muted py-4">
+                          <i className="bi bi-cart-x fs-1 d-block mb-2 text-muted"></i>
+                          <span className="fw-medium">No items in bill</span>
                         </td>
                       </tr>
                     ) : (
                       (createdBill ? createdBill.bill_items : selectedItems).map((item) => (
-                        <tr key={item.id}>
+                        <tr key={item.id} className="align-middle">
                           <td className="fw-medium">{item.item?.name || item.name}</td>
                           <td className="text-center">
-                            <span className="badge bg-secondary">{item.quantity}</span>
+                            <span className="badge bg-primary rounded-pill">{item.quantity}</span>
                           </td>
-                          <td className="text-end fw-medium">
+                          <td className="text-end fw-bold text-success">
                             ${(item.subtotal || (item.price * item.quantity)).toFixed(2)}
                           </td>
                           <td className="text-center">
@@ -404,8 +574,34 @@ const BillingSection = () => {
                                 className="btn btn-outline-danger btn-sm"
                                 onClick={() => handleRemoveItem(item.id)}
                                 title="Remove item"
+                                style={{
+                                  minWidth: '32px',
+                                  minHeight: '32px',
+                                  padding: '0.375rem',
+                                  borderWidth: '2px',
+                                  backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                                  color: '#dc3545',
+                                  fontWeight: '600',
+                                  boxShadow: '0 2px 4px rgba(220, 53, 69, 0.2)',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.transform = 'scale(1.05)';
+                                  e.currentTarget.style.backgroundColor = '#dc3545';
+                                  e.currentTarget.style.color = 'white';
+                                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(220, 53, 69, 0.3)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.transform = 'scale(1)';
+                                  e.currentTarget.style.backgroundColor = 'rgba(220, 53, 69, 0.1)';
+                                  e.currentTarget.style.color = '#dc3545';
+                                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(220, 53, 69, 0.2)';
+                                }}
                               >
-                                <i className="bi bi-trash"></i>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-circle" viewBox="0 0 16 16">
+                                  <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
+                                  <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708" />
+                                </svg>
                               </button>
                             )}
                           </td>
@@ -416,17 +612,17 @@ const BillingSection = () => {
                 </table>
               </div>
             </div>
-            <div className="card-footer bg-light border-0 py-2">
+            <div className="card-footer bg-success text-white border-0 py-2" style={{ boxShadow: '0 -2px 4px rgba(0,0,0,0.1)' }}>
               <div className="row align-items-center">
                 <div className="col-md-6">
                   <div className="d-flex flex-column">
-                    <div className="h5 mb-1 text-success">
+                    <div className="h4 mb-0 fw-bold">
                       Total: ${createdBill && !isNaN(Number(createdBill.total))
                         ? Number(createdBill.total).toFixed(2)
                         : totalAmount.toFixed(2)
                       }
                     </div>
-                    <small className="text-muted">
+                    <small className="text-white-50">
                       <i className="bi bi-person me-1"></i>
                       Served by: {waitress}
                     </small>
@@ -437,20 +633,31 @@ const BillingSection = () => {
                     {!createdBill ? (
                       <>
                         <Button
-                          variant="success"
+                          variant="light"
                           size="sm"
                           onClick={handleShowSubmitModal}
-                          disabled={selectedItems.length === 0 || !currentStation}
-                          className="px-3"
+                          disabled={selectedItems.length === 0 || !currentStation || isSubmitting}
+                          className="px-3 fw-bold text-success border-0"
+                          style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
                         >
-                          <i className="bi bi-check-circle me-1"></i>
-                          Create Bill
+                          {isSubmitting ? (
+                            <>
+                              <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                              Submitting...
+                            </>
+                          ) : (
+                            <>
+                              <i className="bi bi-check-circle me-1"></i>
+                              Create Bill
+                            </>
+                          )}
                         </Button>
                         <Button
-                          variant="outline-secondary"
+                          variant="outline-light"
                           size="sm"
                           onClick={handleShowCancelModal}
-                          disabled={selectedItems.length === 0}
+                          disabled={selectedItems.length === 0 || isSubmitting}
+                          className="fw-bold px-2"
                         >
                           <i className="bi bi-x-circle me-1"></i>
                           Clear
@@ -459,18 +666,44 @@ const BillingSection = () => {
                     ) : (
                       <>
                         <Button
-                          variant="primary"
+                          variant="success"
+                          size="sm"
+                          onClick={handleNewBill}
+                          className="me-1 fw-bold px-2"
+                          style={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                            border: '2px solid rgba(255, 255, 255, 0.8)',
+                            color: 'white',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                          }}
+                        >
+                          <i className="bi bi-plus-circle me-1"></i>
+                          New Bill
+                        </Button>
+                        <Button
+                          variant="light"
                           size="sm"
                           onClick={handlePrint}
-                          className="me-1"
+                          className="me-1 fw-medium text-dark px-2"
+                          style={{
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            border: '2px solid rgba(255, 255, 255, 0.8)',
+                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                          }}
                         >
                           <i className="bi bi-printer me-1"></i>
                           Print
                         </Button>
                         <Button
-                          variant="outline-primary"
+                          variant="outline-light"
                           size="sm"
                           onClick={handleDownload}
+                          className="fw-medium px-2"
+                          style={{
+                            borderColor: 'rgba(255, 255, 255, 0.8)',
+                            color: 'white',
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                          }}
                         >
                           <i className="bi bi-download me-1"></i>
                           Download
@@ -485,17 +718,17 @@ const BillingSection = () => {
         </div>
       </div>
 
-      {/* Categories Section - Compact */}
-      <div className="row mt-2">
+      {/* Categories Section - Improved */}
+      <div className="row mt-3">
         <div className="col-12">
           <div className="card border-0 shadow-sm">
-            <div className="card-header bg-light border-0 py-1">
-              <h6 className="mb-0 text-dark">
-                <i className="bi bi-grid me-1"></i>
-                Item Categories
-              </h6>
-            </div>
-            <div className="card-body py-1">
+            <div className="card-body py-3">
+              <div className="mb-3">
+                <h5 className="mb-0 text-dark fw-bold d-flex align-items-center">
+                  <i className="bi bi-grid me-2 text-primary"></i>
+                  Item Categories
+                </h5>
+              </div>
               <Categories
                 categories={categories}
                 onCategoryClick={(category) => {
@@ -503,6 +736,7 @@ const BillingSection = () => {
                   fetchItems(category.id);
                 }}
                 fetchError={fetchCategoryError}
+                showHeader={false}
               />
             </div>
           </div>
@@ -513,6 +747,7 @@ const BillingSection = () => {
       <div style={{ display: 'none' }}>
         {createdBill && <ReceiptPrint ref={receiptRef} bill={createdBill} />}
       </div>
+
       {/* Quantity Modal */}
       {showQuantityModal && (
         <QuantityModal
@@ -523,40 +758,83 @@ const BillingSection = () => {
       )}
 
       {/* Submit Confirmation Modal */}
-      <Modal show={showSubmitModal} onHide={handleCloseSubmitModal}>
-        <Modal.Header closeButton>
-          <Modal.Title>Confirm Billing</Modal.Title>
+      <Modal show={showSubmitModal} onHide={handleCloseSubmitModal} centered>
+        <Modal.Header closeButton className="bg-primary text-white">
+          <Modal.Title className="fw-bold">Confirm Billing</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          Create bill of total amount:
-          <b>{totalAmount}</b>?
+        <Modal.Body className="py-4">
+          {billError && (
+            <div className="alert alert-danger mb-3" role="alert">
+              <i className="bi bi-exclamation-triangle me-2"></i>
+              {billError}
+            </div>
+          )}
+          <div className="text-center">
+            {isSubmitting ? (
+              <>
+                <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
+                  <span className="visually-hidden">Loading...</span>
+                </div>
+                <p className="fs-5 text-primary">Submitting bill...</p>
+                <p className="text-muted">Please wait while we process your order</p>
+              </>
+            ) : (
+              <>
+                <i className="bi bi-receipt fs-1 text-primary mb-3 d-block"></i>
+                <p className="fs-5">Create bill with total amount:</p>
+                <h3 className="text-success fw-bold">${totalAmount.toFixed(2)}</h3>
+              </>
+            )}
+          </div>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseSubmitModal}>
+        <Modal.Footer className="border-0">
+          <Button
+            variant="outline-secondary"
+            onClick={handleCloseSubmitModal}
+            className="fw-medium"
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
           <Button
-            className="btn-success"
-            variant="primary"
+            variant="success"
             onClick={handleConfirmSubmit}
+            className="fw-medium"
+            disabled={isSubmitting}
           >
-            Confirm
+            {isSubmitting ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Submitting...
+              </>
+            ) : (
+              <>
+                <i className="bi bi-check-circle me-1"></i>
+                Confirm
+              </>
+            )}
           </Button>
         </Modal.Footer>
       </Modal>
 
       {/* Cancel Confirmation Modal */}
-      <Modal show={showCancelModal} onHide={handleCloseCancelModal}>
-        <Modal.Header closeButton>
-          <Modal.Title>Cancel Billing</Modal.Title>
+      <Modal show={showCancelModal} onHide={handleCloseCancelModal} centered>
+        <Modal.Header closeButton className="bg-warning text-dark">
+          <Modal.Title className="fw-bold">Cancel Billing</Modal.Title>
         </Modal.Header>
-        <Modal.Body>Are you sure you want to cancel billing?</Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseCancelModal}>
-            No
+        <Modal.Body className="py-4">
+          <div className="text-center">
+            <i className="bi bi-exclamation-triangle fs-1 text-warning mb-3 d-block"></i>
+            <p className="fs-5">Are you sure you want to clear all items from the bill?</p>
+          </div>
+        </Modal.Body>
+        <Modal.Footer className="border-0">
+          <Button variant="outline-secondary" onClick={handleCloseCancelModal} className="fw-medium">
+            No, Keep Items
           </Button>
-          <Button variant="primary" onClick={handleConfirmCancel}>
-            Yes
+          <Button variant="danger" onClick={handleConfirmCancel} className="fw-medium">
+            <i className="bi bi-trash me-1"></i>
+            Yes, Clear All
           </Button>
         </Modal.Footer>
       </Modal>

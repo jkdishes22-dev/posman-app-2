@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  Index,
 } from "typeorm";
 import type { Relation } from "typeorm";
 import { Item } from "./Item";
@@ -17,9 +18,17 @@ export enum BillItemStatus {
 }
 
 @Entity("bill_item")
+@Index(["bill_id", "created_at"])
+@Index(["item_id", "status"])
 export class BillItem {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @Column({ nullable: true })
+  item_id: number;
+
+  @Column({ nullable: true })
+  bill_id: number;
 
   @ManyToOne(() => Item)
   @JoinColumn({ name: "item_id" })

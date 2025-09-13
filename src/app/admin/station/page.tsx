@@ -25,6 +25,7 @@ export default function StationPage() {
   const [availableUsers, setAvailableUsers] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
   const [addUserError, setAddUserError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -49,7 +50,7 @@ export default function StationPage() {
           );
         }
       } catch (error: any) {
-        console.error("Failed to fetch stations", error);
+        setError(error.message || "Failed to fetch stations");
         setStations([]);
       }
     };
@@ -125,7 +126,7 @@ export default function StationPage() {
   const handleAddStation = async (name: string) => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/station", {
+      const response = await fetch("/api/stations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -138,11 +139,13 @@ export default function StationPage() {
         const newStation = await response.json();
         setStations([...stations, newStation]);
         setShowModal(false);
+        setError(null); // Clear any previous errors
       } else {
-        console.error("Failed to add station");
+        const errorData = await response.json().catch(() => ({ message: "Failed to add station" }));
+        setError(errorData.message || "Failed to add station");
       }
     } catch (error: any) {
-      console.error("Failed to add station", error);
+      setError(error.message || "Failed to add station");
     }
   };
 
@@ -349,10 +352,11 @@ export default function StationPage() {
         // Refresh available users
         await fetchAvailableUsers();
       } else {
-        console.error("Failed to remove user from station");
+        const errorData = await response.json().catch(() => ({ message: "Failed to remove user from station" }));
+        setError(errorData.message || "Failed to remove user from station");
       }
-    } catch (error) {
-      console.error("Error removing user from station:", error);
+    } catch (error: any) {
+      setError(error.message || "Error removing user from station");
     }
   };
 
@@ -376,38 +380,58 @@ export default function StationPage() {
         // Refresh users for the station
         await fetchStationUsers(selectedStationId);
       } else {
-        console.error(`Failed to ${action} user for station`);
+        const errorData = await response.json().catch(() => ({ message: `Failed to ${action} user for station` }));
+        setError(errorData.message || `Failed to ${action} user for station`);
       }
-    } catch (error) {
-      console.error(`Error ${currentStatus === "enabled" ? "disabling" : "enabling"} user for station:`, error);
+    } catch (error: any) {
+      setError(error.message || `Error ${currentStatus === "enabled" ? "disabling" : "enabling"} user for station`);
     }
   };
 
   return (
     <AdminLayout authError={authError}>
-      <div className="container-fluid py-4 bg-gradient min-vh-100" style={{
-        background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
-      }}>
+      <div className="container-fluid">
+        {/* Error Display */}
+        {error && (
+          <div className="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <i className="bi bi-exclamation-triangle-fill me-2"></i>
+            {error}
+            <button
+              type="button"
+              className="btn-close"
+              onClick={() => setError(null)}
+              aria-label="Close"
+            ></button>
+          </div>
+        )}
+        {/* Header */}
+        <div className="bg-primary text-white p-3 mb-4">
+          <div className="d-flex justify-content-between align-items-center">
+            <h1 className="h4 mb-0 fw-bold">
+              <i className="bi bi-building me-2"></i>
+              Station Management
+            </h1>
+            <Button
+              variant="light"
+              onClick={() => setShowModal(true)}
+              className="btn-sm"
+            >
+              <i className="bi bi-plus-circle me-1"></i>
+              Add Station
+            </Button>
+          </div>
+        </div>
+
+        {/* Main Content */}
         <div className="row g-4">
           {/* Stations List Section */}
           <div className="col-lg-4">
-            <div className="card h-100 shadow-lg border-0" style={{ borderRadius: '12px' }}>
-              <div className="card-header bg-gradient text-white border-0 d-flex justify-content-between align-items-center" style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                borderRadius: '12px 12px 0 0'
-              }}>
-                <h4 className="mb-0">
-                  <i className="bi bi-building me-2"></i>
+            <div className="card shadow-sm h-100">
+              <div className="card-header bg-light">
+                <h5 className="mb-0 fw-bold">
+                  <i className="bi bi-building me-2 text-primary"></i>
                   Stations
-                </h4>
-                <Button
-                  variant="primary"
-                  onClick={() => setShowModal(true)}
-                  className="btn-sm rounded-pill shadow-sm"
-                >
-                  <i className="bi bi-plus-circle me-1"></i>
-                  Add Station
-                </Button>
+                </h5>
               </div>
               <div className="card-body p-0">
                 <StationNew
@@ -417,11 +441,11 @@ export default function StationPage() {
                 />
                 <div className="table-responsive">
                   <table className="table table-hover mb-0">
-                    <thead style={{ background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' }}>
+                    <thead className="table-light">
                       <tr>
-                        <th className="px-3 fw-semibold text-primary">ID</th>
-                        <th className="px-3 fw-semibold text-primary">Name</th>
-                        <th className="px-3 text-center fw-semibold text-primary">Actions</th>
+                        <th className="fw-semibold">ID</th>
+                        <th className="fw-semibold">Name</th>
+                        <th className="text-center fw-semibold">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -429,16 +453,12 @@ export default function StationPage() {
                         <tr
                           key={station.id}
                           onClick={() => setSelectedStationId(station.id)}
-                          className={`cursor-pointer transition-all ${selectedStationId === station.id ? 'table-primary' : ''}`}
-                          style={{
-                            cursor: 'pointer',
-                            transition: 'all 0.3s ease',
-                            borderRadius: '8px'
-                          }}
+                          className={`cursor-pointer ${selectedStationId === station.id ? 'table-primary' : ''}`}
+                          style={{ cursor: 'pointer' }}
                         >
-                          <td className="px-3 fw-medium">{station.id}</td>
-                          <td className="px-3">{station.name}</td>
-                          <td className="px-3 text-center">
+                          <td className="fw-medium">{station.id}</td>
+                          <td>{station.name}</td>
+                          <td className="text-center">
                             {(!station.status || station.status === "disabled") && (
                               <Button variant="outline-primary" size="sm" className="me-1">
                                 <i className="bi bi-play-circle me-1"></i>
@@ -466,14 +486,11 @@ export default function StationPage() {
             <div className="row g-4">
               {/* Linked Pricelists */}
               <div className="col-md-6">
-                <div className="card h-100 shadow-lg border-0" style={{ borderRadius: '12px' }}>
-                  <div className="card-header bg-gradient text-white border-0" style={{
-                    background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                    borderRadius: '12px 12px 0 0'
-                  }}>
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <h5 className="mb-0">
-                        <i className="bi bi-list-ul me-2"></i>
+                <div className="card shadow-sm h-100">
+                  <div className="card-header bg-light">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <h5 className="mb-0 fw-bold">
+                        <i className="bi bi-list-ul me-2 text-primary"></i>
                         Linked Pricelists
                       </h5>
                       {selectedStationId && (
@@ -485,55 +502,49 @@ export default function StationPage() {
                             setLinkPricelistError(null);
                             setShowPricelistModal(true);
                           }}
-                          className="rounded-pill shadow-sm"
                           disabled={!selectedStationId || stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
-                          title={stations.find(s => s.id === selectedStationId)?.status === 'disabled' ? 'Cannot add pricelists to disabled station' : 'Add pricelist to station'}
                         >
                           <i className="bi bi-plus-circle me-1"></i>
                           Add
                         </Button>
                       )}
                     </div>
-                    <div className="text-muted small">
+                    <div className="text-muted small mt-2">
                       <i className="bi bi-info-circle me-1"></i>
-                      The <strong>Default</strong> pricelist is used for billing on this station. Only one pricelist can be default at a time.
+                      The <strong>Default</strong> pricelist is used for billing on this station.
                     </div>
                     {selectedStationId && stations.find(s => s.id === selectedStationId)?.status === 'disabled' && (
                       <div className="alert alert-warning alert-sm mt-2 mb-0" role="alert">
                         <i className="bi bi-exclamation-triangle me-1"></i>
-                        <strong>Station Disabled:</strong> This station is disabled. Cannot add or manage pricelists and users.
+                        <strong>Station Disabled:</strong> Cannot add or manage pricelists.
                       </div>
                     )}
                   </div>
                   <div className="card-body">
                     {fetchPricelistsError && (
-                      <div className="alert alert-danger alert-sm rounded-3" role="alert">
+                      <div className="alert alert-danger alert-sm" role="alert">
                         <i className="bi bi-exclamation-triangle me-1"></i>
                         {fetchPricelistsError}
                       </div>
                     )}
                     {setDefaultError && (
-                      <div className="alert alert-danger alert-sm rounded-3" role="alert">
+                      <div className="alert alert-danger alert-sm" role="alert">
                         <i className="bi bi-exclamation-triangle me-1"></i>
                         {setDefaultError.message}
                       </div>
                     )}
                     {isLoadingPricelists ? (
-                      <div className="text-center py-5">
-                        <div className="spinner-border text-primary" role="status" style={{ width: '2rem', height: '2rem' }}>
+                      <div className="text-center py-4">
+                        <div className="spinner-border text-primary" role="status">
                           <span className="visually-hidden">Loading...</span>
                         </div>
-                        <p className="text-muted mt-3 mb-0">Loading pricelists...</p>
+                        <p className="text-muted mt-2 mb-0">Loading pricelists...</p>
                       </div>
                     ) : (
                       <div className="list-group list-group-flush">
-                        {pricelists.length > 0 ? (
+                        {Array.isArray(pricelists) && pricelists.length > 0 ? (
                           pricelists.map((pricelist) => (
-                            <div key={pricelist.id} className="list-group-item d-flex justify-content-between align-items-center px-0 py-3 border-0 border-bottom hover-shadow" style={{
-                              transition: 'all 0.3s ease',
-                              borderRadius: '8px',
-                              margin: '4px 0'
-                            }}>
+                            <div key={pricelist.id} className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
                               <div className="flex-grow-1">
                                 <h6 className="mb-1 fw-semibold">
                                   {pricelist.name}
@@ -544,22 +555,18 @@ export default function StationPage() {
                                   )}
                                 </h6>
                                 {pricelist.is_default && (
-                                  <div className="mt-1">
-                                    <small className="text-primary">
-                                      <i className="bi bi-info-circle me-1"></i>
-                                      This pricelist is used for billing on this station
-                                    </small>
-                                  </div>
+                                  <small className="text-primary">
+                                    <i className="bi bi-info-circle me-1"></i>
+                                    Used for billing on this station
+                                  </small>
                                 )}
                               </div>
-                              <div className="d-flex gap-1 flex-wrap">
+                              <div className="d-flex gap-1">
                                 {!pricelist.is_default && (
                                   <Button
                                     variant="outline-primary"
                                     size="sm"
                                     onClick={() => handleSetDefaultPricelist(pricelist.id)}
-                                    title={stations.find(s => s.id === selectedStationId)?.status === 'disabled' ? 'Cannot modify disabled station' : 'Set as default pricelist for billing'}
-                                    className="flex-shrink-0"
                                     disabled={stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
                                   >
                                     <i className="bi bi-star me-1"></i>
@@ -570,8 +577,6 @@ export default function StationPage() {
                                   variant="outline-secondary"
                                   size="sm"
                                   onClick={() => handleUnlinkPricelist(pricelist.id)}
-                                  title={stations.find(s => s.id === selectedStationId)?.status === 'disabled' ? 'Cannot modify disabled station' : 'Remove pricelist from station'}
-                                  className="flex-shrink-0"
                                   disabled={stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
                                 >
                                   <i className="bi bi-trash me-1"></i>
@@ -581,9 +586,9 @@ export default function StationPage() {
                             </div>
                           ))
                         ) : (
-                          <div className="text-center py-5">
-                            <i className="bi bi-inbox text-muted" style={{ fontSize: '3rem' }}></i>
-                            <p className="text-muted mt-3 mb-0">No pricelists linked to this station</p>
+                          <div className="text-center py-4">
+                            <i className="bi bi-inbox text-muted" style={{ fontSize: '2rem' }}></i>
+                            <p className="text-muted mt-2 mb-0">No pricelists linked to this station</p>
                           </div>
                         )}
                       </div>
@@ -594,59 +599,52 @@ export default function StationPage() {
 
               {/* Linked Users */}
               <div className="col-md-6">
-                <div className="card h-100 shadow-lg border-0" style={{ borderRadius: '12px' }}>
-                  <div className="card-header bg-gradient text-white border-0 d-flex justify-content-between align-items-center" style={{
-                    background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                    borderRadius: '12px 12px 0 0'
-                  }}>
-                    <h5 className="mb-0">
-                      <i className="bi bi-people me-2"></i>
-                      Linked Users
-                    </h5>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => {
-                        setShowUserModal(true);
-                        fetchAvailableUsers();
-                      }}
-                      className="btn-sm rounded-pill shadow-sm"
-                      disabled={!selectedStationId || stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
-                      title={stations.find(s => s.id === selectedStationId)?.status === 'disabled' ? 'Cannot add users to disabled station' : 'Add user to station'}
-                    >
-                      <i className="bi bi-plus-circle me-1"></i>
-                      Add
-                    </Button>
-                  </div>
-                  <div className="card-body">
+                <div className="card shadow-sm h-100">
+                  <div className="card-header bg-light">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <h5 className="mb-0 fw-bold">
+                        <i className="bi bi-people me-2 text-primary"></i>
+                        Linked Users
+                      </h5>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          setShowUserModal(true);
+                          fetchAvailableUsers();
+                        }}
+                        disabled={!selectedStationId || stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
+                      >
+                        <i className="bi bi-plus-circle me-1"></i>
+                        Add
+                      </Button>
+                    </div>
                     {selectedStationId && stations.find(s => s.id === selectedStationId)?.status === 'disabled' && (
-                      <div className="alert alert-warning alert-sm rounded-3 mb-3" role="alert">
+                      <div className="alert alert-warning alert-sm mt-2 mb-0" role="alert">
                         <i className="bi bi-exclamation-triangle me-1"></i>
-                        <strong>Station Disabled:</strong> This station is disabled. Cannot add or manage users.
+                        <strong>Station Disabled:</strong> Cannot add or manage users.
                       </div>
                     )}
+                  </div>
+                  <div className="card-body">
                     {fetchUsersError && (
-                      <div className="alert alert-danger alert-sm rounded-3" role="alert">
+                      <div className="alert alert-danger alert-sm" role="alert">
                         <i className="bi bi-exclamation-triangle me-1"></i>
                         {fetchUsersError}
                       </div>
                     )}
                     {isLoadingUsers ? (
-                      <div className="text-center py-5">
-                        <div className="spinner-border text-primary" role="status" style={{ width: '2rem', height: '2rem' }}>
+                      <div className="text-center py-4">
+                        <div className="spinner-border text-primary" role="status">
                           <span className="visually-hidden">Loading...</span>
                         </div>
-                        <p className="text-muted mt-3 mb-0">Loading users...</p>
+                        <p className="text-muted mt-2 mb-0">Loading users...</p>
                       </div>
                     ) : (
                       <div className="list-group list-group-flush">
                         {users.length > 0 ? (
                           users.map((user) => (
-                            <div key={user.id} className="list-group-item d-flex justify-content-between align-items-center px-0 py-3 border-0 border-bottom hover-shadow" style={{
-                              transition: 'all 0.3s ease',
-                              borderRadius: '8px',
-                              margin: '4px 0'
-                            }}>
+                            <div key={user.id} className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
                               <div>
                                 <h6 className="mb-1 fw-semibold">{user.firstName} {user.lastName}</h6>
                                 <small className="text-muted">@{user.username}</small>
@@ -656,8 +654,6 @@ export default function StationPage() {
                                   variant="outline-secondary"
                                   size="sm"
                                   onClick={() => handleToggleUserStatus(user.id, user.status)}
-                                  title={stations.find(s => s.id === selectedStationId)?.status === 'disabled' ? 'Cannot modify disabled station' : (user.status === "enabled" ? "Disable user from this station" : "Enable user for this station")}
-                                  className="flex-shrink-0"
                                   disabled={stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
                                 >
                                   <i className={`bi ${user.status === "enabled" ? "bi-pause-circle" : "bi-play-circle"} me-1`}></i>
@@ -667,8 +663,6 @@ export default function StationPage() {
                                   variant="outline-danger"
                                   size="sm"
                                   onClick={() => handleRemoveUser(user.id)}
-                                  title={stations.find(s => s.id === selectedStationId)?.status === 'disabled' ? 'Cannot modify disabled station' : 'Remove user from station completely'}
-                                  className="flex-shrink-0"
                                   disabled={stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
                                 >
                                   <i className="bi bi-trash me-1"></i>
@@ -678,9 +672,9 @@ export default function StationPage() {
                             </div>
                           ))
                         ) : (
-                          <div className="text-center py-5">
-                            <i className="bi bi-person-x text-muted" style={{ fontSize: '3rem' }}></i>
-                            <p className="text-muted mt-3 mb-0">No users linked to this station</p>
+                          <div className="text-center py-4">
+                            <i className="bi bi-person-x text-muted" style={{ fontSize: '2rem' }}></i>
+                            <p className="text-muted mt-2 mb-0">No users linked to this station</p>
                           </div>
                         )}
                       </div>
@@ -696,21 +690,19 @@ export default function StationPage() {
       {/* Pricelist Selection Modal */}
       {showPricelistModal && (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '500px', margin: 'auto' }}>
+          <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
-              <div className="modal-header py-3">
+              <div className="modal-header">
                 <div className="flex-grow-1">
-                  <h5 className="modal-title mb-0">
+                  <h5 className="modal-title">
                     <i className="bi bi-list-ul me-2"></i>
                     Link Pricelist to Station
                   </h5>
                   {selectedStationId && (
-                    <div className="mt-1">
-                      <small className="text-muted">
-                        <i className="bi bi-hdd me-1"></i>
-                        Station: <strong>{stations.find(s => s.id === selectedStationId)?.name}</strong>
-                      </small>
-                    </div>
+                    <small className="text-muted">
+                      <i className="bi bi-hdd me-1"></i>
+                      Station: <strong>{stations.find(s => s.id === selectedStationId)?.name}</strong>
+                    </small>
                   )}
                 </div>
                 <button
@@ -754,20 +746,18 @@ export default function StationPage() {
                 </div>
               )}
 
-              <div className="modal-body p-0" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <div className="modal-body">
                 {availablePricelists.length > 0 ? (
                   <div className="list-group list-group-flush">
                     {availablePricelists.map((pricelist) => (
-                      <div key={pricelist.id} className="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+                      <div key={pricelist.id} className="list-group-item d-flex justify-content-between align-items-center">
                         <div className="flex-grow-1 me-2">
-                          <h6 className="mb-1 text-truncate" style={{ fontSize: '0.9rem' }}>{pricelist.name}</h6>
+                          <h6 className="mb-1">{pricelist.name}</h6>
                         </div>
                         <Button
                           variant="primary"
                           size="sm"
                           onClick={() => handleLinkPricelist(pricelist.id)}
-                          className="flex-shrink-0"
-                          style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
                         >
                           <i className="bi bi-plus-circle me-1"></i>
                           Link
@@ -782,7 +772,7 @@ export default function StationPage() {
                   </div>
                 )}
               </div>
-              <div className="modal-footer py-2">
+              <div className="modal-footer">
                 <Button
                   variant="secondary"
                   onClick={() => setShowPricelistModal(false)}
@@ -799,10 +789,10 @@ export default function StationPage() {
       {/* User Selection Modal */}
       {showUserModal && (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '500px', margin: 'auto' }}>
+          <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
-              <div className="modal-header py-3">
-                <h5 className="modal-title mb-0">
+              <div className="modal-header">
+                <h5 className="modal-title">
                   <i className="bi bi-person-plus me-2"></i>
                   Add User to Station
                 </h5>
@@ -816,9 +806,9 @@ export default function StationPage() {
                   onClick={() => setShowUserModal(false)}
                 ></button>
               </div>
-              <div className="modal-body py-3">
+              <div className="modal-body">
                 {addUserError && (
-                  <div className="alert alert-danger alert-sm rounded-3 mb-3" role="alert">
+                  <div className="alert alert-danger alert-sm mb-3" role="alert">
                     <i className="bi bi-exclamation-triangle me-1"></i>
                     <strong>Error:</strong> {addUserError.message}
                     {addUserError.status === 403 && (
@@ -833,7 +823,7 @@ export default function StationPage() {
                 )}
                 {availableUsers.length > 0 ? (
                   <div>
-                    <div className="alert alert-info alert-sm rounded-3 mb-3" role="alert">
+                    <div className="alert alert-info alert-sm mb-3" role="alert">
                       <i className="bi bi-info-circle me-1"></i>
                       <small>
                         Only users with <span className="badge bg-primary text-white ms-1 me-1">waiter</span>
@@ -858,7 +848,7 @@ export default function StationPage() {
                               variant="primary"
                               size="sm"
                               onClick={() => handleAddUser(user.id)}
-                              className="flex-shrink-0 rounded-pill"
+                              className="btn-enterprise btn-enterprise-primary flex-shrink-0 rounded-pill"
                               style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
                               title="Add user to this station (gives billing permission)"
                             >
@@ -881,7 +871,7 @@ export default function StationPage() {
                   </div>
                 )}
               </div>
-              <div className="modal-footer py-2">
+              <div className="modal-footer">
                 <Button
                   variant="secondary"
                   onClick={() => setShowUserModal(false)}

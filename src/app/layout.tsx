@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import "./styles/improved-pos.css";
 import "bootstrap/dist/css/bootstrap.css";
 import BootstrapClient from "./components/BootstrapClient";
 import { AuthProvider } from "./contexts/AuthContext";

@@ -73,3 +73,20 @@ export const fetchPermissionsByRoleHandler = async (
     res.status(500).json({ message: "Error fetching permissions", error });
   }
 };
+
+export const removePermissionFromRoleHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const roleService = new RoleService(req.db);
+  try {
+    const { roleId, permissionId } = req.body;
+    await roleService.removePermissionFromRole(roleId, permissionId);
+    res.status(200).json({ message: "Permission removed from role" });
+  } catch (error: any) {
+    console.log(error);
+    res
+      .status(500)
+      .json({ message: "Failed to remove permission from role", error });
+  }
+};

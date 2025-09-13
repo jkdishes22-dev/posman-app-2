@@ -150,7 +150,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
                   onChange={(e) => setPricelistId(parseInt(e.target.value))}
                 >
                   <option value="">Select Pricelist</option>
-                  {pricelists.map((pricelist: any) => (
+                  {Array.isArray(pricelists) && pricelists.map((pricelist: any) => (
                     <option key={pricelist.id} value={pricelist.id}>
                       {pricelist.name}
                     </option>

@@ -132,70 +132,111 @@ export default function PricelistPage() {
 
   return (
     <AdminLayout authError={authError}>
-      <div className="row">
-        <div className="col-4">
-          <button onClick={handleShowModal} className="btn btn-primary">
-            Add Pricelist
-          </button>
-          <PricelistAdd
-            showModal={showModal}
-            handleCloseModal={handleCloseModal}
-            handleAddPricelist={handleAddPricelist}
-            addPricelistError={addPricelistError}
-            setAddPricelistError={setAddPricelistError}
-            addPricelistErrorDetails={addPricelistErrorDetails}
-            setAddPricelistErrorDetails={setAddPricelistErrorDetails}
-          />
-          <ErrorDisplay
-            error={pricelistError}
-            onDismiss={() => setFetchPricelistError(null)}
-          />
-          <table className="table table-striped mt-3">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pricelists.map((pricelist) => (
-                <tr
-                  key={pricelist.id}
-                  onClick={() => setSelectedPricelistId(pricelist.id)}
-                >
-                  <td>{pricelist.id}</td>
-                  <td>{pricelist.name}</td>
-                  <td>
-                    {(!pricelist.status || pricelist.status === "inactive") && (
-                      <Button variant="success" className="w-8">
-                        Enable
-                      </Button>
-                    )}
-                    {pricelist.status === "active" && (
-                      <Button variant="danger" className="w-8">
-                        Disable
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="container-fluid">
+        {/* Header */}
+        <div className="bg-primary text-white p-3 mb-4">
+          <div className="d-flex justify-content-between align-items-center">
+            <h1 className="h4 mb-0 fw-bold">
+              <i className="bi bi-tags me-2"></i>
+              Pricelist Management
+            </h1>
+            <button onClick={handleShowModal} className="btn btn-light btn-sm">
+              <i className="bi bi-plus-circle me-1"></i>
+              Add Pricelist
+            </button>
+          </div>
         </div>
-        <div className="col-8">
-          <ViewItems
-            selectedCategory={null}
-            items={[]}
-            pricelistItems={pricelistItems}
-            itemError=""
-            setItems={setPricelistItems}
-            onItemPick={(item) => console.log("Picked item", item)}
-            isBillingSection={false}
-            isPricelistSection={true}
-            isCategoryItemsSection={false}
-          />
+
+        {/* Error Display */}
+        <ErrorDisplay
+          error={pricelistError}
+          onDismiss={() => setFetchPricelistError(null)}
+        />
+
+        {/* Main Content */}
+        <div className="row g-4">
+          <div className="col-4">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <h5 className="mb-0 fw-bold">
+                  <i className="bi bi-list-ul me-2 text-primary"></i>
+                  Pricelists
+                </h5>
+              </div>
+              <div className="card-body p-0">
+                <div className="table-responsive">
+                  <table className="table table-hover mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th className="fw-semibold">ID</th>
+                        <th className="fw-semibold">Name</th>
+                        <th className="fw-semibold text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Array.isArray(pricelists) && pricelists.map((pricelist) => (
+                        <tr
+                          key={pricelist.id}
+                          onClick={() => setSelectedPricelistId(pricelist.id)}
+                          style={{ cursor: 'pointer' }}
+                          className={selectedPricelistId === pricelist.id ? 'table-primary' : ''}
+                        >
+                          <td>{pricelist.id}</td>
+                          <td>{pricelist.name}</td>
+                          <td className="text-center">
+                            {(!pricelist.status || pricelist.status === "inactive") && (
+                              <Button variant="success" size="sm">
+                                Enable
+                              </Button>
+                            )}
+                            {pricelist.status === "active" && (
+                              <Button variant="danger" size="sm">
+                                Disable
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="col-8">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <h5 className="mb-0 fw-bold">
+                  <i className="bi bi-box-seam me-2 text-primary"></i>
+                  Pricelist Items
+                </h5>
+              </div>
+              <div className="card-body">
+                <ViewItems
+                  selectedCategory={null}
+                  items={[]}
+                  pricelistItems={pricelistItems}
+                  itemError=""
+                  setItems={setPricelistItems}
+                  onItemPick={(item) => console.log("Picked item", item)}
+                  isBillingSection={false}
+                  isPricelistSection={true}
+                  isCategoryItemsSection={false}
+                />
+              </div>
+            </div>
+          </div>
         </div>
+
+        <PricelistAdd
+          showModal={showModal}
+          handleCloseModal={handleCloseModal}
+          handleAddPricelist={handleAddPricelist}
+          addPricelistError={addPricelistError}
+          setAddPricelistError={setAddPricelistError}
+          addPricelistErrorDetails={addPricelistErrorDetails}
+          setAddPricelistErrorDetails={setAddPricelistErrorDetails}
+        />
       </div>
     </AdminLayout>
   );
