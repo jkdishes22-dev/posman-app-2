@@ -23,6 +23,9 @@ export default function HomePageLayout({
   const postSales = () => {
     router.push("/home/post-sales");
   };
+  const pricelistCatalog = () => {
+    router.push("/home/pricelist-catalog");
+  };
   const handleLogout = () => {
     localStorage.removeItem("token");
     router.push("/");
@@ -57,7 +60,12 @@ export default function HomePageLayout({
             </li>
             <li className="nav-item active">
               <a className="nav-link" href="#" onClick={postSales}>
-                Post Sales
+                Post Sales |
+              </a>
+            </li>
+            <li className="nav-item active">
+              <a className="nav-link" href="#" onClick={pricelistCatalog}>
+                Pricelist Catalog
               </a>
             </li>
           </ul>

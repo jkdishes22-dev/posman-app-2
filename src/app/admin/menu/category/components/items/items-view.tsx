@@ -36,6 +36,10 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
+  const [activeTab, setActiveTab] = useState<"all" | "grouped" | "individual">("all");
+  const [subItemsData, setSubItemsData] = useState<Record<number, any>>({});
+  const [loadingSubItems, setLoadingSubItems] = useState<Set<number>>(new Set());
 
   // Remove duplicates and filter items
   const allItems = pricelistItems || items;
@@ -47,11 +51,19 @@ const ViewItems: React.FC<ViewItemsProps> = ({
     return acc;
   }, []);
 
-  const filteredItems = searchTerm
-    ? uniqueItems.filter((item) =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
-    : uniqueItems;
+  const filteredItems = uniqueItems.filter((item) => {
+    const matchesSearch = !searchTerm ||
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.code.toLowerCase().includes(searchTerm.toLowerCase());
+
+    if (activeTab === "grouped") {
+      return matchesSearch && Boolean(item.isGroup);
+    } else if (activeTab === "individual") {
+      return matchesSearch && !Boolean(item.isGroup);
+    }
+
+    return matchesSearch;
+  });
 
   const handleEditItem = (item: Item) => {
     setSelectedItem(item);
@@ -63,21 +75,63 @@ const ViewItems: React.FC<ViewItemsProps> = ({
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
+  const handleDeleteConfirm = () => {
     if (itemToDelete) {
       handleDeleteItem?.(itemToDelete.id);
       setShowDeleteModal(false);
+      setItemToDelete(null);
     }
+  };
+
+  const fetchSubItems = async (itemId: number) => {
+    if (subItemsData[itemId]) {
+      return; // Already fetched
+    }
+
+    setLoadingSubItems(prev => new Set(prev).add(itemId));
+
+    try {
+      const response = await fetch(`/api/menu/items/${itemId}/sub-items`);
+      const result = await response.json();
+
+      if (result.success) {
+        setSubItemsData(prev => ({
+          ...prev,
+          [itemId]: result.data
+        }));
+      } else {
+        console.error("Failed to fetch sub-items:", result.message);
+      }
+    } catch (error) {
+      console.error("Error fetching sub-items:", error);
+    } finally {
+      setLoadingSubItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
+    }
+  };
+
+  const toggleItemExpansion = (itemId: number) => {
+    const newExpanded = new Set(expandedItems);
+    if (newExpanded.has(itemId)) {
+      newExpanded.delete(itemId);
+    } else {
+      newExpanded.add(itemId);
+      // Fetch sub-items when expanding
+      fetchSubItems(itemId);
+    }
+    setExpandedItems(newExpanded);
   };
 
   return (
     <div className="col mt-2">
       <div className="p-2 border bg-light">
-        {/* Category Header - More Conspicuous */}
-        <div className="mb-2">
-          <div className="d-flex align-items-center justify-content-between mb-2">
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div>
             <div className="d-flex align-items-center">
-              <i className={`bi ${selectedCategory ? 'bi-tag-fill' : 'bi-tag'} me-2 text-primary`}></i>
+              <i className={`bi ${selectedCategory ? "bi-tag-fill" : "bi-tag"} me-2 text-primary`}></i>
               <span className="fw-bold text-dark">
                 {selectedCategory
                   ? `${selectedCategory.name} Items`
@@ -90,24 +144,56 @@ const ViewItems: React.FC<ViewItemsProps> = ({
               )}
             </div>
             <div className="text-muted small">
-              {filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''} available
+              {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""} available
             </div>
           </div>
           <div className="row">
             <div className="col-8">
-              <input
-                type="text"
-                className="form-control form-control-sm"
-                placeholder="Filter items here..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+              <div className="d-flex gap-2">
+                <input
+                  type="text"
+                  className="form-control form-control-lg"
+                  placeholder="Search items by name or code..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    fontSize: '1.1rem',
+                    padding: '0.75rem 1rem',
+                    border: '2px solid #dee2e6',
+                    borderRadius: '0.5rem',
+                    transition: 'all 0.15s ease-in-out'
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#0d6efd';
+                    e.target.style.boxShadow = '0 0 0 0.2rem rgba(13, 110, 253, 0.25)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#dee2e6';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                />
+                {searchTerm && (
+                  <button
+                    className="btn btn-outline-secondary btn-lg"
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                    title="Clear search"
+                    style={{
+                      padding: '0.75rem 1rem',
+                      borderRadius: '0.5rem',
+                      border: '2px solid #6c757d'
+                    }}
+                  >
+                    <i className="bi bi-x"></i>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Add Item Button - Only for non-billing sections */}
-        {!isBillingSection && selectedCategory && (
+        {/* Add Item Button - Only for category sections, not pricelist */}
+        {!isBillingSection && selectedCategory && !isPricelistSection && (
           <div className="mb-3">
             <button
               className="btn btn-primary btn-sm"
@@ -119,6 +205,39 @@ const ViewItems: React.FC<ViewItemsProps> = ({
           </div>
         )}
         {itemError && <p style={{ color: "red" }}>{itemError}</p>}
+
+        {/* Tabs for grouped vs individual items - Only for pricelist sections */}
+        {isPricelistSection && (
+          <div className="mb-3">
+            <ul className="nav nav-tabs">
+              <li className="nav-item">
+                <button
+                  className={`nav-link ${activeTab === "all" ? "active" : ""}`}
+                  onClick={() => setActiveTab("all")}
+                >
+                  All Items ({uniqueItems.length})
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  className={`nav-link ${activeTab === "grouped" ? "active" : ""}`}
+                  onClick={() => setActiveTab("grouped")}
+                >
+                  Platters ({uniqueItems.filter(item => Boolean(item.isGroup)).length})
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  className={`nav-link ${activeTab === "individual" ? "active" : ""}`}
+                  onClick={() => setActiveTab("individual")}
+                >
+                  Individual ({uniqueItems.filter(item => !Boolean(item.isGroup)).length})
+                </button>
+              </li>
+            </ul>
+          </div>
+        )}
+
         <table className="table table-sm mt-3 table-striped">
           <thead>
             <tr>
@@ -131,90 +250,158 @@ const ViewItems: React.FC<ViewItemsProps> = ({
               )}
               <th>Pricelist</th>
               <th>Item price</th>
-              {!isBillingSection && <th></th>}
             </tr>
           </thead>
           <tbody>
             {filteredItems.length > 0 ? (
-              filteredItems.map((item, index) => (
-                <tr key={`${item.id}-${index}`}>
-                  <td>{item.name}</td>
-                  {!isBillingSection && (
-                    <>
-                      <td>{item.code}</td>
-                      <td>{item.category.name}</td>
-                      <td>{item.pricelistName}</td>
-                      <td>{item.price}</td>
-                      <td>
-                        <Image
-                          src="/icons/pencil.svg"
-                          alt="Edit Item"
-                          width={24}
-                          height={24}
-                          className="m-2"
-                          onClick={() => handleEditItem(item)}
-                          style={{ cursor: "pointer" }}
-                        />
-                        <Image
-                          src="/icons/x-circle.svg"
-                          alt="Delete Item"
-                          width={24}
-                          height={24}
-                          className="m-2"
-                          onClick={() => handleDeleteItemClick(item)}
-                          style={{ cursor: "pointer" }}
-                        />
-                      </td>
-                    </>
-                  )}
-                  {isBillingSection && (
-                    <>
-                      <td>{item.pricelistName}</td>
-                      {!isCategoryItemsSection && <td>{item.price}</td>}
-                      {isBillingSection && (
-                        <td>
+              filteredItems.map((item) => (
+                <React.Fragment key={item.id}>
+                  <tr>
+                    <td>
+                      <div className="d-flex align-items-center">
+                        {Boolean(item.isGroup) && (
                           <button
-                            className="btn btn-sm btn-success"
-                            onClick={() => {
-                              if (item.price > 0) {
-                                onItemPick?.(item);
-                              } else {
-                                alert("Price must be greater than zero");
-                              }
-                            }}
+                            className="btn btn-outline-secondary btn-sm me-2"
+                            onClick={() => toggleItemExpansion(item.id)}
+                            style={{ fontSize: "0.9rem", minWidth: "30px" }}
+                            title={expandedItems.has(item.id) ? "Collapse" : "Expand"}
                           >
-                            Pick
+                            <span style={{ fontSize: "1.2rem", fontWeight: "bold" }}>
+                              {expandedItems.has(item.id) ? "−" : "+"}
+                            </span>
                           </button>
-                        </td>
-                      )}
-                    </>
+                        )}
+                        <span className={Boolean(item.isGroup) ? "fw-bold" : ""}>
+                          {item.name}
+                          {Boolean(item.isGroup) && <span className="badge bg-primary ms-2">Platter</span>}
+                        </span>
+                      </div>
+                    </td>
+                    {!isBillingSection && (
+                      <>
+                        <td>{item.code}</td>
+                        <td>{item.category?.name || "N/A"}</td>
+                      </>
+                    )}
+                    <td>{item.pricelistName || "N/A"}</td>
+                    <td>KSh {item.price}</td>
+                    {isBillingSection && (
+                      <td>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => onItemPick?.(item)}
+                        >
+                          Pick
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                  {Boolean(item.isGroup) && expandedItems.has(item.id) && (
+                    <tr>
+                      <td colSpan={isBillingSection ? 3 : 5} className="bg-light">
+                        <div className="p-2">
+                          <div className="d-flex align-items-center mb-2">
+                            {loadingSubItems.has(item.id) && (
+                              <div className="spinner-border spinner-border-sm me-2" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {loadingSubItems.has(item.id) ? (
+                            <div className="text-center py-3">
+                              <div className="spinner-border text-primary" role="status">
+                                <span className="visually-hidden">Loading sub-items...</span>
+                              </div>
+                              <div className="text-muted small mt-2">Loading platter contents...</div>
+                            </div>
+                          ) : subItemsData[item.id] ? (
+                            <div>
+                              {subItemsData[item.id].subItems.length > 0 ? (
+                                <div className="table-responsive">
+                                  <table className="table table-sm table-bordered mb-0">
+                                    <thead className="table-light">
+                                      <tr>
+                                        <th style={{ fontSize: "0.8rem" }}>Item</th>
+                                        <th style={{ fontSize: "0.8rem" }}>Code</th>
+                                        <th style={{ fontSize: "0.8rem" }}>Category</th>
+                                        <th style={{ fontSize: "0.8rem" }}>Portion</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {subItemsData[item.id].subItems.map((subItem: any) => (
+                                        <tr key={subItem.id}>
+                                          <td className="fw-medium" style={{ fontSize: "0.8rem" }}>{subItem.name}</td>
+                                          <td style={{ fontSize: "0.8rem" }}><code>{subItem.code}</code></td>
+                                          <td style={{ fontSize: "0.8rem" }}><span className="badge bg-secondary">{subItem.category}</span></td>
+                                          <td style={{ fontSize: "0.8rem" }}>
+                                            <span className="badge bg-primary">
+                                              {subItem.portionSize} {subItem.unit}
+                                            </span>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <div className="text-center py-3 text-muted">
+                                  <i className="bi bi-inbox me-2"></i>
+                                  No sub-items found for this platter.
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center py-3 text-muted">
+                              <i className="bi bi-exclamation-triangle me-2"></i>
+                              Failed to load platter contents. Please try again.
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
                   )}
-                </tr>
+                </React.Fragment>
               ))
-            ) : null}
+            ) : (
+              <tr>
+                <td colSpan={isBillingSection ? 3 : 5} className="text-center text-muted py-4">
+                  {searchTerm ? "No items found matching your search." : "No items available."}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
+
+        {/* Modals */}
+        {showEditModal && selectedItem && (
+          <EditItemModal
+            showModal={showEditModal}
+            handleCloseModal={() => setShowEditModal(false)}
+            handleEditItem={(editedItem) => {
+              setItems(prevItems =>
+                prevItems.map(item =>
+                  item.id === editedItem.id ? editedItem : item
+                )
+              );
+              setShowEditModal(false);
+            }}
+            item={selectedItem}
+            itemError={itemError}
+            setItemError={() => { }}
+            selectedCategory={selectedCategory}
+          />
+        )}
+
+        {showDeleteModal && itemToDelete && (
+          <ItemDeleteModal
+            showModal={showDeleteModal}
+            handleCloseModal={() => setShowDeleteModal(false)}
+            handleDeleteItem={handleDeleteConfirm}
+            item={itemToDelete}
+          />
+        )}
       </div>
-      <EditItemModal
-        show={showEditModal}
-        item={selectedItem}
-        onClose={() => setShowEditModal(false)}
-        onSave={(editedItem) => {
-          setItems((prevItems) =>
-            prevItems.map((item) =>
-              item.id === editedItem.id ? editedItem : item,
-            ),
-          );
-        }}
-      />
-      {itemToDelete && (
-        <ItemDeleteModal
-          show={showDeleteModal}
-          itemName={itemToDelete.name}
-          onConfirm={confirmDelete}
-          onCancel={() => setShowDeleteModal(false)}
-        />
-      )}
     </div>
   );
 };

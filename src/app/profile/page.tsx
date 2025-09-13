@@ -141,14 +141,16 @@ const ProfilePage = () => {
                                     {user.stations && user.stations.length > 0 ? (
                                         <div className="list-group list-group-flush">
                                             {user.stations.map((station) => (
-                                                <div key={station.id} className="list-group-item">
+                                                <div key={station.id} className="list-group-item border-0 border-bottom py-3">
                                                     <div className="d-flex justify-content-between align-items-start">
                                                         <div className="flex-grow-1">
                                                             <h6 className="mb-2 fw-semibold text-primary">
                                                                 <i className="bi bi-hdd me-2"></i>
                                                                 {station.name}
                                                             </h6>
-                                                            <div className="d-flex gap-2 mb-2">
+                                                        </div>
+                                                        <div className="d-flex flex-column align-items-end gap-2">
+                                                            <div className="d-flex gap-2">
                                                                 {station.isDefault && (
                                                                     <span className="badge bg-primary">
                                                                         <i className="bi bi-star-fill me-1"></i>
@@ -160,16 +162,14 @@ const ProfilePage = () => {
                                                                     {station.status}
                                                                 </span>
                                                             </div>
+                                                            {station.defaultPricelist && (
+                                                                <span className="badge bg-info text-dark">
+                                                                    <i className="bi bi-tag me-1"></i>
+                                                                    Default Pricelist: {station.defaultPricelist.name}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    {station.defaultPricelist && (
-                                                        <div className="mt-2">
-                                                            <span className="badge bg-info text-dark">
-                                                                <i className="bi bi-tag me-1"></i>
-                                                                Default Pricelist: {station.defaultPricelist.name}
-                                                            </span>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             ))}
                                         </div>

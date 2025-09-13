@@ -9,7 +9,7 @@ interface StationContextType {
     availableStations: Station[];
     isLoading: boolean;
     error: string | null;
-    setCurrentStation: (station: Station | null) => void;
+    setCurrentStation: (station: Station | null) => Promise<void>;
     refreshStations: () => Promise<void>;
     validateStationAccess: (stationId: number) => Promise<boolean>;
     loadStationsIfNeeded: () => Promise<void>;

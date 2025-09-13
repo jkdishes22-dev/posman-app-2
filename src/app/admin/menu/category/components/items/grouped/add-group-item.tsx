@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   Button,
@@ -30,11 +30,61 @@ const AddGroupItemModal = ({
 }: AddGroupItemModalProps) => {
   const [selectedItem, setSelectedItem] = useState<ItemOption | null>(null);
   const [portionSize, setPortionSize] = useState<number | null>(null);
+  const [initialItems, setInitialItems] = useState<ItemOption[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load initial items when modal opens
+  useEffect(() => {
+    if (isModalOpen) {
+      loadInitialItems();
+    } else {
+      // Reset form when modal closes
+      setSelectedItem(null);
+      setPortionSize(null);
+    }
+  }, [isModalOpen]);
+
+  const loadInitialItems = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      // Use a generic search term to get initial items
+      const response = await fetch(
+        `/api/menu/items?search=a&excludeGrouped=true`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      if (!response.ok) throw new Error("Failed to fetch items");
+      const data = await response.json();
+      const items = data.slice(0, 20).map((item: Item) => ({
+        label: item.name,
+        value: item.id,
+      }));
+      setInitialItems(items);
+    } catch (error: any) {
+      console.error("Error fetching initial items:", error);
+      setInitialItems([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchModalItems = async (inputValue: string) => {
-    if (inputValue.length <= 2) {
-      return [];
+    // If no input, return initial items
+    if (!inputValue || inputValue.length === 0) {
+      return initialItems;
     }
+
+    // If input is too short, return initial items filtered by input
+    if (inputValue.length <= 2) {
+      return initialItems.filter(item =>
+        item.label.toLowerCase().includes(inputValue.toLowerCase())
+      );
+    }
+
     try {
       const token = localStorage.getItem("token");
       const excludeGrouped = true;
@@ -59,8 +109,8 @@ const AddGroupItemModal = ({
   };
 
   const handleAddItem = () => {
-    if (!selectedItem || !portionSize) {
-      alert("Please fill in both fields.");
+    if (!selectedItem || !portionSize || portionSize <= 0) {
+      alert("Please select an item and enter a valid portion size greater than 0.");
       return;
     }
     addItemToGroup(selectedItem.value, portionSize);
@@ -83,7 +133,14 @@ const AddGroupItemModal = ({
             value={selectedItem}
             getOptionLabel={(e) => e.label}
             getOptionValue={(e) => e.value.toString()}
-            placeholder="Search for an item"
+            placeholder={isLoading ? "Loading items..." : "Search for an item or select from list"}
+            isLoading={isLoading}
+            noOptionsMessage={({ inputValue }) =>
+              inputValue.length > 0
+                ? `No items found for "${inputValue}"`
+                : "Type to search for items"
+            }
+            loadingMessage={() => "Loading items..."}
           />
         </div>
         <div className="form-group">
@@ -92,7 +149,7 @@ const AddGroupItemModal = ({
             type="number"
             id="portion-size"
             className="form-control"
-            value={portionSize?.toString()}
+            value={portionSize?.toString() || ""}
             onChange={(e) => setPortionSize(Number(e.target.value))}
             placeholder="Enter portion size"
           />

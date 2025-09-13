@@ -83,7 +83,7 @@ export class ItemService {
       id: item.item_id,
       name: item.item_name,
       code: item.item_code,
-      isGroup: item.item_isGroup,
+      isGroup: Boolean(item.item_isGroup),
       category: {
         id: item.category_id,
         name: item.category_name,
@@ -396,5 +396,53 @@ export class ItemService {
       item: { id: groupId },
       subItem: { id: itemId },
     });
+  }
+
+  async getSubItemsForPlatter(platterId: number): Promise<any> {
+    try {
+      // First, check if the item exists and is a group
+      const platter = await this.itemRepository.findOne({
+        where: { id: platterId },
+        relations: ["category"]
+      });
+
+      if (!platter) {
+        throw new Error("Platter not found");
+      }
+
+      if (!platter.isGroup) {
+        throw new Error("Item is not a platter/group");
+      }
+
+      // Get sub-items with portion sizes
+      const subItems = await this.itemGroupRepository.find({
+        where: { item: { id: platterId } },
+        relations: ["subItem", "subItem.category"],
+        order: { subItem: { name: "ASC" } }
+      });
+
+      // Format the response
+      const formattedSubItems = subItems.map(itemGroup => ({
+        id: itemGroup.subItem.id,
+        name: itemGroup.subItem.name,
+        code: itemGroup.subItem.code,
+        category: itemGroup.subItem.category?.name || "N/A",
+        portionSize: itemGroup.portion_size,
+        unit: "servings"
+      }));
+
+      return {
+        platter: {
+          id: platter.id,
+          name: platter.name,
+          code: platter.code,
+          category: platter.category?.name || "N/A"
+        },
+        subItems: formattedSubItems,
+        totalSubItems: formattedSubItems.length
+      };
+    } catch (error: any) {
+      throw new Error("Failed to fetch sub-items: " + error.message);
+    }
   }
 }
