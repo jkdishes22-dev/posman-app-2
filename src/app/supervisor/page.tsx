@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import AdminLayout from "src/app/shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Row, Col, Badge, Button } from "react-bootstrap";
 
@@ -35,7 +35,7 @@ export default function SupervisorPage() {
 
     if (isLoading) {
         return (
-            <AdminLayout>
+            <RoleAwareLayout>
                 <div className="container-fluid">
                     <div className="d-flex justify-content-center align-items-center" style={{ height: '50vh' }}>
                         <div className="spinner-border text-primary" role="status">
@@ -43,12 +43,12 @@ export default function SupervisorPage() {
                         </div>
                     </div>
                 </div>
-            </AdminLayout>
+            </RoleAwareLayout>
         );
     }
 
     return (
-        <AdminLayout>
+        <RoleAwareLayout>
             <div className="container-fluid">
                 {/* Header */}
                 <div className="bg-primary text-white p-3 mb-4">
@@ -216,10 +216,10 @@ export default function SupervisorPage() {
                                         <div key={activity.id} className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
                                             <div className="d-flex align-items-center">
                                                 <div className={`me-3 p-2 rounded-circle ${activity.type === 'sale' ? 'bg-success' :
-                                                        activity.type === 'inventory' ? 'bg-warning' : 'bg-info'
+                                                    activity.type === 'inventory' ? 'bg-warning' : 'bg-info'
                                                     }`}>
                                                     <i className={`bi ${activity.type === 'sale' ? 'bi-receipt' :
-                                                            activity.type === 'inventory' ? 'bi-box' : 'bi-credit-card'
+                                                        activity.type === 'inventory' ? 'bi-box' : 'bi-credit-card'
                                                         } text-white`}></i>
                                                 </div>
                                                 <div>
@@ -235,6 +235,6 @@ export default function SupervisorPage() {
                     </Col>
                 </Row>
             </div>
-        </AdminLayout>
+        </RoleAwareLayout>
     );
 }

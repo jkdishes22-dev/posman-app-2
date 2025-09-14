@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import AdminLayout from "src/app/shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Row, Col, Badge, Button, Table } from "react-bootstrap";
 
@@ -25,7 +25,7 @@ export default function StorekeeperPage() {
         outOfStockItems: 2,
         recentMovements: 12
       });
-      
+
       setLowStockItems([
         { id: 1, name: 'Coffee Beans', current: 5, min: 10, unit: 'kg' },
         { id: 2, name: 'Milk', current: 3, min: 15, unit: 'liters' },
@@ -37,14 +37,14 @@ export default function StorekeeperPage() {
         { id: 2, item: 'Milk', type: 'out', quantity: 10, unit: 'liters', time: '4 hours ago' },
         { id: 3, item: 'Sugar', type: 'in', quantity: 25, unit: 'kg', time: '1 day ago' }
       ]);
-      
+
       setIsLoading(false);
     }, 1000);
   }, []);
 
   if (isLoading) {
     return (
-      <AdminLayout>
+      <RoleAwareLayout>
         <div className="container-fluid">
           <div className="d-flex justify-content-center align-items-center" style={{ height: '50vh' }}>
             <div className="spinner-border text-primary" role="status">
@@ -52,12 +52,12 @@ export default function StorekeeperPage() {
             </div>
           </div>
         </div>
-      </AdminLayout>
+      </RoleAwareLayout>
     );
   }
 
   return (
-    <AdminLayout>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
@@ -177,12 +177,10 @@ export default function StorekeeperPage() {
                   {recentMovements.map((movement) => (
                     <div key={movement.id} className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
                       <div className="d-flex align-items-center">
-                        <div className={`me-3 p-2 rounded-circle ${
-                          movement.type === 'in' ? 'bg-success' : 'bg-danger'
-                        }`}>
-                          <i className={`bi ${
-                            movement.type === 'in' ? 'bi-arrow-down' : 'bi-arrow-up'
-                          } text-white`}></i>
+                        <div className={`me-3 p-2 rounded-circle ${movement.type === 'in' ? 'bg-success' : 'bg-danger'
+                          }`}>
+                          <i className={`bi ${movement.type === 'in' ? 'bi-arrow-down' : 'bi-arrow-up'
+                            } text-white`}></i>
                         </div>
                         <div>
                           <h6 className="mb-1 fw-semibold">{movement.item}</h6>
@@ -290,7 +288,7 @@ export default function StorekeeperPage() {
             </Card>
           </Col>
         </Row>
-      </div>
-    </AdminLayout>
-  );
-}
+        </div>
+      </RoleAwareLayout>
+    );
+  }

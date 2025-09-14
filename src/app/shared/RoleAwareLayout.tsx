@@ -18,6 +18,9 @@ export default function RoleAwareLayout({ children }) {
     }, []);
 
     if (role === "admin") return <AdminLayout>{children}</AdminLayout>;
+    if (role === "supervisor") return <AdminLayout>{children}</AdminLayout>;
+    if (role === "sales") return <HomePageLayout>{children}</HomePageLayout>;
     if (role === "cashier") return <CashierPageLayout>{children}</CashierPageLayout>;
+    if (role === "storekeeper") return <AdminLayout>{children}</AdminLayout>;
     return <HomePageLayout>{children}</HomePageLayout>;
 } 

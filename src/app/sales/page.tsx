@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import AdminLayout from "src/app/shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Row, Col, Badge, Button, Table } from "react-bootstrap";
 
@@ -52,12 +52,12 @@ export default function SalesPage() {
             </div>
           </div>
         </div>
-      </AdminLayout>
+      </RoleAwareLayout>
     );
   }
 
   return (
-    <AdminLayout>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">

@@ -22,15 +22,20 @@ const LoginForm = () => {
       if (token) {
         try {
           const decodedToken = jwt.decode(token) as DecodedToken;
-          if (decodedToken && decodedToken.role) {
-            if (decodedToken.role === "admin") {
+          if (decodedToken && decodedToken.roles && decodedToken.roles.length > 0) {
+            const primaryRole = decodedToken.roles[0];
+            if (primaryRole === "admin") {
               router.push("/admin");
-            } else if (decodedToken.role === "user") {
-              router.push("/home");
-            } else if (decodedToken.role === "cashier") {
+            } else if (primaryRole === "supervisor") {
+              router.push("/supervisor");
+            } else if (primaryRole === "sales") {
+              router.push("/sales");
+            } else if (primaryRole === "cashier") {
               router.push("/home/cashier");
+            } else if (primaryRole === "storekeeper") {
+              router.push("/storekeeper");
             } else {
-              router.push("/pages");
+              router.push("/home");
             }
           }
         } catch (error) {
@@ -63,14 +68,20 @@ const LoginForm = () => {
         // Use the auth context to handle login
         login(token, userData);
 
-        if (role === "admin") {
+        // Use the primary role from the token for routing
+        const primaryRole = decodedToken?.roles?.[0] || role;
+        if (primaryRole === "admin") {
           router.push("/admin");
-        } else if (role === "user") {
-          router.push("/home");
-        } else if (role === "cashier") {
+        } else if (primaryRole === "supervisor") {
+          router.push("/supervisor");
+        } else if (primaryRole === "sales") {
+          router.push("/sales");
+        } else if (primaryRole === "cashier") {
           router.push("/home/cashier");
+        } else if (primaryRole === "storekeeper") {
+          router.push("/storekeeper");
         } else {
-          router.push("/pages");
+          router.push("/home");
         }
       } else {
         setError("Login Failed! Invalid credentials");
