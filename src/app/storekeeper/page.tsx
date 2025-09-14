@@ -288,7 +288,7 @@ export default function StorekeeperPage() {
             </Card>
           </Col>
         </Row>
-        </div>
-      </RoleAwareLayout>
-    );
-  }
+      </div>
+    </RoleAwareLayout>
+  );
+}

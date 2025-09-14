@@ -325,6 +325,6 @@ export default function SalesPage() {
           </Col>
         </Row>
       </div>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }
