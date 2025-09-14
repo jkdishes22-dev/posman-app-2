@@ -120,16 +120,6 @@ export class BillService {
 
       const bills = await query.getMany();
 
-      console.log("=== fetchBills results ===");
-      console.log("Total bills found:", total);
-      console.log("Bills returned:", bills.length);
-      console.log("Bill details:", bills.map(bill => ({
-        id: bill.id,
-        status: bill.status,
-        created_at: bill.created_at,
-        total: bill.total
-      })));
-
       return { bills, total };
     } catch (error) {
       console.error("Error fetching bills:", error);

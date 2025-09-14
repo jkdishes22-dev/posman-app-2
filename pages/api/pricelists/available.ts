@@ -4,6 +4,7 @@ import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { PricelistService } from "@backend/service/PricelistService";
 import { UserStation } from "@backend/entities/UserStation";
+import logger from "@backend/utils/logger";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "GET") {
@@ -17,8 +18,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             // Check if user is admin
             const userRoles = req.user.roles.map((role) => role.name);
             const isAdmin = userRoles.includes('admin');
+            logger.info({ userId, userRoles, isAdmin }, 'User accessing pricelists');
 
-            console.log(`User ${userId} roles:`, userRoles, `isAdmin: ${isAdmin}`);
 
             let pricelists = [];
 
@@ -28,22 +29,26 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 pricelists = await pricelistService.fetchPricelists();
             } else {
                 // Non-admin users: only pricelists linked to their assigned stations
-                // Query: user_station -> station -> pricelist
+                // Query: user_station -> station -> station_pricelist -> pricelist
+                // Return ALL pricelists accessible to the user (not filtered by stationId parameter)
                 const rawPricelists = await req.db
                     .createQueryBuilder()
                     .select([
-                        "pricelist.id",
-                        "pricelist.name",
-                        "pricelist.status",
-                        "pricelist.is_default",
-                        "station.id",
-                        "station.name"
+                        "pricelist.id as pricelist_id",
+                        "pricelist.name as pricelist_name",
+                        "pricelist.status as pricelist_status",
+                        "pricelist.is_default as pricelist_is_default",
+                        "pricelist.description as pricelist_description",
+                        "station.id as station_id",
+                        "station.name as station_name"
                     ])
                     .from("pricelist", "pricelist")
-                    .innerJoin("pricelist.station", "station")
+                    .innerJoin("station_pricelist", "sp", "sp.pricelist_id = pricelist.id")
+                    .innerJoin("station", "station", "station.id = sp.station_id")
                     .innerJoin("user_station", "user_station", "user_station.station_id = station.id")
                     .where("user_station.user_id = :userId", { userId: parseInt(userId) })
-                    .andWhere("user_station.status = :status", { status: "enabled" })
+                    .andWhere("user_station.status = :status", { status: "active" })
+                    .andWhere("sp.status = :pricelistStatus", { pricelistStatus: "active" })
                     .orderBy("pricelist.is_default", "DESC")
                     .addOrderBy("pricelist.name", "ASC")
                     .getRawMany();
@@ -54,14 +59,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     name: row.pricelist_name,
                     status: row.pricelist_status,
                     is_default: row.pricelist_is_default,
+                    description: row.pricelist_description,
                     station_id: row.station_id,
                     station_name: row.station_name
                 }));
-
-                console.log(`Non-admin user ${userId} can access ${pricelists.length} pricelists through station assignments`);
             }
 
-            console.log(`Returning ${pricelists.length} pricelists for user ${userId}`);
+            logger.info({ userId, pricelistCount: pricelists.length, isAdmin }, 'Returning pricelists to user');
             res.status(200).json(pricelists);
         } catch (error: any) {
             console.error("Error fetching available pricelists:", error);

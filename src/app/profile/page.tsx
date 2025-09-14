@@ -157,8 +157,8 @@ const ProfilePage = () => {
                                                                         Default Station
                                                                     </span>
                                                                 )}
-                                                                <span className={`badge ${station.status === 'enabled' ? 'bg-success' : 'bg-secondary'}`}>
-                                                                    <i className={`bi ${station.status === 'enabled' ? 'bi-check-circle' : 'bi-pause-circle'} me-1`}></i>
+                                                                <span className={`badge ${station.status === 'active' ? 'bg-success' : 'bg-secondary'}`}>
+                                                                    <i className={`bi ${station.status === 'active' ? 'bi-check-circle' : 'bi-pause-circle'} me-1`}></i>
                                                                     {station.status}
                                                                 </span>
                                                             </div>

@@ -12,7 +12,20 @@ export const createCategoryHandler = async (
     res.status(201).json(newCategory);
   } catch (error: any) {
     console.error("Error creating category:", error);
-    res.status(500).json({ error: "Error creating category" + error });
+
+    // Handle duplicate entry error
+    if (error.code === "ER_DUP_ENTRY" && error.sqlMessage?.includes("unique_name_idx")) {
+      return res.status(400).json({
+        message: `Category "${name}" already exists. Please choose a different name.`,
+        code: "DUPLICATE_CATEGORY"
+      });
+    }
+
+    // Handle other errors
+    res.status(500).json({
+      message: "Failed to create category",
+      error: error.message
+    });
   }
 };
 

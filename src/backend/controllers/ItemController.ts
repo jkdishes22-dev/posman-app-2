@@ -16,7 +16,6 @@ export const filterItemsHandler = async (
       excludeGrouped: excludeGrouped === "true",
     };
 
-    console.log("criteria" + JSON.stringify(criteria));
     const items = await itemService.filterItems(criteria);
     return res.status(200).json(items);
   } catch (error: any) {
@@ -78,7 +77,6 @@ export const updateItemHandler = async (
 ) => {
   const itemService = new ItemService(req.db);
   try {
-    console.log("Updating Item:", req.body);
     const {
       id,
       name,
@@ -108,7 +106,6 @@ export const updateItemHandler = async (
 
     res.status(200).json(updatedItem);
   } catch (error: any) {
-    console.log("Error updating item:", error);
     res.status(500).json({ message: "Failed to update item", error });
   }
 };

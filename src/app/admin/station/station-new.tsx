@@ -4,7 +4,7 @@ import { Modal, Button, Form } from "react-bootstrap";
 interface StationNewProps {
   show: boolean;
   handleClose: () => void;
-  handleAddStation: (name: string) => void;
+  handleAddStation: (name: string, description: string) => void;
 }
 
 const StationNew: React.FC<StationNewProps> = ({
@@ -13,10 +13,12 @@ const StationNew: React.FC<StationNewProps> = ({
   handleAddStation,
 }) => {
   const [newStationName, setNewStationName] = useState("");
+  const [newStationDescription, setNewStationDescription] = useState("");
 
   const handleSave = () => {
-    handleAddStation(newStationName);
+    handleAddStation(newStationName, newStationDescription);
     setNewStationName("");
+    setNewStationDescription("");
     handleClose();
   };
 
@@ -27,23 +29,35 @@ const StationNew: React.FC<StationNewProps> = ({
       </Modal.Header>
       <Modal.Body>
         <Form>
-          <Form.Group controlId="stationName">
+          <Form.Group controlId="stationName" className="mb-3">
             <Form.Label>Station Name</Form.Label>
             <Form.Control
               type="text"
               placeholder="Enter station name"
               value={newStationName}
               onChange={(e) => setNewStationName(e.target.value)}
+              required
+            />
+          </Form.Group>
+          <Form.Group controlId="stationDescription">
+            <Form.Label>Description</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              placeholder="Enter station description (optional)"
+              value={newStationDescription}
+              onChange={(e) => setNewStationDescription(e.target.value)}
             />
           </Form.Group>
         </Form>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={handleClose}>
-          Close
+          Cancel
         </Button>
         <Button variant="primary" onClick={handleSave}>
-          Save Changes
+          <i className="bi bi-plus-circle me-1"></i>
+          Add Station
         </Button>
       </Modal.Footer>
     </Modal>

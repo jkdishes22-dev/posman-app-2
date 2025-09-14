@@ -317,7 +317,7 @@ function StationUsersPage() {
                                         )}
                                       </td>
                                       <td>
-                                        {station.status === "enabled" && (
+                                        {station.status === "active" && (
                                           <Button
                                             variant="danger"
                                             className="w-12"

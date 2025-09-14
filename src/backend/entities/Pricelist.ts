@@ -1,10 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne } from "typeorm";
+import { Column, Entity, OneToMany } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
-import { Station } from "./Station";
 
 export enum PriceListStatus {
   ACTIVE = "active",
   INACTIVE = "inactive",
+  UNDER_REVIEW = "under_review",
 }
 
 @Entity("pricelist")
@@ -16,16 +16,19 @@ export class Pricelist extends BaseEntity {
     type: "enum",
     enum: PriceListStatus,
     nullable: true,
-    default: PriceListStatus.ACTIVE,
+    default: PriceListStatus.INACTIVE,
   })
   status: PriceListStatus;
 
-  @ManyToOne(() => Station)
-  @JoinColumn({ name: "station_id" })
-  station: Station;
-
   @Column({ type: "boolean", default: false })
   is_default: boolean;
+
+  @Column({ type: "text", nullable: true })
+  description: string;
+
+  // Relationship to stations through junction table
+  @OneToMany("StationPricelist", "pricelist")
+  stationPricelists: any[];
 
   // @OneToMany(() => PricelistItem, (pricelistItem) => pricelistItem.pricelist)
   // pricelistItems: PricelistItem[];

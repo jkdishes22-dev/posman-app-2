@@ -52,10 +52,13 @@ const CategoryPage: React.FC = () => {
       setFormError("");
       setCategories((prevCategories) => [...prevCategories, result.data]);
       setName("");
+    } else if (result.status === 400) {
+      // Handle duplicate category error
+      setFormError(result.data?.message || "Category already exists");
     } else if (result.status === 403) {
       setAuthError(result.data);
     } else {
-      setFormError(result.error || "Failed to create category");
+      setFormError(result.data?.message || result.error || "Failed to create category");
     }
   };
 
@@ -146,7 +149,7 @@ const CategoryPage: React.FC = () => {
         setFetchError(error.message || 'Network error');
       }
     };
-    fetchCategories(); 
+    fetchCategories();
   }, [categoriesLoaded]); // Only depend on categoriesLoaded
 
   return (
@@ -171,6 +174,18 @@ const CategoryPage: React.FC = () => {
                 </h5>
               </div>
               <div className="card-body">
+                {formError && (
+                  <div className="alert alert-danger mb-3" role="alert">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    {formError}
+                    <button
+                      type="button"
+                      className="btn-close float-end"
+                      onClick={() => setFormError(null)}
+                      aria-label="Close"
+                    ></button>
+                  </div>
+                )}
                 <form onSubmit={handleSubmit}>
                   <div className="mb-3">
                     <label htmlFor="categoryName" className="form-label fw-semibold">
@@ -181,7 +196,10 @@ const CategoryPage: React.FC = () => {
                       className="form-control"
                       id="categoryName"
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) => {
+                        setName(e.target.value);
+                        if (formError) setFormError(null); // Clear error when user starts typing
+                      }}
                       placeholder="Enter category name"
                       required
                     />

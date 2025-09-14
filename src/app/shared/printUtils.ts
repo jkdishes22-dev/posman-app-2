@@ -88,7 +88,6 @@ export const printReceiptWithTimestamp = async (
                 win.focus();
 
                 // Add a comment with the filename for reference
-                console.log(`Printing receipt: ${filename}`);
 
                 setTimeout(() => {
                     win.print();

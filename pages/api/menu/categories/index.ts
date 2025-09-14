@@ -34,14 +34,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return originalJson.call(this, data);
     };
 
-    await authMiddleware(
+    return authMiddleware(
       authorize([permissions.CAN_VIEW_CATEGORY])(fetchCategoriesHandler),
     )(req, res);
   } else if (req.method === "POST") {
     // Invalidate cache when creating new category
     categoriesCache.delete("categories-all");
 
-    await authMiddleware(
+    return authMiddleware(
       authorize([permissions.CAN_ADD_CATEGORY])(createCategoryHandler),
     )(req, res);
   } else {

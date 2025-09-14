@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { Card, Row, Col } from 'react-bootstrap';
-import { useStation } from '../contexts/StationContext';
-import { Item, Pricelist, Station } from '../types/types';
-import ViewItems from '../admin/menu/category/components/items/items-view';
+import React, { useState, useEffect } from "react";
+import { Card, Button, Form } from "react-bootstrap";
+import { useStation } from "../contexts/StationContext";
+import { Item, Pricelist, Station } from "../types/types";
+import StationFilter from "./StationFilter";
+import PricelistManager from "./PricelistManager";
+import ExpressItemSearchModal from "./ExpressItemSearchModal";
 
 interface PricelistCatalogProps {
     className?: string;
@@ -12,39 +14,26 @@ interface PricelistCatalogProps {
 
 interface PricelistWithItems extends Pricelist {
     items: Item[];
+    station_id?: number;
+    station_name?: string;
 }
 
-const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = '' }) => {
-    const { currentStation, availableStations, setCurrentStation } = useStation();
+const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) => {
+    const { currentStation, availableStations } = useStation();
     const [pricelists, setPricelists] = useState<PricelistWithItems[]>([]);
     const [filteredPricelists, setFilteredPricelists] = useState<PricelistWithItems[]>([]);
     const [selectedPricelist, setSelectedPricelist] = useState<PricelistWithItems | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [stationError, setStationError] = useState<string | null>(null);
-    const [showStationDropdown, setShowStationDropdown] = useState(false);
     const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
-    const dropdownRef = useRef<HTMLDivElement>(null);
+    const [showExpressSearch, setShowExpressSearch] = useState(false);
+    const [statusFilter, setStatusFilter] = useState("all");
 
-    // Handle station switching with error handling
-    const handleStationSwitch = async (station: Station) => {
-        try {
-            setStationError(null);
-            await setCurrentStation(station);
-            setSelectedPricelist(null); // Clear selected pricelist when switching stations
-        } catch (err: any) {
-            console.error("Station switch error:", err);
-            setStationError(err.message || "Failed to switch station");
-        }
-    };
 
     // Handle station filter change
-    const handleStationFilterChange = (stationId: string) => {
-        if (stationId === "") {
-            setSelectedStationId(null);
-        } else {
-            setSelectedStationId(Number(stationId));
-        }
+    const handleStationFilterChange = (stationId: number | null) => {
+        setSelectedPricelist(null); // Clear selected pricelist and items
+        setSelectedStationId(stationId);
     };
 
     // Fetch pricelists available to the current station
@@ -57,26 +46,26 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = '' }) =
 
             try {
                 const token = localStorage.getItem("token");
-                const response = await fetch(`/api/pricelists/available?stationId=${currentStation.id}`, {
+                const response = await fetch("/api/pricelists/available", {
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`,
                     },
                 });
 
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Raw pricelists from API:', data);
+                    console.log("API returned:", data.length, "pricelists");
 
-                    // Deduplicate pricelists by ID on frontend as well
-                    const uniquePricelists = data.filter((pricelist: any, index: number, self: any[]) =>
+                    // Store all station-pricelist relationships for filtering
+                    setPricelists(data);
+
+                    // Initially show distinct pricelists (no filter applied)
+                    const distinctPricelists = data.filter((pricelist, index, self) =>
                         index === self.findIndex(p => p.id === pricelist.id)
                     );
-
-                    console.log('Deduplicated pricelists:', uniquePricelists);
-                    console.log(`Total pricelists after deduplication: ${uniquePricelists.length}`);
-                    setPricelists(uniquePricelists);
-                    setFilteredPricelists(uniquePricelists);
+                    console.log("Distinct pricelists:", distinctPricelists.length);
+                    setFilteredPricelists(distinctPricelists);
                 } else if (response.status === 401) {
                     localStorage.removeItem("token");
                     localStorage.removeItem("user");
@@ -94,33 +83,43 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = '' }) =
         fetchPricelists();
     }, [currentStation]);
 
-    // Filter pricelists when station filter changes
+    // Filter pricelists when station filter or status filter changes
     useEffect(() => {
-        if (selectedStationId === null) {
-            // Show all pricelists when no filter is selected
-            setFilteredPricelists(pricelists);
-        } else {
-            // Filter pricelists by selected station
-            const filtered = pricelists.filter(pricelist =>
+        console.log("Filter effect running:", {
+            pricelistsLength: pricelists.length,
+            selectedStationId,
+            statusFilter
+        });
+
+        if (pricelists.length === 0) {
+            console.log("No pricelists, skipping filter");
+            return;
+        }
+
+        let filtered = pricelists;
+
+        // Apply station filter
+        if (selectedStationId !== null) {
+            filtered = filtered.filter(pricelist =>
                 pricelist.station_id === selectedStationId
             );
-            setFilteredPricelists(filtered);
+        } else {
+            // Show distinct pricelists when no station filter is selected
+            filtered = filtered.filter((pricelist, index, self) =>
+                index === self.findIndex(p => p.id === pricelist.id)
+            );
         }
-    }, [selectedStationId, pricelists]);
 
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setShowStationDropdown(false);
-            }
-        };
-
-        if (showStationDropdown) {
-            document.addEventListener('mousedown', handleClickOutside);
-            return () => document.removeEventListener('mousedown', handleClickOutside);
+        // Apply status filter
+        if (statusFilter !== "all") {
+            filtered = filtered.filter(pricelist => pricelist.status === statusFilter);
         }
-    }, [showStationDropdown]);
+
+        console.log("Final filtered result:", filtered.length, "pricelists");
+        setFilteredPricelists(filtered);
+    }, [selectedStationId, pricelists, statusFilter]);
+
+
 
     // Fetch items for selected pricelist
     useEffect(() => {
@@ -130,27 +129,21 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = '' }) =
             try {
                 const token = localStorage.getItem("token");
                 const url = `/api/menu/pricelists/${selectedPricelist.id}/items?t=${Date.now()}`;
-                console.log(`Fetching items for pricelist ${selectedPricelist.id}:`, url);
 
                 const response = await fetch(url, {
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                        'Cache-Control': 'no-cache',
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`,
+                        "Cache-Control": "no-cache",
                     },
                 });
 
-                console.log(`Response status for pricelist ${selectedPricelist.id}:`, response.status);
-
                 if (response.ok) {
                     const items = await response.json();
-                    console.log(`Loaded ${items.length} items for pricelist ${selectedPricelist.id}:`, items);
                     setSelectedPricelist(prev => prev ? { ...prev, items } : null);
-                } else {
-                    console.error(`Failed to fetch items for pricelist ${selectedPricelist.id}:`, response.status);
                 }
             } catch (err: any) {
-                console.error("Failed to fetch pricelist items:", err);
+                // Silent error handling for better UX
             }
         };
 
@@ -195,44 +188,19 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = '' }) =
                         <i className="bi bi-tags me-2"></i>
                         Pricelist Catalog
                     </h4>
-                    {availableStations.length > 1 ? (
-                        <div className="dropdown" ref={dropdownRef}>
-                            <button
-                                className="btn btn-outline-primary btn-sm dropdown-toggle"
-                                type="button"
-                                onClick={() => setShowStationDropdown(!showStationDropdown)}
-                                aria-expanded={showStationDropdown}
-                            >
-                                <i className="bi bi-geo-alt me-1"></i>
-                                {currentStation.name}
-                            </button>
-                            {showStationDropdown && (
-                                <ul className="dropdown-menu show">
-                                    {availableStations.map((station) => (
-                                        <li key={station.id}>
-                                            <button
-                                                className={`dropdown-item ${currentStation?.id === station.id ? 'active' : ''}`}
-                                                onClick={() => {
-                                                    handleStationSwitch(station);
-                                                    setShowStationDropdown(false);
-                                                }}
-                                            >
-                                                <i className="bi bi-geo-alt me-2"></i>
-                                                {station.name}
-                                                {currentStation?.id === station.id && (
-                                                    <i className="bi bi-check ms-2"></i>
-                                                )}
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-                    ) : null}
+                    <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => setShowExpressSearch(true)}
+                        title="Search for items across all pricelists"
+                    >
+                        <i className="bi bi-lightning me-1"></i>
+                        Pricelist Item Quick Search
+                    </Button>
                 </div>
                 <div className="text-muted small">
                     Current Station: <strong>{currentStation.name}</strong>
-                    {process.env.NODE_ENV === 'development' && (
+                    {process.env.NODE_ENV === "development" && (
                         <span className="ms-3">
                             (Stations: {availableStations.length}, Pricelists: {filteredPricelists.length}/{pricelists.length})
                         </span>
@@ -240,60 +208,58 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = '' }) =
                 </div>
             </div>
 
-            {stationError && (
-                <div className="alert alert-warning alert-dismissible fade show" role="alert">
-                    <i className="bi bi-exclamation-triangle me-2"></i>
-                    {stationError}
-                    <button
-                        type="button"
-                        className="btn-close"
-                        onClick={() => setStationError(null)}
-                        aria-label="Close"
-                    ></button>
-                </div>
-            )}
-
             {/* Station Filter */}
             <div className="card mb-4">
                 <div className="card-body">
                     <div className="row align-items-center">
-                        <div className="col-md-4">
-                            <label className="form-label fw-semibold">
-                                <i className="bi bi-funnel me-2 text-primary"></i>
-                                Filter by Station
-                            </label>
-                            <select
-                                className="form-select form-select-lg"
-                                value={selectedStationId || ""}
-                                onChange={(e) => handleStationFilterChange(e.target.value)}
-                            >
-                                <option value="">All Stations</option>
-                                {availableStations.map((station) => (
-                                    <option key={station.id} value={station.id}>
-                                        {station.name}
-                                    </option>
-                                ))}
-                            </select>
+                        <div className="col-md-3">
+                            <StationFilter
+                                selectedStationId={selectedStationId}
+                                availableStations={availableStations}
+                                onStationFilterChange={handleStationFilterChange}
+                            />
                         </div>
-                        <div className="col-md-8">
+                        <div className="col-md-3">
+                            <Form.Label className="fw-semibold small">
+                                <i className="bi bi-funnel me-1 text-primary"></i>
+                                Status Filter
+                            </Form.Label>
+                            <Form.Select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                size="sm"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </Form.Select>
+                        </div>
+                        <div className="col-md-6">
                             <div className="d-flex align-items-center gap-3">
                                 <div className="text-muted">
                                     <i className="bi bi-info-circle me-1"></i>
-                                    Showing {filteredPricelists.length} pricelist{filteredPricelists.length !== 1 ? 's' : ''}
-                                    {selectedStationId && (
-                                        <span className="ms-2">
-                                            for <strong>{availableStations.find(s => s.id === selectedStationId)?.name}</strong>
-                                        </span>
+                                    {selectedStationId ? (
+                                        <>
+                                            Showing {filteredPricelists.length} pricelist{filteredPricelists.length !== 1 ? "s" : ""} for <strong>{availableStations.find(s => s.id === selectedStationId)?.name}</strong>
+                                        </>
+                                    ) : (
+                                        <>
+                                            Showing all {filteredPricelists.length} pricelist{filteredPricelists.length !== 1 ? "s" : ""}
+                                        </>
                                     )}
                                 </div>
-                                {selectedStationId && (
-                                    <button
-                                        className="btn btn-outline-secondary btn-sm"
-                                        onClick={() => setSelectedStationId(null)}
+                                {(selectedStationId || statusFilter !== "all") && (
+                                    <Button
+                                        variant="outline-secondary"
+                                        size="sm"
+                                        onClick={() => {
+                                            handleStationFilterChange(null);
+                                            setStatusFilter("all");
+                                        }}
                                     >
                                         <i className="bi bi-x-circle me-1"></i>
-                                        Clear Filter
-                                    </button>
+                                        Clear Filters
+                                    </Button>
                                 )}
                             </div>
                         </div>
@@ -301,68 +267,27 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = '' }) =
                 </div>
             </div>
 
-            <Row>
-                <Col md={4}>
-                    <Card>
-                        <Card.Header>
-                            <h6 className="mb-0">Available Pricelists</h6>
-                        </Card.Header>
-                        <Card.Body className="p-0">
-                            {filteredPricelists.length === 0 ? (
-                                <div className="p-3 text-muted text-center">
-                                    {selectedStationId ?
-                                        `No pricelists available for ${availableStations.find(s => s.id === selectedStationId)?.name}` :
-                                        'No pricelists available'
-                                    }
-                                </div>
-                            ) : (
-                                <div className="list-group list-group-flush">
-                                    {filteredPricelists.map((pricelist, index) => (
-                                        <button
-                                            key={`${pricelist.id}-${index}`}
-                                            className={`list-group-item list-group-item-action ${selectedPricelist?.id === pricelist.id ? 'active' : ''
-                                                }`}
-                                            onClick={() => setSelectedPricelist(pricelist)}
-                                        >
-                                            <div className="fw-bold">{pricelist.name}</div>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </Card.Body>
-                    </Card>
-                </Col>
 
-                <Col md={8}>
-                    <Card>
-                        <Card.Header>
-                            <h6 className="mb-0">
-                                {selectedPricelist ? selectedPricelist.name : 'Select a Pricelist'}
-                            </h6>
-                        </Card.Header>
-                        <Card.Body className="p-0">
-                            {!selectedPricelist ? (
-                                <div className="text-center text-muted p-4">
-                                    <i className="bi bi-arrow-left me-2"></i>
-                                    Select a pricelist to view items
-                                </div>
-                            ) : (
-                                <ViewItems
-                                    selectedCategory={null}
-                                    items={selectedPricelist.items || []}
-                                    pricelistItems={selectedPricelist.items || []}
-                                    itemError=""
-                                    setItems={() => { }} // Read-only, no need to update
-                                    isBillingSection={false}
-                                    isPricelistSection={true}
-                                    isCategoryItemsSection={false}
-                                    onItemPick={() => { }} // Read-only, no picking
-                                />
-                            )}
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
+            <PricelistManager
+                pricelists={filteredPricelists}
+                selectedPricelist={selectedPricelist}
+                onPricelistSelect={setSelectedPricelist}
+                isAdmin={false}
+            />
+
+            <ExpressItemSearchModal
+                show={showExpressSearch}
+                onHide={() => setShowExpressSearch(false)}
+                onPricelistSelect={(pricelistId, pricelistName) => {
+                    console.log("Express search selected pricelist:", pricelistId, pricelistName);
+                    setSelectedPricelist(pricelists.find(p => p.id === pricelistId) || null);
+                    setShowExpressSearch(false);
+                }}
+                onItemSelect={(item) => {
+                    console.log("Express search selected item:", item);
+                    // You can add logic here to show the item in the current view
+                }}
+            />
         </div>
     );
 };

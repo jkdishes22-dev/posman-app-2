@@ -1,24 +1,26 @@
 import { AppDataSource } from "@backend/config/data-source";
 import { Station, StationStatus } from "@backend/entities/Station";
 import { Pricelist, PriceListStatus } from "@backend/entities/Pricelist";
+import { StationPricelist, StationPricelistStatus } from "@backend/entities/StationPricelist";
 import { UserStation, UserStationStatus } from "@backend/entities/UserStation";
 import { DataSource, Repository } from "typeorm";
 
 export class StationService {
   private stationRepository: Repository<Station>;
   private pricelistRepository: Repository<Pricelist>;
+  private stationPricelistRepository: Repository<StationPricelist>;
   private userStationRepository: Repository<UserStation>;
 
   constructor(datasource: DataSource) {
     this.stationRepository = datasource.getRepository(Station);
     this.pricelistRepository = datasource.getRepository(Pricelist);
+    this.stationPricelistRepository = datasource.getRepository(StationPricelist);
     this.userStationRepository = datasource.getRepository(UserStation);
   }
 
   async createStation(station: Station) {
     const updatedRequest = {
       ...station,
-      status: StationStatus.ENABLED,
     };
     const newStation = this.stationRepository.create(updatedRequest);
     return await this.stationRepository.save(newStation);
@@ -61,7 +63,6 @@ export class StationService {
   }
 
   async fetchStationUsers(stationId: number) {
-    console.log("StationService: fetchStationUsers called with stationId:", stationId);
     const query = `
         SELECT 
             u.id,
@@ -77,10 +78,7 @@ export class StationService {
         WHERE 
           s.id = ?
       `;
-    console.log("StationService: Executing query:", query);
-    console.log("StationService: With parameters:", [stationId]);
     const result = await AppDataSource.query(query, [stationId]);
-    console.log("StationService: Query result:", result);
     return result;
   }
 
@@ -94,7 +92,7 @@ export class StationService {
       where: {
         user: { id: userId },
         isDefault: true,
-        status: UserStationStatus.ENABLED
+        status: UserStationStatus.ACTIVE
       },
       relations: ["station"]
     });
@@ -120,32 +118,24 @@ export class StationService {
   }
 
   /**
-   * Get station's default pricelist
+   * Get station's default pricelist (legacy method - use getDefaultPricelistForStation instead)
    */
   async getStationDefaultPricelist(stationId: number): Promise<Pricelist | null> {
+    const defaultPricelist = await this.getDefaultPricelistForStation(stationId);
+    if (!defaultPricelist) {
+      return null;
+    }
+
     return await this.pricelistRepository.findOne({
-      where: {
-        station: { id: stationId },
-        is_default: true
-      }
+      where: { id: defaultPricelist.id }
     });
   }
 
   /**
-   * Set station's default pricelist
+   * Set station's default pricelist (legacy method - use setDefaultPricelist instead)
    */
   async setStationDefaultPricelist(stationId: number, pricelistId: number): Promise<void> {
-    // First, unset any existing default for this station
-    await this.pricelistRepository.update(
-      { station: { id: stationId } },
-      { is_default: false }
-    );
-
-    // Set the new default
-    await this.pricelistRepository.update(
-      { id: pricelistId, station: { id: stationId } },
-      { is_default: true }
-    );
+    return await this.setDefaultPricelist(stationId, pricelistId);
   }
 
   /**
@@ -157,14 +147,20 @@ export class StationService {
       throw new Error(`Station with ID ${stationId} not found`);
     }
 
+    // Create the pricelist
     const defaultPricelist = this.pricelistRepository.create({
       name: pricelistName || `${station.name} - Default`,
-      station: { id: stationId },
       is_default: true,
       status: PriceListStatus.ACTIVE
     });
 
-    return await this.pricelistRepository.save(defaultPricelist);
+    const savedPricelist = await this.pricelistRepository.save(defaultPricelist);
+
+    // Link it to the station as default
+    await this.linkPricelistToStation(stationId, savedPricelist.id);
+    await this.setDefaultPricelist(stationId, savedPricelist.id);
+
+    return savedPricelist;
   }
 
   /**
@@ -175,7 +171,7 @@ export class StationService {
       where: {
         user: { id: userId },
         station: { id: stationId },
-        status: UserStationStatus.ENABLED
+        status: UserStationStatus.ACTIVE
       }
     });
 
@@ -195,13 +191,14 @@ export class StationService {
     });
 
     // Filter by status
-    const enabledUserStations = allUserStations.filter(us => us.status === UserStationStatus.ENABLED);
+    const activeUserStations = allUserStations.filter(us => us.status === UserStationStatus.ACTIVE);
 
-    return enabledUserStations.map(us => us.station);
+    return activeUserStations.map(us => us.station);
   }
 
   // Link a pricelist to a station
-  async linkPricelistToStation(stationId: number, pricelistId: number): Promise<void> {
+  async linkPricelistToStation(stationId: number, pricelistId: number, notes?: string): Promise<void> {
+    // Check if pricelist exists
     const pricelist = await this.pricelistRepository.findOne({
       where: { id: pricelistId }
     });
@@ -210,38 +207,59 @@ export class StationService {
       throw new Error("Pricelist not found");
     }
 
-    // Update the pricelist to link it to the station
-    pricelist.station = { id: stationId } as any;
-    await this.pricelistRepository.save(pricelist);
+    // Check if station exists
+    const station = await this.stationRepository.findOne({
+      where: { id: stationId }
+    });
+
+    if (!station) {
+      throw new Error("Station not found");
+    }
+
+    // Check if relationship already exists
+    const existingRelation = await this.stationPricelistRepository.findOne({
+      where: { station: { id: stationId }, pricelist: { id: pricelistId } }
+    });
+
+    if (existingRelation) {
+      throw new Error("Pricelist is already linked to this station");
+    }
+
+    // Create the relationship
+    const stationPricelist = this.stationPricelistRepository.create({
+      station: { id: stationId },
+      pricelist: { id: pricelistId },
+      status: StationPricelistStatus.ACTIVE,
+      notes: notes || null
+    });
+
+    await this.stationPricelistRepository.save(stationPricelist);
   }
 
   // Unlink a pricelist from a station
   async unlinkPricelistFromStation(stationId: number, pricelistId: number): Promise<void> {
-    const pricelist = await this.pricelistRepository.findOne({
-      where: { id: pricelistId, station: { id: stationId } }
+    const result = await this.stationPricelistRepository.delete({
+      station: { id: stationId },
+      pricelist: { id: pricelistId }
     });
 
-    if (!pricelist) {
+    if (result.affected === 0) {
       throw new Error("Pricelist not found or not linked to this station");
     }
-
-    // Remove the station link
-    pricelist.station = null;
-    await this.pricelistRepository.save(pricelist);
   }
 
   // Set a pricelist as default for a station
   async setDefaultPricelist(stationId: number, pricelistId: number): Promise<void> {
     // First, unset any existing default pricelist for this station
-    await this.pricelistRepository.update(
-      { station: { id: stationId }, is_default: 1 },
-      { is_default: 0 }
+    await this.stationPricelistRepository.update(
+      { station: { id: stationId }, is_default: true },
+      { is_default: false }
     );
 
     // Set the new pricelist as default
-    const result = await this.pricelistRepository.update(
-      { id: pricelistId, station: { id: stationId } },
-      { is_default: 1 }
+    const result = await this.stationPricelistRepository.update(
+      { station: { id: stationId }, pricelist: { id: pricelistId } },
+      { is_default: true }
     );
 
     if (result.affected === 0) {
@@ -251,10 +269,94 @@ export class StationService {
 
   // Remove default pricelist for a station
   async removeDefaultPricelist(stationId: number): Promise<void> {
-    await this.pricelistRepository.update(
-      { station: { id: stationId }, is_default: 1 },
-      { is_default: 0 }
+    await this.stationPricelistRepository.update(
+      { station: { id: stationId }, is_default: true },
+      { is_default: false }
     );
+  }
+
+  // Get all pricelists for a station
+  async getPricelistsForStation(stationId: number): Promise<any[]> {
+    const stationPricelists = await this.stationPricelistRepository.find({
+      where: { station: { id: stationId } },
+      relations: ["pricelist"],
+      order: { is_default: "DESC", created_at: "ASC" }
+    });
+
+    return stationPricelists.map(sp => ({
+      id: sp.pricelist.id,
+      name: sp.pricelist.name,
+      status: sp.pricelist.status,
+      is_default: sp.is_default,
+      station_pricelist_status: sp.status,
+      notes: sp.notes,
+      created_at: sp.created_at,
+      updated_at: sp.updated_at
+    }));
+  }
+
+  // Get default pricelist for a station
+  async getDefaultPricelistForStation(stationId: number): Promise<any | null> {
+    const defaultPricelist = await this.stationPricelistRepository.findOne({
+      where: {
+        station: { id: stationId },
+        is_default: true,
+        status: StationPricelistStatus.ACTIVE
+      },
+      relations: ["pricelist"]
+    });
+
+    if (!defaultPricelist) {
+      return null;
+    }
+
+    return {
+      id: defaultPricelist.pricelist.id,
+      name: defaultPricelist.pricelist.name,
+      status: defaultPricelist.pricelist.status,
+      is_default: true,
+      station_pricelist_status: defaultPricelist.status,
+      notes: defaultPricelist.notes
+    };
+  }
+
+  // Update pricelist status for a station
+  async updatePricelistStatusForStation(
+    stationId: number,
+    pricelistId: number,
+    status: StationPricelistStatus,
+    notes?: string
+  ): Promise<void> {
+    const result = await this.stationPricelistRepository.update(
+      { station: { id: stationId }, pricelist: { id: pricelistId } },
+      {
+        status,
+        notes: notes || undefined
+      }
+    );
+
+    if (result.affected === 0) {
+      throw new Error("Pricelist not found or not linked to this station");
+    }
+  }
+
+  // Get all stations using a pricelist
+  async getStationsUsingPricelist(pricelistId: number): Promise<any[]> {
+    const stationPricelists = await this.stationPricelistRepository.find({
+      where: { pricelist: { id: pricelistId } },
+      relations: ["station"],
+      order: { created_at: "ASC" }
+    });
+
+    return stationPricelists.map(sp => ({
+      id: sp.station.id,
+      name: sp.station.name,
+      status: sp.station.status,
+      is_default: sp.is_default,
+      station_pricelist_status: sp.status,
+      notes: sp.notes,
+      linked_at: sp.created_at
+    }));
   }
 
   // User management methods
@@ -301,12 +403,12 @@ export class StationService {
   }
 
   /**
-   * Disable a user from a station (keeps them linked but disabled)
+   * Deactivate a user from a station (keeps them linked but inactive)
    */
   async disableUserFromStation(stationId: number, userId: number): Promise<void> {
     const result = await this.userStationRepository.update(
       { station: { id: stationId }, user: { id: userId } },
-      { status: UserStationStatus.DISABLED }
+      { status: UserStationStatus.INACTIVE }
     );
 
     if (result.affected === 0) {
@@ -315,12 +417,12 @@ export class StationService {
   }
 
   /**
-   * Enable a user for a station
+   * Activate a user for a station
    */
   async enableUserForStation(stationId: number, userId: number): Promise<void> {
     const result = await this.userStationRepository.update(
       { station: { id: stationId }, user: { id: userId } },
-      { status: UserStationStatus.ENABLED }
+      { status: UserStationStatus.ACTIVE }
     );
 
     if (result.affected === 0) {
@@ -355,5 +457,16 @@ export class StationService {
     `;
 
     return await AppDataSource.query(query, [stationId]);
+  }
+
+  async getStationById(id: number): Promise<Station | null> {
+    return await this.stationRepository.findOne({
+      where: { id },
+      relations: ["stationPricelists", "stationPricelists.pricelist"],
+    });
+  }
+
+  async updateStationStatus(id: number, status: string): Promise<void> {
+    await this.stationRepository.update(id, { status });
   }
 }

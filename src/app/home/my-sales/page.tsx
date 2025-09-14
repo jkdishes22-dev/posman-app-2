@@ -118,14 +118,6 @@ const MySales = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
-      console.log("=== Frontend fetchBills response ===");
-      console.log("Response data:", data);
-      console.log("Bills received:", data.bills);
-      console.log("Bill timestamps:", data.bills?.map(bill => ({
-        id: bill.id,
-        created_at: bill.created_at,
-        created_at_type: typeof bill.created_at
-      })));
 
       if (!response.ok) {
         setError(data.message || "Failed to fetch bills");

@@ -20,7 +20,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
     // Clear cache when adding new station
     stationsCache = null;
-    await authMiddleware(
+    return authMiddleware(
       authorize([permissions.CAN_ADD_STATION])(addStationHandler),
     )(req, res);
   }
@@ -41,7 +41,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return originalJson.call(this, data);
     };
 
-    await authMiddleware(
+    return authMiddleware(
       authorize([permissions.CAN_VIEW_STATION])(fetchStationsHandler),
     )(req, res);
   } else {

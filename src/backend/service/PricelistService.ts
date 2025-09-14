@@ -1,57 +1,59 @@
 import { Station } from "@backend/entities/Station";
+import { StationPricelist, StationPricelistStatus } from "@backend/entities/StationPricelist";
 import { Pricelist, PriceListStatus } from "@entities/Pricelist";
 import { PricelistItem } from "@entities/PricelistItem";
 import { DataSource, Repository } from "typeorm";
+import logger from "@backend/utils/logger";
 
 export class PricelistService {
   private pricelistRepository: Repository<Pricelist>;
   private pricelistItemRepository: Repository<PricelistItem>;
   private stationRepository: Repository<Station>;
+  private stationPricelistRepository: Repository<StationPricelist>;
 
   constructor(datasource: DataSource) {
     this.pricelistRepository = datasource.getRepository(Pricelist);
     this.pricelistItemRepository = datasource.getRepository(PricelistItem);
     this.stationRepository = datasource.getRepository(Station);
+    this.stationPricelistRepository = datasource.getRepository(StationPricelist);
   }
 
   public async createPricelist(
     payload: Partial<Pricelist>,
     user_id: number,
   ): Promise<Pricelist> {
-    const foundStation = await this.stationRepository.findOneBy({
-      id: Number(payload.station),
-    });
     const newPricelist = {
       ...payload,
-      status: PriceListStatus.ACTIVE,
+      // Don't set status explicitly - let entity default to INACTIVE
       created_by: user_id,
-      station: foundStation ? { id: foundStation.id } : null,
     }
     const pricelist: Pricelist = this.pricelistRepository.create(newPricelist);
     return await this.pricelistRepository.save(pricelist);
   }
 
   async fetchPricelists() {
-    // Optimized query with proper select and relations
-    return await this.pricelistRepository
+    // Get all pricelists without station relationship (now handled by junction table)
+    const pricelists = await this.pricelistRepository
       .createQueryBuilder("pricelist")
-      .leftJoinAndSelect("pricelist.station", "station")
       .select([
         "pricelist.id",
         "pricelist.name",
         "pricelist.status",
         "pricelist.is_default",
+        "pricelist.description",
         "pricelist.created_at",
-        "station.id",
-        "station.name"
+        "pricelist.updated_at"
       ])
-      .orderBy("pricelist.name", "ASC")
+      .orderBy("pricelist.is_default", "DESC")
+      .addOrderBy("pricelist.name", "ASC")
       .getMany();
+
+    logger.debug({ pricelistCount: pricelists.length }, 'Fetched all pricelists');
+    return pricelists;
   }
 
   async fetchPricelistItems(pricelistId: string): Promise<any[]> {
     try {
-      console.log(`Fetching pricelist items for pricelist ID: ${pricelistId}`);
 
       const query = this.pricelistItemRepository
         .createQueryBuilder("pi")
@@ -78,19 +80,12 @@ export class PricelistService {
       const basicCount = await this.pricelistItemRepository.count({
         where: { pricelist: { id: Number(pricelistId) } }
       });
-      console.log(`Basic count of pricelist items for pricelist ${pricelistId}:`, basicCount);
 
-      // Log the generated SQL query
-      const sql = query.getSql();
-      console.log(`Generated SQL query:`, sql);
-      console.log(`Query parameters:`, { pricelistId: Number(pricelistId) });
 
       const rawItems = await query.getRawMany();
-      console.log(`Raw items from database for pricelist ${pricelistId}:`, rawItems);
 
       // If no items found with joins, try a simpler approach
       if (rawItems.length === 0) {
-        console.log(`No items found with joins, trying simpler query...`);
         const simpleQuery = this.pricelistItemRepository
           .createQueryBuilder("pi")
           .leftJoin("pi.item", "item")
@@ -109,10 +104,7 @@ export class PricelistService {
           .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) });
 
         const simpleItems = await simpleQuery.getRawMany();
-        console.log(`Simple query results for pricelist ${pricelistId}:`, simpleItems);
-
         if (simpleItems.length > 0) {
-          console.log(`Found ${simpleItems.length} items with simple query, issue might be with category join`);
         }
       }
 
@@ -131,7 +123,6 @@ export class PricelistService {
         pricelistName: item.pricelist_name,
       }));
 
-      console.log(`Mapped items for pricelist ${pricelistId}:`, mappedItems);
       return mappedItems;
     } catch (error: any) {
       console.error(`Error fetching pricelist items for ${pricelistId}:`, error);
@@ -142,74 +133,129 @@ export class PricelistService {
   // Get all pricelists for a specific station (including global pricelists for admins only)
   async getPricelistsByStation(stationId: number, isAdmin: boolean = false): Promise<any[]> {
     try {
-      console.log(`Fetching pricelists for station ID: ${stationId}, isAdmin: ${isAdmin}`);
 
-      // Get pricelists linked to this specific station
-      const stationPricelists = await this.pricelistRepository.find({
+      // Get pricelists linked to this specific station through junction table
+      const stationPricelists = await this.stationPricelistRepository.find({
         where: { station: { id: stationId } },
-        relations: ["station"],
-        order: { is_default: "DESC", name: "ASC" }
+        relations: ["pricelist"],
+        order: { is_default: "DESC", created_at: "ASC" }
       });
 
-      let allPricelists = [...stationPricelists];
+      let allPricelists = stationPricelists.map(sp => ({
+        id: sp.pricelist.id,
+        name: sp.pricelist.name,
+        status: sp.pricelist.status,
+        is_default: sp.is_default,
+        station_pricelist_status: sp.status,
+        station_id: stationId,
+        notes: sp.notes,
+        created_at: sp.created_at,
+        updated_at: sp.updated_at
+      }));
 
       // Only admins can see global pricelists (not linked to any station)
       if (isAdmin) {
         const globalPricelists = await this.pricelistRepository.find({
           where: {
-            station: null,
-            status: "active"
+            status: PriceListStatus.ACTIVE
           },
-          relations: ["station"],
           order: { is_default: "DESC", name: "ASC" }
         });
 
-        allPricelists = [...stationPricelists, ...globalPricelists];
-        console.log(`Admin access: Found ${stationPricelists.length} station-specific pricelists and ${globalPricelists.length} global pricelists`);
-      } else {
-        console.log(`Non-admin access: Found ${stationPricelists.length} station-specific pricelists only`);
+        // Filter out pricelists already linked to this station
+        const linkedPricelistIds = stationPricelists.map(sp => sp.pricelist.id);
+        const unlinkedGlobalPricelists = globalPricelists
+          .filter(p => !linkedPricelistIds.includes(p.id))
+          .map(pricelist => ({
+            id: pricelist.id,
+            name: pricelist.name,
+            status: pricelist.status,
+            is_default: false,
+            station_pricelist_status: null,
+            station_id: null,
+            notes: null,
+            created_at: pricelist.created_at,
+            updated_at: pricelist.updated_at
+          }));
+
+        allPricelists = [...allPricelists, ...unlinkedGlobalPricelists];
       }
 
-      // Deduplicate by ID
-      const uniquePricelists = allPricelists.filter((pricelist, index, self) =>
-        index === self.findIndex(p => p.id === pricelist.id)
-      );
-
-      console.log(`After deduplication: ${uniquePricelists.length} unique pricelists`);
-
-      return uniquePricelists.map(pricelist => ({
-        id: pricelist.id,
-        name: pricelist.name,
-        is_default: pricelist.is_default,
-        status: pricelist.status,
-        station_id: pricelist.station?.id,
-        station_name: pricelist.station?.name
-      }));
+      return allPricelists;
     } catch (error: any) {
       console.error(`Error fetching pricelists for station ${stationId}:`, error);
       throw new Error("Failed to fetch pricelists for station: " + error);
     }
   }
 
-  // Get all pricelists that are not linked to any station and are active
+  // Get all pricelists that are active (for linking to stations)
   async getAvailablePricelists(): Promise<any[]> {
     try {
       const pricelists = await this.pricelistRepository.find({
         where: {
-          station: null,
           status: PriceListStatus.ACTIVE
         },
-        order: { name: "ASC" }
+        order: { is_default: "DESC", name: "ASC" }
       });
 
       return pricelists.map(pricelist => ({
         id: pricelist.id,
         name: pricelist.name,
+        status: pricelist.status,
         is_default: pricelist.is_default,
-        status: pricelist.status
+        description: pricelist.description
       }));
     } catch (error: any) {
+      console.error("Error fetching available pricelists:", error);
       throw new Error("Failed to fetch available pricelists: " + error);
     }
+  }
+
+  // Get all stations using a specific pricelist
+  async getStationsUsingPricelist(pricelistId: number): Promise<any[]> {
+    try {
+      const stationPricelists = await this.stationPricelistRepository.find({
+        where: { pricelist: { id: pricelistId } },
+        relations: ["station"],
+        order: { created_at: "ASC" }
+      });
+
+      return stationPricelists.map(sp => ({
+        id: sp.station.id,
+        name: sp.station.name,
+        status: sp.station.status,
+        is_default: sp.is_default,
+        station_pricelist_status: sp.status,
+        notes: sp.notes,
+        linked_at: sp.created_at
+      }));
+    } catch (error: any) {
+      console.error(`Error fetching stations using pricelist ${pricelistId}:`, error);
+      throw new Error("Failed to fetch stations using pricelist: " + error);
+    }
+  }
+
+  // Update pricelist status (affects all stations using it)
+  async updatePricelistStatus(pricelistId: number, status: PriceListStatus): Promise<void> {
+    try {
+      const result = await this.pricelistRepository.update(
+        { id: pricelistId },
+        { status }
+      );
+
+      if (result.affected === 0) {
+        throw new Error("Pricelist not found");
+      }
+    } catch (error: any) {
+      console.error(`Error updating pricelist ${pricelistId} status:`, error);
+      throw new Error("Failed to update pricelist status: " + error);
+    }
+  }
+
+  async getPricelistById(id: number): Promise<Pricelist | null> {
+    return await this.pricelistRepository.findOne({
+      where: { id },
+      relations: ["stationPricelists", "stationPricelists.station"],
+    });
   }
 }

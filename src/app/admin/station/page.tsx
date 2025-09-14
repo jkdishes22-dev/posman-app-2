@@ -8,10 +8,14 @@ import { AuthError } from "src/app/types/types";
 
 export default function StationPage() {
   const [stations, setStations] = useState([]);
+  const [filteredStations, setFilteredStations] = useState([]);
   const [pricelists, setPricelists] = useState([]);
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedStationId, setSelectedStationId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'activate' | 'deactivate', stationId: number, stationName: string } | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
   const [fetchStationsError, setFetchStationsError] = useState(null);
   const [fetchPricelistsError, setFetchPricelistsError] = useState(null);
@@ -42,6 +46,7 @@ export default function StationPage() {
 
         if (response.ok) {
           setStations(response.ok ? data : []);
+          setFilteredStations(response.ok ? data : []);
         } else if (response.status === 403) {
           setAuthError(data);
         } else {
@@ -57,6 +62,16 @@ export default function StationPage() {
 
     fetchData();
   }, []);
+
+  // Filter stations by status
+  useEffect(() => {
+    if (statusFilter === "all") {
+      setFilteredStations(stations);
+    } else {
+      const filtered = stations.filter(station => station.status === statusFilter);
+      setFilteredStations(filtered);
+    }
+  }, [stations, statusFilter]);
 
   useEffect(() => {
     if (selectedStationId) {
@@ -123,7 +138,7 @@ export default function StationPage() {
     }
   };
 
-  const handleAddStation = async (name: string) => {
+  const handleAddStation = async (name: string, description: string) => {
     try {
       const token = localStorage.getItem("token");
       const response = await fetch("/api/stations", {
@@ -132,7 +147,7 @@ export default function StationPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, description }),
       });
 
       if (response.ok) {
@@ -152,13 +167,13 @@ export default function StationPage() {
   const fetchAvailablePricelists = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/pricelists/available", {
+      const response = await fetch("/api/menu/pricelists", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
         const data = await response.json();
-        setAvailablePricelists(data.pricelists || []);
+        setAvailablePricelists(data || []);
       }
     } catch (error: any) {
       console.error("Failed to fetch available pricelists", error);
@@ -365,7 +380,7 @@ export default function StationPage() {
 
     try {
       const token = localStorage.getItem("token");
-      const action = currentStatus === "enabled" ? "disable" : "enable";
+      const action = currentStatus === "active" ? "deactivate" : "activate";
 
       const response = await fetch(`/api/stations/${selectedStationId}/users`, {
         method: "PATCH",
@@ -384,7 +399,59 @@ export default function StationPage() {
         setError(errorData.message || `Failed to ${action} user for station`);
       }
     } catch (error: any) {
-      setError(error.message || `Error ${currentStatus === "enabled" ? "disabling" : "enabling"} user for station`);
+      setError(error.message || `Error ${currentStatus === "active" ? "deactivating" : "activating"} user for station`);
+    }
+  };
+
+  const handleToggleStationStatus = (stationId: number, currentStatus: string, stationName: string) => {
+    const action = currentStatus === "active" ? "deactivate" : "activate";
+    setConfirmAction({ type: action, stationId, stationName });
+    setShowConfirmModal(true);
+  };
+
+  const confirmToggleStationStatus = async () => {
+    if (!confirmAction) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/stations/${confirmAction.stationId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: confirmAction.type }),
+      });
+
+      if (response.ok) {
+        console.log('Station status updated successfully, refreshing data...');
+        // Refresh stations list
+        const refreshResponse = await fetch("/api/stations", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await refreshResponse.json();
+        console.log('Refreshed stations data:', data);
+        if (refreshResponse.ok) {
+          setStations(data);
+          // Don't set filteredStations here - let the useEffect handle it
+          // This ensures proper filtering by status
+          console.log('Stations updated, useEffect will handle filtering');
+        } else {
+          console.error('Failed to refresh stations:', data);
+        }
+        setShowConfirmModal(false);
+        setConfirmAction(null);
+        setError(null);
+      } else {
+        const errorData = await response.json().catch(() => ({ message: `Failed to ${confirmAction.type} station` }));
+        setError(errorData.message || `Failed to ${confirmAction.type} station`);
+      }
+    } catch (error: any) {
+      setError(error.message || `Error ${confirmAction.type === "activate" ? "activating" : "deactivating"} station`);
     }
   };
 
@@ -411,16 +478,9 @@ export default function StationPage() {
               <i className="bi bi-building me-2"></i>
               Station Management
             </h1>
-            <Button
-              variant="light"
-              onClick={() => setShowModal(true)}
-              className="btn-sm"
-            >
-              <i className="bi bi-plus-circle me-1"></i>
-              Add Station
-            </Button>
           </div>
         </div>
+
 
         {/* Main Content */}
         <div className="row g-4">
@@ -428,47 +488,111 @@ export default function StationPage() {
           <div className="col-lg-4">
             <div className="card shadow-sm h-100">
               <div className="card-header bg-light">
-                <h5 className="mb-0 fw-bold">
-                  <i className="bi bi-building me-2 text-primary"></i>
-                  Stations
-                </h5>
+                <div className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0 fw-bold">
+                    <i className="bi bi-building me-2 text-primary"></i>
+                    Stations
+                  </h5>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setShowModal(true)}
+                  >
+                    <i className="bi bi-plus-circle me-1"></i>
+                    Add Station
+                  </Button>
+                </div>
               </div>
               <div className="card-body p-0">
+                {/* Status Filter */}
+                <div className="p-3 border-bottom">
+                  <div className="d-flex align-items-center justify-content-between">
+                    <div className="d-flex align-items-center gap-3">
+                      <label className="form-label fw-semibold mb-0">
+                        <i className="bi bi-funnel me-2 text-primary"></i>
+                        Filter by Status
+                      </label>
+                      <select
+                        className="form-select"
+                        style={{ width: 'auto', minWidth: '150px' }}
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                      >
+                        <option value="all">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
+                    <div className="d-flex align-items-center gap-2">
+                      {statusFilter !== "all" && (
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          onClick={() => setStatusFilter("all")}
+                        >
+                          <i className="bi bi-x-circle me-1"></i>
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 <StationNew
                   show={showModal}
                   handleClose={() => setShowModal(false)}
                   handleAddStation={handleAddStation}
                 />
-                <div className="table-responsive">
+                <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                   <table className="table table-hover mb-0">
                     <thead className="table-light">
                       <tr>
-                        <th className="fw-semibold">ID</th>
+                        <th className="fw-semibold">#</th>
                         <th className="fw-semibold">Name</th>
+                        <th className="text-center fw-semibold">Status</th>
                         <th className="text-center fw-semibold">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {stations.map((station) => (
+                      {filteredStations.map((station, index) => (
                         <tr
                           key={station.id}
                           onClick={() => setSelectedStationId(station.id)}
                           className={`cursor-pointer ${selectedStationId === station.id ? 'table-primary' : ''}`}
                           style={{ cursor: 'pointer' }}
                         >
-                          <td className="fw-medium">{station.id}</td>
+                          <td className="fw-medium">{index + 1}</td>
                           <td>{station.name}</td>
                           <td className="text-center">
-                            {(!station.status || station.status === "disabled") && (
-                              <Button variant="outline-primary" size="sm" className="me-1">
+                            <span className={`badge ${station.status === "active" ? "bg-success" : "bg-secondary"}`}>
+                              {station.status === "active" ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+                          <td className="text-center">
+                            {station.status !== "active" && (
+                              <Button
+                                variant="outline-success"
+                                size="sm"
+                                className="me-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleStationStatus(station.id, station.status || "inactive", station.name);
+                                }}
+                              >
                                 <i className="bi bi-play-circle me-1"></i>
-                                Enable
+                                Activate
                               </Button>
                             )}
-                            {station.status === "enabled" && (
-                              <Button variant="outline-secondary" size="sm">
+                            {station.status === "active" && (
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleStationStatus(station.id, station.status, station.name);
+                                }}
+                              >
                                 <i className="bi bi-pause-circle me-1"></i>
-                                Disable
+                                Deactivate
                               </Button>
                             )}
                           </td>
@@ -502,7 +626,7 @@ export default function StationPage() {
                             setLinkPricelistError(null);
                             setShowPricelistModal(true);
                           }}
-                          disabled={!selectedStationId || stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
+                          disabled={!selectedStationId || stations.find(s => s.id === selectedStationId)?.status !== 'active'}
                         >
                           <i className="bi bi-plus-circle me-1"></i>
                           Add
@@ -513,10 +637,10 @@ export default function StationPage() {
                       <i className="bi bi-info-circle me-1"></i>
                       The <strong>Default</strong> pricelist is used for billing on this station.
                     </div>
-                    {selectedStationId && stations.find(s => s.id === selectedStationId)?.status === 'disabled' && (
+                    {selectedStationId && stations.find(s => s.id === selectedStationId)?.status !== 'active' && (
                       <div className="alert alert-warning alert-sm mt-2 mb-0" role="alert">
                         <i className="bi bi-exclamation-triangle me-1"></i>
-                        <strong>Station Disabled:</strong> Cannot add or manage pricelists.
+                        <strong>Station Inactive:</strong> Cannot add or manage pricelists.
                       </div>
                     )}
                   </div>
@@ -567,7 +691,7 @@ export default function StationPage() {
                                     variant="outline-primary"
                                     size="sm"
                                     onClick={() => handleSetDefaultPricelist(pricelist.id)}
-                                    disabled={stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
+                                    disabled={stations.find(s => s.id === selectedStationId)?.status !== 'active'}
                                   >
                                     <i className="bi bi-star me-1"></i>
                                     Set Default
@@ -577,7 +701,7 @@ export default function StationPage() {
                                   variant="outline-secondary"
                                   size="sm"
                                   onClick={() => handleUnlinkPricelist(pricelist.id)}
-                                  disabled={stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
+                                  disabled={stations.find(s => s.id === selectedStationId)?.status !== 'active'}
                                 >
                                   <i className="bi bi-trash me-1"></i>
                                   Remove
@@ -613,16 +737,16 @@ export default function StationPage() {
                           setShowUserModal(true);
                           fetchAvailableUsers();
                         }}
-                        disabled={!selectedStationId || stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
+                        disabled={!selectedStationId || stations.find(s => s.id === selectedStationId)?.status !== 'active'}
                       >
                         <i className="bi bi-plus-circle me-1"></i>
                         Add
                       </Button>
                     </div>
-                    {selectedStationId && stations.find(s => s.id === selectedStationId)?.status === 'disabled' && (
+                    {selectedStationId && stations.find(s => s.id === selectedStationId)?.status !== 'active' && (
                       <div className="alert alert-warning alert-sm mt-2 mb-0" role="alert">
                         <i className="bi bi-exclamation-triangle me-1"></i>
-                        <strong>Station Disabled:</strong> Cannot add or manage users.
+                        <strong>Station Inactive:</strong> Cannot add or manage users.
                       </div>
                     )}
                   </div>
@@ -654,16 +778,16 @@ export default function StationPage() {
                                   variant="outline-secondary"
                                   size="sm"
                                   onClick={() => handleToggleUserStatus(user.id, user.status)}
-                                  disabled={stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
+                                  disabled={stations.find(s => s.id === selectedStationId)?.status !== 'active'}
                                 >
-                                  <i className={`bi ${user.status === "enabled" ? "bi-pause-circle" : "bi-play-circle"} me-1`}></i>
-                                  {user.status === "enabled" ? "Disable" : "Enable"}
+                                  <i className={`bi ${user.status === "active" ? "bi-pause-circle" : "bi-play-circle"} me-1`}></i>
+                                  {user.status === "active" ? "Deactivate" : "Activate"}
                                 </Button>
                                 <Button
                                   variant="outline-danger"
                                   size="sm"
                                   onClick={() => handleRemoveUser(user.id)}
-                                  disabled={stations.find(s => s.id === selectedStationId)?.status === 'disabled'}
+                                  disabled={stations.find(s => s.id === selectedStationId)?.status !== 'active'}
                                 >
                                   <i className="bi bi-trash me-1"></i>
                                   Remove
@@ -746,7 +870,7 @@ export default function StationPage() {
                 </div>
               )}
 
-              <div className="modal-body">
+              <div className="modal-body" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                 {availablePricelists.length > 0 ? (
                   <div className="list-group list-group-flush">
                     {availablePricelists.map((pricelist) => (
@@ -806,7 +930,7 @@ export default function StationPage() {
                   onClick={() => setShowUserModal(false)}
                 ></button>
               </div>
-              <div className="modal-body">
+              <div className="modal-body" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                 {addUserError && (
                   <div className="alert alert-danger alert-sm mb-3" role="alert">
                     <i className="bi bi-exclamation-triangle me-1"></i>
@@ -879,6 +1003,62 @@ export default function StationPage() {
                 >
                   Close
                 </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && confirmAction && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className={`bi ${confirmAction.type === 'activate' ? 'bi-play-circle text-success' : 'bi-pause-circle text-danger'} me-2`}></i>
+                  {confirmAction.type === 'activate' ? 'Activate' : 'Deactivate'} Station
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setConfirmAction(null);
+                  }}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <p>
+                  Are you sure you want to <strong>{confirmAction.type}</strong> the station
+                  <strong> "{confirmAction.stationName}"</strong>?
+                </p>
+                {confirmAction.type === 'deactivate' && (
+                  <div className="alert alert-warning" role="alert">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> Deactivating this station will prevent users from billing on it and will disable all related operations.
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setConfirmAction(null);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${confirmAction.type === 'activate' ? 'btn-success' : 'btn-danger'}`}
+                  onClick={confirmToggleStationStatus}
+                >
+                  <i className={`bi ${confirmAction.type === 'activate' ? 'bi-play-circle' : 'bi-pause-circle'} me-1`}></i>
+                  {confirmAction.type === 'activate' ? 'Activate' : 'Deactivate'} Station
+                </button>
               </div>
             </div>
           </div>

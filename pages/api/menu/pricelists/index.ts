@@ -35,14 +35,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return originalJson.call(this, data);
     };
 
-    await authMiddleware(
+    return authMiddleware(
       authorize([permissions.CAN_VIEW_PRICELIST])(fetchPricelistsHandler),
     )(req, res);
   } else if (req.method === "POST") {
     // Invalidate cache when creating new pricelist
     pricelistsCache.delete("pricelists-all");
 
-    await authMiddleware(
+    return authMiddleware(
       authorize([permissions.CAN_ADD_PRICELIST])(createPricelistHandler),
     )(req, res);
   } else {

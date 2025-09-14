@@ -68,7 +68,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 break;
 
             case "PATCH":
-                // Enable/Disable a user for a station
+                // Activate/Deactivate a user for a station
                 await authMiddleware(
                     authorize([permissions.CAN_EDIT_USER_STATION])(async (req, res) => {
                         const { userId, action } = req.body;
@@ -77,24 +77,24 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                             return res.status(400).json({ message: "Invalid user ID" });
                         }
 
-                        if (action === "disable") {
+                        if (action === "deactivate") {
                             await stationService.disableUserFromStation(
                                 Number(stationId),
                                 Number(userId)
                             );
                             res.status(200).json({
-                                message: "User disabled for station successfully"
+                                message: "User deactivated for station successfully"
                             });
-                        } else if (action === "enable") {
+                        } else if (action === "activate") {
                             await stationService.enableUserForStation(
                                 Number(stationId),
                                 Number(userId)
                             );
                             res.status(200).json({
-                                message: "User enabled for station successfully"
+                                message: "User activated for station successfully"
                             });
                         } else {
-                            res.status(400).json({ message: "Invalid action. Use 'enable' or 'disable'" });
+                            res.status(400).json({ message: "Invalid action. Use 'activate' or 'deactivate'" });
                         }
                     })
                 )(req, res);

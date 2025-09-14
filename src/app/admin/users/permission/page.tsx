@@ -200,7 +200,6 @@ export default function UsersPage() {
 
   const fetchAvailablePermissions = async () => {
     if (!selectedScope) {
-      console.log("No selected scope!");
       return [];
     }
     const token = localStorage.getItem("token");
@@ -232,7 +231,6 @@ export default function UsersPage() {
 
   const handleAddPermission = async () => {
     if (!selectedScope || !selectedRole || !selectedPermission) {
-      console.log("Scope, Role, or Permission not selected!");
       return;
     }
 
@@ -295,7 +293,6 @@ export default function UsersPage() {
         }
       }
 
-      console.log("Permission added successfully!");
       setShowAddModal(false);
       // Refresh the permissions list to show the newly added permission
       await fetchPermissions(selectedRole);

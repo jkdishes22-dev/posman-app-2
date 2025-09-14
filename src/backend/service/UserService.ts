@@ -51,7 +51,6 @@ export class UserService {
         });
 
         if (_role === null) {
-          console.log("Role not found. Creating user without role");
         } else {
           newUser.roles = [_role];
         }
@@ -126,27 +125,29 @@ export class UserService {
       relations: ["station"],
     });
 
-    // Get default pricelists for each station
+    // Get default pricelists for each station using junction table
     const stationIds = stations.map(us => us.station.id);
     let defaultPricelists = [];
 
     if (stationIds.length > 0) {
-      const pricelistRepository = this.userRepository.manager.getRepository("Pricelist");
-      defaultPricelists = await pricelistRepository
-        .createQueryBuilder("pricelist")
-        .leftJoinAndSelect("pricelist.station", "station")
+      const stationPricelistRepository = this.userRepository.manager.getRepository("StationPricelist");
+      defaultPricelists = await stationPricelistRepository
+        .createQueryBuilder("sp")
+        .leftJoinAndSelect("sp.pricelist", "pricelist")
+        .leftJoinAndSelect("sp.station", "station")
         .where("station.id IN (:...stationIds)", { stationIds })
-        .andWhere("pricelist.is_default = :isDefault", { isDefault: true })
+        .andWhere("sp.is_default = :isDefault", { isDefault: true })
+        .andWhere("sp.status = :status", { status: "active" })
         .select(["pricelist.id", "pricelist.name", "station.id"])
         .getMany();
     }
 
     // Create a map of station ID to default pricelist
     const pricelistMap = new Map();
-    defaultPricelists.forEach(pricelist => {
-      pricelistMap.set(pricelist.station.id, {
-        id: pricelist.id,
-        name: pricelist.name
+    defaultPricelists.forEach(sp => {
+      pricelistMap.set(sp.station.id, {
+        id: sp.pricelist.id,
+        name: sp.pricelist.name
       });
     });
 
@@ -199,7 +200,6 @@ export class UserService {
     userStationRequest: { station: number; user: number },
     currentUser: number,
   ) {
-    console.log("station update request " + JSON.stringify(userStationRequest));
 
     return await this.userStationRepository.manager.transaction(
       async (transactionEntityManager: {
@@ -228,7 +228,7 @@ export class UserService {
         );
 
         existingStation.isDefault = true;
-        existingStation.status = UserStationStatus.ENABLED;
+        existingStation.status = UserStationStatus.ACTIVE;
         existingStation.updated_by = currentUser;
 
         await transactionEntityManager.save(UserStation, existingStation);
@@ -252,7 +252,7 @@ export class UserService {
       throw new Error("User station not found");
     }
 
-    existingStation.status = UserStationStatus.DISABLED;
+    existingStation.status = UserStationStatus.INACTIVE;
     existingStation.updated_by = currentUser;
     existingStation.isDefault = false;
 

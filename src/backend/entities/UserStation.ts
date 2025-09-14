@@ -4,8 +4,8 @@ import { User } from "./User";
 import { BaseEntity } from "./BaseEntity";
 
 export enum UserStationStatus {
-  ENABLED = "enabled",
-  DISABLED = "disabled",
+  ACTIVE = "active",
+  INACTIVE = "inactive",
 }
 
 @Entity("user_station")
@@ -19,7 +19,7 @@ export class UserStation extends BaseEntity {
     type: "enum",
     enum: UserStationStatus,
     nullable: true,
-    default: UserStationStatus.ENABLED,
+    default: UserStationStatus.ACTIVE,
   })
   status!: UserStationStatus;
 

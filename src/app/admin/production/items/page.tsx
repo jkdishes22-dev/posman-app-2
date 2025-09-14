@@ -115,7 +115,7 @@ export default function InventoryPage() {
                       <Button
                         variant="secondary"
                         className="w-8"
-                        onClick={() => console.log("Adjust stock")}
+                        onClick={() => { }}
                       >
                         Adjust Stock
                       </Button>

@@ -2,6 +2,7 @@ import { Item, ItemStatus } from "@entities/Item";
 import { Currency, PricelistItem } from "@entities/PricelistItem";
 import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { ItemGroup } from "@entities/ItemGroup";
+import logger from "../utils/logger";
 
 export class ItemService {
   private itemRepository: Repository<Item>;
@@ -55,7 +56,8 @@ export class ItemService {
       .leftJoinAndSelect("item.category", "category")
       .leftJoin("pricelist_item", "pi", "pi.item_id = item.id")
       .leftJoin("pi.pricelist", "pricelist")
-      .leftJoin("station", "s", "s.id = pricelist.station_id")
+      .leftJoin("station_pricelist", "sp", "sp.pricelist_id = pricelist.id")
+      .leftJoin("station", "s", "s.id = sp.station_id")
       .leftJoin("user_station", "us", "us.station_id = s.id")
       .leftJoin("user", "u", "u.id = us.user_id")
       .addSelect([
@@ -68,7 +70,7 @@ export class ItemService {
 
     if (billing) {
       query.andWhere("pi.is_enabled = :enabled", { enabled: 1 });
-      query.andWhere("us.status = :status", { status: "enabled" });
+      query.andWhere("us.status = :status", { status: "active" });
       query.andWhere("us.is_default = :is_default", { is_default: 1 });
       query.andWhere("u.id = :id", { id: user_id });
     }
@@ -102,14 +104,27 @@ export class ItemService {
     categoryId?: number,
     userId?: number
   ): Promise<any[]> {
-    // First, get the default pricelist for this station
+    // First, get the default pricelist for this station using junction table
+    const stationPricelistRepository = this.itemRepository.manager.getRepository("StationPricelist");
+    const defaultPricelist = await stationPricelistRepository
+      .createQueryBuilder("sp")
+      .leftJoinAndSelect("sp.pricelist", "pricelist")
+      .where("sp.station_id = :stationId", { stationId })
+      .andWhere("sp.is_default = :isDefault", { isDefault: true })
+      .andWhere("sp.status = :status", { status: "active" })
+      .getOne();
+
+    if (!defaultPricelist) {
+      logger.debug({ stationId }, 'No default pricelist found for station');
+      return [];
+    }
+
+    // Get pricelist items for the default pricelist
     const pricelistQuery = this.pricelistItemRepository
       .createQueryBuilder("pi")
       .leftJoinAndSelect("pi.pricelist", "pricelist")
-      .leftJoinAndSelect("pricelist.station", "station")
-      .leftJoinAndSelect("pi.item", "item") // Always join with item and select it
-      .where("station.id = :stationId", { stationId })
-      .andWhere("pricelist.is_default = :isDefault", { isDefault: 1 })
+      .leftJoinAndSelect("pi.item", "item")
+      .where("pricelist.id = :pricelistId", { pricelistId: defaultPricelist.pricelist.id })
       .andWhere("pi.is_enabled = :enabled", { enabled: 1 });
 
     if (categoryId) {
@@ -119,11 +134,12 @@ export class ItemService {
     const pricelistItems = await pricelistQuery.getMany();
 
     if (pricelistItems.length === 0) {
-      console.log(`No pricelist items found for station ${stationId}`);
+      logger.debug({ stationId, pricelistId: defaultPricelist.pricelist.id }, 'No pricelist items found for station');
       return [];
     }
 
-    console.log(`Found ${pricelistItems.length} pricelist items for station ${stationId}`);
+    logger.debug({ stationId, itemCount: pricelistItems.length }, 'Found pricelist items for station');
+
 
     // Extract item IDs from pricelist items
     const itemIds = pricelistItems.map(pi => {
@@ -155,7 +171,7 @@ export class ItemService {
         .from("user_station", "us")
         .where("us.station_id = :stationId", { stationId })
         .andWhere("us.user_id = :userId", { userId })
-        .andWhere("us.status = :userStatus", { userStatus: "enabled" });
+        .andWhere("us.status = :userStatus", { userStatus: "active" });
 
       const userAccess = await userStationQuery.getRawOne();
       if (!userAccess) {
@@ -185,7 +201,6 @@ export class ItemService {
         pricelistId: pricelistItem?.id || null,
         pricelistName: pricelistItem?.pricelist?.name || null,
         pricelist_is_default: pricelistItem?.pricelist?.is_default || false,
-        stationName: pricelistItem?.pricelist?.station?.name || null,
         stationId: stationId
       };
     });
@@ -443,6 +458,64 @@ export class ItemService {
       };
     } catch (error: any) {
       throw new Error("Failed to fetch sub-items: " + error.message);
+    }
+  }
+
+  /**
+   * Search items by name across all pricelists
+   * Returns items with their pricelist information
+   */
+  public async searchItemsByName(query: string, limit: number = 10): Promise<any[]> {
+    try {
+      const items = await this.itemRepository
+        .createQueryBuilder("item")
+        .leftJoinAndSelect("item.category", "category")
+        .leftJoin("pricelist_item", "pricelistItem", "pricelistItem.item_id = item.id")
+        .leftJoin("pricelist", "pricelist", "pricelist.id = pricelistItem.pricelist_id")
+        .where("item.name LIKE :query", { query: `%${query}%` })
+        .andWhere("(item.status = :status OR item.status IS NULL)", { status: ItemStatus.ACTIVE })
+        .andWhere("pricelist.status = :pricelistStatus", { pricelistStatus: "active" })
+        .orderBy("item.name", "ASC")
+        .limit(limit)
+        .getMany();
+
+      // Get pricelist information for each item
+      const formattedResults = await Promise.all(items.map(async (item) => {
+        const pricelistItems = await this.pricelistItemRepository
+          .createQueryBuilder("pricelistItem")
+          .leftJoinAndSelect("pricelistItem.pricelist", "pricelist")
+          .where("pricelistItem.item_id = :itemId", { itemId: item.id })
+          .andWhere("pricelist.status = :pricelistStatus", { pricelistStatus: "active" })
+          .getMany();
+
+        const pricelists = pricelistItems.map(pi => ({
+          pricelistId: pi.pricelist?.id,
+          pricelistName: pi.pricelist?.name,
+          price: pi.price || 0,
+          currency: pi.currency || "USD",
+          isDefault: pi.pricelist?.is_default || false
+        }));
+
+        return {
+          id: item.id,
+          name: item.name,
+          code: item.code,
+          category: item.category?.name || "N/A",
+          pricelists: pricelists,
+          totalPricelists: pricelists.length
+        };
+      }));
+
+      logger.info({
+        query,
+        limit,
+        foundItems: formattedResults.length
+      }, 'Items searched successfully');
+
+      return formattedResults;
+    } catch (error: any) {
+      logger.error({ error: error.message, query }, 'Failed to search items');
+      throw new Error("Failed to search items: " + error.message);
     }
   }
 }

@@ -54,14 +54,10 @@ const BillingSection = () => {
     const initializeUser = async () => {
       try {
         const token = await getValidToken();
-        console.log("=== Token Debug ===");
-        console.log("Valid token obtained:", !!token);
 
         if (!token) {
-          console.log("Error: No valid token available");
           // Fallback to auth context user
           if (user && user.id) {
-            console.log("Using fallback user ID from auth context:", user.id);
             setUserId(user.id.toString());
             setWaitress(user.firstname || user.firstName || "");
           }
@@ -69,19 +65,15 @@ const BillingSection = () => {
         }
 
         const decodedToken = jwt.decode(token) as DecodedToken;
-        console.log("Decoded token:", decodedToken);
 
         if (decodedToken && decodedToken.user) {
           setWaitress(decodedToken.user.firstname);
           // Use the id from the token, not from user object
           const userId = decodedToken.id ? decodedToken.id.toString() : "";
-          console.log("User ID extracted:", userId);
           setUserId(userId);
         } else {
-          console.log("Error: Invalid token structure or no user data");
           // Fallback to auth context user
           if (user && user.id) {
-            console.log("Using fallback user ID from auth context:", user.id);
             setUserId(user.id.toString());
             setWaitress(user.firstname || user.firstName || "");
           }
@@ -90,7 +82,6 @@ const BillingSection = () => {
         console.error("Error initializing user:", error);
         // Fallback to auth context user
         if (user && user.id) {
-          console.log("Using fallback user ID from auth context after error:", user.id);
           setUserId(user.id.toString());
           setWaitress(user.firstname || user.firstName || "");
         }
@@ -233,7 +224,6 @@ const BillingSection = () => {
       // Get a valid token (will refresh if needed)
       const token = await getValidToken();
       if (!token) {
-        console.log("Error: No valid token available");
         setBillError("Unable to process bill. Please log out and log back in.");
         return;
       }
@@ -241,14 +231,11 @@ const BillingSection = () => {
       // Ensure we have a valid user ID
       let currentUserId = userId;
       if (!currentUserId || currentUserId === "" || currentUserId === "NaN") {
-        console.log("Error: Invalid user ID, trying to get from auth context");
         // Try to get user ID from auth context as fallback
         if (user && user.id) {
-          console.log("Using user ID from auth context:", user.id);
           currentUserId = user.id.toString();
           setUserId(currentUserId);
         } else {
-          console.log("No user ID available, trying to fetch from API");
           try {
             const response = await fetch("/api/users/me", {
               headers: {
@@ -257,12 +244,10 @@ const BillingSection = () => {
             });
             if (response.ok) {
               const userData = await response.json();
-              console.log("Fetched user data:", userData);
               if (userData.id) {
                 currentUserId = userData.id.toString();
                 setUserId(currentUserId);
                 setWaitress(userData.firstname || userData.firstName || "");
-                console.log("Using user ID from API:", userData.id);
               } else {
                 throw new Error("No user ID in API response");
               }
@@ -270,7 +255,6 @@ const BillingSection = () => {
               throw new Error("Failed to fetch user data");
             }
           } catch (error) {
-            console.log("Failed to fetch user data:", error);
             setBillError("Unable to process bill. Please log out and log back in.");
             return;
           }

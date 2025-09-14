@@ -17,6 +17,7 @@ import { Bill } from "@entities/Bill";
 import { Pricelist } from "@entities/Pricelist";
 import { PricelistItem } from "@entities/PricelistItem";
 import { Station } from "@backend/entities/Station";
+import { StationPricelist } from "@backend/entities/StationPricelist";
 import { UserStation } from "@backend/entities/UserStation";
 import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment } from "@backend/entities/Payment";
@@ -48,6 +49,7 @@ export const AppDataSource = new DataSource({
     BillPayment,
     PricelistItem,
     Station,
+    StationPricelist,
     UserStation,
   ],
   // migrations: ["src/backend/config/migrations/*.cjs"],

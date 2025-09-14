@@ -96,7 +96,6 @@ function GroupedItemsPage() {
       const data = await response.json();
 
       // Ensure the items are extracted and set correctly
-      console.log("data fetched from the backend " + JSON.stringify(data));
 
       const items = data[0].items || [];
       setGroupItems(items);

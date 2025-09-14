@@ -7,7 +7,6 @@ export const createPricelistHandler = async (
 ) => {
   const pricelistService = new PricelistService(req.db);
   try {
-    console.log("pricelist payload " + JSON.stringify(req.body));
     const newPricelist = req.body;
     const user_id = parseInt(req.user.id, 10);
     const pricelist = await pricelistService.createPricelist(

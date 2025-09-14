@@ -29,7 +29,7 @@ export default function PricelistAdd({
           return;
         }
 
-        const response = await fetch("/api/station?status=enabled", {
+        const response = await fetch("/api/stations", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -87,10 +87,16 @@ export default function PricelistAdd({
       <div className="modal-dialog" role="document">
         <div className="modal-content">
           <div className="modal-header">
-            <h5 className="modal-title">Add Pricelist</h5>
-            <button type="button" className="close" onClick={handleCloseModal}>
-              <span>&times;</span>
-            </button>
+            <h5 className="modal-title">
+              <i className="bi bi-tags me-2"></i>
+              Add Pricelist
+            </h5>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={handleCloseModal}
+              aria-label="Close"
+            ></button>
           </div>
           <div className="modal-body">
             <ErrorDisplay
@@ -158,22 +164,17 @@ export default function PricelistAdd({
                 ></textarea>
               </div>
               <div className="modal-footer">
-                <button type="submit" className="btn btn-primary">
-                  <Image
-                    src="/icons/plus-circle.svg"
-                    alt="Add Pricelist"
-                    width={24}
-                    height={24}
-                    className="m-2"
-                  />
-                  Add pricelist
-                </button>
                 <button
                   type="button"
                   className="btn btn-secondary"
                   onClick={handleCloseModal}
                 >
-                  Close
+                  <i className="bi bi-x-circle me-1"></i>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  <i className="bi bi-plus-circle me-1"></i>
+                  Add Pricelist
                 </button>
               </div>
             </form>
