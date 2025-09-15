@@ -14,4 +14,4 @@ const PricelistCatalogPage = () => {
     );
 };
 
-export default withSecureRoute(PricelistCatalogPage, { roleRequired: "user" });
+export default withSecureRoute(PricelistCatalogPage, { roleRequired: "sales" });

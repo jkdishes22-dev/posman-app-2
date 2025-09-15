@@ -15,4 +15,4 @@ const UserHomePage = () => {
   );
 };
 
-export default withSecureRoute(UserHomePage, { roleRequired: "user" });
+export default withSecureRoute(UserHomePage, { roleRequired: "sales" });

@@ -6,7 +6,7 @@ import HomePageLayout from "../../shared/HomePageLayout";
 const mySales = () => {
   return (
     <HomePageLayout>
-      <SecureRoute roleRequired="user">
+      <SecureRoute roleRequired="sales">
         <div className="container">
           <h1>Post dated sales</h1>
         </div>

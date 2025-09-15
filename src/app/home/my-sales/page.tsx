@@ -263,7 +263,7 @@ const MySales = () => {
 
   return (
     <HomePageLayout>
-      <SecureRoute roleRequired="user">
+      <SecureRoute roleRequired="sales">
         <div className="container">
           {/* Filter row */}
           <div className="row">
