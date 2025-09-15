@@ -3,35 +3,60 @@ import React, { useState, useEffect } from "react";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Row, Col, Badge, Button } from "react-bootstrap";
+import { useRouter } from "next/navigation";
 
 export default function SupervisorPage() {
+    const router = useRouter();
     const [stats, setStats] = useState({
         totalSales: 0,
         activeBills: 0,
         lowStockItems: 0,
-        teamMembers: 0
+        teamMembers: 0,
+        pendingVoidRequests: 0
     });
 
     const [recentActivity, setRecentActivity] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Simulate data loading
-        setTimeout(() => {
+        // Load real data
+        loadDashboardData();
+    }, []);
+
+    const loadDashboardData = async () => {
+        try {
+            // Load void request stats
+            const token = localStorage.getItem("token");
+            const voidStatsResponse = await fetch("/api/bills/void-requests/stats", {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            let pendingVoidRequests = 0;
+            if (voidStatsResponse.ok) {
+                const voidStats = await voidStatsResponse.json();
+                pendingVoidRequests = voidStats.stats?.pending || 0;
+            }
+
             setStats({
                 totalSales: 15420,
                 activeBills: 8,
                 lowStockItems: 3,
-                teamMembers: 12
+                teamMembers: 12,
+                pendingVoidRequests
             });
             setRecentActivity([
                 { id: 1, type: 'sale', description: 'New bill #1234 created', time: '2 min ago' },
                 { id: 2, type: 'inventory', description: 'Stock alert: Coffee beans low', time: '15 min ago' },
                 { id: 3, type: 'payment', description: 'Payment processed for bill #1230', time: '1 hour ago' }
             ]);
+        } catch (error) {
+            console.error("Error loading dashboard data:", error);
+        } finally {
             setIsLoading(false);
-        }, 1000);
-    }, []);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -65,7 +90,7 @@ export default function SupervisorPage() {
 
                 {/* Key Metrics */}
                 <Row className="mb-4">
-                    <Col md={3}>
+                    <Col md={2}>
                         <Card className="text-center h-100">
                             <Card.Body>
                                 <div className="text-primary mb-2">
@@ -76,7 +101,7 @@ export default function SupervisorPage() {
                             </Card.Body>
                         </Card>
                     </Col>
-                    <Col md={3}>
+                    <Col md={2}>
                         <Card className="text-center h-100">
                             <Card.Body>
                                 <div className="text-success mb-2">
@@ -87,7 +112,7 @@ export default function SupervisorPage() {
                             </Card.Body>
                         </Card>
                     </Col>
-                    <Col md={3}>
+                    <Col md={2}>
                         <Card className="text-center h-100">
                             <Card.Body>
                                 <div className="text-warning mb-2">
@@ -98,7 +123,7 @@ export default function SupervisorPage() {
                             </Card.Body>
                         </Card>
                     </Col>
-                    <Col md={3}>
+                    <Col md={2}>
                         <Card className="text-center h-100">
                             <Card.Body>
                                 <div className="text-info mb-2">
@@ -106,6 +131,17 @@ export default function SupervisorPage() {
                                 </div>
                                 <h3 className="fw-bold">{stats.teamMembers}</h3>
                                 <p className="text-muted mb-0">Team Members</p>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                    <Col md={2}>
+                        <Card className="text-center h-100">
+                            <Card.Body>
+                                <div className="text-danger mb-2">
+                                    <i className="bi bi-exclamation-triangle fs-1"></i>
+                                </div>
+                                <h3 className="fw-bold">{stats.pendingVoidRequests}</h3>
+                                <p className="text-muted mb-0">Pending Voids</p>
                             </Card.Body>
                         </Card>
                     </Col>
@@ -150,6 +186,69 @@ export default function SupervisorPage() {
                                             <small className="text-muted">$45.20 per bill</small>
                                         </div>
                                         <Badge bg="info">$45.20</Badge>
+                                    </div>
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+
+                    {/* Void Requests Management */}
+                    <Col lg={6} className="mb-4">
+                        <Card className="h-100">
+                            <Card.Header className="bg-light">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <h5 className="mb-0 fw-bold">
+                                        <i className="bi bi-exclamation-triangle me-2 text-warning"></i>
+                                        Void Requests
+                                    </h5>
+                                    <Button
+                                        variant="warning"
+                                        size="sm"
+                                        onClick={() => router.push('/supervisor/void-requests')}
+                                    >
+                                        <i className="bi bi-gear me-1"></i>
+                                        Manage
+                                    </Button>
+                                </div>
+                            </Card.Header>
+                            <Card.Body>
+                                <div className="list-group list-group-flush">
+                                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+                                        <div>
+                                            <h6 className="mb-1 fw-semibold">Pending Requests</h6>
+                                            <small className="text-muted">Awaiting approval</small>
+                                        </div>
+                                        <Badge bg={stats.pendingVoidRequests > 0 ? "warning" : "success"}>
+                                            {stats.pendingVoidRequests}
+                                        </Badge>
+                                    </div>
+                                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+                                        <div>
+                                            <h6 className="mb-1 fw-semibold">Action Required</h6>
+                                            <small className="text-muted">
+                                                {stats.pendingVoidRequests > 0
+                                                    ? `${stats.pendingVoidRequests} requests need review`
+                                                    : "All requests processed"
+                                                }
+                                            </small>
+                                        </div>
+                                        <Badge bg={stats.pendingVoidRequests > 0 ? "danger" : "success"}>
+                                            {stats.pendingVoidRequests > 0 ? "Action" : "Clear"}
+                                        </Badge>
+                                    </div>
+                                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
+                                        <div>
+                                            <h6 className="mb-1 fw-semibold">Quick Actions</h6>
+                                            <small className="text-muted">Review and approve void requests</small>
+                                        </div>
+                                        <Button
+                                            variant="outline-warning"
+                                            size="sm"
+                                            onClick={() => router.push('/supervisor/void-requests')}
+                                        >
+                                            <i className="bi bi-eye me-1"></i>
+                                            Review
+                                        </Button>
                                     </div>
                                 </div>
                             </Card.Body>

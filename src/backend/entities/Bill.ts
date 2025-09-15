@@ -17,6 +17,7 @@ export enum BillStatus {
   CANCELLED = "cancelled",
   SUBMITTED = "submitted",
   CLOSED = "closed",
+  VOIDED = "voided",
 }
 
 @Entity("bill")
