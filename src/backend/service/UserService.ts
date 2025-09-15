@@ -60,7 +60,7 @@ export class UserService {
     );
   }
 
-  public async getUsers(role?: string, page = 1, pageSize = 10): Promise<{ users: User[]; total: number }> {
+  public async getUsers(role?: string, page = 1, pageSize = 10, search?: string): Promise<{ users: User[]; total: number }> {
     // Get total count first
     const totalQuery = this.userRepository
       .createQueryBuilder("user")
@@ -68,6 +68,13 @@ export class UserService {
 
     if (role) {
       totalQuery.andWhere("roles.name = :role", { role });
+    }
+
+    if (search) {
+      totalQuery.andWhere(
+        "(user.firstName LIKE :search OR user.lastName LIKE :search OR user.username LIKE :search)",
+        { search: `%${search}%` }
+      );
     }
 
     const total = await totalQuery.getCount();
@@ -79,6 +86,13 @@ export class UserService {
 
     if (role) {
       query.andWhere("roles.name = :role", { role });
+    }
+
+    if (search) {
+      query.andWhere(
+        "(user.firstName LIKE :search OR user.lastName LIKE :search OR user.username LIKE :search)",
+        { search: `%${search}%` }
+      );
     }
 
     query.skip((page - 1) * pageSize).take(pageSize);

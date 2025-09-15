@@ -53,6 +53,20 @@ function UsersPage() {
     setShowModal(true);
   };
 
+  // Trigger search when filter changes, with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (page !== 1) {
+        setPage(1); // Reset to page 1 when searching
+      } else {
+        fetchUsers();
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [filter]);
+
+  // Fetch users when page changes
   useEffect(() => {
     fetchUsers();
   }, [page]);
@@ -92,7 +106,8 @@ function UsersPage() {
 
   async function fetchUsers() {
     const token = localStorage.getItem("token");
-    const response = await fetch(`/api/users?page=${page}&pageSize=${DEFAULT_PAGE_SIZE}`, {
+    const searchParam = filter ? `&search=${encodeURIComponent(filter)}` : '';
+    const response = await fetch(`/api/users?page=${page}&pageSize=${DEFAULT_PAGE_SIZE}${searchParam}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -138,12 +153,8 @@ function UsersPage() {
     }
   }
 
-  const filteredUsers = users.filter(
-    (user: User) =>
-      user.firstName.toLowerCase().includes(filter.toLowerCase()) ||
-      user.lastName.toLowerCase().includes(filter.toLowerCase()) ||
-      user.username.toLowerCase().includes(filter.toLowerCase()),
-  );
+  // Use users directly since filtering is now done on the backend
+  const filteredUsers = users;
 
   const handleUserSelect = (user) => {
     setSelectedUser(user);

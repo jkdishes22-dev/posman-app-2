@@ -35,7 +35,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   } else if (req.method === "GET") {
     // Check cache first
     const now = Date.now();
-    const cacheKey = `${req.query.page || 1}_${req.query.pageSize || 10}`;
+    const search = Array.isArray(req.query.search) ? req.query.search[0] : req.query.search;
+    const cacheKey = `${req.query.page || 1}_${req.query.pageSize || 10}_${search || ''}`;
 
     if (usersCache && usersCache[cacheKey] && (now - usersCacheTimestamp) < USERS_CACHE_DURATION) {
       return res.status(200).json(usersCache[cacheKey]);
