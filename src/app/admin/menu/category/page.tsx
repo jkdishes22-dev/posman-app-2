@@ -140,7 +140,8 @@ const CategoryPage: React.FC = () => {
         } else if (response.status === 403) {
           setAuthError(data);
         } else if (response.ok) {
-          setCategories(data || []);
+          console.log('Categories API response:', { data, type: typeof data, isArray: Array.isArray(data) });
+          setCategories(Array.isArray(data) ? data : []);
           setCategoriesLoaded(true);
         } else {
           setFetchError(data.message || `Request failed with status ${response.status}`);
@@ -150,7 +151,7 @@ const CategoryPage: React.FC = () => {
       }
     };
     fetchCategories();
-  }, [categoriesLoaded]); // Only depend on categoriesLoaded
+  }, []); // Run once on mount
 
   return (
     <AdminLayout authError={authError}>
