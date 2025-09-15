@@ -61,17 +61,29 @@ export class UserService {
   }
 
   public async getUsers(role?: string, page = 1, pageSize = 10): Promise<{ users: User[]; total: number }> {
+    // Get total count first
+    const totalQuery = this.userRepository
+      .createQueryBuilder("user")
+      .leftJoin("user.roles", "roles");
+    
+    if (role) {
+      totalQuery.andWhere("roles.name = :role", { role });
+    }
+    
+    const total = await totalQuery.getCount();
+
+    // Get users with relations
     const query = this.userRepository
       .createQueryBuilder("user")
-      .leftJoinAndSelect("user.roles", "role");
+      .leftJoinAndSelect("user.roles", "roles");
 
     if (role) {
-      query.andWhere("role.name = :role", { role });
+      query.andWhere("roles.name = :role", { role });
     }
 
-    const total = await query.getCount();
     query.skip((page - 1) * pageSize).take(pageSize);
     const users = await query.getMany();
+    
     return { users, total };
   }
 
