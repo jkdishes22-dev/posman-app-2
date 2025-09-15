@@ -73,7 +73,8 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           setFetchPricelistError(data);
         }
       } catch (error: any) {
-        setAddItemError("Failed to fetch pricelists: " + error.message);
+        console.error("Failed to fetch pricelists", error);
+        setAddItemError("Network error: Failed to fetch pricelists");
         setPricelists([]); // Ensure pricelists is always an array
       }
     }
@@ -101,12 +102,15 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           localStorage.removeItem("user");
           window.location.href = "/";
         } else if (response.status === 403) {
-          setAuthError(data);
+          const errorData = await response.json();
+          setAuthError(errorData);
         } else {
-          console.error("Failed to fetch categories");
+          const errorData = await response.json().catch(() => ({ message: "Failed to fetch categories" }));
+          setAuthError(errorData);
         }
       } catch (error: any) {
         console.error("Failed to fetch categories", error);
+        setAuthError({ message: "Network error: Failed to fetch categories" });
         setCategories([]);
       }
     }
