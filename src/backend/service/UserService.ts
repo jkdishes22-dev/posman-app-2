@@ -234,6 +234,23 @@ export class UserService {
   }
 
   async addUserStation(payload: { station?: any; user: any }) {
+    // Validate user role before allowing station assignment
+    const user = await this.userRepository.findOne({
+      where: { id: payload.user },
+      relations: ["roles"],
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const userRole = user.roles && user.roles.length > 0 ? user.roles[0].name : null;
+    const allowedRoles = ['sales', 'supervisor', 'admin'];
+
+    if (!userRole || !allowedRoles.includes(userRole)) {
+      throw new Error(`Only users with ${allowedRoles.join(', ')} roles can be assigned stations. Current role: ${userRole || 'none'}`);
+    }
+
     const userStation: DeepPartial<UserStation> =
       this.userStationRepository.create({
         user: payload.user,
@@ -305,7 +322,7 @@ export class UserService {
       existingStation.status = UserStationStatus.INACTIVE;
       existingStation.isDefault = false; // Remove default status when deactivating
     }
-    
+
     existingStation.updated_by = currentUser;
 
     return await this.userStationRepository.save(existingStation);

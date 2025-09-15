@@ -383,6 +383,15 @@ function UsersPage() {
   const handleAddStation = async () => {
     if (!selectedUser || !selectedStationId) return;
     
+    // Check if user has a valid role for station assignment
+    const userRole = selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : null;
+    const allowedRoles = ['sales', 'supervisor', 'admin'];
+    
+    if (!userRole || !allowedRoles.includes(userRole)) {
+      setStationError(`Only users with ${allowedRoles.join(', ')} roles can be assigned stations. Current role: ${userRole || 'none'}`);
+      return;
+    }
+    
     setStationError("");
     try {
       const token = localStorage.getItem("token");
@@ -764,58 +773,71 @@ function UsersPage() {
                     </div>
 
                     <div className="action-buttons mb-4">
-                      <div className="row g-2">
-                        <div className="col-6 col-md-3">
+                      <div className="d-flex justify-content-end">
+                        <div className="dropdown">
                           <button
+                            className="btn btn-outline-primary btn-sm dropdown-toggle"
                             type="button"
-                            className="btn btn-warning btn-sm w-100"
-                            onClick={handleShowUpdateModal}
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false"
                           >
-                            <i className="bi bi-pencil me-1"></i>
-                            Update
+                            <i className="bi bi-gear me-1"></i>
+                            Actions
                           </button>
-                        </div>
-                        <div className="col-6 col-md-3">
-                          <button
-                            type="button"
-                            className="btn btn-danger btn-sm w-100"
-                            onClick={() => setShowDeleteModal(true)}
-                            disabled={selectedUser.status === "DELETED"}
-                          >
-                            <i className="bi bi-trash me-1"></i>
-                            Deactivate
-                          </button>
-                        </div>
-                        <div className="col-6 col-md-3">
-                          <button
-                            className="btn btn-info btn-sm w-100"
-                            onClick={() => setShowLockModal(true)}
-                          >
-                            <i className={`bi ${selectedUser.is_locked ? "bi-unlock" : "bi-lock"} me-1`}></i>
-                            {selectedUser.is_locked ? "Unlock" : "Lock"}
-                          </button>
-                        </div>
-                        <div className="col-6 col-md-3">
-                          <button
-                            className="btn btn-secondary btn-sm w-100"
-                            onClick={() => setShowAssignRoleConfirmModal(true)}
-                          >
-                            <i className="bi bi-person-gear me-1"></i>
-                            Assign Role
-                          </button>
+                          <ul className="dropdown-menu dropdown-menu-end">
+                            <li>
+                              <button
+                                className="dropdown-item"
+                                onClick={handleShowUpdateModal}
+                              >
+                                <i className="bi bi-pencil me-2"></i>
+                                Update User
+                              </button>
+                            </li>
+                            <li>
+                              <button
+                                className="dropdown-item"
+                                onClick={() => setShowAssignRoleConfirmModal(true)}
+                              >
+                                <i className="bi bi-person-gear me-2"></i>
+                                Assign Role
+                              </button>
+                            </li>
+                            <li><hr className="dropdown-divider" /></li>
+                            <li>
+                              <button
+                                className="dropdown-item"
+                                onClick={() => setShowLockModal(true)}
+                              >
+                                <i className={`bi ${selectedUser.is_locked ? "bi-unlock" : "bi-lock"} me-2`}></i>
+                                {selectedUser.is_locked ? "Unlock User" : "Lock User"}
+                              </button>
+                            </li>
+                            {selectedUser.status !== "DELETED" && (
+                              <li>
+                                <button
+                                  className="dropdown-item text-danger"
+                                  onClick={() => setShowDeleteModal(true)}
+                                >
+                                  <i className="bi bi-trash me-2"></i>
+                                  Deactivate User
+                                </button>
+                              </li>
+                            )}
+                            {selectedUser.status === "DELETED" && (
+                              <li>
+                                <button
+                                  className="dropdown-item text-success"
+                                  onClick={() => setShowReactivateModal(true)}
+                                >
+                                  <i className="bi bi-arrow-clockwise me-2"></i>
+                                  Reactivate User
+                                </button>
+                              </li>
+                            )}
+                          </ul>
                         </div>
                       </div>
-                      {selectedUser.status === "DELETED" && (
-                        <div className="mt-2">
-                          <button
-                            className="btn btn-success w-100"
-                            onClick={() => setShowReactivateModal(true)}
-                          >
-                            <i className="bi bi-arrow-clockwise me-1"></i>
-                            Reactivate User
-                          </button>
-                        </div>
-                      )}
                     </div>
 
                     <div className="table-responsive">
@@ -867,10 +889,12 @@ function UsersPage() {
                         <button
                           type="button"
                           className="btn btn-primary btn-sm"
+                          disabled={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !['sales', 'supervisor', 'admin'].includes(selectedUser.roles[0].name)}
                           onClick={() => {
                             fetchAvailableStations();
                             setShowAddStationModal(true);
                           }}
+                          title={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !['sales', 'supervisor', 'admin'].includes(selectedUser.roles[0].name) ? "Only sales, supervisor, and admin roles can be assigned stations" : "Add station to user"}
                         >
                           <i className="bi bi-plus me-1"></i>
                           Add Station
