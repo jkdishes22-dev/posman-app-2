@@ -115,11 +115,11 @@ const CategoryPage: React.FC = () => {
   };
 
   useEffect(() => {
-    if (categoriesLoaded) {
-      return;
-    }
-
     const fetchCategories = async () => {
+      if (categoriesLoaded) {
+        return;
+      }
+
       try {
         const token = localStorage.getItem("token");
         const response = await fetch("/api/menu/categories", {
@@ -150,8 +150,9 @@ const CategoryPage: React.FC = () => {
         setFetchError(error.message || 'Network error');
       }
     };
+    
     fetchCategories();
-  }, []); // Run once on mount
+  }, [categoriesLoaded]); // Depend on categoriesLoaded
 
   return (
     <AdminLayout authError={authError}>
