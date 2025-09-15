@@ -726,24 +726,68 @@ function UsersPage() {
                     User Details
                   </h5>
                   {selectedUser && (
-                    <div className="d-flex align-items-center gap-2">
-                      {selectedUser.status === "DELETED" ? (
-                        <span className="badge bg-danger">
-                          <i className="bi bi-x-circle me-1"></i>
-                          Deleted
-                        </span>
-                      ) : (
-                        <span className="badge bg-success">
-                          <i className="bi bi-check-circle me-1"></i>
-                          Active
-                        </span>
-                      )}
-                      {selectedUser.is_locked && (
-                        <span className="badge bg-warning">
-                          <i className="bi bi-lock-fill me-1"></i>
-                          Locked
-                        </span>
-                      )}
+                    <div className="dropdown">
+                      <button
+                        className="btn btn-outline-primary btn-sm dropdown-toggle"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                      >
+                        <i className="bi bi-gear me-1"></i>
+                        Actions
+                      </button>
+                      <ul className="dropdown-menu dropdown-menu-end">
+                        <li>
+                          <button
+                            className="dropdown-item"
+                            onClick={handleShowUpdateModal}
+                          >
+                            <i className="bi bi-pencil me-2"></i>
+                            Update User
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            className="dropdown-item"
+                            onClick={() => setShowAssignRoleConfirmModal(true)}
+                          >
+                            <i className="bi bi-person-gear me-2"></i>
+                            Assign Role
+                          </button>
+                        </li>
+                        <li><hr className="dropdown-divider" /></li>
+                        <li>
+                          <button
+                            className="dropdown-item"
+                            onClick={() => setShowLockModal(true)}
+                          >
+                            <i className={`bi ${selectedUser.is_locked ? "bi-unlock" : "bi-lock"} me-2`}></i>
+                            {selectedUser.is_locked ? "Unlock User" : "Lock User"}
+                          </button>
+                        </li>
+                        {selectedUser.status !== "DELETED" && (
+                          <li>
+                            <button
+                              className="dropdown-item text-danger"
+                              onClick={() => setShowDeleteModal(true)}
+                            >
+                              <i className="bi bi-trash me-2"></i>
+                              Deactivate User
+                            </button>
+                          </li>
+                        )}
+                        {selectedUser.status === "DELETED" && (
+                          <li>
+                            <button
+                              className="dropdown-item text-success"
+                              onClick={() => setShowReactivateModal(true)}
+                            >
+                              <i className="bi bi-arrow-clockwise me-2"></i>
+                              Reactivate User
+                            </button>
+                          </li>
+                        )}
+                      </ul>
                     </div>
                   )}
                 </div>
@@ -756,89 +800,22 @@ function UsersPage() {
                         <div className="user-avatar-large me-3">
                           <i className="bi bi-person-circle text-primary"></i>
                         </div>
-                        <div>
-                          <h4 className="text-primary mb-1">{selectedUser.firstName} {selectedUser.lastName}</h4>
+                        <div className="flex-grow-1">
+                          <div className="d-flex align-items-center mb-1">
+                            <h4 className="text-primary mb-0 me-3">{selectedUser.firstName} {selectedUser.lastName}</h4>
+                            <span className="badge bg-primary fs-6 px-3 py-2">
+                              <i className="bi bi-shield-check me-2"></i>
+                              {selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : "No role assigned"}
+                            </span>
+                          </div>
                           <p className="text-muted mb-0">
                             <i className="bi bi-at me-1"></i>
                             @{selectedUser.username}
                           </p>
                         </div>
                       </div>
-                      <div className="role-badge-container">
-                        <span className="badge bg-primary fs-6 px-3 py-2">
-                          <i className="bi bi-shield-check me-2"></i>
-                          {selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : "No role assigned"}
-                        </span>
-                      </div>
                     </div>
 
-                    <div className="action-buttons mb-4">
-                      <div className="d-flex justify-content-end">
-                        <div className="dropdown">
-                          <button
-                            className="btn btn-outline-primary btn-sm dropdown-toggle"
-                            type="button"
-                            data-bs-toggle="dropdown"
-                            aria-expanded="false"
-                          >
-                            <i className="bi bi-gear me-1"></i>
-                            Actions
-                          </button>
-                          <ul className="dropdown-menu dropdown-menu-end">
-                            <li>
-                              <button
-                                className="dropdown-item"
-                                onClick={handleShowUpdateModal}
-                              >
-                                <i className="bi bi-pencil me-2"></i>
-                                Update User
-                              </button>
-                            </li>
-                            <li>
-                              <button
-                                className="dropdown-item"
-                                onClick={() => setShowAssignRoleConfirmModal(true)}
-                              >
-                                <i className="bi bi-person-gear me-2"></i>
-                                Assign Role
-                              </button>
-                            </li>
-                            <li><hr className="dropdown-divider" /></li>
-                            <li>
-                              <button
-                                className="dropdown-item"
-                                onClick={() => setShowLockModal(true)}
-                              >
-                                <i className={`bi ${selectedUser.is_locked ? "bi-unlock" : "bi-lock"} me-2`}></i>
-                                {selectedUser.is_locked ? "Unlock User" : "Lock User"}
-                              </button>
-                            </li>
-                            {selectedUser.status !== "DELETED" && (
-                              <li>
-                                <button
-                                  className="dropdown-item text-danger"
-                                  onClick={() => setShowDeleteModal(true)}
-                                >
-                                  <i className="bi bi-trash me-2"></i>
-                                  Deactivate User
-                                </button>
-                              </li>
-                            )}
-                            {selectedUser.status === "DELETED" && (
-                              <li>
-                                <button
-                                  className="dropdown-item text-success"
-                                  onClick={() => setShowReactivateModal(true)}
-                                >
-                                  <i className="bi bi-arrow-clockwise me-2"></i>
-                                  Reactivate User
-                                </button>
-                              </li>
-                            )}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
 
                     <div className="table-responsive">
                       <table className="table table-sm">
