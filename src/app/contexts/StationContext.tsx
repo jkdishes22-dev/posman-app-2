@@ -84,16 +84,19 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     // Validate user access to a station
     const validateStationAccess = async (stationId: number): Promise<boolean> => {
         if (!checkAuth()) {
+            console.log("Station access validation failed: User not authenticated");
             return false;
         }
 
         try {
             const token = localStorage.getItem("token");
+            console.log("Validating station access for stationId:", stationId);
             const response = await fetch(`/api/validation/user-station-access?stationId=${stationId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
             if (!response.ok) {
+                console.log("Station access validation failed: Response not ok", response.status, response.statusText);
                 if (response.status === 401) {
                     logout();
                 }
@@ -101,6 +104,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
             }
 
             const data = await response.json();
+            console.log("Station access validation response:", data);
             return data.hasAccess || false;
         } catch (error) {
             console.error("Error validating station access:", error);
@@ -184,10 +188,12 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
         // Validate access before setting
         const hasAccess = await validateStationAccess(station.id);
         if (!hasAccess) {
-            throw new Error("You don't have access to this station");
+            setError("You don't have access to this station");
+            return;
         }
 
         setCurrentStation(station);
+        setError(null); // Clear any previous errors
 
         // Update default station on server
         try {
