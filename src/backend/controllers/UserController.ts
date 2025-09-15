@@ -164,11 +164,12 @@ export const disableUserStation = async (
   const userService = new UserService(req.db);
 
   try {
-    const { userStationId } = req.body;
+    const { userStationId, action } = req.body;
     const currentUser = req.user?.id;
 
     const userStationRequest = {
       userStation: userStationId,
+      action: action,
     };
 
     const updatedUserStation = await userService.disableUserStation(
@@ -177,7 +178,7 @@ export const disableUserStation = async (
     );
     res.status(200).json(updatedUserStation);
   } catch (error: any) {
-    res.status(500).json({ error: "Error disabling user station" + error });
+    res.status(500).json({ error: "Error updating user station status" + error });
   }
 };
 

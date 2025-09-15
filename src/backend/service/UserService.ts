@@ -211,7 +211,7 @@ export class UserService {
       ORDER BY us.is_default DESC, s.name ASC
     `;
     const results = await this.userStationRepository.query(query, [userId]);
-    
+
     // Transform the flat results into the expected structure
     const stations = results.map(row => ({
       id: row.id,
@@ -229,7 +229,7 @@ export class UserService {
         status: row.station_status
       }
     }));
-    
+
     return { stations };
   }
 
@@ -285,7 +285,7 @@ export class UserService {
   }
 
   async disableUserStation(
-    userStationRequest: { userStation: number },
+    userStationRequest: { userStation: number; action?: string },
     currentUser: number,
   ) {
     const existingStation = await this.userStationRepository.findOne({
@@ -298,9 +298,15 @@ export class UserService {
       throw new Error("User station not found");
     }
 
-    existingStation.status = UserStationStatus.INACTIVE;
+    // Handle both activate and deactivate actions
+    if (userStationRequest.action === "activate") {
+      existingStation.status = UserStationStatus.ACTIVE;
+    } else {
+      existingStation.status = UserStationStatus.INACTIVE;
+      existingStation.isDefault = false; // Remove default status when deactivating
+    }
+    
     existingStation.updated_by = currentUser;
-    existingStation.isDefault = false;
 
     return await this.userStationRepository.save(existingStation);
   }

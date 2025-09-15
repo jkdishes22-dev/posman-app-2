@@ -472,13 +472,14 @@ function UsersPage() {
     setStationError("");
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/stations/${userStationId}/users`, {
+      const response = await fetch(`/api/users/${selectedUser.id}/stations`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
+          userStationId: userStationId,
           action: currentStatus === 'active' ? 'deactivate' : 'activate',
         }),
       });
@@ -918,33 +919,38 @@ function UsersPage() {
                                   </small>
                                 </div>
                               </div>
-                              <div className="btn-group" role="group">
-                                {!userStation.isDefault && (
-                                  <button
-                                    type="button"
-                                    className="btn btn-outline-primary btn-sm"
-                                    onClick={() => handleSetDefaultStation(userStation.station.id)}
-                                    title="Set as default"
-                                  >
-                                    <i className="bi bi-star"></i>
-                                  </button>
-                                )}
+                              <div className="dropdown">
                                 <button
+                                  className="btn btn-outline-secondary btn-sm dropdown-toggle"
                                   type="button"
-                                  className={`btn btn-sm ${userStation.status === 'active' ? 'btn-outline-warning' : 'btn-outline-success'}`}
-                                  onClick={() => handleToggleStationStatus(userStation.id, userStation.status)}
-                                  title={userStation.status === 'active' ? 'Deactivate' : 'Activate'}
+                                  data-bs-toggle="dropdown"
+                                  aria-expanded="false"
+                                  title="Station actions"
                                 >
-                                  <i className={`bi ${userStation.status === 'active' ? 'bi-pause' : 'bi-play'}`}></i>
+                                  <i className="bi bi-three-dots-vertical"></i>
                                 </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-outline-danger btn-sm"
-                                  onClick={() => handleRemoveStation(userStation.id)}
-                                  title="Remove station"
-                                >
-                                  <i className="bi bi-trash"></i>
-                                </button>
+                                <ul className="dropdown-menu dropdown-menu-end">
+                                  {!userStation.isDefault && (
+                                    <li>
+                                      <button
+                                        className="dropdown-item"
+                                        onClick={() => handleSetDefaultStation(userStation.station.id)}
+                                      >
+                                        <i className="bi bi-star me-2"></i>
+                                        Set as Default
+                                      </button>
+                                    </li>
+                                  )}
+                                  <li>
+                                    <button
+                                      className={`dropdown-item ${userStation.status === 'active' ? 'text-warning' : 'text-success'}`}
+                                      onClick={() => handleToggleStationStatus(userStation.id, userStation.status)}
+                                    >
+                                      <i className={`bi ${userStation.status === 'active' ? 'bi-pause' : 'bi-play'} me-2`}></i>
+                                      {userStation.status === 'active' ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                  </li>
+                                </ul>
                               </div>
                             </div>
                           ))}
