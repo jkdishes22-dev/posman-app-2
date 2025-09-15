@@ -65,11 +65,11 @@ export class UserService {
     const totalQuery = this.userRepository
       .createQueryBuilder("user")
       .leftJoin("user.roles", "roles");
-    
+
     if (role) {
       totalQuery.andWhere("roles.name = :role", { role });
     }
-    
+
     const total = await totalQuery.getCount();
 
     // Get users with relations
@@ -83,7 +83,7 @@ export class UserService {
 
     query.skip((page - 1) * pageSize).take(pageSize);
     const users = await query.getMany();
-    
+
     return { users, total };
   }
 
@@ -191,12 +191,46 @@ export class UserService {
 
   async fetchUserStations(userId: number) {
     const query = `
-      select us.*, s.name from user u
-      left join user_station us on u.id = us.user_id
-      left join station s on s.id = us.station_id
-      WHERE u.id = ?
-  `;
-    return await this.userStationRepository.query(query, [userId]);
+      SELECT 
+        us.id,
+        us.user_id,
+        us.station_id,
+        us.is_default,
+        us.status,
+        us.updated_at,
+        us.created_at,
+        us.created_by,
+        us.updated_by,
+        s.id as station_id,
+        s.name as station_name,
+        s.status as station_status
+      FROM user u
+      LEFT JOIN user_station us ON u.id = us.user_id
+      LEFT JOIN station s ON s.id = us.station_id
+      WHERE u.id = ? AND us.id IS NOT NULL
+      ORDER BY us.is_default DESC, s.name ASC
+    `;
+    const results = await this.userStationRepository.query(query, [userId]);
+    
+    // Transform the flat results into the expected structure
+    const stations = results.map(row => ({
+      id: row.id,
+      user_id: row.user_id,
+      station_id: row.station_id,
+      isDefault: row.is_default === 1,
+      status: row.status,
+      updated_at: row.updated_at,
+      created_at: row.created_at,
+      created_by: row.created_by,
+      updated_by: row.updated_by,
+      station: {
+        id: row.station_id,
+        name: row.station_name,
+        status: row.station_status
+      }
+    }));
+    
+    return { stations };
   }
 
   async addUserStation(payload: { station?: any; user: any }) {
