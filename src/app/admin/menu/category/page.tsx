@@ -223,7 +223,7 @@ const CategoryPage: React.FC = () => {
               </div>
               <div className="card-body">
                 <Categories
-                  categories={categories}
+                  categories={categories || []}
                   onCategoryClick={handleCategoryClick}
                   fetchError={fetchError}
                   onDeleteCategory={openDeleteModal}

@@ -30,12 +30,12 @@ const Categories: React.FC<CategoriesProps> = ({
     if (showAll) {
       setVisibleCount(8);
     } else {
-      setVisibleCount(categories.length);
+      setVisibleCount((categories || []).length);
     }
     setShowAll(!showAll);
   };
 
-  const filteredCategories = categories.filter((category) => {
+  const filteredCategories = (categories || []).filter((category) => {
     if (statusFilter === "all") return true;
     return category.status === statusFilter;
   });
