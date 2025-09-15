@@ -801,17 +801,13 @@ function UsersPage() {
                           <i className="bi bi-person-circle text-primary"></i>
                         </div>
                         <div className="flex-grow-1">
-                          <div className="d-flex align-items-center mb-1">
-                            <h4 className="text-primary mb-0 me-3">{selectedUser.firstName} {selectedUser.lastName}</h4>
+                          <div className="d-flex align-items-center">
+                            <h5 className="text-primary mb-0 me-3">{selectedUser.firstName} {selectedUser.lastName}</h5>
                             <span className="badge bg-primary fs-6 px-3 py-2">
                               <i className="bi bi-shield-check me-2"></i>
                               {selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : "No role assigned"}
                             </span>
                           </div>
-                          <p className="text-muted mb-0">
-                            <i className="bi bi-at me-1"></i>
-                            @{selectedUser.username}
-                          </p>
                         </div>
                       </div>
                     </div>
