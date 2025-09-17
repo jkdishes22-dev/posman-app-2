@@ -21,6 +21,9 @@ import { StationPricelist } from "@backend/entities/StationPricelist";
 import { UserStation } from "@backend/entities/UserStation";
 import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment } from "@backend/entities/Payment";
+import { Notification } from "@backend/entities/Notification";
+import { CreditNote } from "@backend/entities/CreditNote";
+import { ReopenReason } from "@backend/entities/ReopenReason";
 
 let connectionInstance: DataSource | null = null;
 let isInitializing = false;
@@ -51,6 +54,9 @@ export const AppDataSource = new DataSource({
     Station,
     StationPricelist,
     UserStation,
+    Notification,
+    CreditNote,
+    ReopenReason,
   ],
   // migrations: ["src/backend/config/migrations/*.cjs"],
   synchronize: false,
@@ -84,13 +90,10 @@ export const getConnection = async (): Promise<DataSource> => {
   isInitializing = true;
   try {
     if (!connectionInstance) {
-      console.log("Initializing database connection...");
       connectionInstance = await AppDataSource.initialize();
-      console.log("Database connection initialized successfully");
     }
     return connectionInstance;
   } catch (error) {
-    console.error("Failed to initialize database connection:", error);
     // Reset connection instance on error
     connectionInstance = null;
     throw error;
@@ -109,13 +112,11 @@ export const closeConnection = async (): Promise<void> => {
 
 // Graceful shutdown handler
 process.on('SIGINT', async () => {
-  console.log('Received SIGINT, closing database connection...');
   await closeConnection();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('Received SIGTERM, closing database connection...');
   await closeConnection();
   process.exit(0);
 });

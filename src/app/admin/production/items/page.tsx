@@ -1,39 +1,43 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import AdminLayout from "src/app/shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import { Button } from "react-bootstrap";
 import AuditLog from "../activity-log";
 import InventoryModal from "./new";
 import { InventoryItem } from "src/app/types/types";
+import { useApiCall } from "../../../utils/apiUtils";
+import ErrorDisplay from "../../../components/ErrorDisplay";
 
 export default function InventoryPage() {
+  const apiCall = useApiCall();
   const [showModal, setShowModal] = useState(false);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [authError, setAuthError] = useState(null);
-  const [fetchError, setFetchError] = useState(null);
+  const [authErrorDetails, setAuthErrorDetails] = useState(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetchErrorDetails, setFetchErrorDetails] = useState(null);
 
   useEffect(() => {
     async function fetchInventoryItems() {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/production", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        if (response.ok) {
-          setInventoryItems(data);
-        } else if (response.status === 403) {
-          setAuthError(data);
+        const result = await apiCall("/api/production");
+        if (result.status === 200) {
+          setInventoryItems(result.data);
+          setAuthError(null);
+          setAuthErrorDetails(null);
+          setFetchError(null);
+          setFetchErrorDetails(null);
         } else {
-          setFetchError(data);
+          setAuthError(result.data);
+          setAuthErrorDetails(result.errorDetails);
+          setFetchError(result.error || "Failed to fetch inventory items");
+          setFetchErrorDetails(result.errorDetails);
         }
       } catch (error: any) {
+        setFetchError("Network error occurred");
+        setFetchErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         console.error("Failed to fetch inventory items", error);
       }
     }
@@ -56,21 +60,15 @@ export default function InventoryPage() {
     isStock,
   }: InventoryItem) => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/production", {
+      const result = await apiCall("/api/production", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ name, code, isStock }),
       });
-      if (response.ok) {
-        const newItem = await response.json();
-        setInventoryItems([...inventoryItems, newItem]);
+      if (result.status === 200 || result.status === 201) {
+        setInventoryItems([...inventoryItems, result.data]);
         handleCloseModal();
       } else {
-        console.error("Failed to add inventory item");
+        console.error("Failed to add inventory item:", result.error);
       }
     } catch (error: any) {
       console.error("Failed to add inventory item", error);
@@ -78,7 +76,7 @@ export default function InventoryPage() {
   };
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="row mt-2">
         <div className="col-4">
           <Button onClick={handleShowModal} className="btn btn-primary">
@@ -89,11 +87,15 @@ export default function InventoryPage() {
             handleCloseModal={handleCloseModal}
             handleAddInventoryItem={handleAddInventoryItem}
           />
-          {fetchError ? (
-            <div className="alert alert-danger mt-3" role="alert">
-              Failed to fetch inventory items: {fetchError}
-            </div>
-          ) : (
+          <ErrorDisplay
+            error={fetchError}
+            errorDetails={fetchErrorDetails}
+            onDismiss={() => {
+              setFetchError(null);
+              setFetchErrorDetails(null);
+            }}
+          />
+          {!fetchError && (
             <table className="table table-striped mt-3">
               <thead>
                 <tr>
@@ -130,6 +132,6 @@ export default function InventoryPage() {
           <AuditLog />
         </div>
       </div>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }

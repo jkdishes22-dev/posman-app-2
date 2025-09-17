@@ -2,11 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import AdminLayout from "../../../../../../shared/AdminLayout";
+import RoleAwareLayout from "../../../../../../shared/RoleAwareLayout";
 import AddGroupItemModal from "./add-group-item";
 import { Modal, Button } from "react-bootstrap";
+import { useApiCall } from "../../../../../../utils/apiUtils";
+import ErrorDisplay from "../../../../../../components/ErrorDisplay";
 
 function GroupedItemsPage() {
+  const apiCall = useApiCall();
   const [groups, setGroups] = useState([]);
   const [filteredGroups, setFilteredGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
@@ -16,6 +19,8 @@ function GroupedItemsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [itemToRemove, setItemToRemove] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<any>(null);
 
   useEffect(() => {
     fetchGroups();
@@ -30,19 +35,14 @@ function GroupedItemsPage() {
   }, [searchTerm, groups]);
 
   const fetchGroups = async () => {
-    const token = localStorage.getItem("token");
-    try {
-      const response = await fetch("/api/menu/items/groups", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch groups");
-      const data = await response.json();
-      setGroups(data);
-      setFilteredGroups(data);
-    } catch (error: any) {
-      console.error("Error fetching groups:", error);
+    const result = await apiCall("/api/menu/items/groups");
+
+    if (result.status === 200) {
+      setGroups(result.data);
+      setFilteredGroups(result.data);
+    } else {
+      setError(result.error || "Failed to fetch groups");
+      setErrorDetails(result.errorDetails);
     }
   };
 
@@ -60,48 +60,36 @@ function GroupedItemsPage() {
     if (!selectedGroup) {
       return;
     }
-    const token = localStorage.getItem("token");
-    try {
-      const response = await fetch(`/api/menu/items/groups/${selectedGroup}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          itemId: selectedGroup,
-          subItemId: itemId,
-          portionSize: portionSize,
-        }),
-      });
-      if (!response.ok) throw new Error("Failed to add item");
 
+    const result = await apiCall(`/api/menu/items/groups/${selectedGroup}`, {
+      method: "POST",
+      body: JSON.stringify({
+        itemId: selectedGroup,
+        subItemId: itemId,
+        portionSize: portionSize,
+      }),
+    });
+
+    if (result.status === 200) {
       await fetchGroupItemsFromBackend(selectedGroup);
       closeModal();
-    } catch (error: any) {
-      console.error("Error adding item to group:", error);
+    } else {
+      setError(result.error || "Failed to add item");
+      setErrorDetails(result.errorDetails);
     }
   };
 
   const fetchGroupItemsFromBackend = async (groupId: number) => {
-    const token = localStorage.getItem("token");
-    try {
-      const response = await fetch(`/api/menu/items/groups/${groupId}`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch group items");
-      const data = await response.json();
+    const result = await apiCall(`/api/menu/items/groups/${groupId}`);
 
+    if (result.status === 200) {
       // Ensure the items are extracted and set correctly
-
-      const items = data[0].items || [];
+      const items = result.data[0].items || [];
       setGroupItems(items);
       updateGroupsInState(groupId, items);
-    } catch (error: any) {
-      console.error("Error fetching group items:", error);
+    } else {
+      setError(result.error || "Failed to fetch group items");
+      setErrorDetails(result.errorDetails);
     }
   };
 
@@ -133,22 +121,19 @@ function GroupedItemsPage() {
     if (!selectedGroup) {
       return;
     }
-    const token = localStorage.getItem("token");
-    try {
-      const response = await fetch(
-        `/api/menu/items/groups/${selectedGroup}/items/${itemId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      if (!response.ok) throw new Error("Failed to remove item");
 
+    const result = await apiCall(
+      `/api/menu/items/groups/${selectedGroup}/items/${itemId}`,
+      {
+        method: "DELETE",
+      }
+    );
+
+    if (result.status === 200) {
       await fetchGroupItemsFromBackend(selectedGroup);
-    } catch (error: any) {
-      console.error("Error removing item from group:", error);
+    } else {
+      setError(result.error || "Failed to remove item");
+      setErrorDetails(result.errorDetails);
     }
   };
 
@@ -161,8 +146,16 @@ function GroupedItemsPage() {
   };
 
   return (
-    <AdminLayout authError={null}>
+    <RoleAwareLayout>
       <div className="container my-5">
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
+          }}
+        />
         <div className="row">
           <div className="col-md-4">
             <h4>Groups</h4>
@@ -271,7 +264,7 @@ function GroupedItemsPage() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }
 

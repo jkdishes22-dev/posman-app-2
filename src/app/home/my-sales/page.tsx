@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import SecureRoute from "../../components/SecureRoute";
-import HomePageLayout from "../../shared/HomePageLayout";
+import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import "react-datepicker/dist/react-datepicker.css";
 import { formatISO } from "date-fns";
 import { Button, Form } from "react-bootstrap";
@@ -14,6 +14,10 @@ import Pagination from "src/app/components/Pagination";
 import { CaptainOrderPrint, CustomerCopyPrint } from "../../shared/ReceiptPrint";
 import { printReceiptWithTimestamp, downloadReceiptAsFile } from "../../shared/printUtils";
 import ReactDOM from "react-dom/client";
+import { useApiCall } from "../../utils/apiUtils";
+import ErrorDisplay from "../../components/ErrorDisplay";
+import ReopenedBillsNotification from "../../components/ReopenedBillsNotification";
+import EnhancedResubmitModal from "../../components/EnhancedResubmitModal";
 
 // Receipt component for printing
 const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
@@ -54,19 +58,24 @@ const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) 
 Receipt.displayName = "Receipt";
 
 const MySales = () => {
+  const apiCall = useApiCall();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [bills, setBills] = useState([]);
   const [filteredBills, setFilteredBills] = useState([]);
   const [selectedBill, setSelectedBill] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billIdFilter, setBillIdFilter] = useState("");
-  const [error, setError] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<any>(null);
   const [itemError, setItemError] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [total, setTotal] = useState(0);
   const [selectedBills, setSelectedBills] = useState<number[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("pending");
+  const [resubmitNotes, setResubmitNotes] = useState("");
+  const [showResubmitModal, setShowResubmitModal] = useState(false);
+  const [showEnhancedResubmitModal, setShowEnhancedResubmitModal] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const handleDateChange = (date) => {
@@ -91,80 +100,116 @@ const MySales = () => {
   };
 
   const fetchBills = async (date?: Date, status?: string) => {
-    const token = localStorage.getItem("token");
     let url = "/api/bills?";
     const params = [];
-    if (date && !isNaN(new Date(date).getTime())) {
-      // Format date as YYYY-MM-DD without timezone conversion
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const formattedDate = `${year}-${month}-${day}`;
-      params.push(`date=${formattedDate}`);
-    }
-    if (status && status !== "all") {
+
+    // For reopened bills, skip date and bill ID filters by default
+    if (status === "reopened") {
       params.push(`status=${status}`);
+      params.push(`page=${page}`);
+      params.push(`pageSize=${pageSize}`);
+    } else {
+      // For other statuses, use today's date as default if no date is selected
+      if (date && !isNaN(new Date(date).getTime())) {
+        // Format date as YYYY-MM-DD without timezone conversion
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}`;
+        params.push(`date=${formattedDate}`);
+      } else if (status !== "reopened") {
+        // Default to today's date for non-reopened bills
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const formattedDate = `${year}-${month}-${day}`;
+        params.push(`date=${formattedDate}`);
+      }
+
+      if (status && status !== "all") {
+        params.push(`status=${status}`);
+      }
+      if (billIdFilter) {
+        params.push(`billId=${billIdFilter}`);
+      }
+      params.push(`page=${page}`);
+      params.push(`pageSize=${pageSize}`);
     }
-    if (billIdFilter) {
-      params.push(`billId=${billIdFilter}`);
-    }
-    params.push(`page=${page}`);
-    params.push(`pageSize=${pageSize}`);
+
     if (params.length > 0) {
       url += params.join("&");
     }
     try {
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || "Failed to fetch bills");
-        return;
+      const result = await apiCall(url);
+      if (result.status === 200) {
+        setBills(result.data.bills || []);
+        setFilteredBills(result.data.bills || []);
+        setTotal(result.data.total || 0);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to fetch bills");
+        setErrorDetails(result.errorDetails);
       }
-      setBills(data.bills || []);
-      setFilteredBills(data.bills || []);
-      setTotal(data.total || 0);
-      setError("");
     } catch (error: any) {
-      setError(error.message || "Failed to fetch items for the selected category");
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
   const fetchBillsByBillId = async (billId: number) => {
-    const token = localStorage.getItem("token");
-
     try {
-      const response = await fetch(`/api/bills?billId=${billId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const result = await apiCall(`/api/bills?billId=${billId}`);
 
-      if (!response.ok) {
+      if (result.status === 200) {
+        if (!result.data.bills || result.data.bills.length === 0) {
+          setError("No bill found with that ID");
+          setErrorDetails(null);
+          setFilteredBills([]);
+          return;
+        }
+        setBills(result.data.bills);
+        setFilteredBills(result.data.bills);
+        setError(null);
+        setErrorDetails(null);
+      } else {
         setError("No bill found with that ID");
+        setErrorDetails(result.errorDetails);
         setFilteredBills([]);
-        return;
       }
-
-      const data = await response.json();
-      if (!data.bills || data.bills.length === 0) {
-        setError("No bill found with that ID");
-        setFilteredBills([]);
-        return;
-      }
-      setBills(data.bills);
-      setFilteredBills(data.bills);
-      setError("");
     } catch (error: any) {
-      setError("Error fetching bills by Bill ID: " + error.message);
-      setFilteredBills([]);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
   const handleBillClick = (bill: number) => {
     setSelectedBill(bill);
+  };
+
+  const handleNotificationBillClick = async (billId: number) => {
+    // Find the bill in the current bills list
+    const bill = bills.find(b => b.id === billId);
+    if (bill) {
+      setSelectedBill(bill);
+      setStatusFilter("reopened");
+      // Fetch reopened bills to ensure we have the latest data
+      await fetchBills(undefined, "reopened");
+    } else {
+      // If bill not found in current list, fetch it specifically
+      try {
+        const result = await apiCall(`/api/bills?billId=${billId}`);
+        if (result.status === 200 && result.data.bills && result.data.bills.length > 0) {
+          setSelectedBill(result.data.bills[0]);
+          setStatusFilter("reopened");
+          await fetchBills(undefined, "reopened");
+        }
+      } catch (error) {
+        setError("Failed to load bill details");
+        setErrorDetails({ message: "Failed to load bill details", networkError: true, status: 0 });
+      }
+    }
   };
 
   const openSubmitModal = () => {
@@ -191,6 +236,42 @@ const MySales = () => {
       ),
     );
     setSelectedBill(updatedBill);
+  };
+
+  const handleResubmitBill = async (billId: number) => {
+    try {
+      const result = await apiCall(`/api/bills/${billId}/resubmit`, {
+        method: "POST",
+        body: JSON.stringify({
+          notes: resubmitNotes
+        })
+      });
+
+      if (result.status === 200) {
+        // Update the bill status in the local state
+        setBills((prevBills) =>
+          prevBills.map((bill) =>
+            bill.id === billId
+              ? { ...bill, status: "submitted", reopen_reason: null, reopened_by: null, reopened_at: null }
+              : bill
+          )
+        );
+
+        // Refresh the filtered bills
+        fetchBills(selectedDate, statusFilter);
+
+        setShowResubmitModal(false);
+        setResubmitNotes("");
+        setSelectedBill(null);
+        alert("Bill resubmitted successfully");
+      } else {
+        setError(result.error || "Failed to resubmit bill");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    }
   };
 
   // Checkbox handlers
@@ -262,7 +343,7 @@ const MySales = () => {
   }, [statusFilter, selectedDate, billIdFilter]);
 
   return (
-    <HomePageLayout>
+    <RoleAwareLayout>
       <SecureRoute roleRequired="sales">
         <div className="container">
           {/* Filter row */}
@@ -303,27 +384,33 @@ const MySales = () => {
                     </div>
                   </div>
                   <div className="col-md-4 d-flex align-items-end">
-                    <div className="btn-group w-100" role="group" aria-label="Filter actions">
+                    <div className="btn-group w-100 flex-wrap" role="group" aria-label="Filter actions">
                       <button
-                        className={`btn btn-outline-primary${statusFilter === "pending" ? " active" : ""}`}
+                        className={`btn btn-outline-primary btn-sm${statusFilter === "pending" ? " active" : ""}`}
                         onClick={() => setStatusFilter("pending")}
                       >
                         Pending
                       </button>
                       <button
-                        className={`btn btn-outline-primary${statusFilter === "submitted" ? " active" : ""}`}
+                        className={`btn btn-outline-primary btn-sm${statusFilter === "submitted" ? " active" : ""}`}
                         onClick={() => setStatusFilter("submitted")}
                       >
                         Submitted
                       </button>
                       <button
-                        className={`btn btn-outline-primary${statusFilter === "closed" ? " active" : ""}`}
+                        className={`btn btn-outline-primary btn-sm${statusFilter === "reopened" ? " active" : ""}`}
+                        onClick={() => setStatusFilter("reopened")}
+                      >
+                        Reopened
+                      </button>
+                      <button
+                        className={`btn btn-outline-primary btn-sm${statusFilter === "closed" ? " active" : ""}`}
                         onClick={() => setStatusFilter("closed")}
                       >
                         Closed
                       </button>
                       <button
-                        className={`btn btn-outline-primary${statusFilter === "voided" ? " active" : ""}`}
+                        className={`btn btn-outline-primary btn-sm${statusFilter === "voided" ? " active" : ""}`}
                         onClick={() => setStatusFilter("voided")}
                       >
                         Voided
@@ -334,6 +421,10 @@ const MySales = () => {
               </div>
             </div>
           </div>
+
+          {/* Reopened Bills Notification */}
+          <ReopenedBillsNotification onBillClick={handleNotificationBillClick} />
+
           {/* Bills and details row */}
           <div className="row">
             <div className="col-5">
@@ -348,18 +439,14 @@ const MySales = () => {
                 </Button>
               </div>
               <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
-                {error && (
-                  <div className="alert alert-danger alert-dismissible fade show" role="alert">
-                    {error}
-                    <button
-                      type="button"
-                      className="btn-close"
-                      aria-label="Close"
-                      onClick={() => setError("")}
-                      style={{ float: "right" }}
-                    ></button>
-                  </div>
-                )}
+                <ErrorDisplay
+                  error={error}
+                  errorDetails={errorDetails}
+                  onDismiss={() => {
+                    setError(null);
+                    setErrorDetails(null);
+                  }}
+                />
                 <table className="table stripped">
                   <thead>
                     <tr>
@@ -411,6 +498,17 @@ const MySales = () => {
                               >
                                 Submit
                               </Button>
+                            ) : bill.status === "reopened" ? (
+                              <Button
+                                variant="warning"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedBill(bill);
+                                  setShowEnhancedResubmitModal(true);
+                                }}
+                              >
+                                Resubmit
+                              </Button>
                             ) : (
                               <Button
                                 variant="primary"
@@ -442,9 +540,14 @@ const MySales = () => {
               {selectedBill ? (
                 <div>
                   <div className="card">
-                    {error && (
-                      <p className="text-danger">{error}</p>
-                    )}
+                    <ErrorDisplay
+                      error={error}
+                      errorDetails={errorDetails}
+                      onDismiss={() => {
+                        setError(null);
+                        setErrorDetails(null);
+                      }}
+                    />
                     <div className="card-body">
                       <div className="d-flex justify-content-between align-items-center mb-2">
                         {selectedBill.status === "pending" ? (
@@ -455,6 +558,25 @@ const MySales = () => {
                           >
                             Submit Bill (KES: {selectedBill.total})
                           </Button>
+                        ) : selectedBill.status === "reopened" ? (
+                          <div className="d-flex flex-column">
+                            <div className="alert alert-warning mb-2">
+                              <strong>Bill Reopened</strong>
+                              {selectedBill.reopen_reason && (
+                                <div>Reason: {selectedBill.reopen_reason}</div>
+                              )}
+                              {selectedBill.reopened_at && (
+                                <div>Reopened: {new Date(selectedBill.reopened_at).toLocaleString()}</div>
+                              )}
+                            </div>
+                            <Button
+                              className="m-2"
+                              variant="warning"
+                              onClick={() => setShowEnhancedResubmitModal(true)}
+                            >
+                              Resubmit Bill (KES: {selectedBill.total})
+                            </Button>
+                          </div>
                         ) : (
                           <span className="text-success">
                             Bill is {selectedBill.status} <strong> Total: {selectedBill.total} </strong>
@@ -526,9 +648,90 @@ const MySales = () => {
             selectedBill={selectedBill}
             onBillSubmitted={handleBillSubmitted}
           />
+
+          {/* Resubmit Modal */}
+          {showResubmitModal && selectedBill && (
+            <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+              <div className="modal-dialog modal-lg">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">
+                      <i className="bi bi-arrow-clockwise me-2"></i>
+                      Resubmit Bill #{selectedBill.id}
+                    </h5>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      onClick={() => {
+                        setShowResubmitModal(false);
+                        setResubmitNotes("");
+                      }}
+                    ></button>
+                  </div>
+                  <div className="modal-body">
+                    <div className="row">
+                      <div className="col-md-6">
+                        <h6>Bill Information</h6>
+                        <p><strong>Total:</strong> KES {selectedBill.total}</p>
+                        <p><strong>Status:</strong> {selectedBill.status}</p>
+                        {selectedBill.reopen_reason && (
+                          <p><strong>Reopen Reason:</strong> {selectedBill.reopen_reason}</p>
+                        )}
+                        {selectedBill.reopened_at && (
+                          <p><strong>Reopened At:</strong> {new Date(selectedBill.reopened_at).toLocaleString()}</p>
+                        )}
+                      </div>
+                      <div className="col-md-6">
+                        <h6>Resubmit Notes</h6>
+                        <textarea
+                          className="form-control"
+                          rows={4}
+                          value={resubmitNotes}
+                          onChange={(e) => setResubmitNotes(e.target.value)}
+                          placeholder="Add notes about the changes made to fix the bill..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        setShowResubmitModal(false);
+                        setResubmitNotes("");
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-warning"
+                      onClick={() => handleResubmitBill(selectedBill.id)}
+                    >
+                      <i className="bi bi-check-circle me-1"></i>
+                      Resubmit Bill
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Enhanced Resubmit Modal */}
+          <EnhancedResubmitModal
+            show={showEnhancedResubmitModal}
+            onHide={() => setShowEnhancedResubmitModal(false)}
+            bill={selectedBill}
+            onResubmitted={() => {
+              setShowEnhancedResubmitModal(false);
+              // Refresh the bills list
+              fetchBills(selectedDate, statusFilter);
+            }}
+          />
         </div>
       </SecureRoute>
-    </HomePageLayout>
+    </RoleAwareLayout>
   );
 };
 

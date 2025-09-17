@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { createApiCall } from "./apiUtils";
 
 export interface DecodedToken {
     id: number;
@@ -27,17 +28,17 @@ export const isTokenExpiringSoon = (token: string, thresholdMinutes: number = 5)
 
 export const refreshToken = async (): Promise<string | null> => {
     try {
-        const response = await fetch("/api/auth/refresh", {
+        // Create a temporary API call function without logout for token refresh
+        const apiCall = createApiCall(() => { });
+        const result = await apiCall("/api/auth/refresh", {
             method: "POST",
-            credentials: "include",
         });
 
-        if (response.ok) {
-            const data = await response.json();
-            localStorage.setItem("token", data.token);
-            return data.token;
+        if (result.status === 200) {
+            localStorage.setItem("token", result.data.token);
+            return result.data.token;
         } else {
-            console.error("Token refresh failed:", response.status);
+            console.error("Token refresh failed:", result.status);
             return null;
         }
     } catch (error) {

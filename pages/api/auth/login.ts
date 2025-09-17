@@ -45,7 +45,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         roles: user.roles.map((role) => role.name),
       },
       secret,
-      { expiresIn: "1h" },
+      { expiresIn: "8h" },
     );
 
     // Issue refresh token (long-lived)

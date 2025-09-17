@@ -11,94 +11,98 @@ const CACHE_TTL = 30000; // 30 seconds
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "GET") {
-        try {
-            const userId = req.user?.id;
+        return authMiddleware(async (req: NextApiRequest, res: NextApiResponse) => {
+            try {
+                const userId = req.user?.id;
 
-            if (!userId) {
-                return res.status(401).json({ message: "User not authenticated" });
-            }
+                if (!userId) {
+                    return res.status(401).json({ message: "User not authenticated" });
+                }
 
-            // Check cache first
-            const cacheKey = `default-station-${userId}`;
-            const cached = defaultStationCache.get(cacheKey);
+                // Check cache first
+                const cacheKey = `default-station-${userId}`;
+                const cached = defaultStationCache.get(cacheKey);
 
-            if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-                return res.status(200).json(cached.data);
-            }
+                if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+                    return res.status(200).json(cached.data);
+                }
 
-            const stationService = new StationService(req.db);
-            const defaultStation = await stationService.getUserDefaultStation(Number(userId));
+                const stationService = new StationService(req.db);
+                const defaultStation = await stationService.getUserDefaultStation(Number(userId));
 
-            let response;
-            if (!defaultStation) {
-                response = {
-                    message: "No default station found for user",
-                    hasDefaultStation: false
-                };
-            } else {
-                response = {
-                    message: "Default station retrieved successfully",
-                    hasDefaultStation: true,
-                    station: defaultStation
-                };
-            }
+                let response;
+                if (!defaultStation) {
+                    response = {
+                        message: "No default station found for user",
+                        hasDefaultStation: false
+                    };
+                } else {
+                    response = {
+                        message: "Default station retrieved successfully",
+                        hasDefaultStation: true,
+                        station: defaultStation
+                    };
+                }
 
-            // Cache the response
-            defaultStationCache.set(cacheKey, {
-                data: response,
-                timestamp: Date.now()
-            });
+                // Cache the response
+                defaultStationCache.set(cacheKey, {
+                    data: response,
+                    timestamp: Date.now()
+                });
 
-            res.status(200).json(response);
-        } catch (error: any) {
-            console.error("Error fetching user default station:", error);
-            res.status(500).json({
-                message: "Error fetching default station",
-                error: error.message,
-            });
-        }
-    } else if (req.method === "POST") {
-        try {
-            const stationService = new StationService(req.db);
-            const userId = req.user?.id;
-            const { stationId } = req.body;
-
-            if (!userId) {
-                return res.status(401).json({ message: "User not authenticated" });
-            }
-
-            if (!stationId) {
-                return res.status(400).json({ message: "Station ID is required" });
-            }
-
-            // Validate user has access to this station
-            const hasAccess = await stationService.validateUserStationAccess(Number(userId), stationId);
-            if (!hasAccess) {
-                return res.status(403).json({
-                    message: "User does not have access to this station"
+                res.status(200).json(response);
+            } catch (error: any) {
+                console.error("Error fetching user default station:", error);
+                res.status(500).json({
+                    message: "Error fetching default station",
+                    error: error.message,
                 });
             }
+        })(req, res);
+    } else if (req.method === "POST") {
+        return authMiddleware(async (req: NextApiRequest, res: NextApiResponse) => {
+            try {
+                const stationService = new StationService(req.db);
+                const userId = req.user?.id;
+                const { stationId } = req.body;
 
-            await stationService.setUserDefaultStation(Number(userId), stationId);
+                if (!userId) {
+                    return res.status(401).json({ message: "User not authenticated" });
+                }
 
-            // Invalidate cache for this user
-            const cacheKey = `default-station-${userId}`;
-            defaultStationCache.delete(cacheKey);
+                if (!stationId) {
+                    return res.status(400).json({ message: "Station ID is required" });
+                }
 
-            res.status(200).json({
-                message: "Default station updated successfully"
-            });
-        } catch (error: any) {
-            console.error("Error setting user default station:", error);
-            res.status(500).json({
-                message: "Error setting default station",
-                error: error.message,
-            });
-        }
+                // Validate user has access to this station
+                const hasAccess = await stationService.validateUserStationAccess(Number(userId), stationId);
+                if (!hasAccess) {
+                    return res.status(403).json({
+                        message: "User does not have access to this station"
+                    });
+                }
+
+                await stationService.setUserDefaultStation(Number(userId), stationId);
+
+                // Invalidate cache for this user
+                const cacheKey = `default-station-${userId}`;
+                defaultStationCache.delete(cacheKey);
+
+                res.status(200).json({
+                    message: "Default station updated successfully"
+                });
+            } catch (error: any) {
+                console.error("Error setting user default station:", error);
+                res.status(500).json({
+                    message: "Error setting default station",
+                    error: error.message,
+                });
+            }
+        })(req, res);
     } else {
         res.setHeader("Allow", ["GET", "POST"]);
         res.status(405).end(`Method ${req.method} Not Allowed`);
     }
 };
 
-export default withMiddleware(dbMiddleware, authMiddleware)(handler);
+export default withMiddleware(dbMiddleware)(handler);

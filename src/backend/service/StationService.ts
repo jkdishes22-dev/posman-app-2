@@ -40,7 +40,7 @@ export class StationService {
   }
 
   async getEnabledStations() {
-    return await this.fetchStations({ status: StationStatus.ENABLED });
+    return await this.fetchStations({ status: StationStatus.ACTIVE });
   }
 
   async getAllStations() {
@@ -381,7 +381,7 @@ export class StationService {
     const userStation = this.userStationRepository.create({
       station: { id: stationId },
       user: { id: userId },
-      status: UserStationStatus.ENABLED,
+      status: UserStationStatus.ACTIVE,
       isDefault: false // Always false since there's no concept of default user
     });
 
@@ -467,6 +467,6 @@ export class StationService {
   }
 
   async updateStationStatus(id: number, status: string): Promise<void> {
-    await this.stationRepository.update(id, { status });
+    await this.stationRepository.update(id, { status: status as StationStatus });
   }
 }

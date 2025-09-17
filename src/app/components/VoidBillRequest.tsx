@@ -1,6 +1,8 @@
 "use client";
 import React, { useState } from "react";
 import { Modal, Button, Form, Alert } from "react-bootstrap";
+import { useApiCall } from "../utils/apiUtils";
+import ErrorDisplay from "./ErrorDisplay";
 
 interface VoidBillRequestProps {
   billId: number;
@@ -19,13 +21,15 @@ export default function VoidBillRequest({
   onHide,
   onSuccess,
 }: VoidBillRequestProps) {
+  const apiCall = useApiCall();
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [errorDetails, setErrorDetails] = useState<any>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!reason.trim()) {
       setError("Please provide a reason for voiding this bill");
       return;
@@ -33,36 +37,27 @@ export default function VoidBillRequest({
 
     setLoading(true);
     setError("");
+    setErrorDetails(null);
 
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/bills/void-requests", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          billId,
-          reason: reason.trim(),
-        }),
-      });
+    const result = await apiCall("/api/bills/void-requests", {
+      method: "POST",
+      body: JSON.stringify({
+        billId,
+        reason: reason.trim(),
+      }),
+    });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        onSuccess();
-        onHide();
-        setReason("");
-        setError("");
-      } else {
-        setError(data.error || "Failed to create void request");
-      }
-    } catch (error) {
-      setError("Failed to create void request");
-    } finally {
-      setLoading(false);
+    if (result.status === 201) {
+      onSuccess();
+      onHide();
+      setReason("");
+      setError("");
+    } else {
+      setError(result.error || "Failed to create void request");
+      setErrorDetails(result.errorDetails);
     }
+
+    setLoading(false);
   };
 
   const handleClose = () => {
@@ -80,13 +75,15 @@ export default function VoidBillRequest({
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {error && (
-          <Alert variant="danger" className="py-2">
-            <i className="bi bi-exclamation-circle me-2"></i>
-            {error}
-          </Alert>
-        )}
-        
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setError("");
+            setErrorDetails(null);
+          }}
+        />
+
         <div className="mb-3">
           <h6>Bill Details:</h6>
           <p className="mb-1">
@@ -123,9 +120,9 @@ export default function VoidBillRequest({
         <Button variant="secondary" onClick={handleClose} disabled={loading}>
           Cancel
         </Button>
-        <Button 
-          variant="warning" 
-          onClick={handleSubmit} 
+        <Button
+          variant="warning"
+          onClick={handleSubmit}
           disabled={loading || !reason.trim()}
         >
           {loading ? (

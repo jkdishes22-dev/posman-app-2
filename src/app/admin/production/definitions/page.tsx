@@ -3,11 +3,13 @@
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Modal, Button } from "react-bootstrap";
-import AdminLayout from "src/app/shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import AddSubItemModal from "./new";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
+import { useApiCall } from "src/app/utils/apiUtils";
 
 function InventoryItemsPage() {
+  const apiCall = useApiCall();
   const [items, setItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -33,50 +35,16 @@ function InventoryItemsPage() {
   }, [searchTerm, items]);
 
   const fetchItems = async () => {
-    const token = localStorage.getItem("token");
-    try {
-      const response = await fetch("/api/production", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 403) {
-          // Handle permission errors with detailed information
-          const errorMessage = errorData.message || "Access denied";
-          const missingPermissions = errorData.missingPermissions || [];
-          const userRoles = errorData.userRoles || [];
-          const isAdmin = errorData.isAdmin || false;
+    const result = await apiCall("/api/production");
 
-          let detailedError = `${errorMessage}`;
-          if (missingPermissions.length > 0) {
-            detailedError += `\n\nMissing permissions: ${missingPermissions.join(', ')}`;
-          }
-          if (userRoles.length > 0) {
-            detailedError += `\n\nYour roles: ${userRoles.join(', ')}`;
-          }
-          if (!isAdmin) {
-            detailedError += `\n\nNote: You need admin privileges to access production definitions.`;
-          }
-
-          setFetchError(detailedError);
-        } else {
-          setFetchError(errorData.message || "Failed to fetch items");
-        }
-        setItems([]);
-        setFilteredItems([]);
-        return;
-      }
-      const data = await response.json();
+    if (result.status === 200) {
       // Ensure data is an array before setting it
-      const itemsArray = Array.isArray(data) ? data : [];
+      const itemsArray = Array.isArray(result.data) ? result.data : [];
       setItems(itemsArray);
       setFilteredItems(itemsArray);
       setFetchError(null);
-    } catch (error: any) {
-      console.error("Error fetching items:", error);
-      setFetchError("Error fetching items: " + error.message);
+    } else {
+      setFetchError(result.error || "Failed to fetch items");
       setItems([]);
       setFilteredItems([]);
     }
@@ -97,73 +65,33 @@ function InventoryItemsPage() {
       setAddSubItemError("No item selected");
       return;
     }
-    const token = localStorage.getItem("token");
-    try {
-      setAddSubItemError(null);
-      const response = await fetch(
-        `/api/production/${selectedItem}/sub-items`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            subItemId: subItemId,
-            portionSize: portionSize,
-          }),
-        },
-      );
 
-      const data = await response.json();
+    setAddSubItemError(null);
+    const result = await apiCall(`/api/production/${selectedItem}/sub-items`, {
+      method: "POST",
+      body: JSON.stringify({
+        subItemId: subItemId,
+        portionSize: portionSize,
+      }),
+    });
 
-      if (!response.ok) {
-        if (response.status === 403) {
-          // Handle permission errors with detailed information
-          const errorMessage = data.message || "Access denied";
-          const missingPermissions = data.missingPermissions || [];
-          const userRoles = data.userRoles || [];
-
-          let detailedError = `${errorMessage}`;
-          if (missingPermissions.length > 0) {
-            detailedError += `\n\nMissing permissions: ${missingPermissions.join(', ')}`;
-          }
-          if (userRoles.length > 0) {
-            detailedError += `\n\nYour roles: ${userRoles.join(', ')}`;
-          }
-
-          setAddSubItemError(detailedError);
-        } else {
-          setAddSubItemError(data.message || "Failed to add sub-item");
-        }
-        return;
-      }
-
+    if (result.status === 201) {
       await fetchSubItemsFromBackend(selectedItem);
       closeModal();
-    } catch (error: any) {
-      console.error("Error adding sub-item to item:", error);
-      setAddSubItemError("Error adding sub-item: " + error.message);
+    } else {
+      setAddSubItemError(result.error || "Failed to add sub-item");
     }
   };
 
   const fetchSubItemsFromBackend = async (itemId) => {
-    const token = localStorage.getItem("token");
-    try {
-      const response = await fetch(`/api/production/${itemId}/sub-items`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch sub-items");
-      const data = await response.json();
+    const result = await apiCall(`/api/production/${itemId}/sub-items`);
 
-      const items = data[0].subItems || [];
+    if (result.status === 200) {
+      const items = result.data[0].subItems || [];
       setSubItems(items);
       updateItemsInState(itemId, items);
-    } catch (error: any) {
-      console.error("Error fetching sub-items:", error);
+    } else {
+      console.error("Error fetching sub-items:", result.error);
     }
   };
 
@@ -192,22 +120,14 @@ function InventoryItemsPage() {
   };
 
   const removeSubItemFromItem = async (subItemId) => {
-    const token = localStorage.getItem("token");
-    try {
-      const response = await fetch(
-        `/api/production/${selectedItem}/sub-items/${subItemId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      if (!response.ok) throw new Error("Failed to remove sub-item");
+    const result = await apiCall(`/api/production/${selectedItem}/sub-items/${subItemId}`, {
+      method: "DELETE",
+    });
 
+    if (result.status === 200) {
       await fetchSubItemsFromBackend(selectedItem);
-    } catch (error: any) {
-      console.error("Error removing sub-item from item:", error);
+    } else {
+      console.error("Error removing sub-item from item:", result.error);
     }
   };
 
@@ -220,7 +140,7 @@ function InventoryItemsPage() {
   };
 
   return (
-    <AdminLayout authError={null}>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
@@ -431,7 +351,7 @@ function InventoryItemsPage() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }
 

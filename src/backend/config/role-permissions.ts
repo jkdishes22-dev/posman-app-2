@@ -54,29 +54,50 @@ export const ROLE_PERMISSIONS = {
     ],
 
     supervisor: [
-        // All permissions from subordinate roles
-        ...this.sales,
-        ...this.cashier,
-        ...this.storekeeper,
-        // Additional supervisor permissions
+        // Sales permissions
         'can_view_bill',
+        'can_add_bill',
         'can_edit_bill',
         'can_view_bill_item',
+        'can_add_bill_item',
         'can_edit_bill_item',
+        'can_delete_bill_item',
         'can_view_bill_payment',
+        'can_add_bill_payment',
         'can_edit_bill_payment',
-        'can_view_inventory',
-        'can_edit_inventory',
         'can_view_payment',
+        'can_add_payment',
         'can_edit_payment',
-        'can_view_user',
-        'can_edit_user',
-        'can_view_station',
         'can_view_pricelist',
         'can_view_category',
         'can_view_item',
-        'can_view_station_pricelist',
+        'can_view_station',
         'can_view_user_station',
+        // Cashier permissions
+        'can_delete_bill_payment',
+        'can_delete_payment',
+        // Storekeeper permissions
+        'can_view_inventory',
+        'can_add_inventory',
+        'can_edit_inventory',
+        'can_delete_inventory',
+        'can_add_item',
+        'can_edit_item',
+        'can_delete_item',
+        'can_add_category',
+        'can_edit_category',
+        'can_delete_category',
+        'can_view_supplier',
+        'can_add_supplier',
+        'can_edit_supplier',
+        'can_delete_supplier',
+        'can_view_supplier_payment',
+        'can_add_supplier_payment',
+        'can_edit_supplier_payment',
+        'can_delete_supplier_payment',
+        // Additional supervisor permissions
+        'can_edit_station',
+        'can_view_station_pricelist',
         'can_edit_user_station'
     ],
 
@@ -273,7 +294,8 @@ export function getMenuItems(role: string): any[] {
         supervisor: [
             { name: 'Dashboard', path: '/supervisor', icon: 'bi-graph-up' },
             { name: 'Sales Management', path: '/supervisor/sales', icon: 'bi-receipt' },
-            { name: 'Team Management', path: '/supervisor/team', icon: 'bi-people' },
+            { name: 'Station Management', path: '/supervisor/stations', icon: 'bi-building' },
+            { name: 'Void Requests', path: '/supervisor/void-requests', icon: 'bi-exclamation-triangle' },
             { name: 'Reports', path: '/supervisor/reports', icon: 'bi-bar-chart' },
             { name: 'Inventory Overview', path: '/supervisor/inventory', icon: 'bi-boxes' }
         ],

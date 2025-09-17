@@ -1,9 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { hasPermission, getRolePermissions } from '../config/role-permissions';
 
-export interface AuthenticatedRequest extends NextApiRequest {
-    user?: {
-        id: number;
+export interface AuthenticatedRequest extends Omit<NextApiRequest, 'user'> {
+    user: {
+        id: string;
         roles: string[];
         permissions: string[];
     };
@@ -197,7 +197,7 @@ export function withACL(handler: (req: AuthenticatedRequest, res: NextApiRespons
 
             // For now, we'll simulate this
             req.user = {
-                id: 1,
+                id: "1",
                 roles: ['admin'], // This would come from the database
                 permissions: [] // This would be calculated from roles
             };

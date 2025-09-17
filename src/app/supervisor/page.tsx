@@ -4,9 +4,12 @@ import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Row, Col, Badge, Button } from "react-bootstrap";
 import { useRouter } from "next/navigation";
+import { useApiCall } from "../utils/apiUtils";
+import ErrorDisplay from "../components/ErrorDisplay";
 
 export default function SupervisorPage() {
     const router = useRouter();
+    const apiCall = useApiCall();
     const [stats, setStats] = useState({
         totalSales: 0,
         activeBills: 0,
@@ -17,6 +20,8 @@ export default function SupervisorPage() {
 
     const [recentActivity, setRecentActivity] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [errorDetails, setErrorDetails] = useState<any>(null);
 
     useEffect(() => {
         // Load real data
@@ -25,18 +30,17 @@ export default function SupervisorPage() {
 
     const loadDashboardData = async () => {
         try {
-            // Load void request stats
-            const token = localStorage.getItem("token");
-            const voidStatsResponse = await fetch("/api/bills/void-requests/stats", {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
+            setError(null);
+            setErrorDetails(null);
 
+            // Load void request stats
+            const result = await apiCall("/api/bills/void-requests/stats");
             let pendingVoidRequests = 0;
-            if (voidStatsResponse.ok) {
-                const voidStats = await voidStatsResponse.json();
-                pendingVoidRequests = voidStats.stats?.pending || 0;
+
+            if (result.status === 200) {
+                pendingVoidRequests = result.data.stats?.pending || 0;
+            } else {
+                console.warn("Failed to load void request stats:", result.error);
             }
 
             setStats({
@@ -47,11 +51,13 @@ export default function SupervisorPage() {
                 pendingVoidRequests
             });
             setRecentActivity([
-                { id: 1, type: 'sale', description: 'New bill #1234 created', time: '2 min ago' },
-                { id: 2, type: 'inventory', description: 'Stock alert: Coffee beans low', time: '15 min ago' },
-                { id: 3, type: 'payment', description: 'Payment processed for bill #1230', time: '1 hour ago' }
+                { id: 1, type: "sale", description: "New bill #1234 created", time: "2 min ago" },
+                { id: 2, type: "inventory", description: "Stock alert: Coffee beans low", time: "15 min ago" },
+                { id: 3, type: "payment", description: "Payment processed for bill #1230", time: "1 hour ago" }
             ]);
         } catch (error) {
+            setError("Network error occurred");
+            setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
             console.error("Error loading dashboard data:", error);
         } finally {
             setIsLoading(false);
@@ -62,11 +68,28 @@ export default function SupervisorPage() {
         return (
             <RoleAwareLayout>
                 <div className="container-fluid">
-                    <div className="d-flex justify-content-center align-items-center" style={{ height: '50vh' }}>
+                    <div className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
                         <div className="spinner-border text-primary" role="status">
                             <span className="visually-hidden">Loading...</span>
                         </div>
                     </div>
+                </div>
+            </RoleAwareLayout>
+        );
+    }
+
+    if (error) {
+        return (
+            <RoleAwareLayout>
+                <div className="container-fluid">
+                    <ErrorDisplay
+                        error={error}
+                        onDismiss={() => {
+                            setError(null);
+                            setErrorDetails(null);
+                        }}
+                        errorDetails={errorDetails}
+                    />
                 </div>
             </RoleAwareLayout>
         );
@@ -204,7 +227,7 @@ export default function SupervisorPage() {
                                     <Button
                                         variant="warning"
                                         size="sm"
-                                        onClick={() => router.push('/supervisor/void-requests')}
+                                        onClick={() => router.push("/supervisor/void-requests")}
                                     >
                                         <i className="bi bi-gear me-1"></i>
                                         Manage
@@ -244,7 +267,7 @@ export default function SupervisorPage() {
                                         <Button
                                             variant="outline-warning"
                                             size="sm"
-                                            onClick={() => router.push('/supervisor/void-requests')}
+                                            onClick={() => router.push("/supervisor/void-requests")}
                                         >
                                             <i className="bi bi-eye me-1"></i>
                                             Review
@@ -314,11 +337,11 @@ export default function SupervisorPage() {
                                     {recentActivity.map((activity) => (
                                         <div key={activity.id} className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
                                             <div className="d-flex align-items-center">
-                                                <div className={`me-3 p-2 rounded-circle ${activity.type === 'sale' ? 'bg-success' :
-                                                    activity.type === 'inventory' ? 'bg-warning' : 'bg-info'
+                                                <div className={`me-3 p-2 rounded-circle ${activity.type === "sale" ? "bg-success" :
+                                                    activity.type === "inventory" ? "bg-warning" : "bg-info"
                                                     }`}>
-                                                    <i className={`bi ${activity.type === 'sale' ? 'bi-receipt' :
-                                                        activity.type === 'inventory' ? 'bi-box' : 'bi-credit-card'
+                                                    <i className={`bi ${activity.type === "sale" ? "bi-receipt" :
+                                                        activity.type === "inventory" ? "bi-box" : "bi-credit-card"
                                                         } text-white`}></i>
                                                 </div>
                                                 <div>

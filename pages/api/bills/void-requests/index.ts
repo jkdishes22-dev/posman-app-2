@@ -1,10 +1,9 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
 import {
-  createVoidRequestHandler,
-  getPendingVoidRequestsHandler,
-  getVoidRequestStatsHandler,
-} from "@controllers/BillVoidController";
+  requestVoidItem,
+  getPendingVoidRequests,
+} from "@controllers/BillController";
 import permissions from "@backend/config/managed-roles";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
@@ -13,13 +12,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
     // Sales users can create void requests
     await authMiddleware(
-      authorize([permissions.CAN_ADD_BILL])(createVoidRequestHandler),
+      authorize([permissions.CAN_ADD_BILL])(requestVoidItem),
     )(req, res);
   } else if (req.method === "GET") {
     // Supervisors and cashiers can view pending requests
     await authMiddleware(
       authorize([permissions.CAN_VIEW_BILL, permissions.CAN_EDIT_BILL])(
-        getPendingVoidRequestsHandler,
+        getPendingVoidRequests,
       ),
     )(req, res);
   } else {

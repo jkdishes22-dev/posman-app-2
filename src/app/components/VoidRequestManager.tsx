@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Card, Button, Badge, Modal, Form, Alert, Row, Col } from "react-bootstrap";
+import { useApiCall } from "../utils/apiUtils";
+import ErrorDisplay from "./ErrorDisplay";
 
 interface VoidRequest {
   id: number;
@@ -47,9 +49,11 @@ interface VoidRequestManagerProps {
 }
 
 export default function VoidRequestManager({ userRole }: VoidRequestManagerProps) {
+  const apiCall = useApiCall();
   const [voidRequests, setVoidRequests] = useState<VoidRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [errorDetails, setErrorDetails] = useState<any>(null);
   const [selectedRequest, setSelectedRequest] = useState<VoidRequest | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showRejectionModal, setShowRejectionModal] = useState(false);
@@ -64,100 +68,70 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
   }, []);
 
   const fetchVoidRequests = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/bills/void-requests", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    const result = await apiCall("/api/bills/void-requests");
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setVoidRequests(data.voidRequests);
-      } else {
-        setError(data.error || "Failed to fetch void requests");
-      }
-    } catch (error) {
-      setError("Failed to fetch void requests");
-    } finally {
-      setLoading(false);
+    if (result.status === 200) {
+      setVoidRequests(result.data.voidRequests);
+    } else {
+      setError(result.error || "Failed to fetch void requests");
+      setErrorDetails(result.errorDetails);
     }
+
+    setLoading(false);
   };
 
   const handleApprove = async () => {
     if (!selectedRequest) return;
 
     setActionLoading(true);
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/bills/void-requests/${selectedRequest.id}/approve`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          requestId: selectedRequest.id,
-          approvalNotes: approvalNotes,
-          paperApprovalReceived: paperApprovalReceived,
-          paperApprovalNotes: paperApprovalNotes,
-        }),
-      });
+    const result = await apiCall(`/api/bills/void-requests/${selectedRequest.id}/approve`, {
+      method: "POST",
+      body: JSON.stringify({
+        requestId: selectedRequest.id,
+        approvalNotes: approvalNotes,
+        paperApprovalReceived: paperApprovalReceived,
+        paperApprovalNotes: paperApprovalNotes,
+      }),
+    });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        await fetchVoidRequests();
-        setShowApprovalModal(false);
-        setSelectedRequest(null);
-        setApprovalNotes("");
-        setPaperApprovalReceived(false);
-        setPaperApprovalNotes("");
-      } else {
-        setError(data.error || "Failed to approve void request");
-      }
-    } catch (error) {
-      setError("Failed to approve void request");
-    } finally {
-      setActionLoading(false);
+    if (result.status === 200) {
+      await fetchVoidRequests();
+      setShowApprovalModal(false);
+      setSelectedRequest(null);
+      setApprovalNotes("");
+      setPaperApprovalReceived(false);
+      setPaperApprovalNotes("");
+    } else {
+      setError(result.error || "Failed to approve void request");
+      setErrorDetails(result.errorDetails);
     }
+
+    setActionLoading(false);
   };
 
   const handleReject = async () => {
     if (!selectedRequest) return;
 
     setActionLoading(true);
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/bills/void-requests/${selectedRequest.id}/reject`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          requestId: selectedRequest.id,
-          rejectionNotes: rejectionNotes,
-        }),
-      });
+    const result = await apiCall(`/api/bills/void-requests/${selectedRequest.id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({
+        requestId: selectedRequest.id,
+        rejectionNotes: rejectionNotes,
+      }),
+    });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        await fetchVoidRequests();
-        setShowRejectionModal(false);
-        setSelectedRequest(null);
-        setRejectionNotes("");
-      } else {
-        setError(data.error || "Failed to reject void request");
-      }
-    } catch (error) {
-      setError("Failed to reject void request");
-    } finally {
-      setActionLoading(false);
+    if (result.status === 200) {
+      await fetchVoidRequests();
+      setShowRejectionModal(false);
+      setSelectedRequest(null);
+      setRejectionNotes("");
+    } else {
+      setError(result.error || "Failed to reject void request");
+      setErrorDetails(result.errorDetails);
     }
+
+    setActionLoading(false);
   };
 
   const getStatusBadge = (status: string) => {
@@ -189,12 +163,14 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
 
   return (
     <div>
-      {error && (
-        <Alert variant="danger" className="mb-3">
-          <i className="bi bi-exclamation-circle me-2"></i>
-          {error}
-        </Alert>
-      )}
+      <ErrorDisplay
+        error={error}
+        errorDetails={errorDetails}
+        onDismiss={() => {
+          setError("");
+          setErrorDetails(null);
+        }}
+      />
 
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h5 className="mb-0">
@@ -231,7 +207,7 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
                       {request.initiator.firstName} {request.initiator.lastName}
                     </div>
                   </div>
-                  
+
                   <div className="mb-2">
                     <small className="text-muted">Bill Total:</small>
                     <div className="fw-semibold text-primary">
@@ -355,8 +331,8 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
           <Button variant="secondary" onClick={() => setShowApprovalModal(false)}>
             Cancel
           </Button>
-          <Button 
-            variant="success" 
+          <Button
+            variant="success"
             onClick={handleApprove}
             disabled={actionLoading}
           >
@@ -420,8 +396,8 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
           <Button variant="secondary" onClick={() => setShowRejectionModal(false)}>
             Cancel
           </Button>
-          <Button 
-            variant="danger" 
+          <Button
+            variant="danger"
             onClick={handleReject}
             disabled={actionLoading || !rejectionNotes.trim()}
           >

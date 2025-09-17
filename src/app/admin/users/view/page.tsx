@@ -1,22 +1,26 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import AdminLayout from "../../../shared/AdminLayout";
+import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import NewUser from "../register/new-user";
 import { AuthError, User } from "../../../types/types";
 import Pagination from "../../../components/Pagination";
 import { withSecureRoute } from "../../../components/withSecureRoute";
+import { useApiCall } from "../../../utils/apiUtils";
+import ErrorDisplay from "../../../components/ErrorDisplay";
 
 const DEFAULT_PAGE_SIZE = parseInt(process.env.NEXT_PUBLIC_PAGE_SIZE || "10", 10);
 const DEFAULT_REFRESH_INTERVAL_SECONDS = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS || "300", 10);
 
 function UsersPage() {
+  const apiCall = useApiCall();
   const [showModal, setShowModal] = useState(false);
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [filter, setFilter] = useState("");
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState<AuthError>(null);
+  const [authErrorDetails, setAuthErrorDetails] = useState<any>(null);
   const [fetchUserError, setFetchUserError] = useState<string>("");
   const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
   const [roles, setRoles] = useState([]);
@@ -36,7 +40,7 @@ function UsersPage() {
   const [reactivateError, setReactivateError] = useState("");
   const [updateError, setUpdateError] = useState("");
   const [lockError, setLockError] = useState("");
-  
+
   // Station management state
   const [userStations, setUserStations] = useState([]);
   const [availableStations, setAvailableStations] = useState([]);
@@ -82,10 +86,9 @@ function UsersPage() {
     const intervalSeconds = DEFAULT_REFRESH_INTERVAL_SECONDS;
     const interval = setInterval(async () => {
       try {
-        const response = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
-        if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem("token", data.token);
+        const result = await apiCall("/api/auth/refresh", { method: "POST" });
+        if (result.status === 200) {
+          localStorage.setItem("token", result.data.token);
         } else {
           setSessionError("Session expired. You will be redirected to login.");
           setTimeout(() => {
@@ -105,49 +108,43 @@ function UsersPage() {
   }, []);
 
   async function fetchUsers() {
-    const token = localStorage.getItem("token");
-    const searchParam = filter ? `&search=${encodeURIComponent(filter)}` : '';
-    const response = await fetch(`/api/users?page=${page}&pageSize=${DEFAULT_PAGE_SIZE}${searchParam}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const data = await response.json();
-    if (response.ok) {
-      setUsers(data.users);
-      setTotal(data.total);
-    } else if (response.status === 403) {
-      setAuthError(data);
-    } else {
-      setFetchUserError("Failed to fetch users" + JSON.stringify(data));
+    try {
+      const searchParam = filter ? `&search=${encodeURIComponent(filter)}` : '';
+      const result = await apiCall(`/api/users?page=${page}&pageSize=${DEFAULT_PAGE_SIZE}${searchParam}`);
+
+      if (result.status === 200) {
+        setUsers(result.data.users);
+        setTotal(result.data.total);
+        setAuthError(null);
+        setAuthErrorDetails(null);
+        setFetchUserError("");
+      } else {
+        setAuthError(result.data);
+        setAuthErrorDetails(result.errorDetails);
+        setFetchUserError(result.error || "Failed to fetch users");
+      }
+    } catch (error: any) {
+      setFetchUserError("Network error occurred");
     }
   }
 
   async function handleCreateUser(formData) {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/users", {
+      const result = await apiCall("/api/users", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(formData),
       });
 
-      if (response) {
-        const data = await response.json();
-        if (response.status === 201) {
-          setError("");
-          const newUser = data;
-          setUsers((prevUsers) => [...prevUsers, newUser]);
-          handleClose();
-        } else {
-          setError(data.error);
-        }
+      if (result.status === 200 || result.status === 201) {
+        setError("");
+        const newUser = result.data;
+        setUsers((prevUsers) => [...prevUsers, newUser]);
+        handleClose();
+      } else {
+        setError(result.error || "Failed to create user");
       }
     } catch (err: any) {
-      setError(err.message);
+      setError("Network error occurred");
     } finally {
       await fetchUsers();
     }
@@ -164,48 +161,44 @@ function UsersPage() {
     setAssignRoleError("");
     setShowAssignRoleModal(true);
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/roles", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch roles");
-      const data = await response.json();
-      setRoles(data);
-      if (selectedUser && selectedUser.role && selectedUser.role.id) {
-        setSelectedRoleId(selectedUser.role.id.toString());
-      } else if (selectedUser && selectedUser.role_id) {
-        setSelectedRoleId(selectedUser.role_id.toString());
+      const result = await apiCall("/api/roles");
+      if (result.status === 200) {
+        setRoles(result.data);
+        if (selectedUser && selectedUser.role && selectedUser.role.id) {
+          setSelectedRoleId(selectedUser.role.id.toString());
+        } else if (selectedUser && selectedUser.role_id) {
+          setSelectedRoleId(selectedUser.role_id.toString());
+        } else {
+          setSelectedRoleId(result.data.length > 0 ? result.data[0].id.toString() : "");
+        }
       } else {
-        setSelectedRoleId(data.length > 0 ? data[0].id.toString() : "");
+        setAssignRoleError(result.error || "Failed to fetch roles");
       }
     } catch (error: any) {
-      setAssignRoleError(error.message || "Failed to fetch roles");
+      setAssignRoleError("Network error occurred");
     }
   };
 
   const handleAssignRole = async () => {
     setAssignRoleError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/roles", {
+      const result = await apiCall("/api/roles", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           action: "assignRole",
           userId: selectedUser.id,
           roleId: selectedRoleId,
         }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Failed to assign role");
-      setSelectedUser((prev) => ({ ...prev, role_name: roles.find((r) => r.id.toString() === selectedRoleId)?.name, role_id: selectedRoleId }));
-      setShowAssignRoleModal(false);
-      await fetchUsers();
+      if (result.status === 200) {
+        setSelectedUser((prev) => ({ ...prev, role_name: roles.find((r) => r.id.toString() === selectedRoleId)?.name, role_id: selectedRoleId }));
+        setShowAssignRoleModal(false);
+        await fetchUsers();
+      } else {
+        setAssignRoleError(result.error || "Failed to assign role");
+      }
     } catch (error: any) {
-      setAssignRoleError(error.message || "Failed to assign role");
+      setAssignRoleError("Network error occurred");
     }
   };
 
@@ -213,23 +206,18 @@ function UsersPage() {
     if (!selectedUser) return;
     setDeleteError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users?userId=${selectedUser.id}`, {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setDeleteError(data.error || "Failed to delete user");
-        return;
+      if (result.status === 200) {
+        await fetchUsers();
+        setSelectedUser(null);
+        setShowDeleteModal(false);
+      } else {
+        setDeleteError(result.error || "Failed to delete user");
       }
-      await fetchUsers();
-      setSelectedUser(null);
-      setShowDeleteModal(false);
     } catch (err) {
-      setDeleteError("Failed to delete user");
+      setDeleteError("Network error occurred");
       setShowDeleteModal(false);
     }
   };
@@ -238,25 +226,19 @@ function UsersPage() {
     if (!selectedUser) return;
     setReactivateError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users?userId=${selectedUser.id}`, {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ action: "reactivate" }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setReactivateError(data.error || "Failed to reactivate user");
-        return;
+      if (result.status === 200) {
+        await fetchUsers();
+        setSelectedUser(null);
+        setShowReactivateModal(false);
+      } else {
+        setReactivateError(result.error || "Failed to reactivate user");
       }
-      await fetchUsers();
-      setSelectedUser(null);
-      setShowReactivateModal(false);
     } catch (err) {
-      setReactivateError("Failed to reactivate user");
+      setReactivateError("Network error occurred");
       setShowReactivateModal(false);
     }
   };
@@ -278,13 +260,8 @@ function UsersPage() {
     if (!selectedUser) return;
     setUpdateError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users?userId=${selectedUser.id}`, {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           action: "update",
           firstName: updateForm.firstName,
@@ -292,15 +269,14 @@ function UsersPage() {
           username: updateForm.username,
         }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setUpdateError(data.error || "Failed to update user");
-        return;
+      if (result.status === 200) {
+        await fetchUsers();
+        setShowUpdateModal(false);
+      } else {
+        setUpdateError(result.error || "Failed to update user");
       }
-      await fetchUsers();
-      setShowUpdateModal(false);
     } catch (err) {
-      setUpdateError("Failed to update user");
+      setUpdateError("Network error occurred");
       setShowUpdateModal(false);
     }
   };
@@ -310,28 +286,22 @@ function UsersPage() {
     setLockLoading(true);
     setLockError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users?userId=${selectedUser.id}`, {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           action: selectedUser.is_locked ? "unlock" : "lock",
         }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setLockError(data.error || "Failed to lock/unlock user");
-        return;
+      if (result.status === 200) {
+        const updatedUser = result.data;
+        await fetchUsers();
+        setSelectedUser(updatedUser);
+        setShowLockModal(false);
+      } else {
+        setLockError(result.error || "Failed to lock/unlock user");
       }
-      const updatedUser = await response.json();
-      await fetchUsers();
-      setSelectedUser(updatedUser);
-      setShowLockModal(false);
     } catch (err) {
-      setLockError("Failed to lock/unlock user");
+      setLockError("Network error occurred");
       setShowLockModal(false);
     } finally {
       setLockLoading(false);
@@ -348,21 +318,15 @@ function UsersPage() {
     setLoadingStations(true);
     setStationError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users/${userId}/stations`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setUserStations(data.stations || []);
+      const result = await apiCall(`/api/users/${userId}/stations`);
+
+      if (result.status === 200) {
+        setUserStations(result.data.stations || []);
       } else {
-        setStationError("Failed to fetch user stations");
+        setStationError(result.error || "Failed to fetch user stations");
       }
     } catch (error) {
-      setStationError("Failed to fetch user stations");
+      setStationError("Network error occurred");
     } finally {
       setLoadingStations(false);
     }
@@ -370,18 +334,12 @@ function UsersPage() {
 
   const fetchAvailableStations = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/stations", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
+      const result = await apiCall("/api/stations");
+
+      if (result.status === 200) {
         // Filter out stations that user is already linked to
         const linkedStationIds = userStations.map(us => us.station.id);
-        const available = data.stations.filter(station => 
+        const available = result.data.stations.filter(station =>
           station.status === 'active' && !linkedStationIds.includes(station.id)
         );
         setAvailableStations(available);
@@ -393,130 +351,106 @@ function UsersPage() {
 
   const handleAddStation = async () => {
     if (!selectedUser || !selectedStationId) return;
-    
+
     // Check if user has a valid role for station assignment
     const userRole = selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : null;
     const allowedRoles = ['sales', 'supervisor', 'admin'];
-    
+
     if (!userRole || !allowedRoles.includes(userRole)) {
       setStationError(`Only users with ${allowedRoles.join(', ')} roles can be assigned stations. Current role: ${userRole || 'none'}`);
       return;
     }
-    
+
     setStationError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users/${selectedUser.id}/stations`, {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           station: selectedStationId,
         }),
       });
-      
-      if (response.ok) {
+
+      if (result.status === 200) {
         await fetchUserStations(selectedUser.id);
         setShowAddStationModal(false);
         setSelectedStationId("");
       } else {
-        const data = await response.json();
-        setStationError(data.message || "Failed to add station");
+        setStationError(result.error || "Failed to add station");
       }
     } catch (error) {
-      setStationError("Failed to add station");
+      setStationError("Network error occurred");
     }
   };
 
   const handleSetDefaultStation = async (stationId: number) => {
     if (!selectedUser) return;
-    
+
     setStationError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users/${selectedUser.id}/stations`, {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           stationId: stationId,
         }),
       });
-      
-      if (response.ok) {
+
+      if (result.status === 200) {
         await fetchUserStations(selectedUser.id);
       } else {
-        const data = await response.json();
-        setStationError(data.message || "Failed to set default station");
+        setStationError(result.error || "Failed to set default station");
       }
     } catch (error) {
-      setStationError("Failed to set default station");
+      setStationError("Network error occurred");
     }
   };
 
   const handleRemoveStation = async (userStationId: number) => {
     if (!selectedUser) return;
-    
+
     setStationError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users/${selectedUser.id}/stations`, {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           userStationId: userStationId,
         }),
       });
-      
-      if (response.ok) {
+
+      if (result.status === 200) {
         await fetchUserStations(selectedUser.id);
       } else {
-        const data = await response.json();
-        setStationError(data.message || "Failed to remove station");
+        setStationError(result.error || "Failed to remove station");
       }
     } catch (error) {
-      setStationError("Failed to remove station");
+      setStationError("Network error occurred");
     }
   };
 
   const handleToggleStationStatus = async (userStationId: number, currentStatus: string) => {
     if (!selectedUser) return;
-    
+
     setStationError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users/${selectedUser.id}/stations`, {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           userStationId: userStationId,
           action: currentStatus === 'active' ? 'deactivate' : 'activate',
         }),
       });
-      
-      if (response.ok) {
+
+      if (result.status === 200) {
         await fetchUserStations(selectedUser.id);
       } else {
-        const data = await response.json();
-        setStationError(data.message || "Failed to update station status");
+        setStationError(result.error || "Failed to update station status");
       }
     } catch (error) {
-      setStationError("Failed to update station status");
+      setStationError("Network error occurred");
     }
   };
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
@@ -594,11 +528,18 @@ function UsersPage() {
                 </div>
               </div>
               <div className="card-body p-0">
-                {fetchUserError && (
-                  <div className="alert alert-danger m-3" role="alert">
-                    {fetchUserError}
-                  </div>
-                )}
+                <ErrorDisplay
+                  error={fetchUserError}
+                  onDismiss={() => setFetchUserError("")}
+                />
+                <ErrorDisplay
+                  error={authError?.message}
+                  errorDetails={authErrorDetails}
+                  onDismiss={() => {
+                    setAuthError(null);
+                    setAuthErrorDetails(null);
+                  }}
+                />
                 <div className="table-responsive">
                   <table className="table table-hover mb-0">
                     <thead className="table-light">
@@ -920,7 +861,7 @@ function UsersPage() {
                                 <div>
                                   <div className="fw-semibold">{userStation.station.name}</div>
                                   <small className="text-muted">
-                                    Status: 
+                                    Status:
                                     <span className={`badge ms-1 ${userStation.status === 'active' ? 'bg-success' : 'bg-secondary'}`}>
                                       {userStation.status}
                                     </span>
@@ -1158,7 +1099,7 @@ function UsersPage() {
           </div>
         </div>
       )}
-      
+
       {/* Add Station Modal */}
       {showAddStationModal && (
         <div className="modal fade show d-block" tabIndex={-1} role="dialog" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
@@ -1200,7 +1141,7 @@ function UsersPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }
 

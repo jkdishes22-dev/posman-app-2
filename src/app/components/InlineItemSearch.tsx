@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { Form, Button, Spinner, Alert, Badge, Card } from "react-bootstrap";
+import { useApiCall } from "../utils/apiUtils";
+import ErrorDisplay from "./ErrorDisplay";
 
 interface ItemSearchResult {
   id: number;
@@ -28,12 +30,14 @@ export default function InlineItemSearch({
   onPricelistSelect,
   className = ""
 }: InlineItemSearchProps) {
+  const apiCall = useApiCall();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ItemSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<any>(null);
   const [showResults, setShowResults] = useState(false);
-  
+
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -69,32 +73,21 @@ export default function InlineItemSearch({
 
     setIsLoading(true);
     setError(null);
+    setErrorDetails(null);
 
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/items/search?q=${encodeURIComponent(searchQuery)}&limit=10`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    const result = await apiCall(`/api/items/search?q=${encodeURIComponent(searchQuery)}&limit=10`);
 
-      if (response.ok) {
-        const data = await response.json();
-        setResults(data.items || []);
-        setShowResults(true);
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || "Search failed");
-        setResults([]);
-        setShowResults(false);
-      }
-    } catch (err: any) {
-      setError("Network error occurred while searching");
+    if (result.status === 200) {
+      setResults(result.data.items || []);
+      setShowResults(true);
+    } else {
+      setError(result.error || "Search failed");
+      setErrorDetails(result.errorDetails);
       setResults([]);
       setShowResults(false);
-    } finally {
-      setIsLoading(false);
     }
+
+    setIsLoading(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,12 +146,14 @@ export default function InlineItemSearch({
         )}
       </div>
 
-      {error && (
-        <Alert variant="danger" className="mb-3">
-          <i className="bi bi-exclamation-triangle me-2"></i>
-          {error}
-        </Alert>
-      )}
+      <ErrorDisplay
+        error={error}
+        errorDetails={errorDetails}
+        onDismiss={() => {
+          setError(null);
+          setErrorDetails(null);
+        }}
+      />
 
       {/* Search Results */}
       {showResults && results.length > 0 && (
@@ -190,7 +185,7 @@ export default function InlineItemSearch({
                       Show Item
                     </Button>
                   </div>
-                  
+
                   {item.pricelists.length > 0 && (
                     <div>
                       <small className="text-success mb-2 d-block">

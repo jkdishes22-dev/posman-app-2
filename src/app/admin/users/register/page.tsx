@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import AdminLayout from "../../../shared/AdminLayout";
+import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import { AuthError } from "src/app/types/types";
 
 const UsersPage: React.FC = () => {
@@ -9,12 +9,12 @@ const UsersPage: React.FC = () => {
   const [authError, setAuthError] = useState<AuthError>(null);
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div>
         <h1>Users Register</h1>
         {/* Users page content */}
       </div>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }
 

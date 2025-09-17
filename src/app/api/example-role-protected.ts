@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { requirePermission, requireRole, AuthenticatedRequest } from '../../backend/middleware/acl';
+import { requirePermission, requireRole, requireAllPermissions, AuthenticatedRequest } from '../../backend/middleware/acl';
 import { withACL } from '../../backend/middleware/acl';
 
 // Example API endpoint with role-based access control
@@ -26,7 +26,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 async function handleGet(req: AuthenticatedRequest, res: NextApiResponse) {
   const protectedHandler = requirePermission('can_view_item')(async (req, res) => {
     // Your business logic here
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'Items retrieved successfully',
       data: [] // Your data here
     });
@@ -39,7 +39,7 @@ async function handleGet(req: AuthenticatedRequest, res: NextApiResponse) {
 async function handlePost(req: AuthenticatedRequest, res: NextApiResponse) {
   const protectedHandler = requirePermission('can_add_item')(async (req, res) => {
     // Your business logic here
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'Item created successfully',
       data: {} // Your created item here
     });
@@ -52,7 +52,7 @@ async function handlePost(req: AuthenticatedRequest, res: NextApiResponse) {
 async function handlePut(req: AuthenticatedRequest, res: NextApiResponse) {
   const protectedHandler = requirePermission('can_edit_item')(async (req, res) => {
     // Your business logic here
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'Item updated successfully',
       data: {} // Your updated item here
     });
@@ -65,7 +65,7 @@ async function handlePut(req: AuthenticatedRequest, res: NextApiResponse) {
 async function handleDelete(req: AuthenticatedRequest, res: NextApiResponse) {
   const protectedHandler = requirePermission('can_delete_item')(async (req, res) => {
     // Your business logic here
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'Item deleted successfully'
     });
   });
@@ -77,7 +77,7 @@ async function handleDelete(req: AuthenticatedRequest, res: NextApiResponse) {
 export async function supervisorOnlyEndpoint(req: NextApiRequest, res: NextApiResponse) {
   const protectedHandler = requireRole(['supervisor', 'admin'])(async (req: AuthenticatedRequest, res: NextApiResponse) => {
     // Only supervisors and admins can access this
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'Supervisor data retrieved successfully',
       data: {} // Your supervisor-specific data here
     });
@@ -90,7 +90,7 @@ export async function supervisorOnlyEndpoint(req: NextApiRequest, res: NextApiRe
 export async function complexPermissionEndpoint(req: NextApiRequest, res: NextApiResponse) {
   const protectedHandler = requireAllPermissions(['can_view_bill', 'can_edit_bill'])(async (req: AuthenticatedRequest, res: NextApiResponse) => {
     // User must have both permissions
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'Complex operation completed successfully',
       data: {} // Your data here
     });

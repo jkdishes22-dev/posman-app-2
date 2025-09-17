@@ -1,7 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useApiCall } from "src/app/utils/apiUtils";
 
 export default function NewUser({ onClose, onSave, error }) {
+  const apiCall = useApiCall();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
@@ -15,18 +17,12 @@ export default function NewUser({ onClose, onSave, error }) {
   }, []);
 
   const fetchRoles = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/roles", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch roles");
-      const data = await response.json();
-      setRoles(data);
-    } catch (error: any) {
-      console.error("Error fetching roles:", error);
+    const result = await apiCall("/api/roles");
+
+    if (result.status === 200) {
+      setRoles(result.data);
+    } else {
+      console.error("Error fetching roles:", result.error);
     }
   };
 

@@ -2,15 +2,15 @@
 
 import { withSecureRoute } from "src/app/components/withSecureRoute";
 import PricelistCatalog from "src/app/components/PricelistCatalog";
-import HomePageLayout from "src/app/shared/HomePageLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 
 const PricelistCatalogPage = () => {
     return (
-        <HomePageLayout>
+        <RoleAwareLayout>
             <div>
                 <PricelistCatalog />
             </div>
-        </HomePageLayout>
+        </RoleAwareLayout>
     );
 };
 

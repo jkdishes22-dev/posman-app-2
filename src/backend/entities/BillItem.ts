@@ -17,6 +17,12 @@ export enum BillItemStatus {
   VOIDED = "voided",
 }
 
+export enum ItemStatus {
+  ACTIVE = "active",
+  VOID_PENDING = "void_pending",
+  VOIDED = "voided",
+}
+
 @Entity("bill_item")
 @Index(["bill_id", "created_at"])
 @Index(["item_id", "status"])
@@ -51,9 +57,54 @@ export class BillItem {
   })
   status: BillItemStatus;
 
+  // Voiding tracking columns (Rule 4.1)
+  @Column({
+    type: "enum",
+    enum: ItemStatus,
+    default: ItemStatus.ACTIVE,
+  })
+  item_status: ItemStatus;
+
+  @Column({ type: "text", nullable: true })
+  void_reason: string;
+
+  @Column({ nullable: true })
+  void_requested_by: number;
+
+  @Column({ type: "datetime", nullable: true })
+  void_requested_at: Date;
+
+  @Column({ nullable: true })
+  void_approved_by: number;
+
+  @Column({ type: "datetime", nullable: true })
+  void_approved_at: Date;
+
   @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;
 
   @Column({ type: "datetime", nullable: true })
   updated_at: Date;
+
+  // Business rule validation methods (Rule 4.3)
+  canVoid(bill: Bill): boolean {
+    return (bill.status === 'submitted' || bill.status === 'reopened')
+      && this.item_status === ItemStatus.ACTIVE;
+  }
+
+  canApproveVoid(bill: Bill): boolean {
+    return bill.status === 'submitted'
+      && this.item_status === ItemStatus.VOID_PENDING;
+  }
+
+  // State transition validation (Rule 4.7)
+  canTransitionTo(newStatus: ItemStatus): boolean {
+    const transitions = {
+      [ItemStatus.ACTIVE]: [ItemStatus.VOID_PENDING],
+      [ItemStatus.VOID_PENDING]: [ItemStatus.VOIDED, ItemStatus.ACTIVE], // approved or rejected
+      [ItemStatus.VOIDED]: [] // terminal state
+    };
+
+    return transitions[this.item_status]?.includes(newStatus) || false;
+  }
 }
