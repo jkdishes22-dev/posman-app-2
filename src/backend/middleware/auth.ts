@@ -73,7 +73,7 @@ export const authorize = (requiredPermissions: any[]) => {
       if (missingPermissions.length > 0) {
         // Check if user has admin role
         const userRoles = req.user.roles.map((role) => role.name);
-        const isAdmin = userRoles.includes('admin');
+        const isAdmin = userRoles.includes("admin");
 
         return res.status(403).json({
           message: "Forbidden (Missing permissions)",

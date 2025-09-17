@@ -17,6 +17,7 @@ import ErrorDisplay from "../components/ErrorDisplay";
 import StationSelector from "../components/StationSelector";
 import StationStatus from "../components/StationStatus";
 import { getValidToken, isTokenExpiringSoon } from "../utils/tokenUtils";
+import { useApiCall } from "../utils/apiUtils";
 
 const BillingSection = () => {
   // Auth context
@@ -24,6 +25,9 @@ const BillingSection = () => {
 
   // Station context
   const { currentStation, isLoading: stationLoading, error: stationError, loadStationsIfNeeded } = useStation();
+
+  // API call hook
+  const apiCall = useApiCall();
 
   // Existing state
   const [categories, setCategories] = useState([]);
@@ -100,20 +104,15 @@ const BillingSection = () => {
     const fetchCategories = async () => {
       try {
         setCategoriesFetched(true);
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/categories", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          setFetchCategoryError("Failed to fetch categories: " + data);
-          throw new Error("Failed to fetch categories");
+        const result = await apiCall("/api/menu/categories");
+        if (result.status === 200) {
+          setCategories(result.data);
+        } else {
+          setFetchCategoryError(result.error || "Failed to fetch categories");
+          setCategoriesFetched(false); // Reset on error to allow retry
         }
-        setCategories(data);
       } catch (error: any) {
-        setFetchCategoryError("Failed to fetch categories: " + error);
+        setFetchCategoryError("Network error occurred");
         setCategoriesFetched(false); // Reset on error to allow retry
       }
     };
@@ -141,27 +140,17 @@ const BillingSection = () => {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `/api/menu/items/station?stationId=${currentStation.id}&categoryId=${categoryId}&userId=${userId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+      const result = await apiCall(
+        `/api/menu/items/station?stationId=${currentStation.id}&categoryId=${categoryId}&userId=${userId}`
       );
 
-      const data = await response.json();
-      if (!response.ok) {
-        if (response.status === 403 && data.missingPermissions) {
-          throw new Error(`Access denied: Missing ${data.missingPermissions.join(", ")} permission(s)`);
-        }
-        throw new Error(data.message || "Failed to fetch items for this station");
+      if (result.status === 200) {
+        setItems(result.data.items || []);
+      } else {
+        setItemError(result.error || "Failed to fetch items for this station");
       }
-      setItems(data.items || []);
     } catch (error: any) {
-      const errorMessage = error.message || "Failed to fetch items for the selected category and station";
-      setItemError(errorMessage);
+      setItemError("Network error occurred");
     }
   };
 
@@ -237,17 +226,12 @@ const BillingSection = () => {
           setUserId(currentUserId);
         } else {
           try {
-            const response = await fetch("/api/users/me", {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            });
-            if (response.ok) {
-              const userData = await response.json();
-              if (userData.id) {
-                currentUserId = userData.id.toString();
+            const result = await apiCall("/api/users/me");
+            if (result.status === 200) {
+              if (result.data.id) {
+                currentUserId = result.data.id.toString();
                 setUserId(currentUserId);
-                setWaitress(userData.firstname || userData.firstName || "");
+                setWaitress(result.data.firstname || result.data.firstName || "");
               } else {
                 throw new Error("No user ID in API response");
               }
@@ -273,37 +257,30 @@ const BillingSection = () => {
         total,
       };
       try {
-        const response = await fetch("/api/bills", {
+        const result = await apiCall("/api/bills", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
           body: JSON.stringify(payload),
         });
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error("Bill submission error:", errorData);
-          throw new Error(errorData.error || errorData.message || "Failed to submit picked items");
+        if (result.status === 200 || result.status === 201) {
+          setShowSubmitModal(false);
+          setBillError(""); // Clear any previous errors
+          setItems([]); // Clear available items instantly
+          setCreatedBill({
+            ...result.data.bill,
+            bill_items: selectedItems.map(item => ({
+              ...item,
+              item: { name: item.name, price: item.price },
+            })),
+            user: { firstName: waitress },
+            currency: "KES",
+          });
+        } else {
+          console.error("Bill submission error:", result.error);
+          setBillError(result.error || "Failed to submit picked items");
         }
-        const data = await response.json();
-        setShowSubmitModal(false);
-        setBillError(""); // Clear any previous errors
-        setItems([]); // Clear available items instantly
-        setCreatedBill({
-          ...data.bill,
-          bill_items: selectedItems.map(item => ({
-            ...item,
-            item: { name: item.name, price: item.price },
-          })),
-          user: { firstName: waitress },
-          currency: "KES",
-        });
       } catch (error: any) {
         console.error("Error submitting items:", error);
-        // Show the actual error message from the API
-        const errorMessage = error.message || "Failed to submit picked items";
-        setBillError(errorMessage);
+        setBillError("Network error occurred");
       }
     } catch (error: any) {
       console.error("Error in bill submission:", error);

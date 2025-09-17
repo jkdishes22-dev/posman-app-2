@@ -9,6 +9,7 @@ import {
   ModalTitle,
 } from "react-bootstrap";
 import ErrorDisplay from "../../../../../components/ErrorDisplay";
+import { useApiCall } from "../../../../../utils/apiUtils";
 
 interface NewItemModalProps {
   selectedCategory: Category | null;
@@ -31,6 +32,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   setItemError,
   selectedPricelistId,
 }) => {
+  const apiCall = useApiCall();
   const [itemName, setItemName] = useState("");
   const [itemCode, setItemCode] = useState("");
   const [itemPrice, setItemPrice] = useState<number | "">("");
@@ -39,9 +41,9 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   const [pricelists, setPricelists] = useState([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
-  const [addItemError, setAddItemError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<any>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
-  const [priceListError, setFetchPricelistError] = useState(null);
 
   // Determine context for conditional rendering
   const isFromPricelistPage = !selectedCategory && selectedPricelistId;
@@ -49,32 +51,16 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
 
   useEffect(() => {
     async function fetchPricelists() {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/pricelists", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        if (response.ok) {
-          // Ensure data is an array
-          setPricelists(Array.isArray(data) ? data : []);
-        } else if (response.status === 401) {
-          // Invalid token, logout and redirect to login
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          window.location.href = "/";
-        } else if (response.status === 403) {
-          setAuthError(data);
-        } else {
-          setFetchPricelistError(data);
-        }
-      } catch (error: any) {
-        setAddItemError("Failed to fetch pricelists: " + error.message);
-        setPricelists([]); // Ensure pricelists is always an array
+      const result = await apiCall("/api/menu/pricelists");
+
+      if (result.status === 200) {
+        // Ensure data is an array
+        setPricelists(Array.isArray(result.data) ? result.data : []);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to fetch pricelists");
+        setErrorDetails(result.errorDetails);
       }
     }
     fetchPricelists();
@@ -83,31 +69,15 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   // Fetch categories
   useEffect(() => {
     async function fetchCategories() {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/categories", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const result = await apiCall("/api/menu/categories");
 
-        if (response.ok) {
-          const data = await response.json();
-          setCategories(Array.isArray(data) ? data : []);
-        } else if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          window.location.href = "/";
-        } else if (response.status === 403) {
-          setAuthError(data);
-        } else {
-          console.error("Failed to fetch categories");
-        }
-      } catch (error: any) {
-        console.error("Failed to fetch categories", error);
-        setCategories([]);
+      if (result.status === 200) {
+        setCategories(Array.isArray(result.data) ? result.data : []);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to fetch categories");
+        setErrorDetails(result.errorDetails);
       }
     }
 
@@ -127,17 +97,17 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
     if (isFromPricelistPage) {
       // Validation for pricelist page (category required, pricelist auto-selected)
       if (!itemName || !itemCode || !itemPrice || !selectedCategoryId) {
-        setAddItemError("Please fill in Item Name, Item Code, Item Price, and Category");
+        setError("Please fill in Item Name, Item Code, Item Price, and Category");
         return;
       }
     } else if (isFromCategoryPage) {
       // Validation for category page (both category and pricelist required)
       if (!itemName || !itemCode || !itemPrice || !pricelistId || !selectedCategory) {
-        setAddItemError("Please fill in all fields");
+        setError("Please fill in all fields");
         return;
       }
     } else {
-      setAddItemError("Invalid context: missing required parameters");
+      setError("Invalid context: missing required parameters");
       return;
     }
 
@@ -161,40 +131,31 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         setPricelistId("");
         setSelectedCategoryId("");
         setIsGroup(false);
-        setAddItemError(null);
+        setError(null);
       } catch (error: any) {
-        setAddItemError("Failed to create item: " + error.message);
+        setError("Failed to create item: " + error.message);
       }
     } else {
       // Default API call for category page
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/items", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(itemData),
-        });
+      const result = await apiCall("/api/menu/items", {
+        method: "POST",
+        body: JSON.stringify(itemData),
+      });
 
-        if (response.status === 201) {
-          if (selectedCategory?.id && fetchItems) fetchItems(selectedCategory.id);
-          handleModalClose();
-          setItemName("");
-          setItemCode("");
-          setItemPrice("");
-          setPricelistId("");
-          setSelectedCategoryId("");
-          setIsGroup(false);
-          setAddItemError(null);
-        } else {
-          setAddItemError("Failed to create item");
-        }
-      } catch (error: any) {
-        if (error) {
-          setAddItemError("Failed to create item: " + error.message);
-        }
+      if (result.status === 200 || result.status === 201) {
+        if (selectedCategory?.id && fetchItems) fetchItems(selectedCategory.id);
+        handleModalClose();
+        setItemName("");
+        setItemCode("");
+        setItemPrice("");
+        setPricelistId("");
+        setSelectedCategoryId("");
+        setIsGroup(false);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to create item");
+        setErrorDetails(result.errorDetails);
       }
     }
   };
@@ -218,10 +179,12 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
       </ModalHeader>
       <ModalBody>
         <ErrorDisplay
-          error={itemError || addItemError}
+          error={itemError || error}
+          errorDetails={errorDetails}
           onDismiss={() => {
             if (setItemError) setItemError("");
-            setAddItemError(null);
+            setError(null);
+            setErrorDetails(null);
           }}
         />
         <form onSubmit={handleItemSubmit} className="row g-3">

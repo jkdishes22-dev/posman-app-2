@@ -9,6 +9,8 @@ import {
 } from "react-bootstrap";
 import AsyncSelect from "react-select/async";
 import { Item } from "src/app/types/types";
+import { useApiCall } from "../../../../../../utils/apiUtils";
+import ErrorDisplay from "../../../../../../components/ErrorDisplay";
 
 interface AddGroupItemModalProps {
   isModalOpen: boolean;
@@ -28,10 +30,13 @@ const AddGroupItemModal = ({
   selectedGroupName,
   addItemToGroup,
 }: AddGroupItemModalProps) => {
+  const apiCall = useApiCall();
   const [selectedItem, setSelectedItem] = useState<ItemOption | null>(null);
   const [portionSize, setPortionSize] = useState<number | null>(null);
   const [initialItems, setInitialItems] = useState<ItemOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<any>(null);
 
   // Load initial items when modal opens
   useEffect(() => {
@@ -46,30 +51,21 @@ const AddGroupItemModal = ({
 
   const loadInitialItems = async () => {
     setIsLoading(true);
-    try {
-      const token = localStorage.getItem("token");
-      // Use a generic search term to get initial items
-      const response = await fetch(
-        `/api/menu/items?search=a&excludeGrouped=true`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      if (!response.ok) throw new Error("Failed to fetch items");
-      const data = await response.json();
-      const items = data.slice(0, 20).map((item: Item) => ({
+    const result = await apiCall(`/api/menu/items?search=a&excludeGrouped=true`);
+
+    if (result.status === 200) {
+      const items = result.data.slice(0, 20).map((item: Item) => ({
         label: item.name,
         value: item.id,
       }));
       setInitialItems(items);
-    } catch (error: any) {
-      console.error("Error fetching initial items:", error);
+    } else {
+      setError(result.error || "Failed to fetch items");
+      setErrorDetails(result.errorDetails);
       setInitialItems([]);
-    } finally {
-      setIsLoading(false);
     }
+
+    setIsLoading(false);
   };
 
   const fetchModalItems = async (inputValue: string) => {
@@ -85,25 +81,18 @@ const AddGroupItemModal = ({
       );
     }
 
-    try {
-      const token = localStorage.getItem("token");
-      const excludeGrouped = true;
-      const response = await fetch(
-        `/api/menu/items?search=${encodeURIComponent(inputValue)}&excludeGrouped=${excludeGrouped}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      if (!response.ok) throw new Error("Failed to fetch items");
-      const data = await response.json();
-      return data.map((item: Item) => ({
+    const result = await apiCall(
+      `/api/menu/items?search=${encodeURIComponent(inputValue)}&excludeGrouped=true`
+    );
+
+    if (result.status === 200) {
+      return result.data.map((item: Item) => ({
         label: item.name,
         value: item.id,
       }));
-    } catch (error: any) {
-      console.error("Error fetching items:", error);
+    } else {
+      setError(result.error || "Failed to fetch items");
+      setErrorDetails(result.errorDetails);
       return [];
     }
   };
@@ -123,6 +112,14 @@ const AddGroupItemModal = ({
         <ModalTitle>Add New Item to {selectedGroupName}</ModalTitle>
       </ModalHeader>
       <ModalBody>
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
+          }}
+        />
         <div className="form-group">
           <label htmlFor="item-select">Select Item</label>
           <AsyncSelect

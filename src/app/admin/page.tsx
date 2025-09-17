@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { Card, Row, Col, Button } from "react-bootstrap";
 import { useRouter } from "next/navigation";
 
-import AdminLayout from "../shared/AdminLayout";
+import RoleAwareLayout from "../shared/RoleAwareLayout";
 import SecureRoute from "../components/SecureRoute";
 
 export default function AdminPage() {
@@ -64,7 +63,7 @@ export default function AdminPage() {
 
   return (
     <SecureRoute roleRequired="admin">
-      <AdminLayout authError={null}>
+      <RoleAwareLayout>
         <div className="container-fluid">
           {/* Header */}
           <div className="bg-primary text-white p-4 mb-4 rounded">
@@ -115,7 +114,7 @@ export default function AdminPage() {
           </Row>
 
         </div>
-      </AdminLayout>
+      </RoleAwareLayout>
     </SecureRoute>
   );
 }

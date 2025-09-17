@@ -13,12 +13,15 @@ interface ErrorDisplayProps {
         isAdmin?: boolean;
         userRoles?: string[];
         requiredPermissions?: string[];
+        status?: number;
+        networkError?: boolean;
+        isLoginError?: boolean;
     };
 }
 
 const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
     error,
-    variant = 'danger',
+    variant,
     dismissible = true,
     onDismiss,
     className = '',
@@ -28,23 +31,103 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
 
     if (!error) return null;
 
-    const isPermissionError = error.includes('Missing permissions') || error.includes('Forbidden');
+    // Intelligent error type detection based on status and error details
+    const getErrorType = () => {
+        if (errorDetails?.isLoginError) return 'loginError';
+        if (errorDetails?.networkError) return 'network';
+        if (errorDetails?.status === 401) return 'unauthorized';
+        if (errorDetails?.status === 403) return 'forbidden';
+        if (errorDetails?.status === 404) return 'notFound';
+        if (errorDetails?.status === 500) return 'serverError';
+        if (errorDetails?.status && errorDetails.status >= 400) return 'clientError';
+        return 'generic';
+    };
+
+    const getErrorTitle = () => {
+        const errorType = getErrorType();
+        switch (errorType) {
+            case 'loginError': return 'Login Failed';
+            case 'network': return 'Connection Error';
+            case 'unauthorized': return 'Authentication Required';
+            case 'forbidden': return 'Access Denied';
+            case 'notFound': return 'Not Found';
+            case 'serverError': return 'Server Error';
+            case 'clientError': return 'Request Error';
+            default: return 'Error';
+        }
+    };
+
+    const getErrorVariant = () => {
+        if (variant) return variant; // Use explicit variant if provided
+        const errorType = getErrorType();
+        switch (errorType) {
+            case 'loginError': return 'danger';
+            case 'network': return 'warning';
+            case 'unauthorized': return 'info';
+            case 'forbidden': return 'danger';
+            case 'notFound': return 'warning';
+            case 'serverError': return 'danger';
+            case 'clientError': return 'warning';
+            default: return 'danger';
+        }
+    };
+
+    const isPermissionError = error.includes('Missing permissions') || error.includes('Forbidden') || errorDetails?.status === 403;
     const hasAdminDetails = errorDetails?.isAdmin && errorDetails?.missingPermissions;
+    const finalVariant = getErrorVariant();
+    const errorTitle = getErrorTitle();
 
     return (
         <Alert
-            variant={variant}
+            variant={finalVariant}
             dismissible={dismissible}
             onClose={onDismiss}
             className={`mb-3 ${className}`}
         >
             <Alert.Heading>
-                {variant === 'danger' && 'Error'}
-                {variant === 'warning' && 'Warning'}
-                {variant === 'info' && 'Information'}
+                {errorTitle}
             </Alert.Heading>
             <p className="mb-0">{error}</p>
 
+
+            {/* Network Error Template */}
+            {errorDetails?.networkError && (
+                <div className="mt-3">
+                    <div className="alert alert-info mb-0">
+                        <small>
+                            <strong>💡 Connection Tip:</strong> Please check your internet connection and try again.
+                            If the problem persists, contact your system administrator.
+                        </small>
+                    </div>
+                </div>
+            )}
+
+
+            {/* 404 Not Found Template */}
+            {errorDetails?.status === 404 && !errorDetails?.networkError && (
+                <div className="mt-3">
+                    <div className="alert alert-warning mb-0">
+                        <small>
+                            <strong>🔍 Not Found:</strong> The requested resource could not be found.
+                            Please check the URL or contact support if this persists.
+                        </small>
+                    </div>
+                </div>
+            )}
+
+            {/* 500 Server Error Template */}
+            {errorDetails?.status === 500 && !errorDetails?.networkError && (
+                <div className="mt-3">
+                    <div className="alert alert-danger mb-0">
+                        <small>
+                            <strong>⚠️ Server Error:</strong> An internal server error occurred.
+                            Please try again later or contact support if the problem persists.
+                        </small>
+                    </div>
+                </div>
+            )}
+
+            {/* Permission Error Template */}
             {isPermissionError && hasAdminDetails && (
                 <div className="mt-3">
                     <button

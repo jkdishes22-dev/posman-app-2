@@ -35,9 +35,9 @@ const LoadingPage = () => {
                                     className="progress-bar bg-primary"
                                     role="progressbar"
                                     style={{ width: '100%' }}
-                                    aria-valuenow="100"
-                                    aria-valuemin="0"
-                                    aria-valuemax="100"
+                                    aria-valuenow={100}
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
                                 >
                                 </div>
                             </div>

@@ -1,13 +1,17 @@
 import React, { useState } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
+import { useApiCall } from "../../utils/apiUtils";
+import ErrorDisplay from "../../components/ErrorDisplay";
 
 const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
+  const apiCall = useApiCall();
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashAmount, setCashAmount] = useState("");
   const [mpesaAmount, setMpesaAmount] = useState("");
   const [mpesaCode, setMpesaCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [errorDetails, setErrorDetails] = useState<any>(null);
 
   const totalAmount = selectedBill?.total || 0;
 
@@ -83,6 +87,18 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
   };
 
   const handleSubmit = async () => {
+    // Validation: Ensure bill is fully paid
+    if (totalPaid !== totalAmount) {
+      setErrorMessage(`Bill must be fully paid. Total: ${totalAmount}, Paid: ${totalPaid}, Pending: ${pendingAmount}`);
+      return;
+    }
+
+    // Additional validation: Ensure no pending amount
+    if (pendingAmount > 0) {
+      setErrorMessage(`Cannot submit bill with pending amount: ${pendingAmount}. Please ensure full payment.`);
+      return;
+    }
+
     if (
       (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa") &&
       !mpesaCode &&
@@ -110,33 +126,27 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
         paymentMethod === "mpesa" || paymentMethod === "cash_mpesa"
           ? mpesaCode
           : null,
-      pendingAmount: pendingAmount > 0 ? pendingAmount : 0,
+      pendingAmount: 0, // Force to 0 since we validate full payment above
       billId: selectedBill?.id,
     };
 
     try {
       setIsSubmitting(true);
       setErrorMessage("");
+      setErrorDetails(null);
 
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/bills/submit", {
+      const result = await apiCall("/api/bills/submit", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(paymentDetails),
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to submit bill: ${response.statusText}`);
+      if (result.status === 200) {
+        onBillSubmitted(result.data.bill);
+        handleClose();
+      } else {
+        setErrorMessage(result.error || "Failed to submit bill");
+        setErrorDetails(result.errorDetails);
       }
-
-      const responseData = await response.json();
-
-      onBillSubmitted(responseData.bill);
-
-      handleClose();
     } catch (error: any) {
       setErrorMessage(
         error instanceof Error
@@ -158,7 +168,14 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
       <Modal.Body>
         {selectedBill ? (
           <Form>
-            {errorMessage && <p className="text-danger">{errorMessage}</p>}
+            <ErrorDisplay
+              error={errorMessage}
+              errorDetails={errorDetails}
+              onDismiss={() => {
+                setErrorMessage("");
+                setErrorDetails(null);
+              }}
+            />
             <Form.Group>
               <Form.Label>Select Payment Method</Form.Label>
               <div>

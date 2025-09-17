@@ -26,7 +26,8 @@ export type Station = {
 export type Pricelist = {
   id: number;
   name: string;
-  status: string;
+  description?: string;
+  status?: string;
 };
 
 export type User = {
@@ -44,6 +45,12 @@ export type Bill = {
   bill_payments: Record<string, any>;
   user: User;
   created_at: Date;
+  reopen_reason?: string;
+  reopened_by?: number;
+  reopened_at?: string;
+  bill_items?: any[];
+  station?: Station;
+  notes?: string;
 };
 
 export type BillPayment = {

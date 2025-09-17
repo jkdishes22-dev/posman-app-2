@@ -43,9 +43,10 @@ export const getUsersHandler = async (
   const userService = new UserService(req.db);
   try {
     const role = Array.isArray(req.query.role) ? req.query.role[0] : req.query.role;
+    const search = Array.isArray(req.query.search) ? req.query.search[0] : req.query.search;
     const page = req.query.page ? Number(req.query.page) : 1;
     const pageSize = req.query.pageSize ? Number(req.query.pageSize) : 10;
-    const { users, total } = await userService.getUsers(role, page, pageSize);
+    const { users, total } = await userService.getUsers(role, page, pageSize, search);
     res.status(200).json({ users, total });
   } catch (error: any) {
     res.status(500).json({ error: "Error fetching users" + error });
@@ -164,11 +165,12 @@ export const disableUserStation = async (
   const userService = new UserService(req.db);
 
   try {
-    const { userStationId } = req.body;
+    const { userStationId, action } = req.body;
     const currentUser = req.user?.id;
 
     const userStationRequest = {
       userStation: userStationId,
+      action: action,
     };
 
     const updatedUserStation = await userService.disableUserStation(
@@ -177,7 +179,7 @@ export const disableUserStation = async (
     );
     res.status(200).json(updatedUserStation);
   } catch (error: any) {
-    res.status(500).json({ error: "Error disabling user station" + error });
+    res.status(500).json({ error: "Error updating user station status" + error });
   }
 };
 

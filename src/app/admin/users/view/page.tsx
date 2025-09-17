@@ -1,22 +1,26 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import AdminLayout from "../../../shared/AdminLayout";
+import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import NewUser from "../register/new-user";
 import { AuthError, User } from "../../../types/types";
 import Pagination from "../../../components/Pagination";
 import { withSecureRoute } from "../../../components/withSecureRoute";
+import { useApiCall } from "../../../utils/apiUtils";
+import ErrorDisplay from "../../../components/ErrorDisplay";
 
 const DEFAULT_PAGE_SIZE = parseInt(process.env.NEXT_PUBLIC_PAGE_SIZE || "10", 10);
 const DEFAULT_REFRESH_INTERVAL_SECONDS = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS || "300", 10);
 
 function UsersPage() {
+  const apiCall = useApiCall();
   const [showModal, setShowModal] = useState(false);
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [filter, setFilter] = useState("");
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState<AuthError>(null);
+  const [authErrorDetails, setAuthErrorDetails] = useState<any>(null);
   const [fetchUserError, setFetchUserError] = useState<string>("");
   const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
   const [roles, setRoles] = useState([]);
@@ -37,6 +41,14 @@ function UsersPage() {
   const [updateError, setUpdateError] = useState("");
   const [lockError, setLockError] = useState("");
 
+  // Station management state
+  const [userStations, setUserStations] = useState([]);
+  const [availableStations, setAvailableStations] = useState([]);
+  const [showAddStationModal, setShowAddStationModal] = useState(false);
+  const [selectedStationId, setSelectedStationId] = useState("");
+  const [stationError, setStationError] = useState("");
+  const [loadingStations, setLoadingStations] = useState(false);
+
   const handleClose = () => {
     setShowModal(false);
   };
@@ -45,18 +57,38 @@ function UsersPage() {
     setShowModal(true);
   };
 
+  // Trigger search when filter changes, with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (page !== 1) {
+        setPage(1); // Reset to page 1 when searching
+      } else {
+        fetchUsers();
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [filter]);
+
+  // Fetch users when page changes
   useEffect(() => {
     fetchUsers();
   }, [page]);
+
+  // Fetch user stations when a user is selected
+  useEffect(() => {
+    if (selectedUser) {
+      fetchUserStations(selectedUser.id);
+    }
+  }, [selectedUser]);
 
   useEffect(() => {
     const intervalSeconds = DEFAULT_REFRESH_INTERVAL_SECONDS;
     const interval = setInterval(async () => {
       try {
-        const response = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
-        if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem("token", data.token);
+        const result = await apiCall("/api/auth/refresh", { method: "POST" });
+        if (result.status === 200) {
+          localStorage.setItem("token", result.data.token);
         } else {
           setSessionError("Session expired. You will be redirected to login.");
           setTimeout(() => {
@@ -76,59 +108,50 @@ function UsersPage() {
   }, []);
 
   async function fetchUsers() {
-    const token = localStorage.getItem("token");
-    const response = await fetch(`/api/users?page=${page}&pageSize=${DEFAULT_PAGE_SIZE}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const data = await response.json();
-    if (response.ok) {
-      setUsers(data.users);
-      setTotal(data.total);
-    } else if (response.status === 403) {
-      setAuthError(data);
-    } else {
-      setFetchUserError("Failed to fetch users" + JSON.stringify(data));
+    try {
+      const searchParam = filter ? `&search=${encodeURIComponent(filter)}` : '';
+      const result = await apiCall(`/api/users?page=${page}&pageSize=${DEFAULT_PAGE_SIZE}${searchParam}`);
+
+      if (result.status === 200) {
+        setUsers(result.data.users);
+        setTotal(result.data.total);
+        setAuthError(null);
+        setAuthErrorDetails(null);
+        setFetchUserError("");
+      } else {
+        setAuthError(result.data);
+        setAuthErrorDetails(result.errorDetails);
+        setFetchUserError(result.error || "Failed to fetch users");
+      }
+    } catch (error: any) {
+      setFetchUserError("Network error occurred");
     }
   }
 
   async function handleCreateUser(formData) {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/users", {
+      const result = await apiCall("/api/users", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(formData),
       });
 
-      if (response) {
-        const data = await response.json();
-        if (response.status === 201) {
-          setError("");
-          const newUser = data;
-          setUsers((prevUsers) => [...prevUsers, newUser]);
-          handleClose();
-        } else {
-          setError(data.error);
-        }
+      if (result.status === 200 || result.status === 201) {
+        setError("");
+        const newUser = result.data;
+        setUsers((prevUsers) => [...prevUsers, newUser]);
+        handleClose();
+      } else {
+        setError(result.error || "Failed to create user");
       }
     } catch (err: any) {
-      setError(err.message);
+      setError("Network error occurred");
     } finally {
       await fetchUsers();
     }
   }
 
-  const filteredUsers = users.filter(
-    (user: User) =>
-      user.firstName.toLowerCase().includes(filter.toLowerCase()) ||
-      user.lastName.toLowerCase().includes(filter.toLowerCase()) ||
-      user.username.toLowerCase().includes(filter.toLowerCase()),
-  );
+  // Use users directly since filtering is now done on the backend
+  const filteredUsers = users;
 
   const handleUserSelect = (user) => {
     setSelectedUser(user);
@@ -138,48 +161,44 @@ function UsersPage() {
     setAssignRoleError("");
     setShowAssignRoleModal(true);
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/roles", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch roles");
-      const data = await response.json();
-      setRoles(data);
-      if (selectedUser && selectedUser.role && selectedUser.role.id) {
-        setSelectedRoleId(selectedUser.role.id.toString());
-      } else if (selectedUser && selectedUser.role_id) {
-        setSelectedRoleId(selectedUser.role_id.toString());
+      const result = await apiCall("/api/roles");
+      if (result.status === 200) {
+        setRoles(result.data);
+        if (selectedUser && selectedUser.role && selectedUser.role.id) {
+          setSelectedRoleId(selectedUser.role.id.toString());
+        } else if (selectedUser && selectedUser.role_id) {
+          setSelectedRoleId(selectedUser.role_id.toString());
+        } else {
+          setSelectedRoleId(result.data.length > 0 ? result.data[0].id.toString() : "");
+        }
       } else {
-        setSelectedRoleId(data.length > 0 ? data[0].id.toString() : "");
+        setAssignRoleError(result.error || "Failed to fetch roles");
       }
     } catch (error: any) {
-      setAssignRoleError(error.message || "Failed to fetch roles");
+      setAssignRoleError("Network error occurred");
     }
   };
 
   const handleAssignRole = async () => {
     setAssignRoleError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/roles", {
+      const result = await apiCall("/api/roles", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           action: "assignRole",
           userId: selectedUser.id,
           roleId: selectedRoleId,
         }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Failed to assign role");
-      setSelectedUser((prev) => ({ ...prev, role_name: roles.find((r) => r.id.toString() === selectedRoleId)?.name, role_id: selectedRoleId }));
-      setShowAssignRoleModal(false);
-      await fetchUsers();
+      if (result.status === 200) {
+        setSelectedUser((prev) => ({ ...prev, role_name: roles.find((r) => r.id.toString() === selectedRoleId)?.name, role_id: selectedRoleId }));
+        setShowAssignRoleModal(false);
+        await fetchUsers();
+      } else {
+        setAssignRoleError(result.error || "Failed to assign role");
+      }
     } catch (error: any) {
-      setAssignRoleError(error.message || "Failed to assign role");
+      setAssignRoleError("Network error occurred");
     }
   };
 
@@ -187,23 +206,18 @@ function UsersPage() {
     if (!selectedUser) return;
     setDeleteError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users?userId=${selectedUser.id}`, {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setDeleteError(data.error || "Failed to delete user");
-        return;
+      if (result.status === 200) {
+        await fetchUsers();
+        setSelectedUser(null);
+        setShowDeleteModal(false);
+      } else {
+        setDeleteError(result.error || "Failed to delete user");
       }
-      await fetchUsers();
-      setSelectedUser(null);
-      setShowDeleteModal(false);
     } catch (err) {
-      setDeleteError("Failed to delete user");
+      setDeleteError("Network error occurred");
       setShowDeleteModal(false);
     }
   };
@@ -212,25 +226,19 @@ function UsersPage() {
     if (!selectedUser) return;
     setReactivateError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users?userId=${selectedUser.id}`, {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ action: "reactivate" }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setReactivateError(data.error || "Failed to reactivate user");
-        return;
+      if (result.status === 200) {
+        await fetchUsers();
+        setSelectedUser(null);
+        setShowReactivateModal(false);
+      } else {
+        setReactivateError(result.error || "Failed to reactivate user");
       }
-      await fetchUsers();
-      setSelectedUser(null);
-      setShowReactivateModal(false);
     } catch (err) {
-      setReactivateError("Failed to reactivate user");
+      setReactivateError("Network error occurred");
       setShowReactivateModal(false);
     }
   };
@@ -252,13 +260,8 @@ function UsersPage() {
     if (!selectedUser) return;
     setUpdateError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users?userId=${selectedUser.id}`, {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           action: "update",
           firstName: updateForm.firstName,
@@ -266,15 +269,14 @@ function UsersPage() {
           username: updateForm.username,
         }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setUpdateError(data.error || "Failed to update user");
-        return;
+      if (result.status === 200) {
+        await fetchUsers();
+        setShowUpdateModal(false);
+      } else {
+        setUpdateError(result.error || "Failed to update user");
       }
-      await fetchUsers();
-      setShowUpdateModal(false);
     } catch (err) {
-      setUpdateError("Failed to update user");
+      setUpdateError("Network error occurred");
       setShowUpdateModal(false);
     }
   };
@@ -284,28 +286,22 @@ function UsersPage() {
     setLockLoading(true);
     setLockError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users?userId=${selectedUser.id}`, {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           action: selectedUser.is_locked ? "unlock" : "lock",
         }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setLockError(data.error || "Failed to lock/unlock user");
-        return;
+      if (result.status === 200) {
+        const updatedUser = result.data;
+        await fetchUsers();
+        setSelectedUser(updatedUser);
+        setShowLockModal(false);
+      } else {
+        setLockError(result.error || "Failed to lock/unlock user");
       }
-      const updatedUser = await response.json();
-      await fetchUsers();
-      setSelectedUser(updatedUser);
-      setShowLockModal(false);
     } catch (err) {
-      setLockError("Failed to lock/unlock user");
+      setLockError("Network error occurred");
       setShowLockModal(false);
     } finally {
       setLockLoading(false);
@@ -317,8 +313,144 @@ function UsersPage() {
     handleAssignRoleClick();
   };
 
+  // Station management functions
+  const fetchUserStations = async (userId: number) => {
+    setLoadingStations(true);
+    setStationError("");
+    try {
+      const result = await apiCall(`/api/users/${userId}/stations`);
+
+      if (result.status === 200) {
+        setUserStations(result.data.stations || []);
+      } else {
+        setStationError(result.error || "Failed to fetch user stations");
+      }
+    } catch (error) {
+      setStationError("Network error occurred");
+    } finally {
+      setLoadingStations(false);
+    }
+  };
+
+  const fetchAvailableStations = async () => {
+    try {
+      const result = await apiCall("/api/stations");
+
+      if (result.status === 200) {
+        // Filter out stations that user is already linked to
+        const linkedStationIds = userStations.map(us => us.station.id);
+        const available = result.data.stations.filter(station =>
+          station.status === 'active' && !linkedStationIds.includes(station.id)
+        );
+        setAvailableStations(available);
+      }
+    } catch (error) {
+      console.error("Failed to fetch available stations:", error);
+    }
+  };
+
+  const handleAddStation = async () => {
+    if (!selectedUser || !selectedStationId) return;
+
+    // Check if user has a valid role for station assignment
+    const userRole = selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : null;
+    const allowedRoles = ['sales', 'supervisor', 'admin'];
+
+    if (!userRole || !allowedRoles.includes(userRole)) {
+      setStationError(`Only users with ${allowedRoles.join(', ')} roles can be assigned stations. Current role: ${userRole || 'none'}`);
+      return;
+    }
+
+    setStationError("");
+    try {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
+        method: "POST",
+        body: JSON.stringify({
+          station: selectedStationId,
+        }),
+      });
+
+      if (result.status === 200) {
+        await fetchUserStations(selectedUser.id);
+        setShowAddStationModal(false);
+        setSelectedStationId("");
+      } else {
+        setStationError(result.error || "Failed to add station");
+      }
+    } catch (error) {
+      setStationError("Network error occurred");
+    }
+  };
+
+  const handleSetDefaultStation = async (stationId: number) => {
+    if (!selectedUser) return;
+
+    setStationError("");
+    try {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          stationId: stationId,
+        }),
+      });
+
+      if (result.status === 200) {
+        await fetchUserStations(selectedUser.id);
+      } else {
+        setStationError(result.error || "Failed to set default station");
+      }
+    } catch (error) {
+      setStationError("Network error occurred");
+    }
+  };
+
+  const handleRemoveStation = async (userStationId: number) => {
+    if (!selectedUser) return;
+
+    setStationError("");
+    try {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
+        method: "DELETE",
+        body: JSON.stringify({
+          userStationId: userStationId,
+        }),
+      });
+
+      if (result.status === 200) {
+        await fetchUserStations(selectedUser.id);
+      } else {
+        setStationError(result.error || "Failed to remove station");
+      }
+    } catch (error) {
+      setStationError("Network error occurred");
+    }
+  };
+
+  const handleToggleStationStatus = async (userStationId: number, currentStatus: string) => {
+    if (!selectedUser) return;
+
+    setStationError("");
+    try {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          userStationId: userStationId,
+          action: currentStatus === 'active' ? 'deactivate' : 'activate',
+        }),
+      });
+
+      if (result.status === 200) {
+        await fetchUserStations(selectedUser.id);
+      } else {
+        setStationError(result.error || "Failed to update station status");
+      }
+    } catch (error) {
+      setStationError("Network error occurred");
+    }
+  };
+
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
@@ -396,11 +528,18 @@ function UsersPage() {
                 </div>
               </div>
               <div className="card-body p-0">
-                {fetchUserError && (
-                  <div className="alert alert-danger m-3" role="alert">
-                    {fetchUserError}
-                  </div>
-                )}
+                <ErrorDisplay
+                  error={fetchUserError}
+                  onDismiss={() => setFetchUserError("")}
+                />
+                <ErrorDisplay
+                  error={authError?.message}
+                  errorDetails={authErrorDetails}
+                  onDismiss={() => {
+                    setAuthError(null);
+                    setAuthErrorDetails(null);
+                  }}
+                />
                 <div className="table-responsive">
                   <table className="table table-hover mb-0">
                     <thead className="table-light">
@@ -539,24 +678,68 @@ function UsersPage() {
                     User Details
                   </h5>
                   {selectedUser && (
-                    <div className="d-flex align-items-center gap-2">
-                      {selectedUser.status === "DELETED" ? (
-                        <span className="badge bg-danger">
-                          <i className="bi bi-x-circle me-1"></i>
-                          Deleted
-                        </span>
-                      ) : (
-                        <span className="badge bg-success">
-                          <i className="bi bi-check-circle me-1"></i>
-                          Active
-                        </span>
-                      )}
-                      {selectedUser.is_locked && (
-                        <span className="badge bg-warning">
-                          <i className="bi bi-lock-fill me-1"></i>
-                          Locked
-                        </span>
-                      )}
+                    <div className="dropdown">
+                      <button
+                        className="btn btn-outline-primary btn-sm dropdown-toggle"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                      >
+                        <i className="bi bi-gear me-1"></i>
+                        Actions
+                      </button>
+                      <ul className="dropdown-menu dropdown-menu-end">
+                        <li>
+                          <button
+                            className="dropdown-item"
+                            onClick={handleShowUpdateModal}
+                          >
+                            <i className="bi bi-pencil me-2"></i>
+                            Update User
+                          </button>
+                        </li>
+                        <li>
+                          <button
+                            className="dropdown-item"
+                            onClick={() => setShowAssignRoleConfirmModal(true)}
+                          >
+                            <i className="bi bi-person-gear me-2"></i>
+                            Assign Role
+                          </button>
+                        </li>
+                        <li><hr className="dropdown-divider" /></li>
+                        <li>
+                          <button
+                            className="dropdown-item"
+                            onClick={() => setShowLockModal(true)}
+                          >
+                            <i className={`bi ${selectedUser.is_locked ? "bi-unlock" : "bi-lock"} me-2`}></i>
+                            {selectedUser.is_locked ? "Unlock User" : "Lock User"}
+                          </button>
+                        </li>
+                        {selectedUser.status !== "DELETED" && (
+                          <li>
+                            <button
+                              className="dropdown-item text-danger"
+                              onClick={() => setShowDeleteModal(true)}
+                            >
+                              <i className="bi bi-trash me-2"></i>
+                              Deactivate User
+                            </button>
+                          </li>
+                        )}
+                        {selectedUser.status === "DELETED" && (
+                          <li>
+                            <button
+                              className="dropdown-item text-success"
+                              onClick={() => setShowReactivateModal(true)}
+                            >
+                              <i className="bi bi-arrow-clockwise me-2"></i>
+                              Reactivate User
+                            </button>
+                          </li>
+                        )}
+                      </ul>
                     </div>
                   )}
                 </div>
@@ -569,76 +752,18 @@ function UsersPage() {
                         <div className="user-avatar-large me-3">
                           <i className="bi bi-person-circle text-primary"></i>
                         </div>
-                        <div>
-                          <h4 className="text-primary mb-1">{selectedUser.firstName} {selectedUser.lastName}</h4>
-                          <p className="text-muted mb-0">
-                            <i className="bi bi-at me-1"></i>
-                            @{selectedUser.username}
-                          </p>
+                        <div className="flex-grow-1">
+                          <div className="d-flex align-items-center">
+                            <h5 className="text-primary mb-0 me-3">{selectedUser.firstName} {selectedUser.lastName}</h5>
+                            <span className="badge bg-primary fs-6 px-3 py-2">
+                              <i className="bi bi-shield-check me-2"></i>
+                              {selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : "No role assigned"}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="role-badge-container">
-                        <span className="badge bg-primary fs-6 px-3 py-2">
-                          <i className="bi bi-shield-check me-2"></i>
-                          {selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : "No role assigned"}
-                        </span>
                       </div>
                     </div>
 
-                    <div className="action-buttons mb-4">
-                      <div className="row g-2">
-                        <div className="col-6 col-md-3">
-                          <button
-                            type="button"
-                            className="btn btn-warning btn-sm w-100"
-                            onClick={handleShowUpdateModal}
-                          >
-                            <i className="bi bi-pencil me-1"></i>
-                            Update
-                          </button>
-                        </div>
-                        <div className="col-6 col-md-3">
-                          <button
-                            type="button"
-                            className="btn btn-danger btn-sm w-100"
-                            onClick={() => setShowDeleteModal(true)}
-                            disabled={selectedUser.status === "DELETED"}
-                          >
-                            <i className="bi bi-trash me-1"></i>
-                            Deactivate
-                          </button>
-                        </div>
-                        <div className="col-6 col-md-3">
-                          <button
-                            className="btn btn-info btn-sm w-100"
-                            onClick={() => setShowLockModal(true)}
-                          >
-                            <i className={`bi ${selectedUser.is_locked ? "bi-unlock" : "bi-lock"} me-1`}></i>
-                            {selectedUser.is_locked ? "Unlock" : "Lock"}
-                          </button>
-                        </div>
-                        <div className="col-6 col-md-3">
-                          <button
-                            className="btn btn-secondary btn-sm w-100"
-                            onClick={() => setShowAssignRoleConfirmModal(true)}
-                          >
-                            <i className="bi bi-person-gear me-1"></i>
-                            Assign Role
-                          </button>
-                        </div>
-                      </div>
-                      {selectedUser.status === "DELETED" && (
-                        <div className="mt-2">
-                          <button
-                            className="btn btn-success w-100"
-                            onClick={() => setShowReactivateModal(true)}
-                          >
-                            <i className="bi bi-arrow-clockwise me-1"></i>
-                            Reactivate User
-                          </button>
-                        </div>
-                      )}
-                    </div>
 
                     <div className="table-responsive">
                       <table className="table table-sm">
@@ -677,6 +802,115 @@ function UsersPage() {
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* Station Management Section */}
+                    <div className="mt-4">
+                      <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h6 className="mb-0 fw-bold">
+                          <i className="bi bi-geo-alt me-2 text-primary"></i>
+                          Station Management
+                        </h6>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          disabled={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !['sales', 'supervisor', 'admin'].includes(selectedUser.roles[0].name)}
+                          onClick={() => {
+                            fetchAvailableStations();
+                            setShowAddStationModal(true);
+                          }}
+                          title={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !['sales', 'supervisor', 'admin'].includes(selectedUser.roles[0].name) ? "Only sales, supervisor, and admin roles can be assigned stations" : "Add station to user"}
+                        >
+                          <i className="bi bi-plus me-1"></i>
+                          Add Station
+                        </button>
+                      </div>
+
+                      {stationError && (
+                        <div className="alert alert-danger py-2 mb-3" role="alert">
+                          <i className="bi bi-exclamation-triangle me-2"></i>
+                          {stationError}
+                        </div>
+                      )}
+
+                      {loadingStations ? (
+                        <div className="text-center py-3">
+                          <div className="spinner-border spinner-border-sm text-primary" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                          <span className="ms-2 text-muted">Loading stations...</span>
+                        </div>
+                      ) : userStations.length > 0 ? (
+                        <div className="list-group">
+                          {userStations.map((userStation) => (
+                            <div key={userStation.id} className="list-group-item d-flex justify-content-between align-items-center">
+                              <div className="d-flex align-items-center">
+                                <div className="me-3">
+                                  {userStation.isDefault ? (
+                                    <span className="badge bg-primary">
+                                      <i className="bi bi-star-fill me-1"></i>
+                                      Default
+                                    </span>
+                                  ) : (
+                                    <span className="badge bg-light text-dark">
+                                      <i className="bi bi-star me-1"></i>
+                                      Station
+                                    </span>
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="fw-semibold">{userStation.station.name}</div>
+                                  <small className="text-muted">
+                                    Status:
+                                    <span className={`badge ms-1 ${userStation.status === 'active' ? 'bg-success' : 'bg-secondary'}`}>
+                                      {userStation.status}
+                                    </span>
+                                  </small>
+                                </div>
+                              </div>
+                              <div className="dropdown">
+                                <button
+                                  className="btn btn-outline-secondary btn-sm dropdown-toggle"
+                                  type="button"
+                                  data-bs-toggle="dropdown"
+                                  aria-expanded="false"
+                                  title="Station actions"
+                                >
+                                  <i className="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul className="dropdown-menu dropdown-menu-end">
+                                  {!userStation.isDefault && (
+                                    <li>
+                                      <button
+                                        className="dropdown-item"
+                                        onClick={() => handleSetDefaultStation(userStation.station.id)}
+                                      >
+                                        <i className="bi bi-star me-2"></i>
+                                        Set as Default
+                                      </button>
+                                    </li>
+                                  )}
+                                  <li>
+                                    <button
+                                      className={`dropdown-item ${userStation.status === 'active' ? 'text-warning' : 'text-success'}`}
+                                      onClick={() => handleToggleStationStatus(userStation.id, userStation.status)}
+                                    >
+                                      <i className={`bi ${userStation.status === 'active' ? 'bi-pause' : 'bi-play'} me-2`}></i>
+                                      {userStation.status === 'active' ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                  </li>
+                                </ul>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-3">
+                          <i className="bi bi-geo-alt text-muted" style={{ fontSize: '2rem' }}></i>
+                          <p className="text-muted mt-2 mb-0">No stations assigned</p>
+                          <small className="text-muted">Click "Add Station" to assign stations to this user</small>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -865,7 +1099,49 @@ function UsersPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+
+      {/* Add Station Modal */}
+      {showAddStationModal && (
+        <div className="modal fade show d-block" tabIndex={-1} role="dialog" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered" role="document">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Add Station to User</h5>
+              </div>
+              <div className="modal-body">
+                {stationError && <div className="alert alert-danger py-1 my-2">{stationError}</div>}
+                <form>
+                  <div className="form-group">
+                    <label htmlFor="stationSelect">Select Station</label>
+                    <select
+                      className="form-control"
+                      id="stationSelect"
+                      value={selectedStationId}
+                      onChange={(e) => setSelectedStationId(e.target.value)}
+                    >
+                      <option value="">Select a station</option>
+                      {availableStations.map((station) => (
+                        <option key={station.id} value={station.id}>
+                          {station.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </form>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddStationModal(false)}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-primary" onClick={handleAddStation} disabled={!selectedStationId}>
+                  Add Station
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </RoleAwareLayout>
   );
 }
 

@@ -40,7 +40,7 @@ export class StationService {
   }
 
   async getEnabledStations() {
-    return await this.fetchStations({ status: StationStatus.ENABLED });
+    return await this.fetchStations({ status: StationStatus.ACTIVE });
   }
 
   async getAllStations() {
@@ -381,7 +381,7 @@ export class StationService {
     const userStation = this.userStationRepository.create({
       station: { id: stationId },
       user: { id: userId },
-      status: UserStationStatus.ENABLED,
+      status: UserStationStatus.ACTIVE,
       isDefault: false // Always false since there's no concept of default user
     });
 
@@ -433,7 +433,7 @@ export class StationService {
 
   /**
    * Get available users (not yet linked to this station)
-   * Only returns users with 'waiter' or 'admin' roles who are not locked
+   * Only returns users with 'sales' or 'admin' roles who are not locked
    */
   async getAvailableUsers(stationId: number): Promise<any[]> {
     const query = `
@@ -451,7 +451,7 @@ export class StationService {
         FROM user_station us 
         WHERE us.station_id = ?
       )
-      AND r.name IN ('waiter', 'admin')
+      AND r.name IN ('sales', 'admin')
       AND (u.is_locked IS NULL OR u.is_locked = 0)
       ORDER BY u.firstName, u.lastName
     `;
@@ -467,6 +467,6 @@ export class StationService {
   }
 
   async updateStationStatus(id: number, status: string): Promise<void> {
-    await this.stationRepository.update(id, { status });
+    await this.stationRepository.update(id, { status: status as StationStatus });
   }
 }

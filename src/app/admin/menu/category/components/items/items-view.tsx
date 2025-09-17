@@ -3,6 +3,7 @@ import Image from "next/image";
 import EditItemModal from "./item-edit";
 import ItemDeleteModal from "./item-delete";
 import { Category, Item } from "../../../../../types/types";
+import { useApiCall } from "../../../../../utils/apiUtils";
 
 interface ViewItemsProps {
   selectedCategory: Category | null;
@@ -31,6 +32,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   isCategoryItemsSection = false,
   onItemPick,
 }) => {
+  const apiCall = useApiCall();
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
@@ -90,27 +92,22 @@ const ViewItems: React.FC<ViewItemsProps> = ({
 
     setLoadingSubItems(prev => new Set(prev).add(itemId));
 
-    try {
-      const response = await fetch(`/api/menu/items/${itemId}/sub-items`);
-      const result = await response.json();
+    const result = await apiCall(`/api/menu/items/${itemId}/sub-items`);
 
-      if (result.success) {
-        setSubItemsData(prev => ({
-          ...prev,
-          [itemId]: result.data
-        }));
-      } else {
-        console.error("Failed to fetch sub-items:", result.message);
-      }
-    } catch (error) {
-      console.error("Error fetching sub-items:", error);
-    } finally {
-      setLoadingSubItems(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(itemId);
-        return newSet;
-      });
+    if (result.status === 200 && result.data?.success) {
+      setSubItemsData(prev => ({
+        ...prev,
+        [itemId]: result.data.data
+      }));
+    } else {
+      console.error("Failed to fetch sub-items:", result.error || "Unknown error");
     }
+
+    setLoadingSubItems(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(itemId);
+      return newSet;
+    });
   };
 
   const toggleItemExpansion = (itemId: number) => {
@@ -376,9 +373,9 @@ const ViewItems: React.FC<ViewItemsProps> = ({
         {/* Modals */}
         {showEditModal && selectedItem && (
           <EditItemModal
-            showModal={showEditModal}
-            handleCloseModal={() => setShowEditModal(false)}
-            handleEditItem={(editedItem) => {
+            show={showEditModal}
+            onClose={() => setShowEditModal(false)}
+            onSave={(editedItem) => {
               setItems(prevItems =>
                 prevItems.map(item =>
                   item.id === editedItem.id ? editedItem : item
@@ -387,18 +384,15 @@ const ViewItems: React.FC<ViewItemsProps> = ({
               setShowEditModal(false);
             }}
             item={selectedItem}
-            itemError={itemError}
-            setItemError={() => { }}
-            selectedCategory={selectedCategory}
           />
         )}
 
         {showDeleteModal && itemToDelete && (
           <ItemDeleteModal
-            showModal={showDeleteModal}
-            handleCloseModal={() => setShowDeleteModal(false)}
-            handleDeleteItem={handleDeleteConfirm}
-            item={itemToDelete}
+            show={showDeleteModal}
+            onCancel={() => setShowDeleteModal(false)}
+            onConfirm={handleDeleteConfirm}
+            itemName={itemToDelete.name}
           />
         )}
       </div>

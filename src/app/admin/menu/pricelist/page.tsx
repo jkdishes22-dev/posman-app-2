@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import AdminLayout from "../../../shared/AdminLayout";
+import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import PricelistAdd from "./pricelist-new";
 import ViewItems from "../category/components/items/items-view";
 import ItemAdd from "../category/components/items/items-new";
@@ -9,8 +9,10 @@ import { Button, Form } from "react-bootstrap";
 import { AuthError } from "src/app/types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import ExpressItemSearchModal from "../../../components/ExpressItemSearchModal";
+import { useApiCall } from "../../../utils/apiUtils";
 
 export default function PricelistPage() {
+  const apiCall = useApiCall();
   const [showModal, setShowModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
   const [showExpressSearch, setShowExpressSearch] = useState(false);
@@ -43,54 +45,27 @@ export default function PricelistPage() {
   const [itemsPerPage] = useState(10);
   const [authError, setAuthError] = useState<AuthError>(null);
   const [pricelistError, setFetchPricelistError] = useState<string | null>(null);
-  const [addPricelistError, setAddPricelistError] = useState<string | null>(null);
-  const [addPricelistErrorDetails, setAddPricelistErrorDetails] = useState<any>(null);
-  const [itemError, setItemError] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<any>(null);
 
   useEffect(() => {
     async function fetchPricelists() {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/pricelists", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        if (response.ok) {
-          setPricelists(data);
-          setFilteredPricelists(data);
-          setFetchPricelistError(null);
-        } else if (response.status === 403) {
-          setAuthError(data);
-          setFetchPricelistError(null);
-        } else {
-          setFetchPricelistError(data.message || "Failed to fetch pricelists");
-        }
-      } catch (error: any) {
-        console.error("Failed to fetch pricelists", error);
-        setFetchPricelistError("Failed to fetch pricelists: " + error.message);
+      const result = await apiCall("/api/menu/pricelists");
+
+      if (result.status === 200) {
+        setPricelists(result.data);
+        setFilteredPricelists(result.data);
+        setFetchPricelistError(null);
+      } else {
+        setFetchPricelistError(result.error || "Failed to fetch pricelists");
       }
     }
 
     async function fetchStations() {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/stations", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        if (response.ok) {
-          setStations(data);
-        }
-      } catch (error: any) {
-        console.error("Failed to fetch stations", error);
+      const result = await apiCall("/api/stations");
+
+      if (result.status === 200) {
+        setStations(result.data);
       }
     }
 
@@ -99,33 +74,18 @@ export default function PricelistPage() {
   }, []);
 
   const fetchPricelistsForStation = useCallback(async (stationId: number) => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/stations/${stationId}/pricelists`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (response.ok) {
-        let filtered = data.pricelists || [];
-        // Apply status filter to station-specific pricelists
-        if (statusFilter !== "all") {
-          filtered = filtered.filter(pricelist => pricelist.status === statusFilter);
-        }
-        setFilteredPricelists(filtered);
-        setFetchPricelistError(null);
-      } else if (response.status === 403) {
-        setAuthError(data);
-        setFetchPricelistError(null);
-      } else {
-        setFetchPricelistError(data.message || "Failed to fetch pricelists for station");
+    const result = await apiCall(`/api/stations/${stationId}/pricelists`);
+
+    if (result.status === 200) {
+      let filtered = result.data.pricelists || [];
+      // Apply status filter to station-specific pricelists
+      if (statusFilter !== "all") {
+        filtered = filtered.filter(pricelist => pricelist.status === statusFilter);
       }
-    } catch (error: any) {
-      console.error("Failed to fetch pricelists for station", error);
-      setFetchPricelistError("Failed to fetch pricelists for station: " + error.message);
+      setFilteredPricelists(filtered);
+      setFetchPricelistError(null);
+    } else {
+      setFetchPricelistError(result.error || "Failed to fetch pricelists for station");
     }
   }, [statusFilter]);
 
@@ -146,7 +106,7 @@ export default function PricelistPage() {
     // Clear selected pricelist and items when station changes
     setSelectedPricelistId(null);
     setPricelistItems([]);
-    setItemError("");
+    setError(null);
 
     if (selectedStationId === null) {
       // Show all pricelists when no filter is selected
@@ -179,35 +139,23 @@ export default function PricelistPage() {
       setIsRefreshingItems(true);
     }
 
-    try {
-      const token = localStorage.getItem("token");
-      const url = forceRefresh
-        ? `/api/menu/pricelists/${pricelistId}/items?t=${Date.now()}`
-        : `/api/menu/pricelists/${pricelistId}/items`;
+    const url = forceRefresh
+      ? `/api/menu/pricelists/${pricelistId}/items?t=${Date.now()}`
+      : `/api/menu/pricelists/${pricelistId}/items`;
 
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          ...(forceRefresh && { "Cache-Control": "no-cache" }),
-        },
-      });
+    const result = await apiCall(url, {
+      ...(forceRefresh && { headers: { "Cache-Control": "no-cache" } }),
+    });
 
-      if (response.ok) {
-        const pricelistItems = await response.json();
-        setPricelistItems(pricelistItems);
-      } else {
-        console.error(`Failed to fetch pricelist items: ${response.status}`);
-        setPricelistItems([]);
-      }
-    } catch (error: any) {
-      console.error("Failed to fetch pricelist items", error);
+    if (result.status === 200) {
+      setPricelistItems(result.data);
+    } else {
+      console.error(`Failed to fetch pricelist items: ${result.status}`);
       setPricelistItems([]);
-    } finally {
-      if (forceRefresh) {
-        setIsRefreshingItems(false);
-      }
+    }
+
+    if (forceRefresh) {
+      setIsRefreshingItems(false);
     }
   };
 
@@ -231,82 +179,52 @@ export default function PricelistPage() {
   }
 
   const handleAddPricelist = async ({ name, description, station }: PricelistParams) => {
-    try {
-      setAddPricelistError(null);
-      setAddPricelistErrorDetails(null);
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/menu/pricelists", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ name, description, station }),
-      });
+    setError(null);
+    setErrorDetails(null);
 
-      const data = await response.json();
+    const result = await apiCall("/api/menu/pricelists", {
+      method: "POST",
+      body: JSON.stringify({ name, description, station }),
+    });
 
-      if (response.ok) {
-        setPricelists([...pricelists, data]);
-        handleCloseModal();
-        setAddPricelistError(null);
-        setAddPricelistErrorDetails(null);
-      } else if (response.status === 403) {
-        setAddPricelistError(data.message || "Access denied: You don't have permission to add pricelists");
-        setAddPricelistErrorDetails({
-          missingPermissions: data.missingPermissions,
-          isAdmin: data.isAdmin,
-          userRoles: data.userRoles,
-          requiredPermissions: data.requiredPermissions
-        });
-      } else {
-        setAddPricelistError(data.message || data.error || "Failed to add pricelist");
-        setAddPricelistErrorDetails(null);
-      }
-    } catch (error: any) {
-      console.error("Failed to add pricelist", error);
-      setAddPricelistError("Failed to add pricelist: " + error.message);
-      setAddPricelistErrorDetails(null);
+    if (result.status === 200 || result.status === 201) {
+      setPricelists([...pricelists, result.data]);
+      handleCloseModal();
+      setError(null);
+      setErrorDetails(null);
+    } else {
+      setError(result.error || "Failed to add pricelist");
+      setErrorDetails(result.errorDetails);
     }
   };
 
   const handleAddItem = async (itemData: any) => {
-    try {
-      setItemError("");
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/menu/items", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(itemData),
-      });
+    setError(null);
+    setErrorDetails(null);
 
-      const data = await response.json();
+    const result = await apiCall("/api/menu/items", {
+      method: "POST",
+      body: JSON.stringify(itemData),
+    });
 
-      if (response.ok) {
-        // Refresh pricelist items if a pricelist is selected
-        if (selectedPricelistId) {
-          // Delay to ensure database transaction is committed
-          setTimeout(async () => {
-            try {
-              await fetchPricelistItems(selectedPricelistId, true); // Force refresh
-            } catch (error) {
-              console.error("Error refreshing pricelist items:", error);
-            }
-          }, 500); // Increased delay
-        }
-        handleCloseItemModal();
-        setItemError("");
-      } else if (response.status === 403) {
-        setItemError(data.message || "Access denied: You don't have permission to add items");
-      } else {
-        setItemError(data.message || data.error || "Failed to add item");
+    if (result.status === 200 || result.status === 201) {
+      // Refresh pricelist items if a pricelist is selected
+      if (selectedPricelistId) {
+        // Delay to ensure database transaction is committed
+        setTimeout(async () => {
+          try {
+            await fetchPricelistItems(selectedPricelistId, true); // Force refresh
+          } catch (error) {
+            console.error("Error refreshing pricelist items:", error);
+          }
+        }, 500); // Increased delay
       }
-    } catch (error: any) {
-      console.error("Failed to add item", error);
-      setItemError("Failed to add item: " + error.message);
+      handleCloseItemModal();
+      setError(null);
+      setErrorDetails(null);
+    } else {
+      setError(result.error || "Failed to add item");
+      setErrorDetails(result.errorDetails);
     }
   };
 
@@ -319,46 +237,29 @@ export default function PricelistPage() {
   const confirmTogglePricelistStatus = async () => {
     if (!confirmAction) return;
 
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/menu/pricelists/${confirmAction.pricelistId}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ action: confirmAction.type }),
-      });
+    const result = await apiCall(`/api/menu/pricelists/${confirmAction.pricelistId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ action: confirmAction.type }),
+    });
 
-      if (response.ok) {
-        console.log("Pricelist status updated successfully, refreshing data...");
-        // Refresh pricelists list
-        const refreshResponse = await fetch("/api/menu/pricelists", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await refreshResponse.json();
-        console.log("Refreshed pricelists data:", data);
-        if (refreshResponse.ok) {
-          setPricelists(data);
-          // Don't set filteredPricelists here - let the useEffect handle it
-          // This ensures proper filtering by both station and status
-          console.log("Pricelists updated, useEffect will handle filtering");
-        } else {
-          console.error("Failed to refresh pricelists:", data);
-        }
-        setShowConfirmModal(false);
-        setConfirmAction(null);
-        setFetchPricelistError(null);
+    if (result.status === 200) {
+      console.log("Pricelist status updated successfully, refreshing data...");
+      // Refresh pricelists list
+      const refreshResult = await apiCall("/api/menu/pricelists");
+      console.log("Refreshed pricelists data:", refreshResult.data);
+      if (refreshResult.status === 200) {
+        setPricelists(refreshResult.data);
+        // Don't set filteredPricelists here - let the useEffect handle it
+        // This ensures proper filtering by both station and status
+        console.log("Pricelists updated, useEffect will handle filtering");
       } else {
-        const errorData = await response.json().catch(() => ({ message: `Failed to ${confirmAction.type} pricelist` }));
-        setFetchPricelistError(errorData.message || `Failed to ${confirmAction.type} pricelist`);
+        console.error("Failed to refresh pricelists:", refreshResult.error);
       }
-    } catch (error: any) {
-      setFetchPricelistError(error.message || `Error ${confirmAction.type === "activate" ? "activating" : "deactivating"} pricelist`);
+      setShowConfirmModal(false);
+      setConfirmAction(null);
+      setFetchPricelistError(null);
+    } else {
+      setFetchPricelistError(result.error || `Failed to ${confirmAction.type} pricelist`);
     }
   };
 
@@ -373,7 +274,7 @@ export default function PricelistPage() {
   };
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
@@ -397,6 +298,14 @@ export default function PricelistPage() {
         <ErrorDisplay
           error={pricelistError}
           onDismiss={() => setFetchPricelistError(null)}
+        />
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
+          }}
         />
 
 
@@ -604,7 +513,7 @@ export default function PricelistPage() {
                   selectedCategory={null}
                   items={[]}
                   pricelistItems={paginatedItems}
-                  itemError={itemError}
+                  itemError={error}
                   setItems={setPricelistItems}
                   onItemPick={() => { }}
                   isBillingSection={false}
@@ -661,18 +570,18 @@ export default function PricelistPage() {
           showModal={showModal}
           handleCloseModal={handleCloseModal}
           handleAddPricelist={handleAddPricelist}
-          addPricelistError={addPricelistError}
-          setAddPricelistError={setAddPricelistError}
-          addPricelistErrorDetails={addPricelistErrorDetails}
-          setAddPricelistErrorDetails={setAddPricelistErrorDetails}
+          addPricelistError={error}
+          setAddPricelistError={setError}
+          addPricelistErrorDetails={errorDetails}
+          setAddPricelistErrorDetails={setErrorDetails}
         />
 
         <ItemAdd
           showModal={showItemModal}
           handleModalClose={handleCloseItemModal}
           handleAddItem={handleAddItem}
-          itemError={itemError}
-          setItemError={setItemError}
+          itemError={error}
+          setItemError={setError}
           selectedCategory={null}
           selectedPricelistId={selectedPricelistId}
         />
@@ -747,6 +656,6 @@ export default function PricelistPage() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }

@@ -1,12 +1,16 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import AdminLayout from "src/app/shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import StationNew from "./station-new";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Button } from "react-bootstrap";
 import { AuthError } from "src/app/types/types";
+import { useApiCall } from "src/app/utils/apiUtils";
+import { ApiErrorResponse } from "src/app/utils/errorUtils";
+import ErrorDisplay from "src/app/components/ErrorDisplay";
 
 export default function StationPage() {
+  const apiCall = useApiCall();
   const [stations, setStations] = useState([]);
   const [filteredStations, setFilteredStations] = useState([]);
   const [pricelists, setPricelists] = useState([]);
@@ -17,46 +21,30 @@ export default function StationPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: 'activate' | 'deactivate', stationId: number, stationName: string } | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
-  const [fetchStationsError, setFetchStationsError] = useState(null);
-  const [fetchPricelistsError, setFetchPricelistsError] = useState(null);
-  const [fetchUsersError, setFetchUsersError] = useState(null);
+  const [authErrorDetails, setAuthErrorDetails] = useState<ApiErrorResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [isLoadingPricelists, setIsLoadingPricelists] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [availablePricelists, setAvailablePricelists] = useState([]);
   const [showPricelistModal, setShowPricelistModal] = useState(false);
-  const [linkPricelistError, setLinkPricelistError] = useState(null);
-  const [setDefaultError, setSetDefaultError] = useState(null);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
-  const [addUserError, setAddUserError] = useState(null);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
-      const token = localStorage.getItem("token");
       try {
-        const response = await fetch("/api/stations", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-
-        if (response.ok) {
-          setStations(response.ok ? data : []);
-          setFilteredStations(response.ok ? data : []);
-        } else if (response.status === 403) {
-          setAuthError(data);
+        const result = await apiCall("/api/stations");
+        if (result.status === 200) {
+          setStations(result.data || []);
+          setFilteredStations(result.data || []);
         } else {
-          setFetchStationsError(
-            "Failed to fetch items " + JSON.stringify(data),
-          );
+          setError(result.error || "Operation failed");
+          setErrorDetails(result.errorDetails);
         }
-      } catch (error: any) {
-        setError(error.message || "Failed to fetch stations");
-        setStations([]);
+      } catch (error) {
+        setError("Network error occurred");
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       }
     };
 
@@ -81,151 +69,106 @@ export default function StationPage() {
   }, [selectedStationId]);
 
   const fetchStationPricelist = async (stationId: number) => {
-    const token = localStorage.getItem("token");
     setIsLoadingPricelists(true);
-    setFetchPricelistsError(null);
 
     try {
-      const response = await fetch(`/api/stations/${stationId}/pricelists?t=${Date.now()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to fetch station pricelists");
+      const result = await apiCall(`/api/stations/${stationId}/pricelists?t=${Date.now()}`);
+      if (result.status === 200) {
+        setPricelists(result.data.pricelists || []);
       } else {
-        const pricelistData = await response.json();
-        setPricelists(pricelistData.pricelists || []);
-        setFetchPricelistsError(null);
+        setError(result.error || "Operation failed");
+        setErrorDetails(result.errorDetails);
+        setPricelists([]);
       }
-    } catch (error: any) {
-      console.error("Failed to fetch station pricelists", error);
-      setFetchPricelistsError(error.message || "Failed to fetch station pricelists");
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setPricelists([]);
-    } finally {
-      setIsLoadingPricelists(false);
     }
+
+    setIsLoadingPricelists(false);
   };
 
   const fetchStationUsers = async (stationId: number) => {
-    const token = localStorage.getItem("token");
     setIsLoadingUsers(true);
-    setFetchUsersError(null);
 
     try {
-      const response = await fetch(`/api/stations/${stationId}/users`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to fetch station users");
+      const result = await apiCall(`/api/stations/${stationId}/users`);
+      if (result.status === 200) {
+        setUsers(result.data);
       } else {
-        const dataUsers = await response.json();
-        setUsers(dataUsers);
-        setFetchUsersError(null);
+        setError(result.error || "Operation failed");
+        setErrorDetails(result.errorDetails);
+        setUsers([]);
       }
-    } catch (error: any) {
-      console.error("Failed to fetch station users", error);
-      setFetchUsersError(error.message || "Failed to fetch station users");
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setUsers([]);
-    } finally {
-      setIsLoadingUsers(false);
     }
+
+    setIsLoadingUsers(false);
   };
 
   const handleAddStation = async (name: string, description: string) => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/stations", {
+      const result = await apiCall("/api/stations", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ name, description }),
       });
 
-      if (response.ok) {
-        const newStation = await response.json();
-        setStations([...stations, newStation]);
+      if (result.status === 200 || result.status === 201) {
+        setStations([...stations, result.data]);
         setShowModal(false);
-        setError(null); // Clear any previous errors
+        setError(null);
+        setErrorDetails(null);
       } else {
-        const errorData = await response.json().catch(() => ({ message: "Failed to add station" }));
-        setError(errorData.message || "Failed to add station");
+        setError(result.error || "Operation failed");
+        setErrorDetails(result.errorDetails);
       }
-    } catch (error: any) {
-      setError(error.message || "Failed to add station");
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
   const fetchAvailablePricelists = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/menu/pricelists", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setAvailablePricelists(data || []);
+      const result = await apiCall("/api/menu/pricelists");
+      if (result.status === 200) {
+        setAvailablePricelists(result.data || []);
+      } else {
+        setError(result.error || "Operation failed");
+        setErrorDetails(result.errorDetails);
       }
-    } catch (error: any) {
-      console.error("Failed to fetch available pricelists", error);
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
   const handleLinkPricelist = async (pricelistId: number) => {
     if (!selectedStationId) return;
 
-    // Clear any previous errors
-    setLinkPricelistError(null);
-
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/stations/${selectedStationId}/pricelists`, {
+      const result = await apiCall(`/api/stations/${selectedStationId}/pricelists`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ pricelistId }),
       });
 
-      if (response.ok) {
-        // Refresh pricelists for the station
+      if (result.status === 200) {
         await fetchStationPricelist(selectedStationId);
-        // Refresh available pricelists
         await fetchAvailablePricelists();
         setShowPricelistModal(false);
-        setLinkPricelistError(null);
+        setError(null);
+        setErrorDetails(null);
       } else {
-        const errorData = await response.json();
-        if (response.status === 403) {
-          setLinkPricelistError({
-            message: "Missing permissions to link pricelist",
-            details: errorData.missingPermissions || ["CAN_MANAGE_PRICELIST"],
-            status: 403
-          });
-        } else {
-          setLinkPricelistError({
-            message: errorData.message || "Failed to link pricelist",
-            details: [],
-            status: response.status
-          });
-        }
+        setError(result.error || "Operation failed");
+        setErrorDetails(result.errorDetails);
       }
-    } catch (error: any) {
-      setLinkPricelistError({
-        message: "Network error occurred while linking pricelist",
-        details: [],
-        status: 0
-      });
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -233,57 +176,45 @@ export default function StationPage() {
     if (!selectedStationId) return;
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/stations/${selectedStationId}/pricelists?pricelistId=${pricelistId}`, {
+      const result = await apiCall(`/api/stations/${selectedStationId}/pricelists?pricelistId=${pricelistId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (response.ok) {
-        // Refresh pricelists for the station
-        fetchStationPricelist(selectedStationId);
-        // Refresh available pricelists
-        fetchAvailablePricelists();
+      if (result.status === 200) {
+        await fetchStationPricelist(selectedStationId);
+        await fetchAvailablePricelists();
+        setError(null);
+        setErrorDetails(null);
       } else {
-        console.error("Failed to unlink pricelist");
+        setError(result.error || "Operation failed");
+        setErrorDetails(result.errorDetails);
       }
-    } catch (error: any) {
-      console.error("Failed to unlink pricelist", error);
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
   const handleSetDefaultPricelist = async (pricelistId: number) => {
     if (!selectedStationId) return;
 
-    setSetDefaultError(null);
-
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/stations/${selectedStationId}/default-pricelist`, {
+      const result = await apiCall(`/api/stations/${selectedStationId}/default-pricelist`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ pricelistId }),
       });
 
-      if (response.ok) {
-        // Refresh pricelists for the station
+      if (result.status === 200) {
         await fetchStationPricelist(selectedStationId);
-        setSetDefaultError(null);
+        setError(null);
+        setErrorDetails(null);
       } else {
-        const errorData = await response.json();
-        setSetDefaultError({
-          message: errorData.message || "Failed to set default pricelist",
-          status: response.status
-        });
+        setError(result.error || "Operation failed");
+        setErrorDetails(result.errorDetails);
       }
-    } catch (error: any) {
-      setSetDefaultError({
-        message: "Network error occurred while setting default pricelist",
-        status: 0
-      });
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -292,21 +223,17 @@ export default function StationPage() {
     if (!selectedStationId) return;
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/stations/${selectedStationId}/available-users`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableUsers(data.users || []);
+      const result = await apiCall(`/api/stations/${selectedStationId}/available-users`);
+      if (result.status === 200) {
+        setAvailableUsers(result.data.users || []);
       } else {
-        console.error("Failed to fetch available users");
+        setError(result.error || "Operation failed");
+        setErrorDetails(result.errorDetails);
         setAvailableUsers([]);
       }
     } catch (error) {
-      console.error("Error fetching available users:", error);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setAvailableUsers([]);
     }
   };
@@ -314,40 +241,25 @@ export default function StationPage() {
   const handleAddUser = async (userId: number) => {
     if (!selectedStationId) return;
 
-    setAddUserError(null);
-
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/stations/${selectedStationId}/users`, {
+      const result = await apiCall(`/api/stations/${selectedStationId}/users`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ userId }),
       });
 
-      if (response.ok) {
-        // Refresh users for the station
+      if (result.status === 201) {
         await fetchStationUsers(selectedStationId);
-        // Refresh available users
         await fetchAvailableUsers();
         setShowUserModal(false);
-        setAddUserError(null);
+        setError(null);
+        setErrorDetails(null);
       } else {
-        const errorData = await response.json();
-        setAddUserError({
-          message: errorData.message || "Failed to add user to station",
-          details: errorData.details || [],
-          status: response.status
-        });
+        setError(result.error || "Operation failed");
+        setErrorDetails(result.errorDetails);
       }
-    } catch (error: any) {
-      setAddUserError({
-        message: "Network error occurred while adding user",
-        details: [],
-        status: 0
-      });
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -355,23 +267,22 @@ export default function StationPage() {
     if (!selectedStationId) return;
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/stations/${selectedStationId}/users?userId=${userId}`, {
+      const result = await apiCall(`/api/stations/${selectedStationId}/users?userId=${userId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (response.ok) {
-        // Refresh users for the station
+      if (result.status === 200) {
         await fetchStationUsers(selectedStationId);
-        // Refresh available users
         await fetchAvailableUsers();
+        setError(null);
+        setErrorDetails(null);
       } else {
-        const errorData = await response.json().catch(() => ({ message: "Failed to remove user from station" }));
-        setError(errorData.message || "Failed to remove user from station");
+        setError(result.error || "Operation failed");
+        setErrorDetails(result.errorDetails);
       }
-    } catch (error: any) {
-      setError(error.message || "Error removing user from station");
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -379,27 +290,23 @@ export default function StationPage() {
     if (!selectedStationId) return;
 
     try {
-      const token = localStorage.getItem("token");
       const action = currentStatus === "active" ? "deactivate" : "activate";
-
-      const response = await fetch(`/api/stations/${selectedStationId}/users`, {
+      const result = await apiCall(`/api/stations/${selectedStationId}/users`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ userId, action }),
       });
 
-      if (response.ok) {
-        // Refresh users for the station
+      if (result.status === 200) {
         await fetchStationUsers(selectedStationId);
+        setError(null);
+        setErrorDetails(null);
       } else {
-        const errorData = await response.json().catch(() => ({ message: `Failed to ${action} user for station` }));
-        setError(errorData.message || `Failed to ${action} user for station`);
+        setError(result.error || "Operation failed");
+        setErrorDetails(result.errorDetails);
       }
-    } catch (error: any) {
-      setError(error.message || `Error ${currentStatus === "active" ? "deactivating" : "activating"} user for station`);
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -413,64 +320,46 @@ export default function StationPage() {
     if (!confirmAction) return;
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/stations/${confirmAction.stationId}/status`, {
+      const result = await apiCall(`/api/stations/${confirmAction.stationId}/status`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ action: confirmAction.type }),
       });
 
-      if (response.ok) {
-        console.log('Station status updated successfully, refreshing data...');
+      if (result.status === 200) {
         // Refresh stations list
-        const refreshResponse = await fetch("/api/stations", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await refreshResponse.json();
-        console.log('Refreshed stations data:', data);
-        if (refreshResponse.ok) {
-          setStations(data);
-          // Don't set filteredStations here - let the useEffect handle it
-          // This ensures proper filtering by status
-          console.log('Stations updated, useEffect will handle filtering');
+        const refreshResult = await apiCall("/api/stations");
+        if (refreshResult.status === 200) {
+          setStations(refreshResult.data);
         } else {
-          console.error('Failed to refresh stations:', data);
+          setError(refreshResult.error || "Operation failed");
+          setErrorDetails(refreshResult.errorDetails);
         }
         setShowConfirmModal(false);
         setConfirmAction(null);
         setError(null);
+        setErrorDetails(null);
       } else {
-        const errorData = await response.json().catch(() => ({ message: `Failed to ${confirmAction.type} station` }));
-        setError(errorData.message || `Failed to ${confirmAction.type} station`);
+        setError(result.error || "Operation failed");
+        setErrorDetails(result.errorDetails);
       }
-    } catch (error: any) {
-      setError(error.message || `Error ${confirmAction.type === "activate" ? "activating" : "deactivating"} station`);
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Error Display */}
-        {error && (
-          <div className="alert alert-danger alert-dismissible fade show mb-4" role="alert">
-            <i className="bi bi-exclamation-triangle-fill me-2"></i>
-            {error}
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setError(null)}
-              aria-label="Close"
-            ></button>
-          </div>
-        )}
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
+          }}
+        />
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
           <div className="d-flex justify-content-between align-items-center">
@@ -623,7 +512,6 @@ export default function StationPage() {
                           size="sm"
                           onClick={() => {
                             fetchAvailablePricelists();
-                            setLinkPricelistError(null);
                             setShowPricelistModal(true);
                           }}
                           disabled={!selectedStationId || stations.find(s => s.id === selectedStationId)?.status !== 'active'}
@@ -645,18 +533,6 @@ export default function StationPage() {
                     )}
                   </div>
                   <div className="card-body">
-                    {fetchPricelistsError && (
-                      <div className="alert alert-danger alert-sm" role="alert">
-                        <i className="bi bi-exclamation-triangle me-1"></i>
-                        {fetchPricelistsError}
-                      </div>
-                    )}
-                    {setDefaultError && (
-                      <div className="alert alert-danger alert-sm" role="alert">
-                        <i className="bi bi-exclamation-triangle me-1"></i>
-                        {setDefaultError.message}
-                      </div>
-                    )}
                     {isLoadingPricelists ? (
                       <div className="text-center py-4">
                         <div className="spinner-border text-primary" role="status">
@@ -751,12 +627,6 @@ export default function StationPage() {
                     )}
                   </div>
                   <div className="card-body">
-                    {fetchUsersError && (
-                      <div className="alert alert-danger alert-sm" role="alert">
-                        <i className="bi bi-exclamation-triangle me-1"></i>
-                        {fetchUsersError}
-                      </div>
-                    )}
                     {isLoadingUsers ? (
                       <div className="text-center py-4">
                         <div className="spinner-border text-primary" role="status">
@@ -836,39 +706,6 @@ export default function StationPage() {
                 ></button>
               </div>
 
-              {/* Error Display */}
-              {linkPricelistError && (
-                <div className="alert alert-danger mx-3 mt-2 mb-0" role="alert">
-                  <div className="d-flex align-items-start">
-                    <i className="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
-                    <div className="flex-grow-1">
-                      <strong>{linkPricelistError.message}</strong>
-                      {linkPricelistError.details && linkPricelistError.details.length > 0 && (
-                        <div className="mt-2">
-                          <small className="text-muted">Missing permissions:</small>
-                          <ul className="mb-0 mt-1">
-                            {linkPricelistError.details.map((permission, index) => (
-                              <li key={index} className="small">
-                                <code className="bg-light px-1 rounded">{permission}</code>
-                              </li>
-                            ))}
-                          </ul>
-                          <small className="text-muted d-block mt-2">
-                            <i className="bi bi-info-circle me-1"></i>
-                            Contact your administrator to add these permissions to your role.
-                          </small>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      className="btn-close btn-close-sm"
-                      onClick={() => setLinkPricelistError(null)}
-                      aria-label="Close error"
-                    ></button>
-                  </div>
-                </div>
-              )}
 
               <div className="modal-body" style={{ maxHeight: '400px', overflowY: 'auto' }}>
                 {availablePricelists.length > 0 ? (
@@ -931,20 +768,6 @@ export default function StationPage() {
                 ></button>
               </div>
               <div className="modal-body" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                {addUserError && (
-                  <div className="alert alert-danger alert-sm mb-3" role="alert">
-                    <i className="bi bi-exclamation-triangle me-1"></i>
-                    <strong>Error:</strong> {addUserError.message}
-                    {addUserError.status === 403 && (
-                      <div className="mt-2">
-                        <small>
-                          <strong>Missing Permission:</strong> CAN_EDIT_USER_STATION<br />
-                          <em>Contact your administrator to assign this permission to your role.</em>
-                        </small>
-                      </div>
-                    )}
-                  </div>
-                )}
                 {availableUsers.length > 0 ? (
                   <div>
                     <div className="alert alert-info alert-sm mb-3" role="alert">
@@ -1064,6 +887,6 @@ export default function StationPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }

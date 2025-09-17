@@ -64,7 +64,7 @@ const NotFoundPage = () => {
                                 </MaterialButton>
 
                                 <MaterialButton
-                                    variant="outline-secondary"
+                                    variant="secondary"
                                     onClick={handleGoBack}
                                     className="px-4 py-2"
                                 >

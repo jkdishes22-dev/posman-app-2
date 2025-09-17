@@ -1,13 +1,13 @@
 "use client";
 import SecureRoute from "src/app/components/SecureRoute";
-import CashierPageLayout from "src/app/shared/CashierPageLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 
 export default function CashierLayout({ children }: { children: React.ReactNode }) {
     return (
         <SecureRoute roleRequired="cashier">
-            <CashierPageLayout>
+            <RoleAwareLayout>
                 {children}
-            </CashierPageLayout>
+            </RoleAwareLayout>
         </SecureRoute>
     );
 }

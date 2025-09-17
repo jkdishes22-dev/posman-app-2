@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
+import { useApiCall } from "src/app/utils/apiUtils";
 
 function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem, addSubItemError, setAddSubItemError }) {
+  const apiCall = useApiCall();
   const [items, setItems] = useState([]);
   const [subItemId, setSubItemId] = useState("");
   const [deductiblePortion, setDeductiblePortion] = useState("");
 
   useEffect(() => {
     const fetchItems = async () => {
-      try {
-        const response = await fetch("/api/items");
-        const data = await response.json();
+      const result = await apiCall("/api/items");
+      
+      if (result.status === 200) {
         // Ensure data is an array before setting it
-        setItems(Array.isArray(data) ? data : []);
-      } catch (error: any) {
-        console.error("Error fetching items:", error);
+        setItems(Array.isArray(result.data) ? result.data : []);
+      } else {
+        console.error("Error fetching items:", result.error);
         setItems([]); // Set empty array on error
       }
     };

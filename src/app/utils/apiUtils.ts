@@ -1,10 +1,12 @@
 import { useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { standardizeApiError, StandardizedError } from './errorUtils';
 
 export interface ApiResponse<T = any> {
     data?: T;
     error?: string;
     status: number;
+    errorDetails?: any;
 }
 
 export const createApiCall = (logout: () => void) => {
@@ -18,8 +20,8 @@ export const createApiCall = (logout: () => void) => {
             const response = await fetch(url, {
                 ...options,
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
                     ...options.headers,
                 },
             });
@@ -31,8 +33,9 @@ export const createApiCall = (logout: () => void) => {
                 logout();
                 return {
                     data: undefined,
-                    error: 'Authentication expired',
-                    status: 401
+                    error: "Session expired",
+                    status: 401,
+                    errorDetails: null
                 };
             }
 
@@ -43,17 +46,21 @@ export const createApiCall = (logout: () => void) => {
                     status: response.status
                 };
             } else {
+                const standardizedError = standardizeApiError(data, response.status);
                 return {
                     data: undefined,
-                    error: data.message || `Request failed with status ${response.status}`,
-                    status: response.status
+                    error: standardizedError.message,
+                    status: response.status,
+                    errorDetails: standardizedError.details
                 };
             }
         } catch (error: any) {
+            const standardizedError = standardizeApiError(error, 0);
             return {
                 data: undefined,
-                error: error.message || 'Network error',
-                status: 0
+                error: standardizedError.message,
+                status: 0,
+                errorDetails: standardizedError.details
             };
         }
     };

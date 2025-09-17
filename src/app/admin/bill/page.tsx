@@ -1,13 +1,13 @@
 "use client";
 
-import AdminLayout from "../../shared/AdminLayout";
+import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import SecureRoute from "../../components/SecureRoute";
 import BillingSection from "../../shared/BillingSection";
 
 export default function AdminBillPage() {
     return (
         <SecureRoute roleRequired="admin">
-            <AdminLayout authError={null}>
+            <RoleAwareLayout>
                 <div className="container-fluid">
                     {/* Header */}
                     <div className="bg-danger text-white p-4 mb-4 rounded">
@@ -21,7 +21,7 @@ export default function AdminBillPage() {
                     {/* Billing Section */}
                     <BillingSection />
                 </div>
-            </AdminLayout>
+            </RoleAwareLayout>
         </SecureRoute>
     );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import AdminLayout from "../../../shared/AdminLayout";
+import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import Image from "next/image";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
@@ -10,6 +10,7 @@ import AsyncSelect from "react-select/async";
 import { AuthError, Role, Scope } from "src/app/types/types";
 import jwt from "jsonwebtoken";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
+import { useApiCall } from "src/app/utils/apiUtils";
 
 type ErrorState = {
   message: string;
@@ -20,12 +21,14 @@ type ErrorState = {
 } | null;
 
 export default function UsersPage() {
+  const apiCall = useApiCall();
   const [roles, setRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [selectedScope, setSelectedScope] = useState<Scope | null>(null);
   const [permissionsByScope, setPermissionsByScope] = useState({});
   const [scopes, setScopes] = useState<Scope[]>([]);
-  const [error, setError] = useState<ErrorState>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<any>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [permissionToDelete, setPermissionToDelete] = useState<{ id: string, name: string } | null>(
@@ -45,88 +48,58 @@ export default function UsersPage() {
 
   const fetchRoles = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/roles", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        if (response.status === 403) {
-          setError({
-            message: data.message || "Access denied: You don't have permission to view roles",
-            missingPermissions: data.missingPermissions || [],
-            isAdmin: data.isAdmin || false,
-            userRoles: data.userRoles || [],
-            requiredPermissions: data.requiredPermissions || []
-          });
-        } else {
-          setError({ message: data.message || "Failed to fetch roles" });
-        }
-      } else {
-        setRoles(data);
+      const result = await apiCall("/api/roles");
+
+      if (result.status === 200) {
+        setRoles(result.data);
         setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to fetch roles");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      setError({ message: "An unexpected error occurred: " + error.message });
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
   const fetchScopes = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/roles/scopes", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data);
-      } else {
-        setScopes(data);
-        const emptyPermissionsByScope = data.reduce((acc, scope) => {
+      const result = await apiCall("/api/roles/scopes");
+
+      if (result.status === 200) {
+        setScopes(result.data);
+        const emptyPermissionsByScope = result.data.reduce((acc, scope) => {
           acc[scope.id] = [];
           return acc;
         }, {});
         setPermissionsByScope(emptyPermissionsByScope);
         setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to fetch scopes");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      setError({ message: "An unexpected error occurred: " + error.message });
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
   const fetchPermissions = async (role: Role) => {
+    setSelectedRole(role);
+
     try {
-      setSelectedRole(role);
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/roles/${role.id}/permissions`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        if (response.status === 403) {
-          setError({
-            message: data.message || "Access denied: You don't have permission to view permissions",
-            missingPermissions: data.missingPermissions || [],
-            isAdmin: data.isAdmin || false,
-            userRoles: data.userRoles || [],
-            requiredPermissions: data.requiredPermissions || []
-          });
-        } else {
-          setError({ message: data.message || "Failed to fetch permissions" });
-        }
-      } else {
-        const permissions = await response.json();
+      const result = await apiCall(`/api/roles/${role.id}/permissions`);
+
+      if (result.status === 200) {
         setError(null);
+        setErrorDetails(null);
         const updatedPermissionsByScope = scopes.reduce((acc, scope) => {
           acc[scope.name] = [];
           return acc;
         }, {});
-        permissions.forEach((perm) => {
+        result.data.forEach((perm) => {
           if (!updatedPermissionsByScope[perm.scope]) {
             updatedPermissionsByScope[perm.scope] = [];
           }
@@ -136,9 +109,13 @@ export default function UsersPage() {
           });
         });
         setPermissionsByScope(updatedPermissionsByScope);
+      } else {
+        setError(result.error || "Failed to fetch permissions");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      setError({ message: "An unexpected error occurred: " + error.message });
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -154,41 +131,29 @@ export default function UsersPage() {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/roles/${selectedRole.id}/permissions`, {
+      const result = await apiCall(`/api/roles/${selectedRole.id}/permissions`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           roleId: selectedRole.id,
           permissionId: permissionToDelete.id,
         }),
       });
 
-      if (response.ok) {
+      if (result.status === 200) {
         // Refresh the permissions for the current role
         await fetchPermissions(selectedRole);
         setShowDeleteModal(false);
         setPermissionToDelete(null);
+        setError(null);
+        setErrorDetails(null);
       } else {
-        const errorData = await response.json().catch(() => ({ message: "Failed to delete permission" }));
-        if (response.status === 403) {
-          setError({
-            message: errorData.message || "Access denied: You don't have permission to delete permissions",
-            missingPermissions: errorData.missingPermissions || [],
-            isAdmin: errorData.isAdmin || false,
-            userRoles: errorData.userRoles || [],
-            requiredPermissions: errorData.requiredPermissions || []
-          });
-        } else {
-          setError({ message: errorData.message || "Failed to delete permission" });
-        }
+        setError(result.error || "Failed to delete permission");
+        setErrorDetails(result.errorDetails);
         setShowDeleteModal(false);
       }
     } catch (error: any) {
-      setError({ message: error.message || "Failed to delete permission" });
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setShowDeleteModal(false);
     }
   };
@@ -202,30 +167,34 @@ export default function UsersPage() {
     if (!selectedScope) {
       return [];
     }
-    const token = localStorage.getItem("token");
-    const response = await fetch(
-      `/api/roles/scopes/${selectedScope.id}/permissions`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-    const data = await response.json();
 
-    const allPermissions = data[0].permissions;
-    const existingPermissions = permissionsByScope[selectedScope.name] || [];
+    try {
+      const result = await apiCall(`/api/roles/scopes/${selectedScope.id}/permissions`);
 
-    const filteredPermissions = allPermissions.filter(
-      (permission) => !existingPermissions.includes(permission.name),
-    );
-    const formattedPermissions = filteredPermissions.map((permission) => ({
-      label: permission.name,
-      value: permission.id,
-    }));
+      if (result.status === 200) {
+        const allPermissions = result.data[0].permissions;
+        const existingPermissions = permissionsByScope[selectedScope.name] || [];
 
-    setAvailablePermissions(formattedPermissions);
-    return formattedPermissions;
+        const filteredPermissions = allPermissions.filter(
+          (permission) => !existingPermissions.includes(permission.name),
+        );
+        const formattedPermissions = filteredPermissions.map((permission) => ({
+          label: permission.name,
+          value: permission.id,
+        }));
+
+        setAvailablePermissions(formattedPermissions);
+        return formattedPermissions;
+      } else {
+        setError(result.error || "Failed to fetch available permissions");
+        setErrorDetails(result.errorDetails);
+        return [];
+      }
+    } catch (error: any) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+      return [];
+    }
   };
 
 
@@ -235,74 +204,57 @@ export default function UsersPage() {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `/api/roles/${selectedRole.id}/permissions`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            roleId: selectedRole.id,
-            permissionId: selectedPermission.value,
-          }),
-        },
-      );
+      const result = await apiCall(`/api/roles/${selectedRole.id}/permissions`, {
+        method: "POST",
+        body: JSON.stringify({
+          roleId: selectedRole.id,
+          permissionId: selectedPermission.value,
+        }),
+      });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Failed to add permission" }));
-        if (response.status === 403) {
-          setError({
-            message: errorData.message || "Access denied: You don't have permission to add permissions",
-            missingPermissions: errorData.missingPermissions || [],
-            isAdmin: errorData.isAdmin || false,
-            userRoles: errorData.userRoles || [],
-            requiredPermissions: errorData.requiredPermissions || []
-          });
-        } else {
-          setError({ message: errorData.message || "Failed to add permission" });
-        }
-        return;
-      }
-
-      // If the current user has this role, refresh their token
-      const userToken = localStorage.getItem("token");
-      if (userToken) {
-        const decoded = jwt.decode(userToken);
-        if (
-          decoded &&
-          typeof decoded === "object" &&
-          "roles" in decoded &&
-          Array.isArray((decoded as any).roles) &&
-          (decoded as any).roles.includes(selectedRole.name)
-        ) {
-          // Call refresh endpoint
-          try {
-            const refreshResp = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
-            if (refreshResp.ok) {
-              const data = await refreshResp.json();
-              localStorage.setItem("token", data.token);
-            } else {
+      if (result.status === 200) {
+        // If the current user has this role, refresh their token
+        const userToken = localStorage.getItem("token");
+        if (userToken) {
+          const decoded = jwt.decode(userToken);
+          if (
+            decoded &&
+            typeof decoded === "object" &&
+            "roles" in decoded &&
+            Array.isArray((decoded as any).roles) &&
+            (decoded as any).roles.includes(selectedRole.name)
+          ) {
+            // Call refresh endpoint
+            try {
+              const refreshResult = await apiCall("/api/auth/refresh", { method: "POST" });
+              if (refreshResult.status === 200) {
+                localStorage.setItem("token", refreshResult.data.token);
+              } else {
+                setSessionError("Session updated, but failed to refresh your token. Please re-login.");
+              }
+            } catch {
               setSessionError("Session updated, but failed to refresh your token. Please re-login.");
             }
-          } catch {
-            setSessionError("Session updated, but failed to refresh your token. Please re-login.");
           }
         }
-      }
 
-      setShowAddModal(false);
-      // Refresh the permissions list to show the newly added permission
-      await fetchPermissions(selectedRole);
+        setShowAddModal(false);
+        setError(null);
+        setErrorDetails(null);
+        // Refresh the permissions list to show the newly added permission
+        await fetchPermissions(selectedRole);
+      } else {
+        setError(result.error || "Failed to add permission");
+        setErrorDetails(result.errorDetails);
+      }
     } catch (error: any) {
-      setError({ message: error.message || "An unexpected error occurred while adding permission" });
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
@@ -314,14 +266,12 @@ export default function UsersPage() {
 
         {/* Error Display */}
         <ErrorDisplay
-          error={error?.message || null}
-          onDismiss={() => setError(null)}
-          errorDetails={error ? {
-            missingPermissions: error.missingPermissions,
-            isAdmin: error.isAdmin,
-            userRoles: error.userRoles,
-            requiredPermissions: error.requiredPermissions
-          } : undefined}
+          error={error}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
+          }}
+          errorDetails={errorDetails}
         />
         {sessionError && (
           <div className="alert alert-warning alert-dismissible fade show mb-4" role="alert">
@@ -502,6 +452,6 @@ export default function UsersPage() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }
