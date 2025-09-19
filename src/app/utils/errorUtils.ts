@@ -17,6 +17,64 @@ export interface ErrorState {
     errorDetails: any;
 }
 
+export interface StandardizedError {
+    message: string;
+    details: any;
+}
+
+/**
+ * Standardizes API errors into a consistent format
+ */
+export const standardizeApiError = (error: any, status: number): StandardizedError => {
+    if (status === 0) {
+        // Network error
+        return {
+            message: "Network error occurred",
+            details: { networkError: true, status: 0 }
+        };
+    }
+
+    if (status === 401) {
+        return {
+            message: "Authentication required",
+            details: { status: 401, authError: true }
+        };
+    }
+
+    if (status === 403) {
+        return {
+            message: error.message || "Access denied",
+            details: {
+                status: 403,
+                missingPermissions: error.missingPermissions,
+                isAdmin: error.isAdmin,
+                userRoles: error.userRoles,
+                requiredPermissions: error.requiredPermissions
+            }
+        };
+    }
+
+    if (status === 404) {
+        return {
+            message: error.message || "Resource not found",
+            details: { status: 404 }
+        };
+    }
+
+    if (status >= 500) {
+        return {
+            message: error.message || "Server error occurred",
+            details: { status, serverError: true }
+        };
+    }
+
+    // Generic error
+    return {
+        message: error.message || error.error || "An error occurred",
+        details: { status }
+    };
+};
+
 /**
  * Extracts error information from an API response
  */

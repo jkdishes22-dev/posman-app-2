@@ -6,9 +6,9 @@ import { Button } from "react-bootstrap";
 import AuditLog from "../activity-log";
 import InventoryModal from "./new";
 import { InventoryItem } from "src/app/types/types";
-import { useApiCall } from "../../utils/apiUtils";
-import { ApiErrorResponse } from "../../utils/errorUtils";
-import ErrorDisplay from "../../components/ErrorDisplay";
+import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
+import ErrorDisplay from "../../../components/ErrorDisplay";
 
 export default function InventoryPage() {
   const [showModal, setShowModal] = useState(false);

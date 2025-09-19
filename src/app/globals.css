@@ -281,6 +281,76 @@
     font-weight: 500;
 }
 
+/* POS Layout Styles - Flexible billing area with proper spacing */
+.items-section {
+    min-height: 65vh;
+    max-height: 65vh;
+    margin-bottom: 0.2rem;
+    /* Increased bottom margin for more breathing room */
+}
+
+.bill-section {
+    min-height: 65vh;
+    max-height: 65vh;
+    margin-bottom: 0.5rem;
+    /* Increased bottom margin for more breathing room */
+}
+
+.categories-section {
+    margin-top: 0.5rem;
+    flex-shrink: 0;
+    /* Allow categories to take remaining space but with max height */
+    max-height: 30vh;
+}
+
+.categories-card {
+    max-height: 28vh;
+    /* Slightly more space for categories */
+    overflow: hidden;
+    /* Prevent card from growing */
+}
+
+.categories-card .card-body {
+    padding: 0.75rem;
+    max-height: 24vh;
+    /* More space for category content */
+    overflow-y: auto;
+    /* Enable scrolling for many categories */
+    /* Custom scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: #ccc #f1f1f1;
+}
+
+.categories-card .card-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.categories-card .card-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.categories-card .card-body::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+
+.categories-card .card-body::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}
+
+.items-grid {
+    max-height: 55vh;
+    /* Slightly less to account for margin */
+    overflow-y: auto;
+}
+
+.bill-items {
+    max-height: 55vh;
+    /* Slightly less to account for margin */
+    overflow-y: auto;
+}
+
 /* Material Design Utility Classes */
 .min-vh-100 {
     min-height: 100vh;
@@ -367,6 +437,49 @@
 
     .categories-grid {
         grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-height: 800px) {
+
+    .items-section,
+    .bill-section {
+        min-height: 60vh;
+        max-height: 60vh;
+    }
+
+    .categories-section {
+        max-height: 35vh;
+    }
+
+    .categories-card {
+        max-height: 32vh;
+    }
+
+    .categories-card .card-body {
+        max-height: 28vh;
+    }
+}
+
+@media (max-height: 600px) {
+
+    .items-section,
+    .bill-section {
+        min-height: 55vh;
+        max-height: 55vh;
+    }
+
+    .categories-section {
+        max-height: 40vh;
+    }
+
+    .categories-card {
+        max-height: 37vh;
+    }
+
+    .categories-card .card-body {
+        max-height: 33vh;
     }
 }
 

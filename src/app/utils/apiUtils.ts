@@ -7,7 +7,6 @@ export interface ApiResponse<T = any> {
     error?: string;
     errorDetails?: any;
     status: number;
-    errorDetails?: any;
 }
 
 export const createApiCall = (logout: () => void) => {
@@ -47,7 +46,7 @@ export const createApiCall = (logout: () => void) => {
                     status: response.status
                 };
             } else {
-                const standardizedError = standardizeApiError(data, response.status);
+                const standardizedError: StandardizedError = standardizeApiError(data, response.status);
                 return {
                     data: undefined,
                     error: standardizedError.message,
@@ -56,7 +55,7 @@ export const createApiCall = (logout: () => void) => {
                 };
             }
         } catch (error: any) {
-            const standardizedError = standardizeApiError(error, 0);
+            const standardizedError: StandardizedError = standardizeApiError(error, 0);
             return {
                 data: undefined,
                 error: standardizedError.message,
