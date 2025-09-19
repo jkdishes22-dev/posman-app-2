@@ -9,6 +9,8 @@ import {
 } from "react-bootstrap";
 import { Item } from "../../../../../types/types";
 import { Pricelist } from "@backend/entities/Pricelist";
+import { useApiCall } from "../../../../../utils/apiUtils";
+import ErrorDisplay from "../../../../../components/ErrorDisplay";
 
 interface EditItemModalProps {
   show: boolean;
@@ -23,8 +25,10 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
   onClose,
   onSave,
 }) => {
+  const apiCall = useApiCall();
   const [editedItem, setEditedItem] = useState<Item | null>(item);
   const [error, setError] = useState<string | null>(null); // Error state
+  const [errorDetails, setErrorDetails] = useState<any>(null);
   const [pricelists, setPricelists] = useState([]);
   const [pricelistId, setPricelistId] = useState<number | null>(
     item?.pricelistId || null,
@@ -34,22 +38,15 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
 
   useEffect(() => {
     async function fetchPricelists() {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/pricelists", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        setPricelists(data);
-      } catch (error: any) {
-        setAddItemError("Failed to fetch pricelists: " + error?.message);
-      } finally {
-        setLoadingPricelists(false); // Set loading to false after fetching
+      const result = await apiCall("/api/menu/pricelists");
+
+      if (result.status === 200) {
+        setPricelists(result.data);
+      } else {
+        setAddItemError(result.error || "Failed to fetch pricelists");
       }
+
+      setLoadingPricelists(false); // Set loading to false after fetching
     }
     fetchPricelists();
   }, []);
@@ -82,32 +79,32 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
 
   const handleSave = async () => {
     if (editedItem) {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`/api/menu/items/${editedItem.id}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ ...editedItem, pricelistId }),
-        });
+      const result = await apiCall(`/api/menu/items/${editedItem.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...editedItem, pricelistId }),
+      });
 
-        if (!response.ok) {
-          throw new Error("Failed to update item");
-        }
-
-        const updatedItem = await response.json(); // Get the updated item from the response
-        onSave(updatedItem); // Call save function with the updated item
+      if (result.status === 200) {
+        onSave(result.data); // Call save function with the updated item
         onClose(); // Close modal
-      } catch (error: any) {
-        setError("Error updating item: " + error.message);
+      } else {
+        setError(result.error || "Error updating item");
+        setErrorDetails(result.errorDetails);
       }
     }
   };
 
   if (error) {
-    return <p>{error}</p>; // Display error message
+    return (
+      <ErrorDisplay
+        error={error}
+        errorDetails={errorDetails}
+        onDismiss={() => {
+          setError(null);
+          setErrorDetails(null);
+        }}
+      />
+    );
   }
 
   return (
@@ -116,7 +113,10 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
         <ModalTitle>Edit Item</ModalTitle>
       </ModalHeader>
       <ModalBody>
-        {addItemError && <p style={{ color: "red" }}>{addItemError}</p>}
+        <ErrorDisplay
+          error={addItemError}
+          onDismiss={() => setAddItemError("")}
+        />
         {loadingPricelists ? (
           <p>Loading Pricelists...</p>
         ) : (

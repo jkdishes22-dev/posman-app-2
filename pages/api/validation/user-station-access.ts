@@ -12,15 +12,20 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             const userId = req.user?.id;
             const { stationId } = req.query;
 
+            console.log("Station access validation request:", { userId, stationId, userRoles: req.user?.roles });
+
             if (!userId) {
+                console.log("Station access validation failed: No user ID");
                 return res.status(401).json({ message: "User not authenticated" });
             }
 
             if (!stationId) {
+                console.log("Station access validation failed: No station ID");
                 return res.status(400).json({ message: "Station ID is required" });
             }
 
             const hasAccess = await stationService.validateUserStationAccess(Number(userId), Number(stationId));
+            console.log("Station access validation result:", { userId, stationId, hasAccess });
 
             res.status(200).json({
                 message: "User station access validated",

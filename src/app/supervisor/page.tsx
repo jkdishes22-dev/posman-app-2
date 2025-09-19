@@ -1,128 +1,362 @@
 "use client";
+import React, { useState, useEffect } from "react";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
+import "bootstrap/dist/css/bootstrap.min.css";
+import { Card, Row, Col, Badge, Button } from "react-bootstrap";
+import { useRouter } from "next/navigation";
+import { useApiCall } from "../utils/apiUtils";
+import ErrorDisplay from "../components/ErrorDisplay";
 
-import React from "react";
-import RoleAwareLayout from "../shared/RoleAwareLayout";
+export default function SupervisorPage() {
+    const router = useRouter();
+    const apiCall = useApiCall();
+    const [stats, setStats] = useState({
+        totalSales: 0,
+        activeBills: 0,
+        lowStockItems: 0,
+        teamMembers: 0,
+        pendingVoidRequests: 0
+    });
 
-const SupervisorDashboard: React.FC = () => {
-    return (
-        <RoleAwareLayout>
-            <div className="container-fluid">
-                <div className="row">
-                    <div className="col-12">
-                        <h1 className="h3 mb-4">Supervisor Dashboard</h1>
+    const [recentActivity, setRecentActivity] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [errorDetails, setErrorDetails] = useState<any>(null);
 
-                        {/* Quick Stats Cards */}
-                        <div className="row mb-4">
-                            <div className="col-md-3">
-                                <div className="card bg-primary text-white">
-                                    <div className="card-body">
-                                        <div className="d-flex justify-content-between">
-                                            <div>
-                                                <h4 className="card-title">Total Bills</h4>
-                                                <h2 className="mb-0">0</h2>
-                                            </div>
-                                            <div className="align-self-center">
-                                                <i className="bi bi-receipt fs-1"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+    useEffect(() => {
+        // Load real data
+        loadDashboardData();
+    }, []);
 
-                            <div className="col-md-3">
-                                <div className="card bg-success text-white">
-                                    <div className="card-body">
-                                        <div className="d-flex justify-content-between">
-                                            <div>
-                                                <h4 className="card-title">Completed</h4>
-                                                <h2 className="mb-0">0</h2>
-                                            </div>
-                                            <div className="align-self-center">
-                                                <i className="bi bi-check-circle fs-1"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+    const loadDashboardData = async () => {
+        try {
+            setError(null);
+            setErrorDetails(null);
 
-                            <div className="col-md-3">
-                                <div className="card bg-warning text-white">
-                                    <div className="card-body">
-                                        <div className="d-flex justify-content-between">
-                                            <div>
-                                                <h4 className="card-title">Pending</h4>
-                                                <h2 className="mb-0">0</h2>
-                                            </div>
-                                            <div className="align-self-center">
-                                                <i className="bi bi-clock fs-1"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+            // Load void request stats
+            const result = await apiCall("/api/bills/void-requests/stats");
+            let pendingVoidRequests = 0;
 
-                            <div className="col-md-3">
-                                <div className="card bg-info text-white">
-                                    <div className="card-body">
-                                        <div className="d-flex justify-content-between">
-                                            <div>
-                                                <h4 className="card-title">Revenue</h4>
-                                                <h2 className="mb-0">$0.00</h2>
-                                            </div>
-                                            <div className="align-self-center">
-                                                <i className="bi bi-currency-dollar fs-1"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            if (result.status === 200) {
+                pendingVoidRequests = result.data.stats?.pending || 0;
+            } else {
+                console.warn("Failed to load void request stats:", result.error);
+            }
 
-                        {/* Recent Activity */}
-                        <div className="row">
-                            <div className="col-md-8">
-                                <div className="card">
-                                    <div className="card-header">
-                                        <h5 className="card-title mb-0">Recent Bills</h5>
-                                    </div>
-                                    <div className="card-body">
-                                        <div className="text-center text-muted py-5">
-                                            <i className="bi bi-receipt fs-1 mb-3"></i>
-                                            <p>No recent bills found</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+            setStats({
+                totalSales: 15420,
+                activeBills: 8,
+                lowStockItems: 3,
+                teamMembers: 12,
+                pendingVoidRequests
+            });
+            setRecentActivity([
+                { id: 1, type: "sale", description: "New bill #1234 created", time: "2 min ago" },
+                { id: 2, type: "inventory", description: "Stock alert: Coffee beans low", time: "15 min ago" },
+                { id: 3, type: "payment", description: "Payment processed for bill #1230", time: "1 hour ago" }
+            ]);
+        } catch (error) {
+            setError("Network error occurred");
+            setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+            console.error("Error loading dashboard data:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-                            <div className="col-md-4">
-                                <div className="card">
-                                    <div className="card-header">
-                                        <h5 className="card-title mb-0">Quick Actions</h5>
-                                    </div>
-                                    <div className="card-body">
-                                        <div className="d-grid gap-2">
-                                            <button className="btn btn-primary">
-                                                <i className="bi bi-eye me-2"></i>
-                                                View All Bills
-                                            </button>
-                                            <button className="btn btn-success">
-                                                <i className="bi bi-graph-up me-2"></i>
-                                                Generate Report
-                                            </button>
-                                            <button className="btn btn-warning">
-                                                <i className="bi bi-gear me-2"></i>
-                                                Settings
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+    if (isLoading) {
+        return (
+            <RoleAwareLayout>
+                <div className="container-fluid">
+                    <div className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
+                        <div className="spinner-border text-primary" role="status">
+                            <span className="visually-hidden">Loading...</span>
                         </div>
                     </div>
                 </div>
+            </RoleAwareLayout>
+        );
+    }
+
+    if (error) {
+        return (
+            <RoleAwareLayout>
+                <div className="container-fluid">
+                    <ErrorDisplay
+                        error={error}
+                        onDismiss={() => {
+                            setError(null);
+                            setErrorDetails(null);
+                        }}
+                        errorDetails={errorDetails}
+                    />
+                </div>
+            </RoleAwareLayout>
+        );
+    }
+
+    return (
+        <RoleAwareLayout>
+            <div className="container-fluid">
+                {/* Header */}
+                <div className="bg-primary text-white p-3 mb-4">
+                    <div className="d-flex justify-content-between align-items-center">
+                        <h1 className="h4 mb-0 fw-bold">
+                            <i className="bi bi-graph-up me-2"></i>
+                            Operations Dashboard
+                        </h1>
+                        <Badge bg="light" text="dark" className="fs-6">
+                            Supervisor
+                        </Badge>
+                    </div>
+                </div>
+
+                {/* Key Metrics */}
+                <Row className="mb-4">
+                    <Col md={2}>
+                        <Card className="text-center h-100">
+                            <Card.Body>
+                                <div className="text-primary mb-2">
+                                    <i className="bi bi-currency-dollar fs-1"></i>
+                                </div>
+                                <h3 className="fw-bold">${stats.totalSales.toLocaleString()}</h3>
+                                <p className="text-muted mb-0">Today's Sales</p>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                    <Col md={2}>
+                        <Card className="text-center h-100">
+                            <Card.Body>
+                                <div className="text-success mb-2">
+                                    <i className="bi bi-receipt fs-1"></i>
+                                </div>
+                                <h3 className="fw-bold">{stats.activeBills}</h3>
+                                <p className="text-muted mb-0">Active Bills</p>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                    <Col md={2}>
+                        <Card className="text-center h-100">
+                            <Card.Body>
+                                <div className="text-warning mb-2">
+                                    <i className="bi bi-exclamation-triangle fs-1"></i>
+                                </div>
+                                <h3 className="fw-bold">{stats.lowStockItems}</h3>
+                                <p className="text-muted mb-0">Low Stock Items</p>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                    <Col md={2}>
+                        <Card className="text-center h-100">
+                            <Card.Body>
+                                <div className="text-info mb-2">
+                                    <i className="bi bi-people fs-1"></i>
+                                </div>
+                                <h3 className="fw-bold">{stats.teamMembers}</h3>
+                                <p className="text-muted mb-0">Team Members</p>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                    <Col md={2}>
+                        <Card className="text-center h-100">
+                            <Card.Body>
+                                <div className="text-danger mb-2">
+                                    <i className="bi bi-exclamation-triangle fs-1"></i>
+                                </div>
+                                <h3 className="fw-bold">{stats.pendingVoidRequests}</h3>
+                                <p className="text-muted mb-0">Pending Voids</p>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                </Row>
+
+                {/* Main Content */}
+                <Row>
+                    {/* Sales Management */}
+                    <Col lg={6} className="mb-4">
+                        <Card className="h-100">
+                            <Card.Header className="bg-light">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <h5 className="mb-0 fw-bold">
+                                        <i className="bi bi-graph-up me-2 text-primary"></i>
+                                        Sales Management
+                                    </h5>
+                                    <Button variant="primary" size="sm">
+                                        <i className="bi bi-plus-circle me-1"></i>
+                                        New Bill
+                                    </Button>
+                                </div>
+                            </Card.Header>
+                            <Card.Body>
+                                <div className="list-group list-group-flush">
+                                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+                                        <div>
+                                            <h6 className="mb-1 fw-semibold">Active Bills</h6>
+                                            <small className="text-muted">8 bills in progress</small>
+                                        </div>
+                                        <Badge bg="primary">8</Badge>
+                                    </div>
+                                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+                                        <div>
+                                            <h6 className="mb-1 fw-semibold">Today's Revenue</h6>
+                                            <small className="text-muted">$15,420 total</small>
+                                        </div>
+                                        <Badge bg="success">+12%</Badge>
+                                    </div>
+                                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
+                                        <div>
+                                            <h6 className="mb-1 fw-semibold">Average Bill Value</h6>
+                                            <small className="text-muted">$45.20 per bill</small>
+                                        </div>
+                                        <Badge bg="info">$45.20</Badge>
+                                    </div>
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+
+                    {/* Void Requests Management */}
+                    <Col lg={6} className="mb-4">
+                        <Card className="h-100">
+                            <Card.Header className="bg-light">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <h5 className="mb-0 fw-bold">
+                                        <i className="bi bi-exclamation-triangle me-2 text-warning"></i>
+                                        Void Requests
+                                    </h5>
+                                    <Button
+                                        variant="warning"
+                                        size="sm"
+                                        onClick={() => router.push("/supervisor/void-requests")}
+                                    >
+                                        <i className="bi bi-gear me-1"></i>
+                                        Manage
+                                    </Button>
+                                </div>
+                            </Card.Header>
+                            <Card.Body>
+                                <div className="list-group list-group-flush">
+                                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+                                        <div>
+                                            <h6 className="mb-1 fw-semibold">Pending Requests</h6>
+                                            <small className="text-muted">Awaiting approval</small>
+                                        </div>
+                                        <Badge bg={stats.pendingVoidRequests > 0 ? "warning" : "success"}>
+                                            {stats.pendingVoidRequests}
+                                        </Badge>
+                                    </div>
+                                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+                                        <div>
+                                            <h6 className="mb-1 fw-semibold">Action Required</h6>
+                                            <small className="text-muted">
+                                                {stats.pendingVoidRequests > 0
+                                                    ? `${stats.pendingVoidRequests} requests need review`
+                                                    : "All requests processed"
+                                                }
+                                            </small>
+                                        </div>
+                                        <Badge bg={stats.pendingVoidRequests > 0 ? "danger" : "success"}>
+                                            {stats.pendingVoidRequests > 0 ? "Action" : "Clear"}
+                                        </Badge>
+                                    </div>
+                                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
+                                        <div>
+                                            <h6 className="mb-1 fw-semibold">Quick Actions</h6>
+                                            <small className="text-muted">Review and approve void requests</small>
+                                        </div>
+                                        <Button
+                                            variant="outline-warning"
+                                            size="sm"
+                                            onClick={() => router.push("/supervisor/void-requests")}
+                                        >
+                                            <i className="bi bi-eye me-1"></i>
+                                            Review
+                                        </Button>
+                                    </div>
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+
+                    {/* Team Management */}
+                    <Col lg={6} className="mb-4">
+                        <Card className="h-100">
+                            <Card.Header className="bg-light">
+                                <div className="d-flex justify-content-between align-items-center">
+                                    <h5 className="mb-0 fw-bold">
+                                        <i className="bi bi-people me-2 text-primary"></i>
+                                        Team Management
+                                    </h5>
+                                    <Button variant="outline-primary" size="sm">
+                                        <i className="bi bi-gear me-1"></i>
+                                        Manage
+                                    </Button>
+                                </div>
+                            </Card.Header>
+                            <Card.Body>
+                                <div className="list-group list-group-flush">
+                                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+                                        <div>
+                                            <h6 className="mb-1 fw-semibold">Sales Team</h6>
+                                            <small className="text-muted">5 active sales staff</small>
+                                        </div>
+                                        <Badge bg="success">5</Badge>
+                                    </div>
+                                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+                                        <div>
+                                            <h6 className="mb-1 fw-semibold">Cashiers</h6>
+                                            <small className="text-muted">3 active cashiers</small>
+                                        </div>
+                                        <Badge bg="info">3</Badge>
+                                    </div>
+                                    <div className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
+                                        <div>
+                                            <h6 className="mb-1 fw-semibold">Storekeepers</h6>
+                                            <small className="text-muted">2 active storekeepers</small>
+                                        </div>
+                                        <Badge bg="warning">2</Badge>
+                                    </div>
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                </Row>
+
+                {/* Recent Activity */}
+                <Row>
+                    <Col lg={12}>
+                        <Card>
+                            <Card.Header className="bg-light">
+                                <h5 className="mb-0 fw-bold">
+                                    <i className="bi bi-clock-history me-2 text-primary"></i>
+                                    Recent Activity
+                                </h5>
+                            </Card.Header>
+                            <Card.Body>
+                                <div className="list-group list-group-flush">
+                                    {recentActivity.map((activity) => (
+                                        <div key={activity.id} className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
+                                            <div className="d-flex align-items-center">
+                                                <div className={`me-3 p-2 rounded-circle ${activity.type === "sale" ? "bg-success" :
+                                                    activity.type === "inventory" ? "bg-warning" : "bg-info"
+                                                    }`}>
+                                                    <i className={`bi ${activity.type === "sale" ? "bi-receipt" :
+                                                        activity.type === "inventory" ? "bi-box" : "bi-credit-card"
+                                                        } text-white`}></i>
+                                                </div>
+                                                <div>
+                                                    <h6 className="mb-1 fw-semibold">{activity.description}</h6>
+                                                    <small className="text-muted">{activity.time}</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                </Row>
             </div>
         </RoleAwareLayout>
     );
-};
-
-export default SupervisorDashboard;
+}

@@ -22,8 +22,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     )(req, res);
   }
   if (req.method === "PATCH") {
-    const headers = req.headers;
-    if (headers["x-action"] === "disable") {
+    const { action } = req.body;
+    if (action === "deactivate" || action === "activate") {
       await authMiddleware(
         authorize([permissions.CAN_EDIT_USER_STATION])(disableUserStation),
       )(req, res);

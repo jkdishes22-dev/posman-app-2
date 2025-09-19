@@ -30,12 +30,18 @@ const Categories: React.FC<CategoriesProps> = ({
     if (showAll) {
       setVisibleCount(8);
     } else {
-      setVisibleCount(categories.length);
+      setVisibleCount(Array.isArray(categories) ? categories.length : 0);
     }
     setShowAll(!showAll);
   };
 
-  const filteredCategories = categories.filter((category) => {
+  // Debug: Log what we're receiving
+  console.log('Categories component received:', { categories, type: typeof categories, isArray: Array.isArray(categories) });
+  
+  // Ensure categories is always an array
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  
+  const filteredCategories = safeCategories.filter((category) => {
     if (statusFilter === "all") return true;
     return category.status === statusFilter;
   });

@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { useApiCall } from "../../utils/apiUtils";
+import ErrorDisplay from "../../components/ErrorDisplay";
 
 function AuditLog() {
+  const apiCall = useApiCall();
   const [activities, setActivities] = useState([]);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<any>(null);
 
   useEffect(() => {
     fetchActivities();
@@ -9,25 +14,21 @@ function AuditLog() {
 
   const fetchActivities = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/inventory_activity", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setActivities(data);
+      const result = await apiCall("/api/inventory_activity");
+      if (result.status === 200) {
+        setActivities(result.data);
+        setError(null);
+        setErrorDetails(null);
       } else {
-        console.error("Failed to fetch inventory activities:", response.statusText);
+        setError(result.error || "Failed to fetch inventory activities");
+        setErrorDetails(result.errorDetails);
         setActivities([]);
       }
     } catch (error: any) {
-      console.error("Failed to fetch inventory activities", error);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setActivities([]);
+      console.error("Failed to fetch inventory activities", error);
     }
   };
 
@@ -36,7 +37,15 @@ function AuditLog() {
       <div className="card-header">
         <h2>Audit Log</h2>
       </div>
-      {activities.length > 0 ? (
+      <ErrorDisplay
+        error={error}
+        errorDetails={errorDetails}
+        onDismiss={() => {
+          setError(null);
+          setErrorDetails(null);
+        }}
+      />
+      {!error && activities.length > 0 ? (
         <ul className="list-group list-group-flush">
           {activities.map((activity) => (
             <li key={activity.id} className="list-group-item">
@@ -45,11 +54,11 @@ function AuditLog() {
             </li>
           ))}
         </ul>
-      ) : (
+      ) : !error ? (
         <div className="card-body text-center text-muted">
           <p>No inventory activities recorded yet.</p>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

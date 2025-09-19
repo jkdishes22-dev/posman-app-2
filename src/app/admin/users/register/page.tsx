@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
+import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import { AuthError } from "src/app/types/types";
 
 const UsersPage: React.FC = () => {

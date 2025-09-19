@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { Card, Row, Col, Button } from "react-bootstrap";
 import { useRouter } from "next/navigation";
 
-import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
+import RoleAwareLayout from "../shared/RoleAwareLayout";
 import SecureRoute from "../components/SecureRoute";
 
 export default function AdminPage() {

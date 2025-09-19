@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import { useApiCall } from "../../../utils/apiUtils";
 
 export default function PricelistAdd({
   showModal,
@@ -11,6 +12,7 @@ export default function PricelistAdd({
   addPricelistErrorDetails,
   setAddPricelistErrorDetails,
 }) {
+  const apiCall = useApiCall();
   const [name, setName] = useState("");
   const [station, setStation] = useState("");
   const [description, setDescription] = useState("");
@@ -22,38 +24,18 @@ export default function PricelistAdd({
       setIsLoadingStations(true);
       setAddPricelistError("");
 
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          setAddPricelistError("No authentication token found. Please log in again.");
-          return;
-        }
+      const result = await apiCall("/api/stations");
 
-        const response = await fetch("/api/stations", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            setAddPricelistError("Authentication expired. Please log in again.");
-            return;
-          }
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        setStations(data);
+      if (result.status === 200) {
+        setStations(result.data);
         setAddPricelistError(""); // Clear any previous errors
-      } catch (error: any) {
-        console.error("Failed to fetch stations:", error);
-        setAddPricelistError("Failed to fetch stations: " + error.message);
-      } finally {
-        setIsLoadingStations(false);
+      } else if (result.status === 401) {
+        setAddPricelistError("Authentication expired. Please log in again.");
+      } else {
+        setAddPricelistError(result.error || "Failed to fetch stations");
       }
+
+      setIsLoadingStations(false);
     }
     if (showModal) {
       fetchStations();

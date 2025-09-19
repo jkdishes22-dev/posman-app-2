@@ -2,12 +2,15 @@
 import React, { useEffect, useState } from "react";
 import RoleAwareLayout from "../shared/RoleAwareLayout";
 import { withSecureRoute } from "../components/withSecureRoute";
+import { useApiCall } from "../utils/apiUtils";
+import ErrorDisplay from "../components/ErrorDisplay";
 
 const ProfilePage = () => {
+    const apiCall = useApiCall();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
+    const [error, setError] = useState<string | null>(null);
+    const [errorDetails, setErrorDetails] = useState<any>(null);
     const [pwForm, setPwForm] = useState({ current: "", new: "", confirm: "" });
     const [pwError, setPwError] = useState("");
     const [pwSuccess, setPwSuccess] = useState("");
@@ -17,19 +20,18 @@ const ProfilePage = () => {
         const fetchProfile = async () => {
             setLoading(true);
             setError("");
+            setErrorDetails(null);
             try {
-                const token = localStorage.getItem("token");
-                const res = await fetch("/api/users/me", {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    setError(data.error || "Failed to fetch profile");
-                    return;
+                const result = await apiCall("/api/users/me");
+                if (result.status === 200) {
+                    setUser(result.data);
+                } else {
+                    setError(result.error || "Failed to fetch profile");
+                    setErrorDetails(result.errorDetails);
                 }
-                setUser(data);
             } catch (err: any) {
-                setError(err.message || "Failed to fetch profile");
+                setError("Network error occurred");
+                setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
             } finally {
                 setLoading(false);
             }
@@ -55,24 +57,21 @@ const ProfilePage = () => {
         }
         setPwLoading(true);
         try {
-            const token = localStorage.getItem("token");
-            const res = await fetch("/api/users/me", {
+            const result = await apiCall("/api/users/me", {
                 method: "PATCH",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
                 body: JSON.stringify({
                     currentPassword: pwForm.current,
                     newPassword: pwForm.new,
                 }),
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to update password");
-            setPwSuccess("Password updated successfully");
-            setPwForm({ current: "", new: "", confirm: "" });
+            if (result.status === 200) {
+                setPwSuccess("Password updated successfully");
+                setPwForm({ current: "", new: "", confirm: "" });
+            } else {
+                setPwError(result.error || "Failed to update password");
+            }
         } catch (err: any) {
-            setPwError(err.message || "Failed to update password");
+            setPwError("Network error occurred");
         } finally {
             setPwLoading(false);
         }
@@ -97,7 +96,14 @@ const ProfilePage = () => {
                         <p className="mt-3 text-muted">Loading profile...</p>
                     </div>
                 ) : error ? (
-                    <div className="alert alert-danger mb-4">{error}</div>
+                    <ErrorDisplay
+                        error={error}
+                        onDismiss={() => {
+                            setError(null);
+                            setErrorDetails(null);
+                        }}
+                        errorDetails={errorDetails}
+                    />
                 ) : user ? (
                     <div className="row g-4">
                         <div className="col-md-6">

@@ -1,6 +1,6 @@
 "use client";
 
-import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
+import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import SecureRoute from "../../components/SecureRoute";
 import BillingSection from "../../shared/BillingSection";
 

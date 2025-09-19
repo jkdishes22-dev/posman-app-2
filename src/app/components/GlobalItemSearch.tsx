@@ -1,6 +1,8 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { Form, Button, Spinner, Alert } from "react-bootstrap";
+import { useApiCall } from "../utils/apiUtils";
+import ErrorDisplay from "./ErrorDisplay";
 
 interface ItemSearchResult {
     id: number;
@@ -30,10 +32,12 @@ export default function GlobalItemSearch({
     showResults = true,
     className = ""
 }: GlobalItemSearchProps) {
+    const apiCall = useApiCall();
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<ItemSearchResult[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [errorDetails, setErrorDetails] = useState<any>(null);
     const [showDropdown, setShowDropdown] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
 
@@ -73,33 +77,22 @@ export default function GlobalItemSearch({
 
         setIsLoading(true);
         setError(null);
+        setErrorDetails(null);
 
-        try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`/api/items/search?q=${encodeURIComponent(searchQuery)}&limit=10`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
+        const result = await apiCall(`/api/items/search?q=${encodeURIComponent(searchQuery)}&limit=10`);
 
-            if (response.ok) {
-                const data = await response.json();
-                setResults(data.items || []);
-                setShowDropdown(true);
-                setSelectedIndex(-1);
-            } else {
-                const errorData = await response.json();
-                setError(errorData.message || "Search failed");
-                setResults([]);
-                setShowDropdown(false);
-            }
-        } catch (err: any) {
-            setError("Network error occurred while searching");
+        if (result.status === 200) {
+            setResults(result.data.items || []);
+            setShowDropdown(true);
+            setSelectedIndex(-1);
+        } else {
+            setError(result.error || "Search failed");
+            setErrorDetails(result.errorDetails);
             setResults([]);
             setShowDropdown(false);
-        } finally {
-            setIsLoading(false);
         }
+
+        setIsLoading(false);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,12 +174,14 @@ export default function GlobalItemSearch({
                 )}
             </div>
 
-            {error && (
-                <Alert variant="danger" className="mt-2 mb-0">
-                    <i className="bi bi-exclamation-triangle me-2"></i>
-                    {error}
-                </Alert>
-            )}
+            <ErrorDisplay
+                error={error}
+                errorDetails={errorDetails}
+                onDismiss={() => {
+                    setError(null);
+                    setErrorDetails(null);
+                }}
+            />
 
             {showResults && showDropdown && results.length > 0 && (
                 <div className="dropdown-menu show w-100" style={{ maxHeight: '400px', overflowY: 'auto' }}>

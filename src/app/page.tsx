@@ -6,82 +6,106 @@ import Image from "next/image";
 import jwt from "jsonwebtoken";
 import { DecodedToken } from "./components/SecureRoute";
 import { useAuth } from "./contexts/AuthContext";
+import { useApiCall } from "./utils/apiUtils";
+import { standardizeApiError, ApiErrorResponse } from "./utils/errorUtils";
+import ErrorDisplay from "./components/ErrorDisplay";
 
 const LoginForm = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [activeField, setActiveField] = useState("username");
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
+  const apiCall = useApiCall();
+
+  // Reusable function for role-based routing
+  const redirectBasedOnRole = (decodedToken: DecodedToken | null, fallbackRole?: string) => {
+    const primaryRole = decodedToken?.roles?.[0] || fallbackRole;
+    let targetPath = "/home"; // default
+
+    if (primaryRole === "admin") {
+      targetPath = "/admin";
+    } else if (primaryRole === "supervisor") {
+      targetPath = "/supervisor";
+    } else if (primaryRole === "sales") {
+      targetPath = "/sales";
+    } else if (primaryRole === "cashier") {
+      targetPath = "/home/cashier";
+    } else if (primaryRole === "storekeeper") {
+      targetPath = "/storekeeper";
+    } else {
+      targetPath = "/home";
+    }
+
+    // Try router.push first
+    router.push(targetPath);
+
+    // Fallback: if router.push doesn't work, use window.location after a short delay
+    setTimeout(() => {
+      if (window.location.pathname === "/") {
+        window.location.href = targetPath;
+      }
+    }, 100);
+  };
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isLoading) {
       const token = localStorage.getItem("token");
       if (token) {
         try {
           const decodedToken = jwt.decode(token) as DecodedToken;
-          if (decodedToken && decodedToken.role) {
-            if (decodedToken.role === "admin") {
-              router.push("/admin");
-            } else if (decodedToken.role === "supervisor") {
-              router.push("/supervisor");
-            } else if (decodedToken.role === "user") {
-              router.push("/home");
-            } else if (decodedToken.role === "cashier") {
-              router.push("/home/cashier");
-            } else {
-              router.push("/pages");
-            }
+          if (decodedToken && decodedToken.roles && decodedToken.roles.length > 0) {
+            redirectBasedOnRole(decodedToken);
           }
         } catch (error) {
           console.error("Error decoding token:", error);
         }
       }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isLoading]);
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     if (!username || !password) {
       setError("Please fill in all fields");
+      setErrorDetails(null);
       return;
     }
+
     const formData = { username, password };
+
     try {
-      const response = await fetch("/api/auth/login", {
+      const result = await apiCall("/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(formData),
       });
-      if (response.status === 200) {
-        const { token, role } = await response.json();
+
+      if (result.status === 200 && result.data) {
+        const { token, role } = result.data;
         const decodedToken = jwt.decode(token) as DecodedToken;
         const userData = decodedToken && decodedToken.user ? decodedToken.user : null;
 
         // Use the auth context to handle login
         login(token, userData);
 
-        if (role === "admin") {
-          router.push("/admin");
-        } else if (role === "supervisor") {
-          router.push("/supervisor");
-        } else if (role === "user") {
-          router.push("/home");
-        } else if (role === "cashier") {
-          router.push("/home/cashier");
-        } else {
-          router.push("/pages");
-        }
+        // Use the reusable function for role-based routing
+        redirectBasedOnRole(decodedToken, role);
       } else {
-        setError("Login Failed! Invalid credentials");
+        // Handle API error response - use ambiguous message for login failures
+        setError("Invalid credentials. Please check your username and password.");
+        setErrorDetails({
+          message: "Invalid credentials. Please check your username and password.",
+          status: result.status || 401,
+          isLoginError: true
+        });
       }
     } catch (err) {
-      setError("Login failed");
-      console.error(err);
+      const standardizedError = standardizeApiError(err, 0);
+      setError(standardizedError.message);
+      setErrorDetails(standardizedError.details);
     }
   };
 
@@ -126,7 +150,16 @@ const LoginForm = () => {
         <div className="col d-flex flex-column">
           <div className="p-3 border bg-light mb-3">
             <form onSubmit={handleSubmit} className="px-4 py-3">
-              {error && <p style={{ color: "red" }}>{error}</p>}
+              {error && (
+                <ErrorDisplay
+                  error={error}
+                  errorDetails={errorDetails}
+                  onDismiss={() => {
+                    setError(null);
+                    setErrorDetails(null);
+                  }}
+                />
+              )}
               <div className="form-outline mb-4 col-xs-3">
                 <label className="form-label" htmlFor="username">
                   User name / code

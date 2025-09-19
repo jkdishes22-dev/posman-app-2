@@ -7,6 +7,8 @@ import { Item, Pricelist, Station } from "../types/types";
 import StationFilter from "./StationFilter";
 import PricelistManager from "./PricelistManager";
 import ExpressItemSearchModal from "./ExpressItemSearchModal";
+import { useApiCall } from "../utils/apiUtils";
+import ErrorDisplay from "./ErrorDisplay";
 
 interface PricelistCatalogProps {
     className?: string;
@@ -19,12 +21,14 @@ interface PricelistWithItems extends Pricelist {
 }
 
 const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) => {
+    const apiCall = useApiCall();
     const { currentStation, availableStations } = useStation();
     const [pricelists, setPricelists] = useState<PricelistWithItems[]>([]);
     const [filteredPricelists, setFilteredPricelists] = useState<PricelistWithItems[]>([]);
     const [selectedPricelist, setSelectedPricelist] = useState<PricelistWithItems | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [errorDetails, setErrorDetails] = useState<any>(null);
     const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
     const [showExpressSearch, setShowExpressSearch] = useState(false);
     const [statusFilter, setStatusFilter] = useState("all");
@@ -43,41 +47,31 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
         const fetchPricelists = async () => {
             setIsLoading(true);
             setError(null);
+            setErrorDetails(null);
 
-            try {
-                const token = localStorage.getItem("token");
-                const response = await fetch("/api/pricelists/available", {
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`,
-                    },
-                });
+            const result = await apiCall("/api/pricelists/available");
 
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log("API returned:", data.length, "pricelists");
+            if (result.status === 200) {
+                console.log("API returned:", result.data.length, "pricelists");
 
-                    // Store all station-pricelist relationships for filtering
-                    setPricelists(data);
+                // Store all station-pricelist relationships for filtering
+                setPricelists(result.data);
 
-                    // Initially show distinct pricelists (no filter applied)
-                    const distinctPricelists = data.filter((pricelist, index, self) =>
-                        index === self.findIndex(p => p.id === pricelist.id)
-                    );
-                    console.log("Distinct pricelists:", distinctPricelists.length);
-                    setFilteredPricelists(distinctPricelists);
-                } else if (response.status === 401) {
-                    localStorage.removeItem("token");
-                    localStorage.removeItem("user");
-                    window.location.href = "/";
-                } else {
-                    setError("Failed to load pricelists");
-                }
-            } catch (err: any) {
-                setError("Failed to load pricelists: " + err.message);
-            } finally {
-                setIsLoading(false);
+                // Initially show distinct pricelists (no filter applied)
+                const distinctPricelists = result.data.filter((pricelist, index, self) =>
+                    index === self.findIndex(p => p.id === pricelist.id)
+                );
+                console.log("Distinct pricelists:", distinctPricelists.length);
+                setFilteredPricelists(distinctPricelists);
+            } else if (result.status === 401) {
+                // Already handled by apiCall utility
+                return;
+            } else {
+                setError(result.error || "Failed to load pricelists");
+                setErrorDetails(result.errorDetails);
             }
+
+            setIsLoading(false);
         };
 
         fetchPricelists();
@@ -126,25 +120,17 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
         if (!selectedPricelist) return;
 
         const fetchPricelistItems = async () => {
-            try {
-                const token = localStorage.getItem("token");
-                const url = `/api/menu/pricelists/${selectedPricelist.id}/items?t=${Date.now()}`;
+            const url = `/api/menu/pricelists/${selectedPricelist.id}/items?t=${Date.now()}`;
+            const result = await apiCall(url, {
+                headers: {
+                    "Cache-Control": "no-cache",
+                },
+            });
 
-                const response = await fetch(url, {
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`,
-                        "Cache-Control": "no-cache",
-                    },
-                });
-
-                if (response.ok) {
-                    const items = await response.json();
-                    setSelectedPricelist(prev => prev ? { ...prev, items } : null);
-                }
-            } catch (err: any) {
-                // Silent error handling for better UX
+            if (result.status === 200) {
+                setSelectedPricelist(prev => prev ? { ...prev, items: result.data } : null);
             }
+            // Silent error handling for better UX
         };
 
         fetchPricelistItems();
@@ -164,9 +150,15 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
 
     if (error) {
         return (
-            <div className={`alert alert-danger ${className}`}>
-                <i className="bi bi-exclamation-triangle me-2"></i>
-                {error}
+            <div className={className}>
+                <ErrorDisplay
+                    error={error}
+                    errorDetails={errorDetails}
+                    onDismiss={() => {
+                        setError(null);
+                        setErrorDetails(null);
+                    }}
+                />
             </div>
         );
     }
