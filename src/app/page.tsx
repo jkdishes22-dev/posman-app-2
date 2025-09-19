@@ -25,6 +25,8 @@ const LoginForm = () => {
           if (decodedToken && decodedToken.role) {
             if (decodedToken.role === "admin") {
               router.push("/admin");
+            } else if (decodedToken.role === "supervisor") {
+              router.push("/supervisor");
             } else if (decodedToken.role === "user") {
               router.push("/home");
             } else if (decodedToken.role === "cashier") {
@@ -65,6 +67,8 @@ const LoginForm = () => {
 
         if (role === "admin") {
           router.push("/admin");
+        } else if (role === "supervisor") {
+          router.push("/supervisor");
         } else if (role === "user") {
           router.push("/home");
         } else if (role === "cashier") {

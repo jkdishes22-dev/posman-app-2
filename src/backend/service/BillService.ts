@@ -87,7 +87,8 @@ export class BillService {
         .leftJoinAndSelect("billItem.item", "item")
         .leftJoinAndSelect("bill.bill_payments", "billPayment")
         .leftJoinAndSelect("billPayment.payment", "payment")
-        .leftJoinAndSelect("bill.user", "user");
+        .leftJoinAndSelect("bill.user", "user")
+        .leftJoinAndSelect("bill.station", "station");
 
       if (targetDate) {
         query.where("bill.created_at BETWEEN :start AND :end", {

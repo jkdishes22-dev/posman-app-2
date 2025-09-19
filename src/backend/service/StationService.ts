@@ -433,7 +433,7 @@ export class StationService {
 
   /**
    * Get available users (not yet linked to this station)
-   * Only returns users with 'waiter' or 'admin' roles who are not locked
+   * Only returns users with 'waiter', 'supervisor', or 'admin' roles who are not locked
    */
   async getAvailableUsers(stationId: number): Promise<any[]> {
     const query = `
@@ -451,7 +451,7 @@ export class StationService {
         FROM user_station us 
         WHERE us.station_id = ?
       )
-      AND r.name IN ('waiter', 'admin')
+      AND r.name IN ('waiter', 'supervisor', 'admin')
       AND (u.is_locked IS NULL OR u.is_locked = 0)
       ORDER BY u.firstName, u.lastName
     `;

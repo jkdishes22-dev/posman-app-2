@@ -1,6 +1,6 @@
 "use client";
 
-import AdminLayout from "../../../shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
 import CategoryItems from "./components/category/category-items";
 import Categories from "./components/category/categories";
@@ -153,7 +153,7 @@ const CategoryPage: React.FC = () => {
   }, [categoriesLoaded]); // Only depend on categoriesLoaded
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
@@ -262,7 +262,7 @@ const CategoryPage: React.FC = () => {
           onCancel={() => setShowDeleteModal(false)}
         />
       )}
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 };
 

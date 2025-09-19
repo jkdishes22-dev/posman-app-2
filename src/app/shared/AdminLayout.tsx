@@ -1,316 +1,401 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import React, { useEffect } from "react";
-import NavbarTitleSection from "./NavbarTitleSection";
+import { useAuth } from "../contexts/AuthContext";
+import { useStation } from "../contexts/StationContext";
+import LogoutButton from "../components/LogoutButton";
+import StationSwitcher from "../components/StationSwitcher";
 import { AuthError } from "../types/types";
 
-export default function AdminLayout({
-  children,
-  authError,
-}: {
+interface AdminLayoutProps {
   children: React.ReactNode;
   authError: AuthError | null;
-}) {
+}
+
+const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [activeItem, setActiveItem] = useState("");
+  const { user, logout } = useAuth();
+  const { currentStation } = useStation();
   const router = useRouter();
+
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/");
+    // Set active item based on current path
+    const path = window.location.pathname;
+    if (path.includes("/admin") && !path.includes("/admin/")) {
+      setActiveItem("dashboard");
+    } else if (path.includes("/admin/users/view")) {
+      setActiveItem("users-view");
+    } else if (path.includes("/admin/users/permission")) {
+      setActiveItem("users-permission");
+    } else if (path.includes("/admin/users/register")) {
+      setActiveItem("users-register");
+    } else if (path.includes("/admin/station")) {
+      setActiveItem("stations");
+    } else if (path.includes("/admin/menu/category")) {
+      setActiveItem("menu-category");
+    } else if (path.includes("/admin/menu/pricelist")) {
+      setActiveItem("menu-pricelist");
+    } else if (path.includes("/admin/production/items")) {
+      setActiveItem("production-items");
+    } else if (path.includes("/admin/production/definitions")) {
+      setActiveItem("production-definitions");
+    } else if (path.includes("/admin/bill")) {
+      setActiveItem("bills");
     }
-  }, []); // Remove router dependency to prevent re-renders
+  }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    router.push("/");
-  };
+  const menuItems = [
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      icon: "bi-house",
+      path: "/admin",
+    },
+    {
+      id: "users",
+      label: "Users",
+      icon: "bi-people",
+      submenu: [
+        {
+          id: "users-view",
+          label: "View Users",
+          icon: "bi-eye",
+          path: "/admin/users/view",
+        },
+        {
+          id: "users-permission",
+          label: "Roles & Permissions",
+          icon: "bi-shield-check",
+          path: "/admin/users/permission",
+        },
+        {
+          id: "users-register",
+          label: "Register User",
+          icon: "bi-person-plus",
+          path: "/admin/users/register",
+        },
+      ],
+    },
+    {
+      id: "configuration",
+      label: "Configuration",
+      icon: "bi-gear",
+      submenu: [
+        {
+          id: "stations",
+          label: "Stations",
+          icon: "bi-building",
+          path: "/admin/station",
+        },
+        {
+          id: "station-users",
+          label: "Station Users",
+          icon: "bi-people-fill",
+          path: "/admin/station/user",
+        },
+      ],
+    },
+    {
+      id: "menu-pricing",
+      label: "Menu & Pricing",
+      icon: "bi-list-ul",
+      submenu: [
+        {
+          id: "menu-category",
+          label: "Categories",
+          icon: "bi-grid",
+          path: "/admin/menu/category",
+        },
+        {
+          id: "menu-group-items",
+          label: "Group Items",
+          icon: "bi-collection",
+          path: "/admin/menu/category/components/items/grouped",
+        },
+        {
+          id: "menu-pricelist",
+          label: "Pricelists",
+          icon: "bi-tags",
+          path: "/admin/menu/pricelist",
+        },
+      ],
+    },
+    {
+      id: "production",
+      label: "Production",
+      icon: "bi-box-seam",
+      submenu: [
+        {
+          id: "production-items",
+          label: "Stock Menu Items",
+          icon: "bi-box",
+          path: "/admin/production/items",
+        },
+        {
+          id: "production-definitions",
+          label: "Ratio Definition",
+          icon: "bi-calculator",
+          path: "/admin/production/definitions",
+        },
+        {
+          id: "production-daily",
+          label: "Daily Production",
+          icon: "bi-calendar-day",
+          path: "/admin/production",
+        },
+        {
+          id: "production-issuing",
+          label: "Issuing",
+          icon: "bi-arrow-up-circle",
+          path: "/admin/production/restock",
+        },
+      ],
+    },
+    {
+      id: "bills",
+      label: "Bills",
+      icon: "bi-receipt",
+      path: "/admin/bill",
+    },
+    {
+      id: "suppliers",
+      label: "Suppliers",
+      icon: "bi-truck",
+      path: "/admin/suppliers",
+    },
+    {
+      id: "reports",
+      label: "Reports",
+      icon: "bi-bar-chart",
+      path: "/admin/reports",
+    },
+  ];
 
-  const viewUsers = () => {
-    router.push("/admin/users/view");
-  };
-
-  const rolesAndPermissions = () => {
-    router.push("/admin/users/permission");
-  };
-
-  const adminPage = () => {
-    router.push("/admin");
-  };
-
-  const manageCategory = () => {
-    router.push("/admin/menu/category");
-  };
-
-  const managePricelist = () => {
-    router.push("/admin/menu/pricelist");
-  };
-
-  const manageGroupItems = () => {
-    router.push("/admin/menu/category/components/items/grouped");
-  };
-
-  const manageStations = () => {
-    router.push("/admin/station");
-  };
-
-  const manageStationStaff = () => {
-    router.push("/admin/station/user");
-  };
-
-  const manageProduction = () => {
-    router.push("/admin/production/items");
-  };
-
-  const productionItemDefinition = () => {
-    router.push("/admin/production/definitions");
-  };
-
-  const dailyProduction = () => {
-    router.push("/admin/production");
-  };
-
-  const issue = () => {
-    router.push("admin/production/restock");
+  const handleItemClick = (itemId: string, path: string) => {
+    setActiveItem(itemId);
+    router.push(path);
   };
 
   return (
-    <div className="admin-layout enterprise-pos">
-      <nav className="navbar navbar-expand-lg navbar-enterprise">
-        <div className="navbar-container">
-          <NavbarTitleSection onClick={adminPage} />
-          <button
-            className="navbar-toggler"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#adminNavbarSupportedContent"
-            aria-controls="adminNavbarSupportedContent"
-            aria-expanded="false"
-            aria-label="Toggle navigation"
-          >
-            <span className="navbar-toggler-icon"></span>
-          </button>
-          <div className="collapse navbar-collapse" id="adminNavbarSupportedContent">
-            <ul className="navbar-nav">
-              <li className="nav-item dropdown">
-                <a
-                  className="nav-link dropdown-toggle nav-link-enterprise"
-                  href="#"
-                  id="navbarDarkDropdownMenuLink"
-                  role="button"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                >
-                  <i className="bi bi-people me-2"></i>Users
-                </a>
-                <ul
-                  className="dropdown-menu dropdown-menu-enterprise"
-                  aria-labelledby="navbarDarkDropdownMenuLink"
-                >
-                  <li>
-                    <a className="dropdown-item dropdown-item-enterprise" href="#" onClick={viewUsers}>
-                      <i className="bi bi-eye me-2"></i>View
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      className="dropdown-item dropdown-item-enterprise"
-                      href="#"
-                      onClick={rolesAndPermissions}
-                    >
-                      <i className="bi bi-shield-check me-2"></i>Roles and Permissions
-                    </a>
-                  </li>
-                </ul>
-              </li>
-
-              <li className="nav-item dropdown">
-                <a
-                  className="nav-link dropdown-toggle nav-link-enterprise"
-                  href="#"
-                  id="navbarDarkDropdownMenuLink"
-                  role="button"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                >
-                  <i className="bi bi-gear me-2"></i>Configuration
-                </a>
-                <ul
-                  className="dropdown-menu dropdown-menu-enterprise"
-                  aria-labelledby="navbarDarkDropdownMenuLink"
-                >
-                  <li>
-                    <a
-                      className="dropdown-item dropdown-item-enterprise"
-                      href="#"
-                      onClick={manageStations}
-                    >
-                      <i className="bi bi-building me-2"></i>Station
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      className="dropdown-item dropdown-item-enterprise"
-                      href="#"
-                      onClick={manageStationStaff}
-                    >
-                      <i className="bi bi-people-fill me-2"></i>Station users
-                    </a>
-                  </li>
-                </ul>
-              </li>
-              {/* Dropdown for Menu & Pricing */}
-              <li className="nav-item dropdown">
-                <a
-                  className="nav-link dropdown-toggle nav-link-enterprise"
-                  href="#"
-                  id="menuAndPricing"
-                  role="button"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                >
-                  <i className="bi bi-list-ul me-2"></i>Menu & Pricing
-                </a>
-                <ul
-                  className="dropdown-menu dropdown-menu-enterprise"
-                  aria-labelledby="menuAndPricing"
-                >
-                  <li>
-                    <a
-                      className="dropdown-item dropdown-item-enterprise"
-                      href="#"
-                      onClick={manageCategory}
-                    >
-                      <i className="bi bi-grid me-2"></i>Category
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      className="dropdown-item dropdown-item-enterprise"
-                      href="#"
-                      onClick={manageGroupItems}
-                    >
-                      <i className="bi bi-collection me-2"></i>Group Items
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      className="dropdown-item dropdown-item-enterprise"
-                      href="#"
-                      onClick={managePricelist}
-                    >
-                      <i className="bi bi-tags me-2"></i>Pricelist
-                    </a>
-                  </li>
-                </ul>
-              </li>
-
-              <li className="nav-item dropdown">
-                <a
-                  className="nav-link dropdown-toggle nav-link-enterprise"
-                  href="#"
-                  id="navbarDarkDropdownMenuLink"
-                  role="button"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                >
-                  <i className="bi bi-box-seam me-2"></i>Production
-                </a>
-                <ul
-                  className="dropdown-menu dropdown-menu-enterprise"
-                  aria-labelledby="navbarDarkDropdownMenuLink"
-                >
-                  <li>
-                    <a
-                      className="dropdown-item dropdown-item-enterprise"
-                      href="#"
-                      onClick={manageProduction}
-                    >
-                      <i className="bi bi-box me-2"></i>Stock Menu Items
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      className="dropdown-item dropdown-item-enterprise"
-                      href="#"
-                      onClick={productionItemDefinition}
-                    >
-                      <i className="bi bi-calculator me-2"></i>Ratio definition
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      className="dropdown-item dropdown-item-enterprise"
-                      href="#"
-                      onClick={dailyProduction}
-                    >
-                      <i className="bi bi-calendar-day me-2"></i>Daily Production
-                    </a>
-                  </li>
-
-                  <li>
-                    <a className="dropdown-item dropdown-item-enterprise" href="#" onClick={issue}>
-                      <i className="bi bi-arrow-up-circle me-2"></i>Issuing
-                    </a>
-                  </li>
-                </ul>
-              </li>
-              <li className="nav-item">
-                <a className="nav-link nav-link-enterprise" href="#">
-                  <i className="bi bi-truck me-2"></i>Suppliers
-                </a>
-              </li>
-              <li className="nav-item">
-                <a className="nav-link nav-link-enterprise" href="#">
-                  <i className="bi bi-bar-chart me-2"></i>Reports
-                </a>
-              </li>
-            </ul>
-
-            <div className="dropdown ms-auto">
-              <button
-                className="btn-enterprise btn-enterprise-secondary dropdown-toggle"
-                type="button"
-                id="userActionsDropdown"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-              >
-                <i className="bi bi-person-circle me-2"></i>Profile
-              </button>
-              <ul
-                className="dropdown-menu dropdown-menu-enterprise dropdown-menu-end"
-                aria-labelledby="userActionsDropdown"
-              >
-                <li>
-                  <a className="dropdown-item dropdown-item-enterprise" href="/profile">
-                    <i className="bi bi-gear me-2"></i>Settings
-                  </a>
-                </li>
-                <li>
-                  <hr className="dropdown-divider" />
-                </li>
-                <li>
-                  <button className="dropdown-item dropdown-item-enterprise" onClick={handleLogout}>
-                    <i className="bi bi-box-arrow-right me-2"></i>Logout
-                  </button>
-                </li>
-              </ul>
-            </div>
+    <div className="d-flex vh-100">
+      {/* Sidebar */}
+      <div
+        className={`bg-dark text-white d-flex flex-column ${isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"
+          }`}
+        style={{
+          width: isCollapsed ? "60px" : "280px",
+          transition: "width 0.3s ease",
+          minHeight: "100vh",
+        }}
+      >
+        {/* Header */}
+        <div className="p-3 border-bottom border-secondary">
+          <div className="d-flex align-items-center">
+            {!isCollapsed && (
+              <div>
+                <h5 className="mb-0 text-white">Admin Panel</h5>
+                <small className="text-muted">System Administration</small>
+              </div>
+            )}
+            <button
+              className="btn btn-link text-white ms-auto p-1"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+            >
+              <i className={`bi ${isCollapsed ? "bi-chevron-right" : "bi-chevron-left"}`}></i>
+            </button>
           </div>
         </div>
-      </nav>
-      {authError && (
-        <div className="alert alert-danger alert-enterprise">
-          <strong>Error:</strong> {authError.message}
-          {authError.missingPermissions && (
-            <ul>
-              {authError.missingPermissions.map((perm) => (
-                <li key={perm}>{perm}</li>
-              ))}
-            </ul>
-          )}
+
+        {/* User Info */}
+        {!isCollapsed && (
+          <div className="p-3 border-bottom border-secondary">
+            <div className="d-flex align-items-center">
+              <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3"
+                style={{ width: "40px", height: "40px" }}>
+                <i className="bi bi-person-fill text-white"></i>
+              </div>
+              <div>
+                <div className="fw-bold">{user?.firstname} {user?.lastname}</div>
+                <small className="text-muted">Administrator</small>
+              </div>
+            </div>
+            {currentStation && (
+              <div className="mt-2">
+                <small className="text-muted">Station: {currentStation.name}</small>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Navigation */}
+        <nav className="flex-grow-1 p-3" style={{ overflowY: "auto" }}>
+          <ul className="nav nav-pills flex-column">
+            {menuItems.map((item) => (
+              <li key={item.id} className="nav-item mb-2">
+                {item.submenu ? (
+                  <div className="dropdown">
+                    <button
+                      className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""
+                        }`}
+                      style={{
+                        background: activeItem === item.id ? "var(--bs-primary)" : "transparent",
+                        border: "none",
+                        color: activeItem === item.id ? "white" : "rgba(255,255,255,0.8)",
+                      }}
+                      data-bs-toggle="dropdown"
+                      aria-expanded="false"
+                    >
+                      <i className={`bi ${item.icon} me-3`}></i>
+                      {!isCollapsed && <span>{item.label}</span>}
+                      {!isCollapsed && <i className="bi bi-chevron-down ms-auto"></i>}
+                    </button>
+                    <ul className="dropdown-menu dropdown-menu-dark">
+                      {item.submenu.map((subItem) => (
+                        <li key={subItem.id}>
+                          <button
+                            className={`dropdown-item d-flex align-items-center ${activeItem === subItem.id ? "active" : ""
+                              }`}
+                            onClick={() => handleItemClick(subItem.id, subItem.path)}
+                            style={{
+                              background: activeItem === subItem.id ? "var(--bs-primary)" : "transparent",
+                              border: "none",
+                              color: activeItem === subItem.id ? "white" : "rgba(255,255,255,0.8)",
+                            }}
+                          >
+                            <i className={`bi ${subItem.icon} me-2`}></i>
+                            {subItem.label}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <button
+                    className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""
+                      }`}
+                    onClick={() => handleItemClick(item.id, item.path)}
+                    style={{
+                      background: activeItem === item.id ? "var(--bs-primary)" : "transparent",
+                      border: "none",
+                      color: activeItem === item.id ? "white" : "rgba(255,255,255,0.8)",
+                    }}
+                  >
+                    <i className={`bi ${item.icon} me-3`}></i>
+                    {!isCollapsed && <span>{item.label}</span>}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        {/* Station Switcher */}
+        {!isCollapsed && currentStation && (
+          <div className="p-3 border-top border-secondary">
+            <div className="mb-2">
+              <small className="text-muted text-uppercase fw-semibold">
+                <i className="bi bi-geo-alt me-1"></i>
+                Current Station
+              </small>
+            </div>
+            <StationSwitcher showLabel={false} size="sm" />
+          </div>
+        )}
+
+        {/* Logout */}
+        <div className="p-3 border-top border-secondary">
+          <LogoutButton />
         </div>
-      )}
-      <main className="main-content-enterprise">{children}</main>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-grow-1 d-flex flex-column">
+        {/* Top Navigation */}
+        <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom">
+          <div className="container-fluid">
+            <div className="d-flex align-items-center">
+              <button
+                className="btn btn-link me-3"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+              >
+                <i className="bi bi-list"></i>
+              </button>
+              <h4 className="mb-0">Administration Dashboard</h4>
+            </div>
+
+            <div className="d-flex align-items-center">
+              <span className="text-muted me-3">
+                Welcome, {user?.firstname} {user?.lastname}
+              </span>
+
+              {/* Profile Dropdown */}
+              <div className="dropdown">
+                <button
+                  className="btn btn-outline-secondary dropdown-toggle"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  <i className="bi bi-person-circle me-2"></i>
+                  Profile
+                </button>
+                <ul className="dropdown-menu dropdown-menu-end">
+                  <li>
+                    <a className="dropdown-item" href="/profile">
+                      <i className="bi bi-gear me-2"></i>
+                      Settings
+                    </a>
+                  </li>
+                  <li>
+                    <a className="dropdown-item" href="/profile/account">
+                      <i className="bi bi-person me-2"></i>
+                      Account
+                    </a>
+                  </li>
+                  <li>
+                    <a className="dropdown-item" href="/profile/preferences">
+                      <i className="bi bi-sliders me-2"></i>
+                      Preferences
+                    </a>
+                  </li>
+                  <li><hr className="dropdown-divider" /></li>
+                  <li>
+                    <button
+                      className="dropdown-item text-danger"
+                      onClick={() => logout()}
+                    >
+                      <i className="bi bi-box-arrow-right me-2"></i>
+                      Logout
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        {/* Page Content */}
+        <main className="flex-grow-1 p-4">
+          {authError && (
+            <div className="alert alert-danger" role="alert">
+              <i className="bi bi-exclamation-triangle me-2"></i>
+              <strong>Error:</strong> {authError.message}
+              {authError.missingPermissions && (
+                <ul className="mt-2 mb-0">
+                  {authError.missingPermissions.map((perm) => (
+                    <li key={perm}>{perm}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          {children}
+        </main>
+      </div>
     </div>
   );
-}
+};
+
+export default AdminLayout;

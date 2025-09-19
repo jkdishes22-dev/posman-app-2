@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import AdminLayout from "../../../shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import Image from "next/image";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
@@ -302,7 +302,7 @@ export default function UsersPage() {
   };
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
@@ -502,6 +502,6 @@ export default function UsersPage() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }

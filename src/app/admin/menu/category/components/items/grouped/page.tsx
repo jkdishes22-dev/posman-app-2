@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import AdminLayout from "../../../../../../shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import AddGroupItemModal from "./add-group-item";
 import { Modal, Button } from "react-bootstrap";
 
@@ -161,7 +161,7 @@ function GroupedItemsPage() {
   };
 
   return (
-    <AdminLayout authError={null}>
+    <RoleAwareLayout>
       <div className="container my-5">
         <div className="row">
           <div className="col-md-4">
@@ -271,7 +271,7 @@ function GroupedItemsPage() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }
 

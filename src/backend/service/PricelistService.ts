@@ -32,24 +32,46 @@ export class PricelistService {
   }
 
   async fetchPricelists() {
-    // Get all pricelists without station relationship (now handled by junction table)
-    const pricelists = await this.pricelistRepository
-      .createQueryBuilder("pricelist")
-      .select([
-        "pricelist.id",
-        "pricelist.name",
-        "pricelist.status",
-        "pricelist.is_default",
-        "pricelist.description",
-        "pricelist.created_at",
-        "pricelist.updated_at"
-      ])
-      .orderBy("pricelist.is_default", "DESC")
-      .addOrderBy("pricelist.name", "ASC")
-      .getMany();
+    const startTime = Date.now();
 
-    logger.debug({ pricelistCount: pricelists.length }, 'Fetched all pricelists');
-    return pricelists;
+    try {
+      // Get all pricelists without station relationship (now handled by junction table)
+      const pricelists = await this.pricelistRepository
+        .createQueryBuilder("pricelist")
+        .select([
+          "pricelist.id",
+          "pricelist.name",
+          "pricelist.status",
+          "pricelist.is_default",
+          "pricelist.description",
+          "pricelist.created_at",
+          "pricelist.updated_at"
+        ])
+        .orderBy("pricelist.is_default", "DESC")
+        .addOrderBy("pricelist.name", "ASC")
+        .getMany();
+
+      const duration = Date.now() - startTime;
+      logger.debug({
+        pricelistCount: pricelists.length,
+        duration: `${duration}ms`,
+        query: 'fetchPricelists'
+      }, 'Fetched all pricelists');
+
+      if (duration > 1000) {
+        logger.warn({ duration: `${duration}ms` }, 'Slow pricelist query detected');
+      }
+
+      return pricelists;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error({
+        error: error.message,
+        duration: `${duration}ms`,
+        query: 'fetchPricelists'
+      }, 'Error fetching pricelists');
+      throw error;
+    }
   }
 
   async fetchPricelistItems(pricelistId: string): Promise<any[]> {

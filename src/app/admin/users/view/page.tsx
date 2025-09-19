@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import AdminLayout from "../../../shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import NewUser from "../register/new-user";
 import { AuthError, User } from "../../../types/types";
 import Pagination from "../../../components/Pagination";
@@ -318,7 +318,7 @@ function UsersPage() {
   };
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
@@ -865,7 +865,7 @@ function UsersPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }
 

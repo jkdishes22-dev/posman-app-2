@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Button, Form } from "react-bootstrap";
-import AdminLayout from "src/app/shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import { AuthError, User } from "../../../types/types";
 
 function StationUsersPage() {
@@ -198,7 +198,7 @@ function StationUsersPage() {
   };
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="container my-5">
         <div className="row">
           {/* Sidebar: User List */}
@@ -350,7 +350,7 @@ function StationUsersPage() {
           </div>
         </div>
       </div>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }
 

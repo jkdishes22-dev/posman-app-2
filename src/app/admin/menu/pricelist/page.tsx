@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import AdminLayout from "../../../shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import PricelistAdd from "./pricelist-new";
 import ViewItems from "../category/components/items/items-view";
 import ItemAdd from "../category/components/items/items-new";
@@ -373,7 +373,7 @@ export default function PricelistPage() {
   };
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
@@ -747,6 +747,6 @@ export default function PricelistPage() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }

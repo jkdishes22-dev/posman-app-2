@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import AdminLayout from "src/app/shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import { Button } from "react-bootstrap";
 import AuditLog from "../activity-log";
 import InventoryModal from "./new";
@@ -78,7 +78,7 @@ export default function InventoryPage() {
   };
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="row mt-2">
         <div className="col-4">
           <Button onClick={handleShowModal} className="btn btn-primary">
@@ -130,6 +130,6 @@ export default function InventoryPage() {
           <AuditLog />
         </div>
       </div>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }

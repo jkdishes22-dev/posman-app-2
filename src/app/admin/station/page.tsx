@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import AdminLayout from "src/app/shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import StationNew from "./station-new";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Button } from "react-bootstrap";
@@ -75,8 +75,12 @@ export default function StationPage() {
 
   useEffect(() => {
     if (selectedStationId) {
-      fetchStationPricelist(selectedStationId);
-      fetchStationUsers(selectedStationId);
+      // Make calls sequential to avoid database connection conflicts
+      const fetchStationData = async () => {
+        await fetchStationPricelist(selectedStationId);
+        await fetchStationUsers(selectedStationId);
+      };
+      fetchStationData();
     }
   }, [selectedStationId]);
 
@@ -456,7 +460,7 @@ export default function StationPage() {
   };
 
   return (
-    <AdminLayout authError={authError}>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Error Display */}
         {error && (
@@ -989,8 +993,9 @@ export default function StationPage() {
                     <i className="bi bi-person-x text-muted" style={{ fontSize: '2rem' }}></i>
                     <p className="text-muted mt-2 mb-0">No available users to add</p>
                     <small className="text-muted">
-                      Only users with <span className="badge bg-primary text-white ms-1 me-1">waiter</span>
-                      or <span className="badge bg-danger text-white ms-1 me-1">admin</span> roles who are not locked can be added to stations
+                      Only users with <span className="badge bg-primary text-white ms-1 me-1">waiter</span>,
+                      <span className="badge bg-warning text-dark ms-1 me-1">supervisor</span>, or
+                      <span className="badge bg-danger text-white ms-1 me-1">admin</span> roles who are not locked can be added to stations
                     </small>
                   </div>
                 )}
@@ -1064,6 +1069,6 @@ export default function StationPage() {
           </div>
         </div>
       )}
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }

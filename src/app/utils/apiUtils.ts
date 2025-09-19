@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 export interface ApiResponse<T = any> {
     data?: T;
     error?: string;
+    errorDetails?: any;
     status: number;
 }
 

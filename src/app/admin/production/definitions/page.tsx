@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Modal, Button } from "react-bootstrap";
-import AdminLayout from "src/app/shared/AdminLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import AddSubItemModal from "./new";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
 
@@ -220,7 +220,7 @@ function InventoryItemsPage() {
   };
 
   return (
-    <AdminLayout authError={null}>
+    <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
@@ -431,7 +431,7 @@ function InventoryItemsPage() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </AdminLayout>
+    </RoleAwareLayout>
   );
 }
 

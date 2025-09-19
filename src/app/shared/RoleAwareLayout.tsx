@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import AdminLayout from "./AdminLayout";
+import SupervisorLayout from "./SupervisorLayout";
 import HomePageLayout from "./HomePageLayout";
 import CashierPageLayout from "./CashierPageLayout";
 import jwt from "jsonwebtoken";
@@ -18,6 +19,7 @@ export default function RoleAwareLayout({ children }) {
     }, []);
 
     if (role === "admin") return <AdminLayout>{children}</AdminLayout>;
+    if (role === "supervisor") return <SupervisorLayout>{children}</SupervisorLayout>;
     if (role === "cashier") return <CashierPageLayout>{children}</CashierPageLayout>;
     return <HomePageLayout>{children}</HomePageLayout>;
 } 
