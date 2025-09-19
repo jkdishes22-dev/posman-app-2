@@ -1,32 +1,35 @@
 import React, { useState, useEffect } from "react";
+import { useApiCall } from "../../utils/apiUtils";
+import { ApiErrorResponse } from "../../utils/errorUtils";
+import ErrorDisplay from "../../components/ErrorDisplay";
 
 function AuditLog() {
   const [activities, setActivities] = useState([]);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     fetchActivities();
-  }, []);
+  }, [apiCall]);
 
   const fetchActivities = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/inventory_activity", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      setError(null);
+      setErrorDetails(null);
 
-      if (response.ok) {
-        const data = await response.json();
-        setActivities(data);
+      const result = await apiCall("/api/inventory_activity");
+      if (result.status === 200) {
+        setActivities(result.data);
       } else {
-        console.error("Failed to fetch inventory activities:", response.statusText);
+        setError(result.error || "Failed to fetch inventory activities");
+        setErrorDetails(result.errorDetails);
         setActivities([]);
       }
     } catch (error: any) {
-      console.error("Failed to fetch inventory activities", error);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setActivities([]);
     }
   };
@@ -36,6 +39,16 @@ function AuditLog() {
       <div className="card-header">
         <h2>Audit Log</h2>
       </div>
+
+      <ErrorDisplay
+        error={error}
+        errorDetails={errorDetails}
+        onDismiss={() => {
+          setError(null);
+          setErrorDetails(null);
+        }}
+      />
+
       {activities.length > 0 ? (
         <ul className="list-group list-group-flush">
           {activities.map((activity) => (

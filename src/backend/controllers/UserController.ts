@@ -43,9 +43,10 @@ export const getUsersHandler = async (
   const userService = new UserService(req.db);
   try {
     const role = Array.isArray(req.query.role) ? req.query.role[0] : req.query.role;
+    const search = Array.isArray(req.query.search) ? req.query.search[0] : req.query.search;
     const page = req.query.page ? Number(req.query.page) : 1;
     const pageSize = req.query.pageSize ? Number(req.query.pageSize) : 10;
-    const { users, total } = await userService.getUsers(role, page, pageSize);
+    const { users, total } = await userService.getUsers(role, page, pageSize, search);
     res.status(200).json({ users, total });
   } catch (error: any) {
     res.status(500).json({ error: "Error fetching users" + error });

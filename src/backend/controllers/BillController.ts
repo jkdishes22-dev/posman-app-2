@@ -145,3 +145,51 @@ export const bulkSubmitBills = async (req: NextApiRequest, res: NextApiResponse)
     res.status(500).json({ error: error.message });
   }
 };
+
+// ===== BILL REOPENING CONTROLLERS =====
+
+export const reopenBill = async (req: NextApiRequest, res: NextApiResponse) => {
+  const billService = new BillService(req.db);
+  const { billId } = req.query;
+  const { reason } = req.body;
+
+  if (!reason || typeof reason !== "string" || reason.trim().length === 0) {
+    return res.status(400).json({ error: "Valid reason is required" });
+  }
+
+  try {
+    const result = await billService.reopenBill(
+      Number(billId),
+      parseInt(req.user?.id as string),
+      reason.trim()
+    );
+
+    res.status(200).json({
+      message: "Bill reopened successfully",
+      bill: result
+    });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+export const resubmitBill = async (req: NextApiRequest, res: NextApiResponse) => {
+  const billService = new BillService(req.db);
+  const { billId } = req.query;
+  const { notes } = req.body;
+
+  try {
+    const result = await billService.resubmitBill(
+      Number(billId),
+      parseInt(req.user?.id as string),
+      notes?.trim()
+    );
+
+    res.status(200).json({
+      message: "Bill resubmitted successfully",
+      bill: result
+    });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};

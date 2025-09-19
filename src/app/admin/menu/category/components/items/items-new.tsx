@@ -9,6 +9,8 @@ import {
   ModalTitle,
 } from "react-bootstrap";
 import ErrorDisplay from "../../../../../components/ErrorDisplay";
+import { useApiCall } from "../../../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../../../utils/errorUtils";
 
 interface NewItemModalProps {
   selectedCategory: Category | null;
@@ -41,7 +43,10 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [addItemError, setAddItemError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [priceListError, setFetchPricelistError] = useState(null);
+  const apiCall = useApiCall();
 
   // Determine context for conditional rendering
   const isFromPricelistPage = !selectedCategory && selectedPricelistId;
@@ -50,63 +55,37 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   useEffect(() => {
     async function fetchPricelists() {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/pricelists", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        if (response.ok) {
+        const result = await apiCall("/api/menu/pricelists");
+        if (result.status === 200) {
           // Ensure data is an array
-          setPricelists(Array.isArray(data) ? data : []);
-        } else if (response.status === 401) {
-          // Invalid token, logout and redirect to login
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          window.location.href = "/";
-        } else if (response.status === 403) {
-          setAuthError(data);
+          setPricelists(Array.isArray(result.data) ? result.data : []);
         } else {
-          setFetchPricelistError(data);
+          setError(result.error || "Failed to fetch pricelists");
+          setErrorDetails(result.errorDetails);
         }
       } catch (error: any) {
-        setAddItemError("Failed to fetch pricelists: " + error.message);
+        setAddItemError("Network error occurred");
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         setPricelists([]); // Ensure pricelists is always an array
       }
     }
     fetchPricelists();
-  }, []);
+  }, [apiCall]);
 
   // Fetch categories
   useEffect(() => {
     async function fetchCategories() {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/categories", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setCategories(Array.isArray(data) ? data : []);
-        } else if (response.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          window.location.href = "/";
-        } else if (response.status === 403) {
-          setAuthError(data);
+        const result = await apiCall("/api/menu/categories");
+        if (result.status === 200) {
+          setCategories(Array.isArray(result.data) ? result.data : []);
         } else {
-          console.error("Failed to fetch categories");
+          setAuthError({ message: result.error || "Failed to fetch categories" });
+          setErrorDetails(result.errorDetails);
         }
-      } catch (error: any) {
-        console.error("Failed to fetch categories", error);
+      } catch (error) {
+        setAuthError({ message: "Network error occurred" });
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         setCategories([]);
       }
     }
@@ -168,17 +147,12 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
     } else {
       // Default API call for category page
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/items", {
+        const result = await apiCall("/api/menu/items", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
           body: JSON.stringify(itemData),
         });
 
-        if (response.status === 201) {
+        if (result.status === 201) {
           if (selectedCategory?.id && fetchItems) fetchItems(selectedCategory.id);
           handleModalClose();
           setItemName("");
@@ -189,12 +163,10 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           setIsGroup(false);
           setAddItemError(null);
         } else {
-          setAddItemError("Failed to create item");
+          setAddItemError(result.error || "Failed to create item");
         }
       } catch (error: any) {
-        if (error) {
-          setAddItemError("Failed to create item: " + error.message);
-        }
+        setAddItemError("Network error occurred");
       }
     }
   };
@@ -222,6 +194,22 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           onDismiss={() => {
             if (setItemError) setItemError("");
             setAddItemError(null);
+          }}
+        />
+        <ErrorDisplay
+          error={authError?.message || null}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setAuthError(null);
+            setErrorDetails(null);
+          }}
+        />
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
           }}
         />
         <form onSubmit={handleItemSubmit} className="row g-3">

@@ -5,6 +5,9 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Button, Form } from "react-bootstrap";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import { AuthError, User } from "../../../types/types";
+import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
+import ErrorDisplay from "../../../components/ErrorDisplay";
 
 function StationUsersPage() {
   const [users, setUsers] = useState([]);
@@ -15,6 +18,10 @@ function StationUsersPage() {
   const [selectedStation, setSelectedStation] = useState("");
   const [userStations, setUserStations] = useState([]);
   const [authError, setAuthError] = useState<AuthError>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     fetchUsers();
@@ -33,29 +40,24 @@ function StationUsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/users", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-
-      if (response.ok) {
+      const result = await apiCall("/api/users");
+      if (result.status === 200) {
         // Ensure data is an array
-        const usersArray = Array.isArray(data) ? data : [];
+        const usersArray = Array.isArray(result.data) ? result.data : [];
         setUsers(usersArray);
         setFilteredUsers(usersArray);
-      } else if (response.status === 403) {
-        setAuthError(data);
-        // Set empty arrays on auth error
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to fetch users");
+        setErrorDetails(result.errorDetails);
+        // Set empty arrays on error
         setUsers([]);
         setFilteredUsers([]);
-      } else {
-        throw new Error("Failed to fetch users");
       }
     } catch (error: any) {
-      console.error("Error fetching users:", error);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       // Set empty arrays on error
       setUsers([]);
       setFilteredUsers([]);
@@ -64,46 +66,35 @@ function StationUsersPage() {
 
   const fetchStations = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/stations", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setStations(data);
-      } else if (response.status === 403) {
-        setAuthError(data);
+      const result = await apiCall("/api/stations");
+      if (result.status === 200) {
+        setStations(result.data);
+        setError(null);
+        setErrorDetails(null);
       } else {
-        throw new Error("Failed to fetch users");
+        setError(result.error || "Failed to fetch stations");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      console.error("Error fetching stations:", error);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
   const fetchUserStations = async (userId: number) => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users/${userId}/stations`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch user stations");
-      const data = await response.json();
-      if (response.ok) {
-        setUserStations(data);
-      } else if (response.status === 403) {
-        setAuthError(data);
+      const result = await apiCall(`/api/users/${userId}/stations`);
+      if (result.status === 200) {
+        setUserStations(result.data);
+        setError(null);
+        setErrorDetails(null);
       } else {
-        throw new Error("Failed to fetch users");
+        setError(result.error || "Failed to fetch user stations");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      console.error("Error fetching user stations:", error);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -121,24 +112,23 @@ function StationUsersPage() {
     if (!selectedUser || !selectedStation) return;
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users/${selectedUser.id}/stations`, {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           station: selectedStation,
         }),
       });
-      if (!response.ok) {
-        throw new Error("Failed to add user to station");
-      } else {
+      if (result.status === 200) {
         fetchUserStations(selectedUser.id);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to add user to station");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      console.error("Error adding user to station:", error);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -148,24 +138,23 @@ function StationUsersPage() {
       return;
     }
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users/${selectedUser.id}/stations`, {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
         method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           stationId: stationId,
         }),
       });
-      if (!response.ok) {
-        throw new Error("Failed to update user station");
-      } else {
+      if (result.status === 200) {
         fetchUserStations(selectedUser.id);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to update user station");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      console.error("Error updating user station:", error);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -175,31 +164,40 @@ function StationUsersPage() {
       return;
     }
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users/${selectedUser.id}/stations`, {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
         method: "PATCH",
         headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
           "x-action": "disable",
         },
         body: JSON.stringify({
           userStationId: userStationId,
         }),
       });
-      if (!response.ok) {
-        throw new Error("Failed to update user station");
-      } else {
+      if (result.status === 200) {
         fetchUserStations(selectedUser.id);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to update user station");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      console.error("Error updating user station:", error);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
   return (
     <RoleAwareLayout>
       <div className="container my-5">
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
+          }}
+        />
         <div className="row">
           {/* Sidebar: User List */}
           <div className="col-md-4">

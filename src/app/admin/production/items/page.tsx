@@ -6,40 +6,41 @@ import { Button } from "react-bootstrap";
 import AuditLog from "../activity-log";
 import InventoryModal from "./new";
 import { InventoryItem } from "src/app/types/types";
+import { useApiCall } from "../../utils/apiUtils";
+import { ApiErrorResponse } from "../../utils/errorUtils";
+import ErrorDisplay from "../../components/ErrorDisplay";
 
 export default function InventoryPage() {
   const [showModal, setShowModal] = useState(false);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [authError, setAuthError] = useState(null);
-  const [fetchError, setFetchError] = useState(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     async function fetchInventoryItems() {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/production", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        if (response.ok) {
-          setInventoryItems(data);
-        } else if (response.status === 403) {
-          setAuthError(data);
+        setFetchError(null);
+        setErrorDetails(null);
+
+        const result = await apiCall("/api/production");
+        if (result.status === 200) {
+          setInventoryItems(result.data);
         } else {
-          setFetchError(data);
+          setFetchError(result.error || "Failed to fetch inventory items");
+          setErrorDetails(result.errorDetails);
         }
       } catch (error: any) {
-        console.error("Failed to fetch inventory items", error);
+        setFetchError("Network error occurred");
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       }
     }
 
     fetchInventoryItems();
-  }, []);
+  }, [apiCall]);
 
   useEffect(() => {
     if (selectedItemId) {
@@ -56,24 +57,20 @@ export default function InventoryPage() {
     isStock,
   }: InventoryItem) => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/production", {
+      const result = await apiCall("/api/production", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ name, code, isStock }),
       });
-      if (response.ok) {
-        const newItem = await response.json();
-        setInventoryItems([...inventoryItems, newItem]);
+      if (result.status === 200) {
+        setInventoryItems([...inventoryItems, result.data]);
         handleCloseModal();
       } else {
-        console.error("Failed to add inventory item");
+        setFetchError(result.error || "Failed to add inventory item");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      console.error("Failed to add inventory item", error);
+      setFetchError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -89,11 +86,17 @@ export default function InventoryPage() {
             handleCloseModal={handleCloseModal}
             handleAddInventoryItem={handleAddInventoryItem}
           />
-          {fetchError ? (
-            <div className="alert alert-danger mt-3" role="alert">
-              Failed to fetch inventory items: {fetchError}
-            </div>
-          ) : (
+
+          <ErrorDisplay
+            error={fetchError}
+            errorDetails={errorDetails}
+            onDismiss={() => {
+              setFetchError(null);
+              setErrorDetails(null);
+            }}
+          />
+
+          {!fetchError && (
             <table className="table table-striped mt-3">
               <thead>
                 <tr>

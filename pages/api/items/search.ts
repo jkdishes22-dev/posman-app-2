@@ -9,20 +9,31 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "GET") {
     try {
       const { q, limit = "10" } = req.query;
+      const userId = req.user?.id;
 
       if (!q || typeof q !== "string") {
         return res.status(400).json({ message: "Search query 'q' is required" });
       }
 
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
       const itemService = new ItemService(req.db);
-      const searchResults = await itemService.searchItemsByName(q, parseInt(limit as string));
+
+      // Use user-specific search that respects station access control
+      const searchResults = await itemService.searchItemsByNameForUser(
+        q,
+        parseInt(userId as string),
+        parseInt(limit as string)
+      );
 
       logger.info({
         query: q,
         limit: parseInt(limit as string),
         resultCount: searchResults.length,
-        userId: req.user?.id
-      }, 'Item search performed');
+        userId: userId
+      }, 'Item search performed for user');
 
       res.status(200).json({
         items: searchResults,
@@ -30,7 +41,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         total: searchResults.length
       });
     } catch (error: any) {
-      logger.error({ error: error.message, query: req.query.q }, 'Failed to search items');
+      logger.error({ error: error.message, query: req.query.q, userId: req.user?.id }, 'Failed to search items');
       res.status(500).json({
         message: "Error searching items",
         error: error.message,

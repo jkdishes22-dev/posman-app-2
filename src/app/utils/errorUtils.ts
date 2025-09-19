@@ -8,6 +8,8 @@ export interface ApiErrorResponse {
     isAdmin?: boolean;
     userRoles?: string[];
     requiredPermissions?: string[];
+    networkError?: boolean;
+    status?: number;
 }
 
 export interface ErrorState {

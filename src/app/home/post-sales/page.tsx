@@ -1,17 +1,17 @@
 "use client";
 
 import SecureRoute from "../../components/SecureRoute";
-import HomePageLayout from "../../shared/HomePageLayout";
+import RoleAwareLayout from "../../shared/RoleAwareLayout";
 
 const mySales = () => {
   return (
-    <HomePageLayout>
-      <SecureRoute roleRequired="user">
-        <div className="container">
+    <RoleAwareLayout>
+      <SecureRoute roleRequired="sales">
+        <div className="container-fluid p-0">
           <h1>Post dated sales</h1>
         </div>
       </SecureRoute>
-    </HomePageLayout>
+    </RoleAwareLayout>
   );
 };
 

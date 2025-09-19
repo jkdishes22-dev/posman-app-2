@@ -5,8 +5,6 @@ import ViewItems from "../admin/menu/category/components/items/items-view";
 import Categories from "../admin/menu/category/components/category/categories";
 import { Item } from "../types/types";
 import QuantityModal from "./QuantityModal";
-import jwt from "jsonwebtoken";
-import { DecodedToken } from "../components/SecureRoute";
 import { Button, Modal, Alert, Row, Col } from "react-bootstrap";
 import ReceiptPrint, { CaptainOrderPrint, CustomerCopyPrint } from './ReceiptPrint';
 import { printReceiptWithTimestamp, downloadReceiptAsFile } from './printUtils';
@@ -16,7 +14,8 @@ import { useAuth } from "../contexts/AuthContext";
 import ErrorDisplay from "../components/ErrorDisplay";
 import StationSelector from "../components/StationSelector";
 import StationStatus from "../components/StationStatus";
-import { getValidToken, isTokenExpiringSoon } from "../utils/tokenUtils";
+import { useApiCall } from "../utils/apiUtils";
+import { ApiErrorResponse } from "../utils/errorUtils";
 
 const BillingSection = () => {
   // Auth context
@@ -24,6 +23,9 @@ const BillingSection = () => {
 
   // Station context
   const { currentStation, isLoading: stationLoading, error: stationError, loadStationsIfNeeded } = useStation();
+
+  // API call hook
+  const apiCall = useApiCall();
 
   // Existing state
   const [categories, setCategories] = useState([]);
@@ -43,6 +45,7 @@ const BillingSection = () => {
   const [billError, setBillError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categoriesFetched, setCategoriesFetched] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,38 +56,13 @@ const BillingSection = () => {
 
     const initializeUser = async () => {
       try {
-        const token = await getValidToken();
-
-        if (!token) {
-          // Fallback to auth context user
-          if (user && user.id) {
-            setUserId(user.id.toString());
-            setWaitress(user.firstname || user.firstName || "");
-          }
-          return;
-        }
-
-        const decodedToken = jwt.decode(token) as DecodedToken;
-
-        if (decodedToken && decodedToken.user) {
-          setWaitress(decodedToken.user.firstname);
-          // Use the id from the token, not from user object
-          const userId = decodedToken.id ? decodedToken.id.toString() : "";
-          setUserId(userId);
-        } else {
-          // Fallback to auth context user
-          if (user && user.id) {
-            setUserId(user.id.toString());
-            setWaitress(user.firstname || user.firstName || "");
-          }
-        }
-      } catch (error) {
-        console.error("Error initializing user:", error);
-        // Fallback to auth context user
+        // Use auth context user directly
         if (user && user.id) {
           setUserId(user.id.toString());
           setWaitress(user.firstname || user.firstName || "");
         }
+      } catch (error) {
+        console.error("Error initializing user:", error);
       }
     };
 
@@ -100,20 +78,17 @@ const BillingSection = () => {
     const fetchCategories = async () => {
       try {
         setCategoriesFetched(true);
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/categories", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          setFetchCategoryError("Failed to fetch categories: " + data);
-          throw new Error("Failed to fetch categories");
+        const result = await apiCall("/api/menu/categories");
+        if (result.status === 200) {
+          setCategories(result.data);
+        } else {
+          setFetchCategoryError("Failed to fetch categories: " + result.error);
+          setErrorDetails(result.errorDetails);
+          setCategoriesFetched(false); // Reset on error to allow retry
         }
-        setCategories(data);
       } catch (error: any) {
-        setFetchCategoryError("Failed to fetch categories: " + error);
+        setFetchCategoryError("Failed to fetch categories: " + error.message);
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         setCategoriesFetched(false); // Reset on error to allow retry
       }
     };
@@ -141,27 +116,20 @@ const BillingSection = () => {
     }
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `/api/menu/items/station?stationId=${currentStation.id}&categoryId=${categoryId}&userId=${userId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+      const result = await apiCall(
+        `/api/menu/items/station?stationId=${currentStation.id}&categoryId=${categoryId}&userId=${userId}`
       );
 
-      const data = await response.json();
-      if (!response.ok) {
-        if (response.status === 403 && data.missingPermissions) {
-          throw new Error(`Access denied: Missing ${data.missingPermissions.join(", ")} permission(s)`);
-        }
-        throw new Error(data.message || "Failed to fetch items for this station");
+      if (result.status === 200) {
+        setItems(result.data.items || []);
+      } else {
+        setItemError(result.error || "Failed to fetch items for this station");
+        setErrorDetails(result.errorDetails);
       }
-      setItems(data.items || []);
     } catch (error: any) {
       const errorMessage = error.message || "Failed to fetch items for the selected category and station";
       setItemError(errorMessage);
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -221,13 +189,6 @@ const BillingSection = () => {
     setBillError(""); // Clear any previous errors
 
     try {
-      // Get a valid token (will refresh if needed)
-      const token = await getValidToken();
-      if (!token) {
-        setBillError("Unable to process bill. Please log out and log back in.");
-        return;
-      }
-
       // Ensure we have a valid user ID
       let currentUserId = userId;
       if (!currentUserId || currentUserId === "" || currentUserId === "NaN") {
@@ -237,22 +198,17 @@ const BillingSection = () => {
           setUserId(currentUserId);
         } else {
           try {
-            const response = await fetch("/api/users/me", {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            });
-            if (response.ok) {
-              const userData = await response.json();
-              if (userData.id) {
-                currentUserId = userData.id.toString();
+            const result = await apiCall("/api/users/me");
+            if (result.status === 200) {
+              if (result.data.id) {
+                currentUserId = result.data.id.toString();
                 setUserId(currentUserId);
-                setWaitress(userData.firstname || userData.firstName || "");
+                setWaitress(result.data.firstname || result.data.firstName || "");
               } else {
                 throw new Error("No user ID in API response");
               }
             } else {
-              throw new Error("Failed to fetch user data");
+              throw new Error(result.error || "Failed to fetch user data");
             }
           } catch (error) {
             setBillError("Unable to process bill. Please log out and log back in.");
@@ -273,37 +229,32 @@ const BillingSection = () => {
         total,
       };
       try {
-        const response = await fetch("/api/bills", {
+        const result = await apiCall("/api/bills", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
           body: JSON.stringify(payload),
         });
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error("Bill submission error:", errorData);
-          throw new Error(errorData.error || errorData.message || "Failed to submit picked items");
+        if (result.status === 200) {
+          setShowSubmitModal(false);
+          setBillError(""); // Clear any previous errors
+          setItems([]); // Clear available items instantly
+          setCreatedBill({
+            ...result.data.bill,
+            bill_items: selectedItems.map(item => ({
+              ...item,
+              item: { name: item.name, price: item.price },
+            })),
+            user: { firstName: waitress },
+            currency: "KES",
+          });
+        } else {
+          setBillError(result.error || "Failed to submit picked items");
+          setErrorDetails(result.errorDetails);
         }
-        const data = await response.json();
-        setShowSubmitModal(false);
-        setBillError(""); // Clear any previous errors
-        setItems([]); // Clear available items instantly
-        setCreatedBill({
-          ...data.bill,
-          bill_items: selectedItems.map(item => ({
-            ...item,
-            item: { name: item.name, price: item.price },
-          })),
-          user: { firstName: waitress },
-          currency: "KES",
-        });
       } catch (error: any) {
-        console.error("Error submitting items:", error);
         // Show the actual error message from the API
         const errorMessage = error.message || "Failed to submit picked items";
         setBillError(errorMessage);
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       }
     } catch (error: any) {
       console.error("Error in bill submission:", error);
@@ -383,6 +334,7 @@ const BillingSection = () => {
     0,
   );
 
+
   // Show loading state if station is loading
   if (stationLoading) {
     return (
@@ -428,13 +380,13 @@ const BillingSection = () => {
   }
 
   return (
-    <div className="container-fluid px-3 py-2">
+    <div className="container-fluid p-0">
       {/* Main Content - Improved Layout */}
-      <div className="row g-3">
+      <div className="row g-1">
         {/* Available Items Section */}
         <div className="col-lg-6">
           <div className="card border-0 shadow-sm h-100">
-            <div className="card-header bg-primary text-white py-2">
+            <div className="card-header bg-primary text-white py-0">
               <div className="d-flex align-items-center justify-content-between">
                 <h6 className="mb-0 fw-bold">
                   <i className="bi bi-box-seam me-2"></i>
@@ -475,7 +427,7 @@ const BillingSection = () => {
                 <div className="mt-2">
                   <div className="d-flex justify-content-end">
                     <div className="card border-0 bg-light shadow-sm" style={{ width: '300px' }}>
-                      <div className="card-body py-2">
+                      <div className="card-body py-1">
                         <StationSelector showLabel={false} size="sm" />
                       </div>
                     </div>
@@ -487,6 +439,11 @@ const BillingSection = () => {
               <ErrorDisplay
                 error={itemError}
                 onDismiss={() => setItemError("")}
+              />
+              <ErrorDisplay
+                error={errorDetails?.message || null}
+                errorDetails={errorDetails}
+                onDismiss={() => setErrorDetails(null)}
               />
               <ViewItems
                 selectedCategory={selectedCategory}
@@ -505,7 +462,7 @@ const BillingSection = () => {
         {/* Billing Section - Improved */}
         <div className="col-lg-6">
           <div className="card border-0 shadow-sm h-100">
-            <div className="card-header bg-success text-white border-0 py-2">
+            <div className="card-header bg-success text-white border-0 py-0">
               <div className="d-flex align-items-center justify-content-between">
                 <h6 className="mb-0 fw-bold">
                   <i className="bi bi-receipt me-2"></i>
@@ -596,7 +553,7 @@ const BillingSection = () => {
                 </table>
               </div>
             </div>
-            <div className="card-footer bg-success text-white border-0 py-2" style={{ boxShadow: '0 -2px 4px rgba(0,0,0,0.1)' }}>
+            <div className="card-footer bg-success text-white border-0 py-0" style={{ boxShadow: '0 -2px 4px rgba(0,0,0,0.1)' }}>
               <div className="row align-items-center">
                 <div className="col-md-6">
                   <div className="d-flex flex-column">
@@ -703,11 +660,11 @@ const BillingSection = () => {
       </div>
 
       {/* Categories Section - Improved */}
-      <div className="row mt-3">
+      <div className="row mt-1">
         <div className="col-12">
           <div className="card border-0 shadow-sm">
-            <div className="card-body py-3">
-              <div className="mb-3">
+            <div className="card-body py-1">
+              <div className="mb-1">
                 <h5 className="mb-0 text-dark fw-bold d-flex align-items-center">
                   <i className="bi bi-grid me-2 text-primary"></i>
                   Item Categories
@@ -741,7 +698,7 @@ const BillingSection = () => {
         />
       )}
 
-      {/* Submit Confirmation Modal */}
+      {/* Submit Confirmation Modal - Simple Bill Creation */}
       <Modal show={showSubmitModal} onHide={handleCloseSubmitModal} centered>
         <Modal.Header closeButton className="bg-primary text-white">
           <Modal.Title className="fw-bold">Confirm Billing</Modal.Title>
@@ -759,7 +716,7 @@ const BillingSection = () => {
                 <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
                   <span className="visually-hidden">Loading...</span>
                 </div>
-                <p className="fs-5 text-primary">Submitting bill...</p>
+                <p className="fs-5 text-primary">Creating bill...</p>
                 <p className="text-muted">Please wait while we process your order</p>
               </>
             ) : (
@@ -767,6 +724,7 @@ const BillingSection = () => {
                 <i className="bi bi-receipt fs-1 text-primary mb-3 d-block"></i>
                 <p className="fs-5">Create bill with total amount:</p>
                 <h3 className="text-success fw-bold">${totalAmount.toFixed(2)}</h3>
+                <p className="text-muted">You can submit this bill for payment later in My Sales</p>
               </>
             )}
           </div>
@@ -789,12 +747,12 @@ const BillingSection = () => {
             {isSubmitting ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                Submitting...
+                Creating...
               </>
             ) : (
               <>
                 <i className="bi bi-check-circle me-1"></i>
-                Confirm
+                Create Bill
               </>
             )}
           </Button>

@@ -9,6 +9,9 @@ import {
 } from "react-bootstrap";
 import AsyncSelect from "react-select/async";
 import { Item } from "src/app/types/types";
+import { useApiCall } from "../../../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../../../utils/errorUtils";
+import ErrorDisplay from "../../../../../components/ErrorDisplay";
 
 interface AddGroupItemModalProps {
   isModalOpen: boolean;
@@ -32,6 +35,10 @@ const AddGroupItemModal = ({
   const [portionSize, setPortionSize] = useState<number | null>(null);
   const [initialItems, setInitialItems] = useState<ItemOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   // Load initial items when modal opens
   useEffect(() => {
@@ -47,25 +54,24 @@ const AddGroupItemModal = ({
   const loadInitialItems = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("token");
       // Use a generic search term to get initial items
-      const response = await fetch(
-        `/api/menu/items?search=a&excludeGrouped=true`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-      if (!response.ok) throw new Error("Failed to fetch items");
-      const data = await response.json();
-      const items = data.slice(0, 20).map((item: Item) => ({
-        label: item.name,
-        value: item.id,
-      }));
-      setInitialItems(items);
+      const result = await apiCall(`/api/menu/items?search=a&excludeGrouped=true`);
+      if (result.status === 200) {
+        const items = result.data.slice(0, 20).map((item: Item) => ({
+          label: item.name,
+          value: item.id,
+        }));
+        setInitialItems(items);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to fetch items");
+        setErrorDetails(result.errorDetails);
+        setInitialItems([]);
+      }
     } catch (error: any) {
-      console.error("Error fetching initial items:", error);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setInitialItems([]);
     } finally {
       setIsLoading(false);
@@ -86,24 +92,23 @@ const AddGroupItemModal = ({
     }
 
     try {
-      const token = localStorage.getItem("token");
       const excludeGrouped = true;
-      const response = await fetch(
-        `/api/menu/items?search=${encodeURIComponent(inputValue)}&excludeGrouped=${excludeGrouped}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+      const result = await apiCall(
+        `/api/menu/items?search=${encodeURIComponent(inputValue)}&excludeGrouped=${excludeGrouped}`
       );
-      if (!response.ok) throw new Error("Failed to fetch items");
-      const data = await response.json();
-      return data.map((item: Item) => ({
-        label: item.name,
-        value: item.id,
-      }));
+      if (result.status === 200) {
+        return result.data.map((item: Item) => ({
+          label: item.name,
+          value: item.id,
+        }));
+      } else {
+        setError(result.error || "Failed to fetch items");
+        setErrorDetails(result.errorDetails);
+        return [];
+      }
     } catch (error: any) {
-      console.error("Error fetching items:", error);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       return [];
     }
   };
@@ -123,6 +128,14 @@ const AddGroupItemModal = ({
         <ModalTitle>Add New Item to {selectedGroupName}</ModalTitle>
       </ModalHeader>
       <ModalBody>
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
+          }}
+        />
         <div className="form-group">
           <label htmlFor="item-select">Select Item</label>
           <AsyncSelect

@@ -1,5 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
+import { useApiCall } from "../../utils/apiUtils";
+import ErrorDisplay from "../../components/ErrorDisplay";
+import { ApiErrorResponse } from "../../utils/errorUtils";
 
 const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -8,6 +11,11 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
   const [mpesaCode, setMpesaCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [paymentValidationError, setPaymentValidationError] = useState<string>("");
+  const [isValidatingReference, setIsValidatingReference] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   const totalAmount = selectedBill?.total || 0;
 
@@ -17,6 +25,8 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
     setMpesaAmount("");
     setMpesaCode("");
     setErrorMessage("");
+    setPaymentValidationError("");
+    setErrorDetails(null);
   };
 
   const handleClose = () => {
@@ -33,6 +43,37 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
       : 0);
 
   const pendingAmount = totalAmount - totalPaid;
+
+  // Debounced M-Pesa reference validation
+  useEffect(() => {
+    if (mpesaCode && (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa")) {
+      const timeoutId = setTimeout(async () => {
+        setIsValidatingReference(true);
+        setPaymentValidationError("");
+
+        try {
+          const result = await apiCall(`/api/payments/check-reference?reference=${encodeURIComponent(mpesaCode)}`);
+          if (result.status === 200) {
+            if (result.data.exists) {
+              setPaymentValidationError("M-Pesa reference code already exists. Please use a different code.");
+            } else {
+              setPaymentValidationError("");
+            }
+          } else {
+            setPaymentValidationError("Failed to validate M-Pesa reference code.");
+          }
+        } catch (error) {
+          setPaymentValidationError("Network error while validating M-Pesa reference code.");
+        } finally {
+          setIsValidatingReference(false);
+        }
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      setPaymentValidationError("");
+    }
+  }, [mpesaCode, paymentMethod, apiCall]);
 
   const handleCashChange = (e) => {
     const value = e.target.value;
@@ -83,14 +124,37 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
   };
 
   const handleSubmit = async () => {
+    // Clear previous errors
+    setErrorMessage("");
+    setPaymentValidationError("");
+    setErrorDetails(null);
+
+    // Validation 1: M-Pesa reference code required
     if (
       (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa") &&
       !mpesaCode &&
       Number(mpesaAmount) > 0
     ) {
-      setErrorMessage("Please enter an M-Pesa payment code.");
+      setPaymentValidationError("M-Pesa reference code is required for M-Pesa payments.");
       return;
     }
+
+    // Validation 2: M-Pesa reference code uniqueness (if validation is in progress, wait)
+    if (isValidatingReference) {
+      setPaymentValidationError("Please wait while validating M-Pesa reference code...");
+      return;
+    }
+
+    if (paymentValidationError) {
+      return;
+    }
+
+    // Validation 3: Total paid must equal bill total
+    if (totalPaid !== totalAmount) {
+      setPaymentValidationError(`Total paid (KES ${totalPaid}) must equal bill total (KES ${totalAmount}).`);
+      return;
+    }
+
     if (selectedBill.bill_items.length === 0) {
       setErrorMessage("Cannot submit bill with no items.");
       return;
@@ -116,33 +180,27 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
 
     try {
       setIsSubmitting(true);
-      setErrorMessage("");
 
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/bills/submit", {
+      const result = await apiCall("/api/bills/submit", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(paymentDetails),
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to submit bill: ${response.statusText}`);
+      if (result.status === 200) {
+        onBillSubmitted(result.data.bill);
+        handleClose();
+      } else {
+        // Handle payment validation errors from backend
+        if (result.error && (result.error.includes("M-Pesa") || result.error.includes("Total paid") || result.error.includes("reference code"))) {
+          setPaymentValidationError(result.error);
+        } else {
+          setErrorMessage(result.error || "Failed to submit bill");
+          setErrorDetails(result.errorDetails);
+        }
       }
-
-      const responseData = await response.json();
-
-      onBillSubmitted(responseData.bill);
-
-      handleClose();
     } catch (error: any) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "An unexpected error occurred.",
-      );
+      setErrorMessage("Network error occurred while submitting bill");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     } finally {
       setIsSubmitting(false);
     }
@@ -158,7 +216,21 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
       <Modal.Body>
         {selectedBill ? (
           <Form>
-            {errorMessage && <p className="text-danger">{errorMessage}</p>}
+            <ErrorDisplay
+              error={errorMessage}
+              errorDetails={errorDetails}
+              onDismiss={() => {
+                setErrorMessage("");
+                setErrorDetails(null);
+              }}
+            />
+
+            {paymentValidationError && (
+              <div className="alert alert-danger" role="alert">
+                {paymentValidationError}
+              </div>
+            )}
+
             <Form.Group>
               <Form.Label>Select Payment Method</Form.Label>
               <div>
@@ -168,7 +240,10 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                   name="paymentMethod"
                   value="cash"
                   checked={paymentMethod === "cash"}
-                  onChange={() => setPaymentMethod("cash")}
+                  onChange={() => {
+                    setPaymentMethod("cash");
+                    setPaymentValidationError("");
+                  }}
                   style={{ fontSize: "18px" }}
                 />
                 <Form.Check
@@ -177,7 +252,10 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                   name="paymentMethod"
                   value="mpesa"
                   checked={paymentMethod === "mpesa"}
-                  onChange={() => setPaymentMethod("mpesa")}
+                  onChange={() => {
+                    setPaymentMethod("mpesa");
+                    setPaymentValidationError("");
+                  }}
                   style={{ fontSize: "18px" }}
                 />
                 <Form.Check
@@ -186,7 +264,10 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                   name="paymentMethod"
                   value="cash_mpesa"
                   checked={paymentMethod === "cash_mpesa"}
-                  onChange={() => setPaymentMethod("cash_mpesa")}
+                  onChange={() => {
+                    setPaymentMethod("cash_mpesa");
+                    setPaymentValidationError("");
+                  }}
                   style={{ fontSize: "18px" }}
                 />
               </div>
@@ -215,23 +296,63 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
             {(paymentMethod === "mpesa" || paymentMethod === "cash_mpesa") && (
               <Form.Group>
                 <Form.Label>M-Pesa Payment Code</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={mpesaCode}
-                  onChange={(e) => setMpesaCode(e.target.value)}
-                  placeholder="Enter M-Pesa payment code"
-                  required
-                />
+                <div className="position-relative">
+                  <Form.Control
+                    type="text"
+                    value={mpesaCode}
+                    onChange={(e) => {
+                      setMpesaCode(e.target.value);
+                      setPaymentValidationError("");
+                    }}
+                    placeholder="Enter M-Pesa payment code"
+                    required
+                    className={
+                      mpesaCode && !isValidatingReference && !paymentValidationError
+                        ? "is-valid"
+                        : paymentValidationError && mpesaCode
+                          ? "is-invalid"
+                          : ""
+                    }
+                  />
+                  {isValidatingReference && (
+                    <div className="position-absolute top-50 end-0 translate-middle-y me-2">
+                      <Spinner animation="border" size="sm" />
+                    </div>
+                  )}
+                </div>
+                {mpesaCode && !isValidatingReference && !paymentValidationError && (
+                  <div className="valid-feedback">M-Pesa reference code is valid</div>
+                )}
               </Form.Group>
             )}
 
-            <p>
-              <strong>Total Paid:</strong> KES {totalPaid}
-            </p>
-            <p>
-              <strong>Pending Amount:</strong> KES{" "}
-              {pendingAmount > 0 ? pendingAmount : "0"}
-            </p>
+            <div className="card bg-light p-3 mt-3">
+              <h6 className="card-title">Payment Summary</h6>
+              <div className="row">
+                <div className="col-6">
+                  <strong>Total Paid:</strong> KES {totalPaid}
+                </div>
+                <div className="col-6">
+                  <strong>Bill Total:</strong> KES {totalAmount}
+                </div>
+              </div>
+              <div className="row mt-2">
+                <div className="col-6">
+                  <strong>Pending Amount:</strong>{" "}
+                  <span className={pendingAmount > 0 ? "text-danger fw-bold" : ""}>
+                    KES {pendingAmount > 0 ? pendingAmount : "0"}
+                  </span>
+                </div>
+                <div className="col-6">
+                  <strong>Validation Status:</strong>{" "}
+                  {totalPaid === totalAmount && !paymentValidationError && !isValidatingReference ? (
+                    <span className="text-success">✓ Valid</span>
+                  ) : (
+                    <span className="text-danger">✗ Invalid</span>
+                  )}
+                </div>
+              </div>
+            </div>
           </Form>
         ) : (
           <p>No bill selected. Please select a bill to continue.</p>
@@ -248,7 +369,13 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
         <Button
           variant="primary"
           onClick={handleSubmit}
-          disabled={isSubmitting || !selectedBill}
+          disabled={
+            isSubmitting ||
+            !selectedBill ||
+            totalPaid !== totalAmount ||
+            paymentValidationError !== "" ||
+            isValidatingReference
+          }
         >
           {isSubmitting ? (
             <Spinner animation="border" size="sm" />

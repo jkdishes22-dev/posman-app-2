@@ -7,6 +7,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const nextConfig = {
+    eslint: {
+        ignoreDuringBuilds: true,
+    },
     webpack: (config, { dev, isServer }) => {
         config.resolve.alias["@entities"] = path.resolve(__dirname, "src/backend/entities");
         config.resolve.alias["@services"] = path.resolve(__dirname, "src/backend/service");

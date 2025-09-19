@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { Station } from '../types/types';
 import { useAuth } from './AuthContext';
+import { useApiCall } from '../utils/apiUtils';
+import { ApiErrorResponse } from '../utils/errorUtils';
 
 interface StationContextType {
     currentStation: Station | null;
@@ -27,8 +29,11 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     const [availableStations, setAvailableStations] = useState<Station[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const hasInitiallyLoaded = useRef(false);
+
+    const apiCall = useApiCall();
 
     // Fetch user's available stations
     const fetchUserStations = useCallback(async (): Promise<Station[]> => {
@@ -36,23 +41,18 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
             throw new Error("Authentication expired");
         }
 
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/users/me/stations", {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!response.ok) {
-            if (response.status === 401) {
+        const result = await apiCall("/api/users/me/stations");
+        if (result.status === 200) {
+            return result.data.stations || [];
+        } else {
+            if (result.status === 401) {
                 // Token is invalid, logout user
                 logout();
                 throw new Error("Authentication expired");
             }
-            throw new Error(`Failed to fetch stations: ${response.statusText}`);
+            throw new Error(result.error || "Failed to fetch stations");
         }
-
-        const data = await response.json();
-        return data.stations || [];
-    }, [checkAuth, logout]);
+    }, [checkAuth, logout, apiCall]);
 
     // Get user's default station
     const fetchDefaultStation = useCallback(async (): Promise<Station | null> => {
@@ -60,26 +60,21 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
             throw new Error("Authentication expired");
         }
 
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/users/me/default-station", {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!response.ok) {
-            if (response.status === 401) {
+        const result = await apiCall("/api/users/me/default-station");
+        if (result.status === 200) {
+            return result.data.station || null;
+        } else {
+            if (result.status === 401) {
                 // Token is invalid, logout user
                 logout();
                 throw new Error("Authentication expired");
             }
-            if (response.status === 404) {
+            if (result.status === 404) {
                 return null; // No default station set
             }
-            throw new Error(`Failed to fetch default station: ${response.statusText}`);
+            throw new Error(result.error || "Failed to fetch default station");
         }
-
-        const data = await response.json();
-        return data.station || null;
-    }, [checkAuth, logout]);
+    }, [checkAuth, logout, apiCall]);
 
     // Validate user access to a station
     const validateStationAccess = async (stationId: number): Promise<boolean> => {
@@ -88,20 +83,15 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
         }
 
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`/api/validation/user-station-access?stationId=${stationId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
-            if (!response.ok) {
-                if (response.status === 401) {
+            const result = await apiCall(`/api/validation/user-station-access?stationId=${stationId}`);
+            if (result.status === 200) {
+                return result.data.hasAccess || false;
+            } else {
+                if (result.status === 401) {
                     logout();
                 }
                 return false;
             }
-
-            const data = await response.json();
-            return data.hasAccess || false;
         } catch (error) {
             console.error("Error validating station access:", error);
             return false;
@@ -120,39 +110,22 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
         setError(null);
 
         try {
-            const token = localStorage.getItem("token");
-            if (!token) return;
-
             // Fetch stations
-            const stationsResponse = await fetch("/api/users/me/stations", {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-
-            if (stationsResponse.status === 401) {
+            const stationsResult = await apiCall("/api/users/me/stations");
+            if (stationsResult.status === 401) {
                 localStorage.removeItem("token");
                 localStorage.removeItem("user");
                 window.location.href = "/";
                 return;
             }
 
-            const stationsData = await stationsResponse.json();
-            const stations = stationsData.stations || [];
+            const stations = stationsResult.status === 200 ? (stationsResult.data.stations || []) : [];
 
             // Fetch default station
-            const defaultResponse = await fetch("/api/users/me/default-station", {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-
+            const defaultResult = await apiCall("/api/users/me/default-station");
             let defaultStation = null;
-            if (defaultResponse.status === 200) {
-                const defaultData = await defaultResponse.json();
-                defaultStation = defaultData.station || null;
+            if (defaultResult.status === 200) {
+                defaultStation = defaultResult.data.station || null;
             }
 
             setAvailableStations(stations);
@@ -191,17 +164,10 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
 
         // Update default station on server
         try {
-            const token = localStorage.getItem("token");
-            if (token) {
-                await fetch("/api/users/me/default-station", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ stationId: station.id }),
-                });
-            }
+            await apiCall("/api/users/me/default-station", {
+                method: "POST",
+                body: JSON.stringify({ stationId: station.id }),
+            });
         } catch (error) {
             console.error("Error updating default station:", error);
             // Don't throw here, station is already set locally
@@ -227,39 +193,22 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
                 setError(null);
 
                 try {
-                    const token = localStorage.getItem("token");
-                    if (!token) return;
-
                     // Fetch stations
-                    const stationsResponse = await fetch("/api/users/me/stations", {
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`,
-                        },
-                    });
-
-                    if (stationsResponse.status === 401) {
+                    const stationsResult = await apiCall("/api/users/me/stations");
+                    if (stationsResult.status === 401) {
                         localStorage.removeItem("token");
                         localStorage.removeItem("user");
                         window.location.href = "/";
                         return;
                     }
 
-                    const stationsData = await stationsResponse.json();
-                    const stations = stationsData.stations || [];
+                    const stations = stationsResult.status === 200 ? (stationsResult.data.stations || []) : [];
 
                     // Fetch default station
-                    const defaultResponse = await fetch("/api/users/me/default-station", {
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`,
-                        },
-                    });
-
+                    const defaultResult = await apiCall("/api/users/me/default-station");
                     let defaultStation = null;
-                    if (defaultResponse.status === 200) {
-                        const defaultData = await defaultResponse.json();
-                        defaultStation = defaultData.station || null;
+                    if (defaultResult.status === 200) {
+                        defaultStation = defaultResult.data.station || null;
                     }
 
                     setAvailableStations(stations);

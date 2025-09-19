@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import SecureRoute from "../../components/SecureRoute";
-import HomePageLayout from "../../shared/HomePageLayout";
+import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import "react-datepicker/dist/react-datepicker.css";
 import { formatISO } from "date-fns";
 import { Button, Form } from "react-bootstrap";
@@ -14,6 +14,9 @@ import Pagination from "src/app/components/Pagination";
 import { CaptainOrderPrint, CustomerCopyPrint } from "../../shared/ReceiptPrint";
 import { printReceiptWithTimestamp, downloadReceiptAsFile } from "../../shared/printUtils";
 import ReactDOM from "react-dom/client";
+import { useApiCall } from "../../utils/apiUtils";
+import { ApiErrorResponse } from "../../utils/errorUtils";
+import ErrorDisplay from "../../components/ErrorDisplay";
 
 // Receipt component for printing
 const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
@@ -54,11 +57,13 @@ const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) 
 Receipt.displayName = "Receipt";
 
 const MySales = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [bills, setBills] = useState([]);
   const [filteredBills, setFilteredBills] = useState([]);
   const [selectedBill, setSelectedBill] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+  const apiCall = useApiCall();
   const [billIdFilter, setBillIdFilter] = useState("");
   const [error, setError] = useState<string>("");
   const [itemError, setItemError] = useState("");
@@ -80,85 +85,79 @@ const MySales = () => {
     setError("");
 
     if (filter === "") {
+      // When clearing bill ID filter, fetch bills with current date and status
       fetchBills(selectedDate, statusFilter);
     } else {
-      const filtered = bills.filter((bill: Bill) => bill.id.toString().includes(filter));
-      setFilteredBills(filtered);
-      if (filtered.length === 0) {
-        await fetchBillsByBillId(filter);
-      }
+      // When searching by bill ID, don't use date filter unless explicitly set
+      fetchBills(null, statusFilter, filter);
     }
   };
 
-  const fetchBills = async (date?: Date, status?: string) => {
-    const token = localStorage.getItem("token");
+  const fetchBills = async (date?: Date, status?: string, billId?: string) => {
     let url = "/api/bills?";
     const params = [];
+
+    // Only add date filter if date is provided and not today's default
     if (date && !isNaN(new Date(date).getTime())) {
-      // Format date as YYYY-MM-DD without timezone conversion
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       const formattedDate = `${year}-${month}-${day}`;
       params.push(`date=${formattedDate}`);
     }
+
     if (status && status !== "all") {
       params.push(`status=${status}`);
     }
-    if (billIdFilter) {
-      params.push(`billId=${billIdFilter}`);
+
+    if (billId && billId.trim()) {
+      params.push(`billId=${billId.trim()}`);
     }
+
     params.push(`page=${page}`);
     params.push(`pageSize=${pageSize}`);
+
     if (params.length > 0) {
       url += params.join("&");
     }
-    try {
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json();
 
-      if (!response.ok) {
-        setError(data.message || "Failed to fetch bills");
-        return;
+    try {
+      const result = await apiCall(url);
+      if (result.status === 200) {
+        setBills(result.data?.bills || []);
+        setFilteredBills(result.data?.bills || []);
+        setTotal(result.data?.total || 0);
+        setError("");
+      } else {
+        setError(result.error || "Failed to fetch bills");
+        setErrorDetails(result.errorDetails);
       }
-      setBills(data.bills || []);
-      setFilteredBills(data.bills || []);
-      setTotal(data.total || 0);
-      setError("");
-    } catch (error: any) {
-      setError(error.message || "Failed to fetch items for the selected category");
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
   const fetchBillsByBillId = async (billId: number) => {
-    const token = localStorage.getItem("token");
-
     try {
-      const response = await fetch(`/api/bills?billId=${billId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        setError("No bill found with that ID");
+      const result = await apiCall(`/api/bills?billId=${billId}`);
+      if (result.status === 200) {
+        if (!result.data?.bills || result.data.bills.length === 0) {
+          setError("No bill found with that ID");
+          setFilteredBills([]);
+          return;
+        }
+        setBills(result.data.bills);
+        setFilteredBills(result.data.bills);
+        setError("");
+      } else {
+        setError(result.error || "No bill found with that ID");
+        setErrorDetails(result.errorDetails);
         setFilteredBills([]);
-        return;
       }
-
-      const data = await response.json();
-      if (!data.bills || data.bills.length === 0) {
-        setError("No bill found with that ID");
-        setFilteredBills([]);
-        return;
-      }
-      setBills(data.bills);
-      setFilteredBills(data.bills);
-      setError("");
-    } catch (error: any) {
-      setError("Error fetching bills by Bill ID: " + error.message);
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
       setFilteredBills([]);
     }
   };
@@ -251,10 +250,9 @@ const MySales = () => {
   };
 
   useEffect(() => {
-    if (selectedDate) {
-      fetchBills(selectedDate, statusFilter);
-    }
-  }, [selectedDate, statusFilter]);
+    // Always fetch bills when date, status, billId, or page changes
+    fetchBills(selectedDate, statusFilter, billIdFilter);
+  }, [selectedDate, statusFilter, billIdFilter, page]);
 
   // Clear selectedBill when filters change
   useEffect(() => {
@@ -262,19 +260,19 @@ const MySales = () => {
   }, [statusFilter, selectedDate, billIdFilter]);
 
   return (
-    <HomePageLayout>
-      <SecureRoute roleRequired="user">
-        <div className="container">
+    <RoleAwareLayout>
+      <SecureRoute roleRequired="sales">
+        <div className="container-fluid p-0">
           {/* Filter row */}
           <div className="row">
             <div className="col-12">
-              <div className="card shadow-sm p-3 mb-3 bg-light border-primary filter-card">
-                <h5 className="card-title text-primary mb-3">Filter My Sales</h5>
-                <div className="row g-3 align-items-end">
+              <div className="card shadow-sm p-1 mb-1 bg-light border-primary filter-card">
+                <h5 className="card-title text-primary mb-1">Filter My Sales</h5>
+                <div className="row g-1 align-items-end">
                   <div className="col-md-4">
                     <div className="form-group">
                       <label htmlFor="filterDate" className="form-label">Billing Date</label>
-                      <div>
+                      <div className="d-flex">
                         <DatePicker
                           selected={selectedDate}
                           onChange={handleDateChange}
@@ -284,6 +282,16 @@ const MySales = () => {
                           maxDate={new Date()}
                           isClearable
                         />
+                        {selectedDate && (
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary btn-sm ms-2"
+                            onClick={() => handleDateChange(null)}
+                            title="Clear date filter"
+                          >
+                            <i className="bi bi-x"></i>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -328,6 +336,12 @@ const MySales = () => {
                       >
                         Voided
                       </button>
+                      <button
+                        className={`btn btn-outline-primary${statusFilter === "reopened" ? " active" : ""}`}
+                        onClick={() => setStatusFilter("reopened")}
+                      >
+                        Reopened
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -337,7 +351,7 @@ const MySales = () => {
           {/* Bills and details row */}
           <div className="row">
             <div className="col-5">
-              <div className="mb-2">
+              <div className="mb-1">
                 <Button
                   variant="success"
                   size="sm"
@@ -360,6 +374,13 @@ const MySales = () => {
                     ></button>
                   </div>
                 )}
+                <ErrorDisplay
+                  error={errorDetails?.message || null}
+                  errorDetails={errorDetails}
+                  onDismiss={() => {
+                    setErrorDetails(null);
+                  }}
+                />
                 <table className="table stripped">
                   <thead>
                     <tr>
@@ -401,7 +422,7 @@ const MySales = () => {
                           <td>{bill.id}</td>
                           <td>{bill.status}</td>
                           <td>KES {bill.total}</td>
-                          <td>{bill.created_at}</td>
+                          <td>{new Date(bill.created_at).toLocaleString()}</td>
                           <td>
                             {bill.status === "pending" ? (
                               <Button
@@ -446,7 +467,7 @@ const MySales = () => {
                       <p className="text-danger">{error}</p>
                     )}
                     <div className="card-body">
-                      <div className="d-flex justify-content-between align-items-center mb-2">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
                         {selectedBill.status === "pending" ? (
                           <Button
                             className="m-2"
@@ -514,6 +535,102 @@ const MySales = () => {
                       </table>
                     </div>
                   </div>
+
+                  {/* Clear Separation Line */}
+                  <hr className="my-4" />
+
+                  {/* Payment Details Section - Only show for submitted/closed bills */}
+                  {(selectedBill.status === "submitted" || selectedBill.status === "closed") && selectedBill.bill_payments && selectedBill.bill_payments.length > 0 && (
+                    <div className="mt-4">
+                      <h6 className="fw-bold text-secondary mb-3">
+                        <i className="bi bi-credit-card me-2"></i>
+                        Payment Details
+                      </h6>
+                      <div className="card bg-light">
+                        <div className="card-body p-3">
+                          {(() => {
+                            const totalPaid = selectedBill.bill_payments.reduce(
+                              (sum, billPayment) => sum + billPayment.payment.creditAmount,
+                              0
+                            );
+                            const billTotal = selectedBill.total;
+                            const amountDifference = totalPaid - billTotal;
+                            const isFullyPaid = billTotal === totalPaid;
+
+                            return (
+                              <div>
+                                {/* Payment Summary - Compact */}
+                                <div className="row mb-3">
+                                  <div className="col-md-4">
+                                    <div className="text-center p-2 bg-white rounded">
+                                      <div className="small text-muted">Bill Total</div>
+                                      <div className="fw-bold">KES {billTotal}</div>
+                                    </div>
+                                  </div>
+                                  <div className="col-md-4">
+                                    <div className="text-center p-2 bg-white rounded">
+                                      <div className="small text-muted">Total Paid</div>
+                                      <div className={`fw-bold ${isFullyPaid ? "text-success" : "text-warning"}`}>
+                                        KES {totalPaid}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="col-md-4">
+                                    <div className="text-center p-2 bg-white rounded">
+                                      <div className="small text-muted">Balance</div>
+                                      <div className={`fw-bold ${amountDifference === 0 ? "text-success" : amountDifference > 0 ? "text-info" : "text-danger"}`}>
+                                        {amountDifference === 0 ? "Fully Paid" : `KES ${amountDifference > 0 ? "+" : ""}${amountDifference}`}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Payment History Table */}
+                                <div className="mt-3">
+                                  <h6 className="small text-muted mb-2">Payment History</h6>
+                                  <div className="table-responsive">
+                                    <table className="table table-sm">
+                                      <thead className="table-light">
+                                        <tr>
+                                          <th>Payment Method</th>
+                                          <th>Amount</th>
+                                          <th>Reference</th>
+                                          <th>Date & Time</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {selectedBill.bill_payments.map((billPayment) => (
+                                          <tr key={billPayment.id}>
+                                            <td>
+                                              <div className="d-flex align-items-center">
+                                                <i className={`bi ${billPayment.payment.paymentType === 'MPESA' ? 'bi-phone text-success' : 'bi-cash text-primary'} me-2`}></i>
+                                                <span className="fw-semibold">{billPayment.payment.paymentType}</span>
+                                              </div>
+                                            </td>
+                                            <td className="fw-semibold">KES {billPayment.payment.creditAmount}</td>
+                                            <td>
+                                              {billPayment.payment.reference ? (
+                                                <code className="small">{billPayment.payment.reference}</code>
+                                              ) : (
+                                                <span className="text-muted">-</span>
+                                              )}
+                                            </td>
+                                            <td className="text-muted small">
+                                              {new Date(billPayment.created_at).toLocaleString()}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p>Select a bill to see the items</p>
@@ -528,7 +645,7 @@ const MySales = () => {
           />
         </div>
       </SecureRoute>
-    </HomePageLayout>
+    </RoleAwareLayout>
   );
 };
 

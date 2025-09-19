@@ -22,8 +22,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     )(req, res);
   }
   if (req.method === "PATCH") {
-    const headers = req.headers;
-    if (headers["x-action"] === "disable") {
+    const { action } = req.body;
+    if (action === "deactivate" || action === "activate") {
       await authMiddleware(
         authorize([permissions.CAN_EDIT_USER_STATION])(disableUserStation),
       )(req, res);
@@ -32,8 +32,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         authorize([permissions.CAN_EDIT_USER_STATION])(setDefaultUserStation),
       )(req, res);
     }
+  }
+  if (req.method === "DELETE") {
+    await authMiddleware(
+      authorize([permissions.CAN_DELETE_USER_STATION])(disableUserStation),
+    )(req, res);
   } else {
-    res.setHeader("Allow", ["GET"]);
+    res.setHeader("Allow", ["GET", "POST", "PATCH", "DELETE"]);
     res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 };

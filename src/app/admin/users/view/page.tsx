@@ -5,7 +5,9 @@ import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import NewUser from "../register/new-user";
 import { AuthError, User } from "../../../types/types";
 import Pagination from "../../../components/Pagination";
-import { withSecureRoute } from "../../../components/withSecureRoute";
+import { withSecureRoute } from "../../../components/withSecureRoute"; import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
+import ErrorDisplay from "../../../components/ErrorDisplay";
 
 const DEFAULT_PAGE_SIZE = parseInt(process.env.NEXT_PUBLIC_PAGE_SIZE || "10", 10);
 const DEFAULT_REFRESH_INTERVAL_SECONDS = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS || "300", 10);
@@ -15,8 +17,11 @@ function UsersPage() {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [filter, setFilter] = useState("");
+  const [debouncedFilter, setDebouncedFilter] = useState("");
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState<AuthError>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+  const apiCall = useApiCall();
   const [fetchUserError, setFetchUserError] = useState<string>("");
   const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
   const [roles, setRoles] = useState([]);
@@ -35,6 +40,14 @@ function UsersPage() {
   const [deleteError, setDeleteError] = useState("");
   const [reactivateError, setReactivateError] = useState("");
   const [updateError, setUpdateError] = useState("");
+
+  // Station management state
+  const [userStations, setUserStations] = useState([]);
+  const [availableStations, setAvailableStations] = useState([]);
+  const [showAddStationModal, setShowAddStationModal] = useState(false);
+  const [selectedStationId, setSelectedStationId] = useState("");
+  const [stationError, setStationError] = useState("");
+  const [loadingStations, setLoadingStations] = useState(false);
   const [lockError, setLockError] = useState("");
 
   const handleClose = () => {
@@ -47,16 +60,37 @@ function UsersPage() {
 
   useEffect(() => {
     fetchUsers();
-  }, [page]);
+  }, [page, debouncedFilter]);
+
+  // Debounce filter changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFilter(filter);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filter]);
+
+  // Reset page to 1 when filter changes
+  useEffect(() => {
+    if (debouncedFilter && page !== 1) {
+      setPage(1);
+    }
+  }, [debouncedFilter]);
+
+  // Fetch user stations when a user is selected
+  useEffect(() => {
+    if (selectedUser) {
+      fetchUserStations(selectedUser.id);
+    }
+  }, [selectedUser]);
 
   useEffect(() => {
     const intervalSeconds = DEFAULT_REFRESH_INTERVAL_SECONDS;
     const interval = setInterval(async () => {
       try {
-        const response = await fetch("/api/auth/refresh", { method: "POST", credentials: "include" });
-        if (response.ok) {
-          const data = await response.json();
-          localStorage.setItem("token", data.token);
+        const result = await apiCall("/api/auth/refresh", { method: "POST" });
+        if (result.status === 200) {
+          localStorage.setItem("token", result.data.token);
         } else {
           setSessionError("Session expired. You will be redirected to login.");
           setTimeout(() => {
@@ -76,59 +110,51 @@ function UsersPage() {
   }, []);
 
   async function fetchUsers() {
-    const token = localStorage.getItem("token");
-    const response = await fetch(`/api/users?page=${page}&pageSize=${DEFAULT_PAGE_SIZE}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const data = await response.json();
-    if (response.ok) {
-      setUsers(data.users);
-      setTotal(data.total);
-    } else if (response.status === 403) {
-      setAuthError(data);
-    } else {
-      setFetchUserError("Failed to fetch users" + JSON.stringify(data));
+    const searchParam = debouncedFilter ? `&search=${encodeURIComponent(debouncedFilter)}` : "";
+    try {
+      const result = await apiCall(`/api/users?page=${page}&pageSize=${DEFAULT_PAGE_SIZE}${searchParam}`);
+      if (result.status === 200) {
+        setUsers(result.data?.users || []);
+        setTotal(result.data?.total || 0);
+        setFetchUserError("");
+      } else if (result.status === 403) {
+        setAuthError({ message: result.error || "Access denied" });
+        setErrorDetails(result.errorDetails);
+      } else {
+        setFetchUserError(result.error || "Failed to fetch users");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error) {
+      setFetchUserError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
     }
   }
 
   async function handleCreateUser(formData) {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/users", {
+      const result = await apiCall("/api/users", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(formData),
       });
 
-      if (response) {
-        const data = await response.json();
-        if (response.status === 201) {
-          setError("");
-          const newUser = data;
-          setUsers((prevUsers) => [...prevUsers, newUser]);
-          handleClose();
-        } else {
-          setError(data.error);
-        }
+      if (result.status === 201) {
+        setError("");
+        setUsers((prevUsers) => [...prevUsers, result.data]);
+        handleClose();
+      } else {
+        setError(result.error || "Failed to create user");
+        setErrorDetails(result.errorDetails);
       }
     } catch (err: any) {
-      setError(err.message);
+      setError("Network error occurred while creating user");
+      setErrorDetails({ networkError: true, status: 0 });
     } finally {
       await fetchUsers();
     }
   }
 
-  const filteredUsers = users.filter(
-    (user: User) =>
-      user.firstName.toLowerCase().includes(filter.toLowerCase()) ||
-      user.lastName.toLowerCase().includes(filter.toLowerCase()) ||
-      user.username.toLowerCase().includes(filter.toLowerCase()),
-  );
+  // Server-side filtering is now handled in fetchUsers()
+  const filteredUsers = users;
 
   const handleUserSelect = (user) => {
     setSelectedUser(user);
@@ -138,48 +164,48 @@ function UsersPage() {
     setAssignRoleError("");
     setShowAssignRoleModal(true);
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/roles", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch roles");
-      const data = await response.json();
-      setRoles(data);
-      if (selectedUser && selectedUser.role && selectedUser.role.id) {
-        setSelectedRoleId(selectedUser.role.id.toString());
-      } else if (selectedUser && selectedUser.role_id) {
-        setSelectedRoleId(selectedUser.role_id.toString());
+      const result = await apiCall("/api/roles");
+      if (result.status === 200) {
+        setRoles(result.data || []);
+        if (selectedUser && selectedUser.role && selectedUser.role.id) {
+          setSelectedRoleId(selectedUser.role.id.toString());
+        } else if (selectedUser && selectedUser.role_id) {
+          setSelectedRoleId(selectedUser.role_id.toString());
+        } else {
+          setSelectedRoleId((result.data?.length > 0 ? result.data[0].id.toString() : ""));
+        }
       } else {
-        setSelectedRoleId(data.length > 0 ? data[0].id.toString() : "");
+        setAssignRoleError(result.error || "Failed to fetch roles");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      setAssignRoleError(error.message || "Failed to fetch roles");
+      setAssignRoleError("Network error occurred while fetching roles");
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
   const handleAssignRole = async () => {
     setAssignRoleError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/roles", {
+      const result = await apiCall("/api/roles", {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           action: "assignRole",
           userId: selectedUser.id,
           roleId: selectedRoleId,
         }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Failed to assign role");
-      setSelectedUser((prev) => ({ ...prev, role_name: roles.find((r) => r.id.toString() === selectedRoleId)?.name, role_id: selectedRoleId }));
-      setShowAssignRoleModal(false);
-      await fetchUsers();
+      if (result.status === 200) {
+        setSelectedUser((prev) => ({ ...prev, role_name: roles.find((r) => r.id.toString() === selectedRoleId)?.name, role_id: selectedRoleId }));
+        setShowAssignRoleModal(false);
+        await fetchUsers();
+      } else {
+        setAssignRoleError(result.error || "Failed to assign role");
+        setErrorDetails(result.errorDetails);
+      }
     } catch (error: any) {
-      setAssignRoleError(error.message || "Failed to assign role");
+      setAssignRoleError("Network error occurred while assigning role");
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
@@ -187,23 +213,20 @@ function UsersPage() {
     if (!selectedUser) return;
     setDeleteError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users?userId=${selectedUser.id}`, {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setDeleteError(data.error || "Failed to delete user");
-        return;
+      if (result.status === 200) {
+        await fetchUsers();
+        setSelectedUser(null);
+        setShowDeleteModal(false);
+      } else {
+        setDeleteError(result.error || "Failed to delete user");
+        setErrorDetails(result.errorDetails);
       }
-      await fetchUsers();
-      setSelectedUser(null);
-      setShowDeleteModal(false);
     } catch (err) {
-      setDeleteError("Failed to delete user");
+      setDeleteError("Network error occurred while deleting user");
+      setErrorDetails({ networkError: true, status: 0 });
       setShowDeleteModal(false);
     }
   };
@@ -212,25 +235,21 @@ function UsersPage() {
     if (!selectedUser) return;
     setReactivateError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users?userId=${selectedUser.id}`, {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({ action: "reactivate" }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setReactivateError(data.error || "Failed to reactivate user");
-        return;
+      if (result.status === 200) {
+        await fetchUsers();
+        setSelectedUser(null);
+        setShowReactivateModal(false);
+      } else {
+        setReactivateError(result.error || "Failed to reactivate user");
+        setErrorDetails(result.errorDetails);
       }
-      await fetchUsers();
-      setSelectedUser(null);
-      setShowReactivateModal(false);
     } catch (err) {
-      setReactivateError("Failed to reactivate user");
+      setReactivateError("Network error occurred while reactivating user");
+      setErrorDetails({ networkError: true, status: 0 });
       setShowReactivateModal(false);
     }
   };
@@ -252,13 +271,8 @@ function UsersPage() {
     if (!selectedUser) return;
     setUpdateError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users?userId=${selectedUser.id}`, {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           action: "update",
           firstName: updateForm.firstName,
@@ -266,15 +280,16 @@ function UsersPage() {
           username: updateForm.username,
         }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setUpdateError(data.error || "Failed to update user");
-        return;
+      if (result.status === 200) {
+        await fetchUsers();
+        setShowUpdateModal(false);
+      } else {
+        setUpdateError(result.error || "Failed to update user");
+        setErrorDetails(result.errorDetails);
       }
-      await fetchUsers();
-      setShowUpdateModal(false);
     } catch (err) {
-      setUpdateError("Failed to update user");
+      setUpdateError("Network error occurred while updating user");
+      setErrorDetails({ networkError: true, status: 0 });
       setShowUpdateModal(false);
     }
   };
@@ -284,28 +299,23 @@ function UsersPage() {
     setLockLoading(true);
     setLockError("");
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/users?userId=${selectedUser.id}`, {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify({
           action: selectedUser.is_locked ? "unlock" : "lock",
         }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        setLockError(data.error || "Failed to lock/unlock user");
-        return;
+      if (result.status === 200) {
+        await fetchUsers();
+        setSelectedUser(result.data);
+        setShowLockModal(false);
+      } else {
+        setLockError(result.error || "Failed to lock/unlock user");
+        setErrorDetails(result.errorDetails);
       }
-      const updatedUser = await response.json();
-      await fetchUsers();
-      setSelectedUser(updatedUser);
-      setShowLockModal(false);
     } catch (err) {
-      setLockError("Failed to lock/unlock user");
+      setLockError("Network error occurred while locking/unlocking user");
+      setErrorDetails({ networkError: true, status: 0 });
       setShowLockModal(false);
     } finally {
       setLockLoading(false);
@@ -315,6 +325,151 @@ function UsersPage() {
   const handleAssignRoleConfirm = () => {
     setShowAssignRoleConfirmModal(false);
     handleAssignRoleClick();
+  };
+
+  // Station management functions
+  const fetchUserStations = async (userId: number) => {
+    setLoadingStations(true);
+    setStationError("");
+    try {
+      const result = await apiCall(`/api/users/${userId}/stations`);
+      if (result.status === 200) {
+        // The API returns the stations array directly, not wrapped in a stations property
+        setUserStations(result.data || []);
+      } else {
+        setStationError(result.error || "Failed to fetch user stations");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error) {
+      setStationError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
+    } finally {
+      setLoadingStations(false);
+    }
+  };
+
+  const fetchAvailableStations = async () => {
+    try {
+      const result = await apiCall("/api/stations");
+      if (result.status === 200) {
+        // Filter out stations that user is already linked to
+        const linkedStationIds = userStations.map(us => us.station.id);
+        const available = (result.data || []).filter(station =>
+          station.status === "active" && !linkedStationIds.includes(station.id)
+        );
+        setAvailableStations(available);
+      } else {
+        console.error("Failed to fetch available stations:", result.error);
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error) {
+      console.error("Failed to fetch available stations:", error);
+      setErrorDetails({ networkError: true, status: 0 });
+    }
+  };
+
+  const handleAddStation = async () => {
+    if (!selectedUser || !selectedStationId) return;
+
+    // Check if user has a valid role for station assignment
+    const userRole = selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : null;
+    const allowedRoles = ["sales", "supervisor", "admin"];
+
+    if (!userRole || !allowedRoles.includes(userRole)) {
+      setStationError(`Only users with ${allowedRoles.join(", ")} roles can be assigned stations. Current role: ${userRole || "none"}`);
+      return;
+    }
+
+    setStationError("");
+    try {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
+        method: "POST",
+        body: JSON.stringify({
+          station: selectedStationId,
+        }),
+      });
+      if (result.status === 200) {
+        await fetchUserStations(selectedUser.id);
+        setShowAddStationModal(false);
+        setSelectedStationId("");
+      } else {
+        setStationError(result.error || "Failed to add station");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error) {
+      setStationError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
+    }
+  };
+
+  const handleSetDefaultStation = async (stationId: number) => {
+    if (!selectedUser) return;
+
+    setStationError("");
+    try {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          stationId: stationId,
+        }),
+      });
+      if (result.status === 200) {
+        await fetchUserStations(selectedUser.id);
+      } else {
+        setStationError(result.error || "Failed to set default station");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error) {
+      setStationError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
+    }
+  };
+
+  const handleRemoveStation = async (userStationId: number) => {
+    if (!selectedUser) return;
+
+    setStationError("");
+    try {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
+        method: "DELETE",
+        body: JSON.stringify({
+          userStationId: userStationId,
+        }),
+      });
+      if (result.status === 200) {
+        await fetchUserStations(selectedUser.id);
+      } else {
+        setStationError(result.error || "Failed to remove station");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error) {
+      setStationError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
+    }
+  };
+
+  const handleToggleStationStatus = async (userStationId: number, currentStatus: string) => {
+    if (!selectedUser) return;
+
+    setStationError("");
+    try {
+      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          userStationId: userStationId,
+          action: currentStatus === "active" ? "deactivate" : "activate",
+        }),
+      });
+      if (result.status === 200) {
+        await fetchUserStations(selectedUser.id);
+      } else {
+        setStationError(result.error || "Failed to update station status");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error) {
+      setStationError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
+    }
   };
 
   return (
@@ -344,6 +499,14 @@ function UsersPage() {
           </div>
         </div>
 
+        <ErrorDisplay
+          error={errorDetails?.message || null}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setErrorDetails(null);
+          }}
+        />
+
         {/* Main Content */}
         {sessionError && (
           <div className="alert alert-warning alert-dismissible fade show mb-4" role="alert">
@@ -369,22 +532,25 @@ function UsersPage() {
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Search users..."
+                      placeholder="Search by name or username..."
                       value={filter}
                       onChange={(e) => setFilter(e.target.value)}
-                      style={{ width: '220px', paddingRight: '2.5rem' }}
+                      style={{ width: "220px", paddingRight: "2.5rem" }}
                     />
                     <i className="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
                     {filter && (
                       <button
                         type="button"
                         className="btn btn-sm position-absolute top-50 end-0 translate-middle-y me-1"
-                        onClick={() => setFilter('')}
+                        onClick={() => {
+                          setFilter("");
+                          setDebouncedFilter("");
+                        }}
                         style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#6b7280',
-                          padding: '0.25rem',
+                          background: "none",
+                          border: "none",
+                          color: "#6b7280",
+                          padding: "0.25rem",
                           lineHeight: 1
                         }}
                         title="Clear search"
@@ -405,7 +571,7 @@ function UsersPage() {
                   <table className="table table-hover mb-0">
                     <thead className="table-light">
                       <tr>
-                        <th className="text-center" style={{ width: '50px' }}>
+                        <th className="text-center" style={{ width: "50px" }}>
                           <i className="bi bi-check2-square text-muted"></i>
                         </th>
                         <th className="fw-semibold">First Name</th>
@@ -421,15 +587,18 @@ function UsersPage() {
                         <tr>
                           <td colSpan={7} className="text-center py-5">
                             <div className="empty-state">
-                              <i className="bi bi-search text-muted" style={{ fontSize: '3rem' }}></i>
+                              <i className="bi bi-search text-muted" style={{ fontSize: "3rem" }}></i>
                               <h5 className="text-muted mt-3 mb-2">No users found</h5>
                               <p className="text-muted mb-0">
-                                {filter ? 'Try adjusting your search terms' : 'No users available'}
+                                {filter ? "Try adjusting your search terms" : "No users available"}
                               </p>
                               {filter && (
                                 <button
                                   className="btn btn-outline-primary btn-sm mt-2"
-                                  onClick={() => setFilter('')}
+                                  onClick={() => {
+                                    setFilter("");
+                                    setDebouncedFilter("");
+                                  }}
                                 >
                                   Clear search
                                 </button>
@@ -443,7 +612,7 @@ function UsersPage() {
                             key={user.id}
                             onClick={() => handleUserSelect(user)}
                             style={{ cursor: "pointer" }}
-                            className={`user-row ${selectedUser && selectedUser.id === user.id ? 'table-primary selected' : ''}`}
+                            className={`user-row ${selectedUser && selectedUser.id === user.id ? "table-primary selected" : ""}`}
                             title={`Click to view details for ${user.firstName} ${user.lastName}`}
                           >
                             <td className="text-center">
@@ -644,18 +813,6 @@ function UsersPage() {
                       <table className="table table-sm">
                         <tbody>
                           <tr>
-                            <td className="fw-bold">First Name</td>
-                            <td>{selectedUser.firstName}</td>
-                          </tr>
-                          <tr>
-                            <td className="fw-bold">Last Name</td>
-                            <td>{selectedUser.lastName}</td>
-                          </tr>
-                          <tr>
-                            <td className="fw-bold">Username</td>
-                            <td>{selectedUser.username}</td>
-                          </tr>
-                          <tr>
                             <td className="fw-bold">Status</td>
                             <td>
                               {selectedUser.status === "DELETED" ? (
@@ -678,10 +835,119 @@ function UsersPage() {
                         </tbody>
                       </table>
                     </div>
+
+                    {/* Station Management Section */}
+                    <div className="mt-4">
+                      <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h6 className="mb-0 fw-bold">
+                          <i className="bi bi-geo-alt me-2 text-primary"></i>
+                          Station Management
+                        </h6>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          disabled={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !["sales", "supervisor", "admin"].includes(selectedUser.roles[0].name)}
+                          onClick={() => {
+                            fetchAvailableStations();
+                            setShowAddStationModal(true);
+                          }}
+                          title={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !["sales", "supervisor", "admin"].includes(selectedUser.roles[0].name) ? "Only sales, supervisor, and admin roles can be assigned stations" : "Add station to user"}
+                        >
+                          <i className="bi bi-plus me-1"></i>
+                          Add Station
+                        </button>
+                      </div>
+
+                      {stationError && (
+                        <div className="alert alert-danger py-2 mb-3" role="alert">
+                          <i className="bi bi-exclamation-triangle me-2"></i>
+                          {stationError}
+                        </div>
+                      )}
+
+                      {loadingStations ? (
+                        <div className="text-center py-3">
+                          <div className="spinner-border spinner-border-sm text-primary" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                          <span className="ms-2 text-muted">Loading stations...</span>
+                        </div>
+                      ) : userStations.length > 0 ? (
+                        <div className="list-group">
+                          {userStations.map((userStation) => (
+                            <div key={userStation.id} className="list-group-item d-flex justify-content-between align-items-center">
+                              <div className="d-flex align-items-center">
+                                <div className="me-3">
+                                  {userStation.isDefault ? (
+                                    <span className="badge bg-primary">
+                                      <i className="bi bi-star-fill me-1"></i>
+                                      Default
+                                    </span>
+                                  ) : (
+                                    <span className="badge bg-light text-dark">
+                                      <i className="bi bi-star me-1"></i>
+                                      Station
+                                    </span>
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="fw-semibold">{userStation.station.name}</div>
+                                  <small className="text-muted">
+                                    Status:
+                                    <span className={`badge ms-1 ${userStation.status === "active" ? "bg-success" : "bg-secondary"}`}>
+                                      {userStation.status}
+                                    </span>
+                                  </small>
+                                </div>
+                              </div>
+                              <div className="dropdown">
+                                <button
+                                  className="btn btn-outline-secondary btn-sm dropdown-toggle"
+                                  type="button"
+                                  data-bs-toggle="dropdown"
+                                  aria-expanded="false"
+                                  title="Station actions"
+                                >
+                                  <i className="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul className="dropdown-menu dropdown-menu-end">
+                                  {!userStation.isDefault && (
+                                    <li>
+                                      <button
+                                        className="dropdown-item"
+                                        onClick={() => handleSetDefaultStation(userStation.station.id)}
+                                      >
+                                        <i className="bi bi-star me-2"></i>
+                                        Set as Default
+                                      </button>
+                                    </li>
+                                  )}
+                                  <li>
+                                    <button
+                                      className={`dropdown-item ${userStation.status === "active" ? "text-warning" : "text-success"}`}
+                                      onClick={() => handleToggleStationStatus(userStation.id, userStation.status)}
+                                    >
+                                      <i className={`bi ${userStation.status === "active" ? "bi-pause" : "bi-play"} me-2`}></i>
+                                      {userStation.status === "active" ? "Deactivate" : "Activate"}
+                                    </button>
+                                  </li>
+                                </ul>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-3">
+                          <i className="bi bi-geo-alt text-muted" style={{ fontSize: "2rem" }}></i>
+                          <p className="text-muted mt-2 mb-0">No stations assigned</p>
+                          <small className="text-muted">Click "Add Station" to assign stations to this user</small>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <i className="bi bi-person text-muted" style={{ fontSize: '3rem' }}></i>
+                    <i className="bi bi-person text-muted" style={{ fontSize: "3rem" }}></i>
                     <p className="text-muted mt-3 mb-0">Select a user to view their details</p>
                   </div>
                 )}
@@ -859,6 +1125,48 @@ function UsersPage() {
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={handleAssignRoleConfirm}>
                   Assign Role
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Station Modal */}
+      {showAddStationModal && (
+        <div className="modal fade show d-block" tabIndex={-1} role="dialog" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered" role="document">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Add Station to User</h5>
+              </div>
+              <div className="modal-body">
+                {stationError && <div className="alert alert-danger py-1 my-2">{stationError}</div>}
+                <form>
+                  <div className="form-group">
+                    <label htmlFor="stationSelect">Select Station</label>
+                    <select
+                      className="form-control"
+                      id="stationSelect"
+                      value={selectedStationId}
+                      onChange={(e) => setSelectedStationId(e.target.value)}
+                    >
+                      <option value="">Select a station</option>
+                      {availableStations.map((station) => (
+                        <option key={station.id} value={station.id}>
+                          {station.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </form>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddStationModal(false)}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-primary" onClick={handleAddStation} disabled={!selectedStationId}>
+                  Add Station
                 </button>
               </div>
             </div>

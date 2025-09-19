@@ -17,6 +17,7 @@ export enum BillStatus {
   CANCELLED = "cancelled",
   SUBMITTED = "submitted",
   CLOSED = "closed",
+  REOPENED = "reopened",
 }
 
 @Entity("bill")
@@ -75,4 +76,26 @@ export class Bill {
 
   @OneToMany(() => BillPayment, (billPayment) => billPayment.bill)
   bill_payments: BillPayment[];
+
+  // Reopening tracking columns (Rule 4.1)
+  @Column({ type: "text", nullable: true })
+  reopen_reason: string;
+
+  @Column({ nullable: true })
+  reopened_by: number;
+
+  @Column({ type: "datetime", nullable: true })
+  reopened_at: Date;
+
+  @Column({ type: "text", nullable: true })
+  notes: string;
+
+  // Business rule validation methods (Rule 4.3, 4.4)
+  canReopen(): boolean {
+    return this.status === BillStatus.SUBMITTED;
+  }
+
+  canResubmit(): boolean {
+    return this.status === BillStatus.REOPENED;
+  }
 }

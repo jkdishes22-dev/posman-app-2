@@ -6,14 +6,19 @@ import Image from "next/image";
 import jwt from "jsonwebtoken";
 import { DecodedToken } from "./components/SecureRoute";
 import { useAuth } from "./contexts/AuthContext";
+import { useApiCall } from "./utils/apiUtils";
+import { ApiErrorResponse } from "./utils/errorUtils";
+import ErrorDisplay from "./components/ErrorDisplay";
 
 const LoginForm = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [activeField, setActiveField] = useState("username");
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
+  const apiCall = useApiCall();
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -22,17 +27,20 @@ const LoginForm = () => {
       if (token) {
         try {
           const decodedToken = jwt.decode(token) as DecodedToken;
-          if (decodedToken && decodedToken.role) {
-            if (decodedToken.role === "admin") {
+          if (decodedToken && decodedToken.roles && decodedToken.roles.length > 0) {
+            const primaryRole = decodedToken.roles[0];
+            if (primaryRole === "admin") {
               router.push("/admin");
-            } else if (decodedToken.role === "supervisor") {
+            } else if (primaryRole === "supervisor") {
               router.push("/supervisor");
-            } else if (decodedToken.role === "user") {
+            } else if (primaryRole === "sales") {
               router.push("/home");
-            } else if (decodedToken.role === "cashier") {
+            } else if (primaryRole === "cashier") {
               router.push("/home/cashier");
+            } else if (primaryRole === "storekeeper") {
+              router.push("/storekeeper");
             } else {
-              router.push("/pages");
+              router.push("/home");
             }
           }
         } catch (error) {
@@ -50,38 +58,46 @@ const LoginForm = () => {
     }
     const formData = { username, password };
     try {
-      const response = await fetch("/api/auth/login", {
+      setError("");
+      setErrorDetails(null);
+
+      const result = await apiCall("/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(formData),
       });
-      if (response.status === 200) {
-        const { token, role } = await response.json();
+
+      if (result.status === 200) {
+        const { token, role } = result.data;
         const decodedToken = jwt.decode(token) as DecodedToken;
         const userData = decodedToken && decodedToken.user ? decodedToken.user : null;
 
         // Use the auth context to handle login
         login(token, userData);
 
-        if (role === "admin") {
-          router.push("/admin");
-        } else if (role === "supervisor") {
-          router.push("/supervisor");
-        } else if (role === "user") {
-          router.push("/home");
-        } else if (role === "cashier") {
-          router.push("/home/cashier");
-        } else {
-          router.push("/pages");
+        // Use the decoded token roles for consistent redirect logic
+        if (decodedToken && decodedToken.roles && decodedToken.roles.length > 0) {
+          const primaryRole = decodedToken.roles[0];
+          if (primaryRole === "admin") {
+            router.push("/admin");
+          } else if (primaryRole === "supervisor") {
+            router.push("/supervisor");
+          } else if (primaryRole === "sales") {
+            router.push("/home");
+          } else if (primaryRole === "cashier") {
+            router.push("/home/cashier");
+          } else if (primaryRole === "storekeeper") {
+            router.push("/storekeeper");
+          } else {
+            router.push("/home");
+          }
         }
       } else {
-        setError("Login Failed! Invalid credentials");
+        setError(result.error || "Login Failed! Invalid credentials");
+        setErrorDetails(result.errorDetails);
       }
     } catch (err) {
-      setError("Login failed");
-      console.error(err);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -126,7 +142,14 @@ const LoginForm = () => {
         <div className="col d-flex flex-column">
           <div className="p-3 border bg-light mb-3">
             <form onSubmit={handleSubmit} className="px-4 py-3">
-              {error && <p style={{ color: "red" }}>{error}</p>}
+              <ErrorDisplay
+                error={error}
+                errorDetails={errorDetails}
+                onDismiss={() => {
+                  setError("");
+                  setErrorDetails(null);
+                }}
+              />
               <div className="form-outline mb-4 col-xs-3">
                 <label className="form-label" htmlFor="username">
                   User name / code

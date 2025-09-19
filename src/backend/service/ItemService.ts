@@ -518,4 +518,95 @@ export class ItemService {
       throw new Error("Failed to search items: " + error.message);
     }
   }
+
+  public async searchItemsByNameForUser(query: string, userId: number, limit: number = 10): Promise<any[]> {
+    try {
+      // Get user's accessible stations
+      const userStationRepository = this.itemRepository.manager.getRepository("UserStation");
+      const userStations = await userStationRepository
+        .createQueryBuilder("us")
+        .leftJoinAndSelect("us.station", "station")
+        .where("us.user_id = :userId", { userId })
+        .andWhere("us.status = :status", { status: "active" })
+        .getMany();
+
+      if (userStations.length === 0) {
+        logger.info({ userId }, 'User has no accessible stations');
+        return [];
+      }
+
+      const stationIds = userStations.map(us => us.station.id);
+
+      // Get pricelists accessible to user's stations
+      const stationPricelistRepository = this.itemRepository.manager.getRepository("StationPricelist");
+      const accessiblePricelists = await stationPricelistRepository
+        .createQueryBuilder("sp")
+        .leftJoinAndSelect("sp.pricelist", "pricelist")
+        .where("sp.station_id IN (:...stationIds)", { stationIds })
+        .andWhere("sp.status = :status", { status: "active" })
+        .andWhere("pricelist.status = :pricelistStatus", { pricelistStatus: "active" })
+        .getMany();
+
+      if (accessiblePricelists.length === 0) {
+        logger.info({ userId, stationIds }, 'No accessible pricelists found for user stations');
+        return [];
+      }
+
+      const pricelistIds = accessiblePricelists.map(sp => sp.pricelist.id);
+
+      // Search items that are in accessible pricelists
+      const items = await this.itemRepository
+        .createQueryBuilder("item")
+        .leftJoinAndSelect("item.category", "category")
+        .leftJoin("pricelist_item", "pricelistItem", "pricelistItem.item_id = item.id")
+        .where("item.name LIKE :query", { query: `%${query}%` })
+        .andWhere("(item.status = :status OR item.status IS NULL)", { status: ItemStatus.ACTIVE })
+        .andWhere("pricelistItem.pricelist_id IN (:...pricelistIds)", { pricelistIds })
+        .orderBy("item.name", "ASC")
+        .limit(limit)
+        .getMany();
+
+      // Get pricelist information for each item (only accessible ones)
+      const formattedResults = await Promise.all(items.map(async (item) => {
+        const pricelistItems = await this.pricelistItemRepository
+          .createQueryBuilder("pricelistItem")
+          .leftJoinAndSelect("pricelistItem.pricelist", "pricelist")
+          .where("pricelistItem.item_id = :itemId", { itemId: item.id })
+          .andWhere("pricelistItem.pricelist_id IN (:...pricelistIds)", { pricelistIds })
+          .andWhere("pricelist.status = :pricelistStatus", { pricelistStatus: "active" })
+          .getMany();
+
+        const pricelists = pricelistItems.map(pi => ({
+          pricelistId: pi.pricelist?.id,
+          pricelistName: pi.pricelist?.name,
+          price: pi.price || 0,
+          currency: pi.currency || "USD",
+          isDefault: pi.pricelist?.is_default || false
+        }));
+
+        return {
+          id: item.id,
+          name: item.name,
+          code: item.code,
+          category: item.category?.name || "N/A",
+          pricelists: pricelists,
+          totalPricelists: pricelists.length
+        };
+      }));
+
+      logger.info({
+        query,
+        userId,
+        limit,
+        foundItems: formattedResults.length,
+        accessibleStations: stationIds.length,
+        accessiblePricelists: pricelistIds.length
+      }, 'Items searched successfully for user');
+
+      return formattedResults;
+    } catch (error: any) {
+      logger.error({ error: error.message, query, userId }, 'Failed to search items for user');
+      throw new Error("Failed to search items for user: " + error.message);
+    }
+  }
 }

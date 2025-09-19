@@ -2,16 +2,16 @@
 
 import { withSecureRoute } from "src/app/components/withSecureRoute";
 import PricelistCatalog from "src/app/components/PricelistCatalog";
-import HomePageLayout from "src/app/shared/HomePageLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 
 const PricelistCatalogPage = () => {
     return (
-        <HomePageLayout>
-            <div>
+        <RoleAwareLayout>
+            <div className="container-fluid p-0">
                 <PricelistCatalog />
             </div>
-        </HomePageLayout>
+        </RoleAwareLayout>
     );
 };
 
-export default withSecureRoute(PricelistCatalogPage, { roleRequired: "user" });
+export default withSecureRoute(PricelistCatalogPage, { roleRequired: "sales" });

@@ -68,9 +68,14 @@ export class BillService {
     const { targetDate, status, billId, billingUserId } = billFilter;
     let startOfDayDate, endOfDayDate;
     if (targetDate) {
-      // Database stores timestamps in local timezone, so we can use the date range directly
-      startOfDayDate = targetDate;
-      endOfDayDate = new Date(targetDate.getTime() + (24 * 60 * 60 * 1000) - 1);
+      // targetDate is in UTC format (YYYY-MM-DDTHH:MM:SS.000Z)
+      // Convert to local timezone for database comparison since DB stores in local time
+      const appTimezone = getAppTimezone();
+      const localDate = toZonedTime(targetDate, appTimezone);
+
+      // Create local date range for the entire day
+      startOfDayDate = startOfDay(localDate);
+      endOfDayDate = endOfDay(localDate);
     }
 
     const currentUser = await this.userService.getUserById(userId);
@@ -113,10 +118,14 @@ export class BillService {
         query.andWhere("bill.user_id = :billingUserId", { billingUserId });
       }
 
-      // Get total count before pagination
-      const total = await query.getCount();
+      // Add consistent ordering for pagination
+      query.orderBy("bill.created_at", "DESC");
 
-      // Pagination
+      // Get total count before pagination (clone the query for count)
+      const countQuery = query.clone();
+      const total = await countQuery.getCount();
+
+      // Apply pagination to the original query
       query.skip((page - 1) * pageSize).take(pageSize);
 
       const bills = await query.getMany();
@@ -324,5 +333,116 @@ export class BillService {
       }
     }
     return results;
+  }
+
+  // ===== BILL REOPENING METHODS =====
+
+  /**
+   * Reopen a submitted bill (Rule 4.4, 4.5)
+   */
+  async reopenBill(
+    billId: number,
+    reopenedBy: number,
+    reasonKey: string
+  ): Promise<Bill> {
+    // Validate business rules (Rule 4.8)
+    const bill = await this.billRepository.findOne({
+      where: { id: billId },
+      relations: ["bill_items", "bill_payments", "bill_payments.payment"]
+    });
+
+    if (!bill) {
+      throw new Error("Bill not found");
+    }
+
+    if (!bill.canReopen()) {
+      throw new Error("Only submitted bills can be reopened");
+    }
+
+    // Validate that bill actually needs reopening (has payment issues)
+    const totalPaid = bill.bill_payments?.reduce(
+      (sum, billPayment) => sum + billPayment.payment.creditAmount,
+      0
+    ) || 0;
+
+    const hasPaymentDiscrepancy = totalPaid !== bill.total;
+    const hasZeroPayments = totalPaid === 0;
+    const hasPartialPayments = totalPaid > 0 && totalPaid < bill.total;
+
+    if (!hasPaymentDiscrepancy && !hasZeroPayments && !hasPartialPayments) {
+      throw new Error("Bill is properly paid and does not need reopening");
+    }
+
+    // Use transaction for atomic operations (Rule 4.8)
+    return await this.billRepository.manager.transaction(async manager => {
+      // Update bill status to reopened and add tracking columns (Rule 4.1)
+      bill.status = BillStatus.REOPENED;
+      bill.reopen_reason = reasonKey;
+      bill.reopened_by = reopenedBy;
+      bill.reopened_at = new Date();
+      bill.updated_at = new Date();
+      bill.updated_by = reopenedBy;
+
+      const savedBill = await manager.save(bill);
+
+      // Send notification to sales person
+      try {
+        // Note: NotificationService would need to be implemented
+        console.log(`Bill ${billId} reopened by user ${reopenedBy} for reason: ${reasonKey}`);
+      } catch (notificationError) {
+        console.error("Failed to send notification:", notificationError);
+        // Don't fail the transaction for notification errors
+      }
+
+      return savedBill;
+    });
+  }
+
+  /**
+   * Resubmit a reopened bill (Rule 4.4, 4.5)
+   */
+  async resubmitBill(
+    billId: number,
+    resubmittedBy: number,
+    notes?: string
+  ): Promise<Bill> {
+    // Validate business rules (Rule 4.8)
+    const bill = await this.billRepository.findOne({
+      where: { id: billId },
+      relations: ["bill_items"]
+    });
+
+    if (!bill) {
+      throw new Error("Bill not found");
+    }
+
+    if (!bill.canResubmit()) {
+      throw new Error("Only reopened bills can be resubmitted");
+    }
+
+    // Use transaction for atomic operations (Rule 4.8)
+    return await this.billRepository.manager.transaction(async manager => {
+      // Update bill status to submitted
+      bill.status = BillStatus.SUBMITTED;
+      bill.updated_at = new Date();
+      bill.updated_by = resubmittedBy;
+
+      // Clear reopening tracking columns
+      bill.reopen_reason = null;
+      bill.reopened_by = null;
+      bill.reopened_at = null;
+
+      const savedBill = await manager.save(bill);
+
+      // Send notification to cashier/supervisor
+      try {
+        console.log(`Bill ${billId} resubmitted by user ${resubmittedBy} with notes: ${notes || "No notes"}`);
+      } catch (notificationError) {
+        console.error("Failed to send notification:", notificationError);
+        // Don't fail the transaction for notification errors
+      }
+
+      return savedBill;
+    });
   }
 }

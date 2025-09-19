@@ -9,6 +9,9 @@ import {
 } from "react-bootstrap";
 import { Item } from "../../../../../types/types";
 import { Pricelist } from "@backend/entities/Pricelist";
+import { useApiCall } from "../../../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../../../utils/errorUtils";
+import ErrorDisplay from "../../../../../components/ErrorDisplay";
 
 interface EditItemModalProps {
   show: boolean;
@@ -31,28 +34,31 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
   );
   const [loadingPricelists, setLoadingPricelists] = useState(true);
   const [addItemError, setAddItemError] = useState("");
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     async function fetchPricelists() {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/pricelists", {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        setPricelists(data);
+        const result = await apiCall("/api/menu/pricelists");
+        if (result.status === 200) {
+          setPricelists(result.data);
+          setError(null);
+          setErrorDetails(null);
+        } else {
+          setAddItemError(result.error || "Failed to fetch pricelists");
+          setErrorDetails(result.errorDetails);
+        }
       } catch (error: any) {
-        setAddItemError("Failed to fetch pricelists: " + error?.message);
+        setAddItemError("Network error occurred");
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       } finally {
         setLoadingPricelists(false); // Set loading to false after fetching
       }
     }
     fetchPricelists();
-  }, []);
+  }, [apiCall]);
 
   useEffect(() => {
     if (item) {
@@ -83,25 +89,21 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
   const handleSave = async () => {
     if (editedItem) {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`/api/menu/items/${editedItem.id}`, {
+        const result = await apiCall(`/api/menu/items/${editedItem.id}`, {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
           body: JSON.stringify({ ...editedItem, pricelistId }),
         });
 
-        if (!response.ok) {
-          throw new Error("Failed to update item");
+        if (result.status === 200) {
+          onSave(result.data); // Call save function with the updated item
+          onClose(); // Close modal
+        } else {
+          setError(result.error || "Failed to update item");
+          setErrorDetails(result.errorDetails);
         }
-
-        const updatedItem = await response.json(); // Get the updated item from the response
-        onSave(updatedItem); // Call save function with the updated item
-        onClose(); // Close modal
       } catch (error: any) {
-        setError("Error updating item: " + error.message);
+        setError("Network error occurred");
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       }
     }
   };
@@ -116,7 +118,22 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
         <ModalTitle>Edit Item</ModalTitle>
       </ModalHeader>
       <ModalBody>
-        {addItemError && <p style={{ color: "red" }}>{addItemError}</p>}
+        <ErrorDisplay
+          error={addItemError}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setAddItemError("");
+            setErrorDetails(null);
+          }}
+        />
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
+          }}
+        />
         {loadingPricelists ? (
           <p>Loading Pricelists...</p>
         ) : (

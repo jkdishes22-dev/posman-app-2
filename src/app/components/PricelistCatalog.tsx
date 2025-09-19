@@ -7,6 +7,9 @@ import { Item, Pricelist, Station } from "../types/types";
 import StationFilter from "./StationFilter";
 import PricelistManager from "./PricelistManager";
 import ExpressItemSearchModal from "./ExpressItemSearchModal";
+import { useApiCall } from "../utils/apiUtils";
+import { ApiErrorResponse } from "../utils/errorUtils";
+import ErrorDisplay from "./ErrorDisplay";
 
 interface PricelistCatalogProps {
     className?: string;
@@ -20,13 +23,16 @@ interface PricelistWithItems extends Pricelist {
 
 const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) => {
     const { currentStation, availableStations } = useStation();
+    const apiCall = useApiCall();
     const [pricelists, setPricelists] = useState<PricelistWithItems[]>([]);
     const [filteredPricelists, setFilteredPricelists] = useState<PricelistWithItems[]>([]);
     const [selectedPricelist, setSelectedPricelist] = useState<PricelistWithItems | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
     const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
     const [showExpressSearch, setShowExpressSearch] = useState(false);
+    const [highlightedItemId, setHighlightedItemId] = useState<number | null>(null);
     const [statusFilter, setStatusFilter] = useState("all");
 
 
@@ -45,36 +51,31 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
             setError(null);
 
             try {
-                const token = localStorage.getItem("token");
-                const response = await fetch("/api/pricelists/available", {
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`,
-                    },
-                });
+                const result = await apiCall("/api/pricelists/available");
 
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log("API returned:", data.length, "pricelists");
+                if (result.status === 200) {
+                    console.log("API returned:", result.data.length, "pricelists");
 
                     // Store all station-pricelist relationships for filtering
-                    setPricelists(data);
+                    setPricelists(result.data);
 
                     // Initially show distinct pricelists (no filter applied)
-                    const distinctPricelists = data.filter((pricelist, index, self) =>
+                    const distinctPricelists = result.data.filter((pricelist, index, self) =>
                         index === self.findIndex(p => p.id === pricelist.id)
                     );
                     console.log("Distinct pricelists:", distinctPricelists.length);
                     setFilteredPricelists(distinctPricelists);
-                } else if (response.status === 401) {
+                } else if (result.status === 401) {
                     localStorage.removeItem("token");
                     localStorage.removeItem("user");
                     window.location.href = "/";
                 } else {
-                    setError("Failed to load pricelists");
+                    setError("Failed to load pricelists: " + result.error);
+                    setErrorDetails(result.errorDetails);
                 }
             } catch (err: any) {
                 setError("Failed to load pricelists: " + err.message);
+                setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
             } finally {
                 setIsLoading(false);
             }
@@ -127,23 +128,19 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
 
         const fetchPricelistItems = async () => {
             try {
-                const token = localStorage.getItem("token");
                 const url = `/api/menu/pricelists/${selectedPricelist.id}/items?t=${Date.now()}`;
 
-                const response = await fetch(url, {
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`,
-                        "Cache-Control": "no-cache",
-                    },
-                });
+                const result = await apiCall(url);
 
-                if (response.ok) {
-                    const items = await response.json();
-                    setSelectedPricelist(prev => prev ? { ...prev, items } : null);
+                if (result.status === 200) {
+                    setSelectedPricelist(prev => prev ? { ...prev, items: result.data } : null);
+                } else {
+                    setError(result.error || "Failed to fetch pricelist items");
+                    setErrorDetails(result.errorDetails);
                 }
             } catch (err: any) {
-                // Silent error handling for better UX
+                setError("Network error occurred");
+                setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
             }
         };
 
@@ -164,9 +161,16 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
 
     if (error) {
         return (
-            <div className={`alert alert-danger ${className}`}>
-                <i className="bi bi-exclamation-triangle me-2"></i>
-                {error}
+            <div className={className}>
+                <div className="alert alert-danger">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    {error}
+                </div>
+                <ErrorDisplay
+                    error={errorDetails?.message || null}
+                    errorDetails={errorDetails}
+                    onDismiss={() => setErrorDetails(null)}
+                />
             </div>
         );
     }
@@ -182,35 +186,38 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
 
     return (
         <div className={className}>
-            <div className="mb-4">
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h4 className="mb-0">
-                        <i className="bi bi-tags me-2"></i>
-                        Pricelist Catalog
-                    </h4>
+            {/* Compact Header */}
+            <div className="bg-primary text-white rounded p-3 mb-3">
+                <div className="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 className="mb-1 fw-bold">
+                            <i className="bi bi-tags-fill me-2"></i>
+                            Pricelist Catalog
+                        </h4>
+                        <small className="text-white-50">
+                            Current Station: <strong>{currentStation.name}</strong>
+                            {process.env.NODE_ENV === "development" && (
+                                <span className="ms-2">
+                                    (Stations: {availableStations.length}, Pricelists: {filteredPricelists.length}/{pricelists.length})
+                                </span>
+                            )}
+                        </small>
+                    </div>
                     <Button
-                        variant="outline-primary"
+                        variant="light"
                         size="sm"
                         onClick={() => setShowExpressSearch(true)}
                         title="Search for items across all pricelists"
                     >
-                        <i className="bi bi-lightning me-1"></i>
+                        <i className="bi bi-lightning-fill me-1 text-warning"></i>
                         Pricelist Item Quick Search
                     </Button>
                 </div>
-                <div className="text-muted small">
-                    Current Station: <strong>{currentStation.name}</strong>
-                    {process.env.NODE_ENV === "development" && (
-                        <span className="ms-3">
-                            (Stations: {availableStations.length}, Pricelists: {filteredPricelists.length}/{pricelists.length})
-                        </span>
-                    )}
-                </div>
             </div>
 
-            {/* Station Filter */}
-            <div className="card mb-4">
-                <div className="card-body">
+            {/* Compact Filter Section */}
+            <div className="card mb-3">
+                <div className="card-body py-2">
                     <div className="row align-items-center">
                         <div className="col-md-3">
                             <StationFilter
@@ -273,6 +280,8 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
                 selectedPricelist={selectedPricelist}
                 onPricelistSelect={setSelectedPricelist}
                 isAdmin={false}
+                highlightedItemId={highlightedItemId}
+                onHighlightClear={() => setHighlightedItemId(null)}
             />
 
             <ExpressItemSearchModal
@@ -285,7 +294,9 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
                 }}
                 onItemSelect={(item) => {
                     console.log("Express search selected item:", item);
-                    // You can add logic here to show the item in the current view
+                    // Highlight the item when navigating to pricelist
+                    setHighlightedItemId(item.id);
+                    setShowExpressSearch(false);
                 }}
             />
         </div>

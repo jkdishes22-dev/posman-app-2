@@ -1,5 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
+import ErrorDisplay from "../../../components/ErrorDisplay";
 
 export default function NewUser({ onClose, onSave, error }) {
   const [firstName, setFirstName] = useState("");
@@ -9,6 +12,10 @@ export default function NewUser({ onClose, onSave, error }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [roles, setRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState("");
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     fetchRoles();
@@ -16,17 +23,18 @@ export default function NewUser({ onClose, onSave, error }) {
 
   const fetchRoles = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/roles", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!response.ok) throw new Error("Failed to fetch roles");
-      const data = await response.json();
-      setRoles(data);
+      const result = await apiCall("/api/roles");
+      if (result.status === 200) {
+        setRoles(result.data);
+        setFetchError(null);
+        setErrorDetails(null);
+      } else {
+        setFetchError(result.error || "Failed to fetch roles");
+        setErrorDetails(result.errorDetails);
+      }
     } catch (error: any) {
-      console.error("Error fetching roles:", error);
+      setFetchError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -59,7 +67,18 @@ export default function NewUser({ onClose, onSave, error }) {
             <h5 className="modal-title">Add new user</h5>
           </div>
           <div className="modal-body">
-            {error && <p style={{ color: "red" }}>{error}</p>}
+            <ErrorDisplay
+              error={error}
+              onDismiss={() => { }}
+            />
+            <ErrorDisplay
+              error={fetchError}
+              errorDetails={errorDetails}
+              onDismiss={() => {
+                setFetchError(null);
+                setErrorDetails(null);
+              }}
+            />
             <form>
               <div className="form-group row m-2">
                 <label htmlFor="firstName" className="col-sm-4 col-form-label">

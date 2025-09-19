@@ -1,26 +1,41 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
+import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
+import ErrorDisplay from "../../../components/ErrorDisplay";
 
 function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem, addSubItemError, setAddSubItemError }) {
   const [items, setItems] = useState([]);
   const [subItemId, setSubItemId] = useState("");
   const [deductiblePortion, setDeductiblePortion] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const response = await fetch("/api/items");
-        const data = await response.json();
-        // Ensure data is an array before setting it
-        setItems(Array.isArray(data) ? data : []);
+        const result = await apiCall("/api/items");
+        if (result.status === 200) {
+          // Ensure data is an array before setting it
+          setItems(Array.isArray(result.data) ? result.data : []);
+          setError(null);
+          setErrorDetails(null);
+        } else {
+          setError(result.error || "Failed to fetch items");
+          setErrorDetails(result.errorDetails);
+          setItems([]);
+        }
       } catch (error: any) {
-        console.error("Error fetching items:", error);
+        setError("Network error occurred");
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         setItems([]); // Set empty array on error
       }
     };
 
     fetchItems();
-  }, []);
+  }, [apiCall]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,11 +52,18 @@ function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem, addSubItem
         <Modal.Title>Add Related Item</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {addSubItemError && (
-          <div className="alert alert-danger" role="alert">
-            {addSubItemError}
-          </div>
-        )}
+        <ErrorDisplay
+          error={addSubItemError}
+          onDismiss={() => setAddSubItemError("")}
+        />
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
+          }}
+        />
         <Form onSubmit={handleSubmit}>
           <Form.Group controlId="formSubItemId">
             <Form.Label>Sub-Item Name</Form.Label>

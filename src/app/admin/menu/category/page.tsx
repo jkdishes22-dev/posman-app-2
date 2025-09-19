@@ -10,6 +10,7 @@ import { AuthError } from "src/app/types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
 
 const CategoryPage: React.FC = () => {
   const apiCall = useApiCall();
@@ -31,6 +32,7 @@ const CategoryPage: React.FC = () => {
   } | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,22 +66,18 @@ const CategoryPage: React.FC = () => {
 
   const fetchItems = async (categoryId: string) => {
     try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/menu/items?category=${categoryId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setItems(Array.isArray(data) ? data : []);
-      } else if (response.status === 403) {
-        setAuthError(data);
+      const result = await apiCall(`/api/menu/items?category=${categoryId}`);
+      if (result.status === 200) {
+        setItems(Array.isArray(result.data) ? result.data : []);
+      } else if (result.status === 403) {
+        setAuthError(result.data);
       } else {
-        setItemError("Failed to fetch items: " + (data.message || JSON.stringify(data)));
+        setItemError("Failed to fetch items: " + (result.error || "Unknown error"));
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
       setItemError("Failed to fetch items: " + error.message);
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -121,32 +119,26 @@ const CategoryPage: React.FC = () => {
 
     const fetchCategories = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("/api/menu/categories", {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+        const result = await apiCall("/api/menu/categories");
 
-        const data = await response.json();
-
-        if (response.status === 401) {
+        if (result.status === 401) {
           // Invalid token, logout and redirect to login
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           window.location.href = "/";
           return;
-        } else if (response.status === 403) {
-          setAuthError(data);
-        } else if (response.ok) {
-          setCategories(data || []);
+        } else if (result.status === 403) {
+          setAuthError(result.data);
+        } else if (result.status === 200) {
+          setCategories(result.data || []);
           setCategoriesLoaded(true);
         } else {
-          setFetchError(data.message || `Request failed with status ${response.status}`);
+          setFetchError(result.error || `Request failed with status ${result.status}`);
+          setErrorDetails(result.errorDetails);
         }
       } catch (error: any) {
         setFetchError(error.message || 'Network error');
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       }
     };
     fetchCategories();
@@ -242,6 +234,11 @@ const CategoryPage: React.FC = () => {
             <ErrorDisplay
               error={fetchError}
               onDismiss={() => setFetchError(null)}
+            />
+            <ErrorDisplay
+              error={errorDetails?.message || null}
+              errorDetails={errorDetails}
+              onDismiss={() => setErrorDetails(null)}
             />
             <CategoryItems
               selectedCategory={selectedCategory}
