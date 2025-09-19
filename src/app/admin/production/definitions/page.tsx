@@ -7,9 +7,9 @@ import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import AddSubItemModal from "./new";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
 import { useApiCall } from "src/app/utils/apiUtils";
+import { ApiErrorResponse } from "src/app/utils/errorUtils";
 
 function InventoryItemsPage() {
-  const apiCall = useApiCall();
   const [items, setItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -20,6 +20,8 @@ function InventoryItemsPage() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [itemToRemove, setItemToRemove] = useState(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+  const apiCall = useApiCall();
   const [addSubItemError, setAddSubItemError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -35,16 +37,47 @@ function InventoryItemsPage() {
   }, [searchTerm, items]);
 
   const fetchItems = async () => {
-    const result = await apiCall("/api/production");
+    try {
+      const result = await apiCall("/api/production");
+      if (result.status === 200) {
+        // Ensure data is an array before setting it
+        const itemsArray = Array.isArray(result.data) ? result.data : [];
+        setItems(itemsArray);
+        setFilteredItems(itemsArray);
+        setFetchError(null);
+      } else if (result.status === 403) {
+        // Handle permission errors with detailed information
+        const errorData = result.errorDetails || {};
+        const errorMessage = result.error || "Access denied";
+        const missingPermissions = errorData.missingPermissions || [];
+        const userRoles = errorData.userRoles || [];
+        const isAdmin = errorData.isAdmin || false;
 
-    if (result.status === 200) {
-      // Ensure data is an array before setting it
-      const itemsArray = Array.isArray(result.data) ? result.data : [];
-      setItems(itemsArray);
-      setFilteredItems(itemsArray);
-      setFetchError(null);
-    } else {
-      setFetchError(result.error || "Failed to fetch items");
+        let detailedError = `${errorMessage}`;
+        if (missingPermissions.length > 0) {
+          detailedError += `\n\nMissing permissions: ${missingPermissions.join(', ')}`;
+        }
+        if (userRoles.length > 0) {
+          detailedError += `\n\nYour roles: ${userRoles.join(', ')}`;
+        }
+        if (!isAdmin) {
+          detailedError += `\n\nNote: You need admin privileges to access production definitions.`;
+        }
+
+        setFetchError(detailedError);
+        setErrorDetails(result.errorDetails);
+        setItems([]);
+        setFilteredItems([]);
+      } else {
+        setFetchError(result.error || "Failed to fetch items");
+        setErrorDetails(result.errorDetails);
+        setItems([]);
+        setFilteredItems([]);
+      }
+    } catch (error: any) {
+      console.error("Error fetching items:", error);
+      setFetchError("Network error occurred while fetching items");
+      setErrorDetails({ networkError: true, status: 0 });
       setItems([]);
       setFilteredItems([]);
     }
@@ -65,33 +98,61 @@ function InventoryItemsPage() {
       setAddSubItemError("No item selected");
       return;
     }
+    try {
+      setAddSubItemError(null);
+      const result = await apiCall(`/api/production/${selectedItem}/sub-items`, {
+        method: "POST",
+        body: JSON.stringify({
+          subItemId: subItemId,
+          portionSize: portionSize,
+        }),
+      });
 
-    setAddSubItemError(null);
-    const result = await apiCall(`/api/production/${selectedItem}/sub-items`, {
-      method: "POST",
-      body: JSON.stringify({
-        subItemId: subItemId,
-        portionSize: portionSize,
-      }),
-    });
+      if (result.status === 200) {
+        await fetchSubItemsFromBackend(selectedItem);
+        closeModal();
+      } else if (result.status === 403) {
+        // Handle permission errors with detailed information
+        const errorData = result.errorDetails || {};
+        const errorMessage = result.error || "Access denied";
+        const missingPermissions = errorData.missingPermissions || [];
+        const userRoles = errorData.userRoles || [];
 
-    if (result.status === 201) {
-      await fetchSubItemsFromBackend(selectedItem);
-      closeModal();
-    } else {
-      setAddSubItemError(result.error || "Failed to add sub-item");
+        let detailedError = `${errorMessage}`;
+        if (missingPermissions.length > 0) {
+          detailedError += `\n\nMissing permissions: ${missingPermissions.join(', ')}`;
+        }
+        if (userRoles.length > 0) {
+          detailedError += `\n\nYour roles: ${userRoles.join(', ')}`;
+        }
+
+        setAddSubItemError(detailedError);
+        setErrorDetails(result.errorDetails);
+      } else {
+        setAddSubItemError(result.error || "Failed to add sub-item");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error: any) {
+      console.error("Error adding sub-item to item:", error);
+      setAddSubItemError("Network error occurred while adding sub-item");
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
   const fetchSubItemsFromBackend = async (itemId) => {
-    const result = await apiCall(`/api/production/${itemId}/sub-items`);
-
-    if (result.status === 200) {
-      const items = result.data[0].subItems || [];
-      setSubItems(items);
-      updateItemsInState(itemId, items);
-    } else {
-      console.error("Error fetching sub-items:", result.error);
+    try {
+      const result = await apiCall(`/api/production/${itemId}/sub-items`);
+      if (result.status === 200) {
+        const items = result.data?.[0]?.subItems || [];
+        setSubItems(items);
+        updateItemsInState(itemId, items);
+      } else {
+        console.error("Failed to fetch sub-items:", result.error);
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error: any) {
+      console.error("Error fetching sub-items:", error);
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
@@ -120,14 +181,19 @@ function InventoryItemsPage() {
   };
 
   const removeSubItemFromItem = async (subItemId) => {
-    const result = await apiCall(`/api/production/${selectedItem}/sub-items/${subItemId}`, {
-      method: "DELETE",
-    });
-
-    if (result.status === 200) {
-      await fetchSubItemsFromBackend(selectedItem);
-    } else {
-      console.error("Error removing sub-item from item:", result.error);
+    try {
+      const result = await apiCall(`/api/production/${selectedItem}/sub-items/${subItemId}`, {
+        method: "DELETE",
+      });
+      if (result.status === 200) {
+        await fetchSubItemsFromBackend(selectedItem);
+      } else {
+        console.error("Failed to remove sub-item:", result.error);
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error: any) {
+      console.error("Error removing sub-item from item:", error);
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
@@ -213,6 +279,14 @@ function InventoryItemsPage() {
             </div>
           </div>
         )}
+
+        <ErrorDisplay
+          error={errorDetails?.message || null}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setErrorDetails(null);
+          }}
+        />
 
         {/* Main Content */}
         <div className="row g-4">

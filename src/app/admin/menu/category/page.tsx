@@ -1,6 +1,6 @@
 "use client";
 
-import RoleAwareLayout from "../../../shared/RoleAwareLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
 import CategoryItems from "./components/category/category-items";
 import Categories from "./components/category/categories";
@@ -10,6 +10,7 @@ import { AuthError } from "src/app/types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
 
 const CategoryPage: React.FC = () => {
   const apiCall = useApiCall();
@@ -23,16 +24,15 @@ const CategoryPage: React.FC = () => {
     name: string;
   } | null>(null);
   const [items, setItems] = useState([]);
-  const [itemError, setItemError] = useState<string | null>(null);
-  const [itemErrorDetails, setItemErrorDetails] = useState<any>(null);
+  const [itemError, setItemError] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{
     id: string;
     name: string;
   } | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
-  const [authErrorDetails, setAuthErrorDetails] = useState<any>(null);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,29 +47,37 @@ const CategoryPage: React.FC = () => {
       body: JSON.stringify(formData),
     });
 
-    if (result.status === 200 || result.status === 201) {
-      setCategories([...categories, result.data]);
-      setName("");
-      setFormError(null);
-      setItemErrorDetails(null);
-    } else if (result.status === 401) {
+    if (result.status === 401) {
       // Already handled by apiCall utility
       return;
+    } else if (result.status === 201) {
+      setFormError("");
+      setCategories((prevCategories) => [...prevCategories, result.data]);
+      setName("");
+    } else if (result.status === 400) {
+      // Handle duplicate category error
+      setFormError(result.data?.message || "Category already exists");
+    } else if (result.status === 403) {
+      setAuthError(result.data);
     } else {
-      setFormError(result.error || "Failed to create category");
+      setFormError(result.data?.message || result.error || "Failed to create category");
     }
   };
 
   const fetchItems = async (categoryId: string) => {
-    const result = await apiCall(`/api/menu/items?category=${categoryId}`);
-
-    if (result.status === 200) {
-      setItems(Array.isArray(result.data) ? result.data : []);
-      setItemError(null);
-      setItemErrorDetails(null);
-    } else {
-      setItemError(result.error || "Failed to fetch items");
-      setItemErrorDetails(result.errorDetails);
+    try {
+      const result = await apiCall(`/api/menu/items?category=${categoryId}`);
+      if (result.status === 200) {
+        setItems(Array.isArray(result.data) ? result.data : []);
+      } else if (result.status === 403) {
+        setAuthError(result.data);
+      } else {
+        setItemError("Failed to fetch items: " + (result.error || "Unknown error"));
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error: any) {
+      setItemError("Failed to fetch items: " + error.message);
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -83,7 +91,12 @@ const CategoryPage: React.FC = () => {
       method: "DELETE",
     });
 
-    if (result.status === 200) {
+    if (result.status === 401) {
+      // Already handled by apiCall utility
+      return;
+    } else if (result.status === 403) {
+      setAuthError(result.data);
+    } else if (result.status === 200) {
       setCategories((prevCategories) =>
         prevCategories.filter((category) => category.id !== categoryId)
       );
@@ -100,24 +113,36 @@ const CategoryPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (categoriesLoaded) {
+      return;
+    }
+
     const fetchCategories = async () => {
-      if (categoriesLoaded) {
-        return;
-      }
+      try {
+        const result = await apiCall("/api/menu/categories");
 
-      const result = await apiCall("/api/menu/categories");
-
-      if (result.status === 200) {
-        console.log('Categories API response:', { data: result.data, type: typeof result.data, isArray: Array.isArray(result.data) });
-        setCategories(Array.isArray(result.data) ? result.data : []);
-        setCategoriesLoaded(true);
-      } else {
-        setFetchError(result.error || `Request failed with status ${result.status}`);
+        if (result.status === 401) {
+          // Invalid token, logout and redirect to login
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          window.location.href = "/";
+          return;
+        } else if (result.status === 403) {
+          setAuthError(result.data);
+        } else if (result.status === 200) {
+          setCategories(result.data || []);
+          setCategoriesLoaded(true);
+        } else {
+          setFetchError(result.error || `Request failed with status ${result.status}`);
+          setErrorDetails(result.errorDetails);
+        }
+      } catch (error: any) {
+        setFetchError(error.message || 'Network error');
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       }
     };
-
     fetchCategories();
-  }, [categoriesLoaded]); // Depend on categoriesLoaded
+  }, [categoriesLoaded]); // Only depend on categoriesLoaded
 
   return (
     <RoleAwareLayout>
@@ -190,7 +215,7 @@ const CategoryPage: React.FC = () => {
               </div>
               <div className="card-body">
                 <Categories
-                  categories={categories || []}
+                  categories={categories}
                   onCategoryClick={handleCategoryClick}
                   fetchError={fetchError}
                   onDeleteCategory={openDeleteModal}
@@ -211,20 +236,9 @@ const CategoryPage: React.FC = () => {
               onDismiss={() => setFetchError(null)}
             />
             <ErrorDisplay
-              error={authError?.message}
-              errorDetails={authErrorDetails}
-              onDismiss={() => {
-                setAuthError(null);
-                setAuthErrorDetails(null);
-              }}
-            />
-            <ErrorDisplay
-              error={itemError}
-              errorDetails={itemErrorDetails}
-              onDismiss={() => {
-                setItemError(null);
-                setItemErrorDetails(null);
-              }}
+              error={errorDetails?.message || null}
+              errorDetails={errorDetails}
+              onDismiss={() => setErrorDetails(null)}
             />
             <CategoryItems
               selectedCategory={selectedCategory}

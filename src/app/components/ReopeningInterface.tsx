@@ -428,4 +428,3 @@ export default function ReopeningInterface({
         </div>
     );
 }
-

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
 
 export default function PricelistAdd({
   showModal,
@@ -12,35 +13,47 @@ export default function PricelistAdd({
   addPricelistErrorDetails,
   setAddPricelistErrorDetails,
 }) {
-  const apiCall = useApiCall();
   const [name, setName] = useState("");
   const [station, setStation] = useState("");
   const [description, setDescription] = useState("");
   const [stations, setStations] = useState([]);
   const [isLoadingStations, setIsLoadingStations] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     async function fetchStations() {
       setIsLoadingStations(true);
       setAddPricelistError("");
+      setError(null);
+      setErrorDetails(null);
 
-      const result = await apiCall("/api/stations");
-
-      if (result.status === 200) {
-        setStations(result.data);
-        setAddPricelistError(""); // Clear any previous errors
-      } else if (result.status === 401) {
-        setAddPricelistError("Authentication expired. Please log in again.");
-      } else {
-        setAddPricelistError(result.error || "Failed to fetch stations");
+      try {
+        const result = await apiCall("/api/stations");
+        if (result.status === 200) {
+          setStations(result.data);
+          setAddPricelistError(""); // Clear any previous errors
+          setError(null);
+          setErrorDetails(null);
+        } else {
+          setError(result.error || "Failed to fetch stations");
+          setErrorDetails(result.errorDetails);
+          setAddPricelistError(result.error || "Failed to fetch stations");
+        }
+      } catch (error: any) {
+        setError("Network error occurred");
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+        setAddPricelistError("Network error occurred");
+      } finally {
+        setIsLoadingStations(false);
       }
-
-      setIsLoadingStations(false);
     }
     if (showModal) {
       fetchStations();
     }
-  }, [showModal]);
+  }, [showModal, apiCall]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +101,14 @@ export default function PricelistAdd({
                 setAddPricelistErrorDetails(null);
               }}
               errorDetails={addPricelistErrorDetails}
+            />
+            <ErrorDisplay
+              error={error}
+              errorDetails={errorDetails}
+              onDismiss={() => {
+                setError(null);
+                setErrorDetails(null);
+              }}
             />
             <form className="px-4 py-3" onSubmit={handleSubmit}>
               <div className="form-group">

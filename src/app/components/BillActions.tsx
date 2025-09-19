@@ -52,8 +52,8 @@ export default function BillActions({
 
     // Business rule validation (Rule 4.3, 4.4)
     const canVoidItems = (bill: Bill) => {
-        return (bill.status === 'submitted' || bill.status === 'reopened') && 
-               bill.bill_items?.some(item => item.item_status === 'active') || false;
+        return (bill.status === 'submitted' || bill.status === 'reopened') &&
+            bill.bill_items?.some(item => item.item_status === 'active') || false;
     };
 
     const hasPendingVoids = (bill: Bill) => {

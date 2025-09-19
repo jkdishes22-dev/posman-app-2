@@ -50,8 +50,7 @@ export class UserService {
           where: { id: role },
         });
 
-        if (_role === null) {
-        } else {
+        if (_role !== null) {
           newUser.roles = [_role];
         }
 
@@ -61,31 +60,12 @@ export class UserService {
   }
 
   public async getUsers(role?: string, page = 1, pageSize = 10, search?: string): Promise<{ users: User[]; total: number }> {
-    // Get total count first
-    const totalQuery = this.userRepository
-      .createQueryBuilder("user")
-      .leftJoin("user.roles", "roles");
-
-    if (role) {
-      totalQuery.andWhere("roles.name = :role", { role });
-    }
-
-    if (search) {
-      totalQuery.andWhere(
-        "(user.firstName LIKE :search OR user.lastName LIKE :search OR user.username LIKE :search)",
-        { search: `%${search}%` }
-      );
-    }
-
-    const total = await totalQuery.getCount();
-
-    // Get users with relations
     const query = this.userRepository
       .createQueryBuilder("user")
-      .leftJoinAndSelect("user.roles", "roles");
+      .leftJoinAndSelect("user.roles", "role");
 
     if (role) {
-      query.andWhere("roles.name = :role", { role });
+      query.andWhere("role.name = :role", { role });
     }
 
     if (search) {
@@ -95,9 +75,9 @@ export class UserService {
       );
     }
 
+    const total = await query.getCount();
     query.skip((page - 1) * pageSize).take(pageSize);
     const users = await query.getMany();
-
     return { users, total };
   }
 
@@ -226,12 +206,12 @@ export class UserService {
     `;
     const results = await this.userStationRepository.query(query, [userId]);
 
-    // Transform the flat results into the expected structure
-    const stations = results.map(row => ({
+    // Transform the flattened results into the expected nested structure
+    return results.map((row: any) => ({
       id: row.id,
       user_id: row.user_id,
       station_id: row.station_id,
-      isDefault: row.is_default === 1,
+      isDefault: row.is_default,
       status: row.status,
       updated_at: row.updated_at,
       created_at: row.created_at,
@@ -243,28 +223,9 @@ export class UserService {
         status: row.station_status
       }
     }));
-
-    return { stations };
   }
 
   async addUserStation(payload: { station?: any; user: any }) {
-    // Validate user role before allowing station assignment
-    const user = await this.userRepository.findOne({
-      where: { id: payload.user },
-      relations: ["roles"],
-    });
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const userRole = user.roles && user.roles.length > 0 ? user.roles[0].name : null;
-    const allowedRoles = ['sales', 'supervisor', 'admin'];
-
-    if (!userRole || !allowedRoles.includes(userRole)) {
-      throw new Error(`Only users with ${allowedRoles.join(', ')} roles can be assigned stations. Current role: ${userRole || 'none'}`);
-    }
-
     const userStation: DeepPartial<UserStation> =
       this.userStationRepository.create({
         user: payload.user,
@@ -316,7 +277,7 @@ export class UserService {
   }
 
   async disableUserStation(
-    userStationRequest: { userStation: number; action?: string },
+    userStationRequest: { userStation: number },
     currentUser: number,
   ) {
     const existingStation = await this.userStationRepository.findOne({
@@ -329,15 +290,9 @@ export class UserService {
       throw new Error("User station not found");
     }
 
-    // Handle both activate and deactivate actions
-    if (userStationRequest.action === "activate") {
-      existingStation.status = UserStationStatus.ACTIVE;
-    } else {
-      existingStation.status = UserStationStatus.INACTIVE;
-      existingStation.isDefault = false; // Remove default status when deactivating
-    }
-
+    existingStation.status = UserStationStatus.INACTIVE;
     existingStation.updated_by = currentUser;
+    existingStation.isDefault = false;
 
     return await this.userStationRepository.save(existingStation);
   }

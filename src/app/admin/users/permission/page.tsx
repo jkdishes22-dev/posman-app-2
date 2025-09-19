@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import RoleAwareLayout from "../../../shared/RoleAwareLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import Image from "next/image";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
@@ -10,7 +10,8 @@ import AsyncSelect from "react-select/async";
 import { AuthError, Role, Scope } from "src/app/types/types";
 import jwt from "jsonwebtoken";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
-import { useApiCall } from "src/app/utils/apiUtils";
+import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
 
 type ErrorState = {
   message: string;
@@ -27,8 +28,8 @@ export default function UsersPage() {
   const [selectedScope, setSelectedScope] = useState<Scope | null>(null);
   const [permissionsByScope, setPermissionsByScope] = useState({});
   const [scopes, setScopes] = useState<Scope[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [error, setError] = useState<ErrorState>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [permissionToDelete, setPermissionToDelete] = useState<{ id: string, name: string } | null>(
@@ -49,17 +50,21 @@ export default function UsersPage() {
   const fetchRoles = async () => {
     try {
       const result = await apiCall("/api/roles");
-
       if (result.status === 200) {
         setRoles(result.data);
         setError(null);
-        setErrorDetails(null);
       } else {
-        setError(result.error || "Failed to fetch roles");
+        setError({
+          message: result.error || "Failed to fetch roles",
+          missingPermissions: result.errorDetails?.missingPermissions || [],
+          isAdmin: result.errorDetails?.isAdmin || false,
+          userRoles: result.errorDetails?.userRoles || [],
+          requiredPermissions: result.errorDetails?.requiredPermissions || []
+        });
         setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      setError("Network error occurred");
+      setError({ message: "An unexpected error occurred: " + error.message });
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
@@ -67,7 +72,6 @@ export default function UsersPage() {
   const fetchScopes = async () => {
     try {
       const result = await apiCall("/api/roles/scopes");
-
       if (result.status === 200) {
         setScopes(result.data);
         const emptyPermissionsByScope = result.data.reduce((acc, scope) => {
@@ -76,25 +80,21 @@ export default function UsersPage() {
         }, {});
         setPermissionsByScope(emptyPermissionsByScope);
         setError(null);
-        setErrorDetails(null);
       } else {
-        setError(result.error || "Failed to fetch scopes");
+        setError({ message: result.error || "Failed to fetch scopes" });
         setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      setError("Network error occurred");
+      setError({ message: "An unexpected error occurred: " + error.message });
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
   const fetchPermissions = async (role: Role) => {
-    setSelectedRole(role);
-
     try {
+      setSelectedRole(role);
       const result = await apiCall(`/api/roles/${role.id}/permissions`);
-
       if (result.status === 200) {
         setError(null);
-        setErrorDetails(null);
         const updatedPermissionsByScope = scopes.reduce((acc, scope) => {
           acc[scope.name] = [];
           return acc;
@@ -110,11 +110,17 @@ export default function UsersPage() {
         });
         setPermissionsByScope(updatedPermissionsByScope);
       } else {
-        setError(result.error || "Failed to fetch permissions");
+        setError({
+          message: result.error || "Failed to fetch permissions",
+          missingPermissions: result.errorDetails?.missingPermissions || [],
+          isAdmin: result.errorDetails?.isAdmin || false,
+          userRoles: result.errorDetails?.userRoles || [],
+          requiredPermissions: result.errorDetails?.requiredPermissions || []
+        });
         setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      setError("Network error occurred");
+      setError({ message: "An unexpected error occurred: " + error.message });
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
@@ -144,15 +150,19 @@ export default function UsersPage() {
         await fetchPermissions(selectedRole);
         setShowDeleteModal(false);
         setPermissionToDelete(null);
-        setError(null);
-        setErrorDetails(null);
       } else {
-        setError(result.error || "Failed to delete permission");
+        setError({
+          message: result.error || "Failed to delete permission",
+          missingPermissions: result.errorDetails?.missingPermissions || [],
+          isAdmin: result.errorDetails?.isAdmin || false,
+          userRoles: result.errorDetails?.userRoles || [],
+          requiredPermissions: result.errorDetails?.requiredPermissions || []
+        });
         setErrorDetails(result.errorDetails);
         setShowDeleteModal(false);
       }
     } catch (error: any) {
-      setError("Network error occurred");
+      setError({ message: error.message || "Failed to delete permission" });
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setShowDeleteModal(false);
     }
@@ -167,10 +177,8 @@ export default function UsersPage() {
     if (!selectedScope) {
       return [];
     }
-
     try {
       const result = await apiCall(`/api/roles/scopes/${selectedScope.id}/permissions`);
-
       if (result.status === 200) {
         const allPermissions = result.data[0].permissions;
         const existingPermissions = permissionsByScope[selectedScope.name] || [];
@@ -190,7 +198,7 @@ export default function UsersPage() {
         setErrorDetails(result.errorDetails);
         return [];
       }
-    } catch (error: any) {
+    } catch (error) {
       setError("Network error occurred");
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       return [];
@@ -212,44 +220,48 @@ export default function UsersPage() {
         }),
       });
 
-      if (result.status === 200) {
-        // If the current user has this role, refresh their token
-        const userToken = localStorage.getItem("token");
-        if (userToken) {
-          const decoded = jwt.decode(userToken);
-          if (
-            decoded &&
-            typeof decoded === "object" &&
-            "roles" in decoded &&
-            Array.isArray((decoded as any).roles) &&
-            (decoded as any).roles.includes(selectedRole.name)
-          ) {
-            // Call refresh endpoint
-            try {
-              const refreshResult = await apiCall("/api/auth/refresh", { method: "POST" });
-              if (refreshResult.status === 200) {
-                localStorage.setItem("token", refreshResult.data.token);
-              } else {
-                setSessionError("Session updated, but failed to refresh your token. Please re-login.");
-              }
-            } catch {
+      if (result.status !== 200) {
+        setError({
+          message: result.error || "Failed to add permission",
+          missingPermissions: result.errorDetails?.missingPermissions || [],
+          isAdmin: result.errorDetails?.isAdmin || false,
+          userRoles: result.errorDetails?.userRoles || [],
+          requiredPermissions: result.errorDetails?.requiredPermissions || []
+        });
+        setErrorDetails(result.errorDetails);
+        return;
+      }
+
+      // If the current user has this role, refresh their token
+      const userToken = localStorage.getItem("token");
+      if (userToken) {
+        const decoded = jwt.decode(userToken);
+        if (
+          decoded &&
+          typeof decoded === "object" &&
+          "roles" in decoded &&
+          Array.isArray((decoded as any).roles) &&
+          (decoded as any).roles.includes(selectedRole.name)
+        ) {
+          // Call refresh endpoint
+          try {
+            const refreshResult = await apiCall("/api/auth/refresh", { method: "POST" });
+            if (refreshResult.status === 200) {
+              localStorage.setItem("token", refreshResult.data.token);
+            } else {
               setSessionError("Session updated, but failed to refresh your token. Please re-login.");
             }
+          } catch {
+            setSessionError("Session updated, but failed to refresh your token. Please re-login.");
           }
         }
-
-        setShowAddModal(false);
-        setError(null);
-        setErrorDetails(null);
-        // Refresh the permissions list to show the newly added permission
-        await fetchPermissions(selectedRole);
-      } else {
-        setError(result.error || "Failed to add permission");
-        setErrorDetails(result.errorDetails);
       }
+
+      setShowAddModal(false);
+      // Refresh the permissions list to show the newly added permission
+      await fetchPermissions(selectedRole);
     } catch (error: any) {
-      setError("Network error occurred");
-      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+      setError({ message: error.message || "An unexpected error occurred while adding permission" });
     }
   };
 
@@ -266,12 +278,19 @@ export default function UsersPage() {
 
         {/* Error Display */}
         <ErrorDisplay
-          error={error}
-          onDismiss={() => {
-            setError(null);
-            setErrorDetails(null);
-          }}
+          error={error?.message || null}
+          onDismiss={() => setError(null)}
+          errorDetails={error ? {
+            missingPermissions: error.missingPermissions,
+            isAdmin: error.isAdmin,
+            userRoles: error.userRoles,
+            requiredPermissions: error.requiredPermissions
+          } : undefined}
+        />
+        <ErrorDisplay
+          error={errorDetails?.message || null}
           errorDetails={errorDetails}
+          onDismiss={() => setErrorDetails(null)}
         />
         {sessionError && (
           <div className="alert alert-warning alert-dismissible fade show mb-4" role="alert">

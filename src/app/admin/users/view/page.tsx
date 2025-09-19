@@ -1,26 +1,27 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import RoleAwareLayout from "../../../shared/RoleAwareLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import NewUser from "../register/new-user";
 import { AuthError, User } from "../../../types/types";
 import Pagination from "../../../components/Pagination";
-import { withSecureRoute } from "../../../components/withSecureRoute";
-import { useApiCall } from "../../../utils/apiUtils";
+import { withSecureRoute } from "../../../components/withSecureRoute"; import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 
 const DEFAULT_PAGE_SIZE = parseInt(process.env.NEXT_PUBLIC_PAGE_SIZE || "10", 10);
 const DEFAULT_REFRESH_INTERVAL_SECONDS = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS || "300", 10);
 
 function UsersPage() {
-  const apiCall = useApiCall();
   const [showModal, setShowModal] = useState(false);
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [filter, setFilter] = useState("");
+  const [debouncedFilter, setDebouncedFilter] = useState("");
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState<AuthError>(null);
-  const [authErrorDetails, setAuthErrorDetails] = useState<any>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+  const apiCall = useApiCall();
   const [fetchUserError, setFetchUserError] = useState<string>("");
   const [showAssignRoleModal, setShowAssignRoleModal] = useState(false);
   const [roles, setRoles] = useState([]);
@@ -39,7 +40,6 @@ function UsersPage() {
   const [deleteError, setDeleteError] = useState("");
   const [reactivateError, setReactivateError] = useState("");
   const [updateError, setUpdateError] = useState("");
-  const [lockError, setLockError] = useState("");
 
   // Station management state
   const [userStations, setUserStations] = useState([]);
@@ -48,6 +48,7 @@ function UsersPage() {
   const [selectedStationId, setSelectedStationId] = useState("");
   const [stationError, setStationError] = useState("");
   const [loadingStations, setLoadingStations] = useState(false);
+  const [lockError, setLockError] = useState("");
 
   const handleClose = () => {
     setShowModal(false);
@@ -57,23 +58,24 @@ function UsersPage() {
     setShowModal(true);
   };
 
-  // Trigger search when filter changes, with debouncing
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (page !== 1) {
-        setPage(1); // Reset to page 1 when searching
-      } else {
-        fetchUsers();
-      }
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [filter]);
-
-  // Fetch users when page changes
   useEffect(() => {
     fetchUsers();
-  }, [page]);
+  }, [page, debouncedFilter]);
+
+  // Debounce filter changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedFilter(filter);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filter]);
+
+  // Reset page to 1 when filter changes
+  useEffect(() => {
+    if (debouncedFilter && page !== 1) {
+      setPage(1);
+    }
+  }, [debouncedFilter]);
 
   // Fetch user stations when a user is selected
   useEffect(() => {
@@ -108,23 +110,23 @@ function UsersPage() {
   }, []);
 
   async function fetchUsers() {
+    const searchParam = debouncedFilter ? `&search=${encodeURIComponent(debouncedFilter)}` : "";
     try {
-      const searchParam = filter ? `&search=${encodeURIComponent(filter)}` : '';
       const result = await apiCall(`/api/users?page=${page}&pageSize=${DEFAULT_PAGE_SIZE}${searchParam}`);
-
       if (result.status === 200) {
-        setUsers(result.data.users);
-        setTotal(result.data.total);
-        setAuthError(null);
-        setAuthErrorDetails(null);
+        setUsers(result.data?.users || []);
+        setTotal(result.data?.total || 0);
         setFetchUserError("");
+      } else if (result.status === 403) {
+        setAuthError({ message: result.error || "Access denied" });
+        setErrorDetails(result.errorDetails);
       } else {
-        setAuthError(result.data);
-        setAuthErrorDetails(result.errorDetails);
         setFetchUserError(result.error || "Failed to fetch users");
+        setErrorDetails(result.errorDetails);
       }
-    } catch (error: any) {
+    } catch (error) {
       setFetchUserError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
     }
   }
 
@@ -135,22 +137,23 @@ function UsersPage() {
         body: JSON.stringify(formData),
       });
 
-      if (result.status === 200 || result.status === 201) {
+      if (result.status === 201) {
         setError("");
-        const newUser = result.data;
-        setUsers((prevUsers) => [...prevUsers, newUser]);
+        setUsers((prevUsers) => [...prevUsers, result.data]);
         handleClose();
       } else {
         setError(result.error || "Failed to create user");
+        setErrorDetails(result.errorDetails);
       }
     } catch (err: any) {
-      setError("Network error occurred");
+      setError("Network error occurred while creating user");
+      setErrorDetails({ networkError: true, status: 0 });
     } finally {
       await fetchUsers();
     }
   }
 
-  // Use users directly since filtering is now done on the backend
+  // Server-side filtering is now handled in fetchUsers()
   const filteredUsers = users;
 
   const handleUserSelect = (user) => {
@@ -163,19 +166,21 @@ function UsersPage() {
     try {
       const result = await apiCall("/api/roles");
       if (result.status === 200) {
-        setRoles(result.data);
+        setRoles(result.data || []);
         if (selectedUser && selectedUser.role && selectedUser.role.id) {
           setSelectedRoleId(selectedUser.role.id.toString());
         } else if (selectedUser && selectedUser.role_id) {
           setSelectedRoleId(selectedUser.role_id.toString());
         } else {
-          setSelectedRoleId(result.data.length > 0 ? result.data[0].id.toString() : "");
+          setSelectedRoleId((result.data?.length > 0 ? result.data[0].id.toString() : ""));
         }
       } else {
         setAssignRoleError(result.error || "Failed to fetch roles");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      setAssignRoleError("Network error occurred");
+      setAssignRoleError("Network error occurred while fetching roles");
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
@@ -196,9 +201,11 @@ function UsersPage() {
         await fetchUsers();
       } else {
         setAssignRoleError(result.error || "Failed to assign role");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      setAssignRoleError("Network error occurred");
+      setAssignRoleError("Network error occurred while assigning role");
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
@@ -215,9 +222,11 @@ function UsersPage() {
         setShowDeleteModal(false);
       } else {
         setDeleteError(result.error || "Failed to delete user");
+        setErrorDetails(result.errorDetails);
       }
     } catch (err) {
-      setDeleteError("Network error occurred");
+      setDeleteError("Network error occurred while deleting user");
+      setErrorDetails({ networkError: true, status: 0 });
       setShowDeleteModal(false);
     }
   };
@@ -236,9 +245,11 @@ function UsersPage() {
         setShowReactivateModal(false);
       } else {
         setReactivateError(result.error || "Failed to reactivate user");
+        setErrorDetails(result.errorDetails);
       }
     } catch (err) {
-      setReactivateError("Network error occurred");
+      setReactivateError("Network error occurred while reactivating user");
+      setErrorDetails({ networkError: true, status: 0 });
       setShowReactivateModal(false);
     }
   };
@@ -274,9 +285,11 @@ function UsersPage() {
         setShowUpdateModal(false);
       } else {
         setUpdateError(result.error || "Failed to update user");
+        setErrorDetails(result.errorDetails);
       }
     } catch (err) {
-      setUpdateError("Network error occurred");
+      setUpdateError("Network error occurred while updating user");
+      setErrorDetails({ networkError: true, status: 0 });
       setShowUpdateModal(false);
     }
   };
@@ -293,15 +306,16 @@ function UsersPage() {
         }),
       });
       if (result.status === 200) {
-        const updatedUser = result.data;
         await fetchUsers();
-        setSelectedUser(updatedUser);
+        setSelectedUser(result.data);
         setShowLockModal(false);
       } else {
         setLockError(result.error || "Failed to lock/unlock user");
+        setErrorDetails(result.errorDetails);
       }
     } catch (err) {
-      setLockError("Network error occurred");
+      setLockError("Network error occurred while locking/unlocking user");
+      setErrorDetails({ networkError: true, status: 0 });
       setShowLockModal(false);
     } finally {
       setLockLoading(false);
@@ -319,14 +333,16 @@ function UsersPage() {
     setStationError("");
     try {
       const result = await apiCall(`/api/users/${userId}/stations`);
-
       if (result.status === 200) {
-        setUserStations(result.data.stations || []);
+        // The API returns the stations array directly, not wrapped in a stations property
+        setUserStations(result.data || []);
       } else {
         setStationError(result.error || "Failed to fetch user stations");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error) {
       setStationError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
     } finally {
       setLoadingStations(false);
     }
@@ -335,17 +351,20 @@ function UsersPage() {
   const fetchAvailableStations = async () => {
     try {
       const result = await apiCall("/api/stations");
-
       if (result.status === 200) {
         // Filter out stations that user is already linked to
         const linkedStationIds = userStations.map(us => us.station.id);
-        const available = result.data.stations.filter(station =>
-          station.status === 'active' && !linkedStationIds.includes(station.id)
+        const available = (result.data || []).filter(station =>
+          station.status === "active" && !linkedStationIds.includes(station.id)
         );
         setAvailableStations(available);
+      } else {
+        console.error("Failed to fetch available stations:", result.error);
+        setErrorDetails(result.errorDetails);
       }
     } catch (error) {
       console.error("Failed to fetch available stations:", error);
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
@@ -354,10 +373,10 @@ function UsersPage() {
 
     // Check if user has a valid role for station assignment
     const userRole = selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : null;
-    const allowedRoles = ['sales', 'supervisor', 'admin'];
+    const allowedRoles = ["sales", "supervisor", "admin"];
 
     if (!userRole || !allowedRoles.includes(userRole)) {
-      setStationError(`Only users with ${allowedRoles.join(', ')} roles can be assigned stations. Current role: ${userRole || 'none'}`);
+      setStationError(`Only users with ${allowedRoles.join(", ")} roles can be assigned stations. Current role: ${userRole || "none"}`);
       return;
     }
 
@@ -369,16 +388,17 @@ function UsersPage() {
           station: selectedStationId,
         }),
       });
-
       if (result.status === 200) {
         await fetchUserStations(selectedUser.id);
         setShowAddStationModal(false);
         setSelectedStationId("");
       } else {
         setStationError(result.error || "Failed to add station");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error) {
       setStationError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
@@ -393,14 +413,15 @@ function UsersPage() {
           stationId: stationId,
         }),
       });
-
       if (result.status === 200) {
         await fetchUserStations(selectedUser.id);
       } else {
         setStationError(result.error || "Failed to set default station");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error) {
       setStationError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
@@ -415,14 +436,15 @@ function UsersPage() {
           userStationId: userStationId,
         }),
       });
-
       if (result.status === 200) {
         await fetchUserStations(selectedUser.id);
       } else {
         setStationError(result.error || "Failed to remove station");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error) {
       setStationError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
@@ -435,17 +457,18 @@ function UsersPage() {
         method: "PATCH",
         body: JSON.stringify({
           userStationId: userStationId,
-          action: currentStatus === 'active' ? 'deactivate' : 'activate',
+          action: currentStatus === "active" ? "deactivate" : "activate",
         }),
       });
-
       if (result.status === 200) {
         await fetchUserStations(selectedUser.id);
       } else {
         setStationError(result.error || "Failed to update station status");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error) {
       setStationError("Network error occurred");
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
@@ -476,6 +499,14 @@ function UsersPage() {
           </div>
         </div>
 
+        <ErrorDisplay
+          error={errorDetails?.message || null}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setErrorDetails(null);
+          }}
+        />
+
         {/* Main Content */}
         {sessionError && (
           <div className="alert alert-warning alert-dismissible fade show mb-4" role="alert">
@@ -501,22 +532,25 @@ function UsersPage() {
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="Search users..."
+                      placeholder="Search by name or username..."
                       value={filter}
                       onChange={(e) => setFilter(e.target.value)}
-                      style={{ width: '220px', paddingRight: '2.5rem' }}
+                      style={{ width: "220px", paddingRight: "2.5rem" }}
                     />
                     <i className="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
                     {filter && (
                       <button
                         type="button"
                         className="btn btn-sm position-absolute top-50 end-0 translate-middle-y me-1"
-                        onClick={() => setFilter('')}
+                        onClick={() => {
+                          setFilter("");
+                          setDebouncedFilter("");
+                        }}
                         style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#6b7280',
-                          padding: '0.25rem',
+                          background: "none",
+                          border: "none",
+                          color: "#6b7280",
+                          padding: "0.25rem",
                           lineHeight: 1
                         }}
                         title="Clear search"
@@ -528,23 +562,16 @@ function UsersPage() {
                 </div>
               </div>
               <div className="card-body p-0">
-                <ErrorDisplay
-                  error={fetchUserError}
-                  onDismiss={() => setFetchUserError("")}
-                />
-                <ErrorDisplay
-                  error={authError?.message}
-                  errorDetails={authErrorDetails}
-                  onDismiss={() => {
-                    setAuthError(null);
-                    setAuthErrorDetails(null);
-                  }}
-                />
+                {fetchUserError && (
+                  <div className="alert alert-danger m-3" role="alert">
+                    {fetchUserError}
+                  </div>
+                )}
                 <div className="table-responsive">
                   <table className="table table-hover mb-0">
                     <thead className="table-light">
                       <tr>
-                        <th className="text-center" style={{ width: '50px' }}>
+                        <th className="text-center" style={{ width: "50px" }}>
                           <i className="bi bi-check2-square text-muted"></i>
                         </th>
                         <th className="fw-semibold">First Name</th>
@@ -560,15 +587,18 @@ function UsersPage() {
                         <tr>
                           <td colSpan={7} className="text-center py-5">
                             <div className="empty-state">
-                              <i className="bi bi-search text-muted" style={{ fontSize: '3rem' }}></i>
+                              <i className="bi bi-search text-muted" style={{ fontSize: "3rem" }}></i>
                               <h5 className="text-muted mt-3 mb-2">No users found</h5>
                               <p className="text-muted mb-0">
-                                {filter ? 'Try adjusting your search terms' : 'No users available'}
+                                {filter ? "Try adjusting your search terms" : "No users available"}
                               </p>
                               {filter && (
                                 <button
                                   className="btn btn-outline-primary btn-sm mt-2"
-                                  onClick={() => setFilter('')}
+                                  onClick={() => {
+                                    setFilter("");
+                                    setDebouncedFilter("");
+                                  }}
                                 >
                                   Clear search
                                 </button>
@@ -582,7 +612,7 @@ function UsersPage() {
                             key={user.id}
                             onClick={() => handleUserSelect(user)}
                             style={{ cursor: "pointer" }}
-                            className={`user-row ${selectedUser && selectedUser.id === user.id ? 'table-primary selected' : ''}`}
+                            className={`user-row ${selectedUser && selectedUser.id === user.id ? "table-primary selected" : ""}`}
                             title={`Click to view details for ${user.firstName} ${user.lastName}`}
                           >
                             <td className="text-center">
@@ -678,68 +708,24 @@ function UsersPage() {
                     User Details
                   </h5>
                   {selectedUser && (
-                    <div className="dropdown">
-                      <button
-                        className="btn btn-outline-primary btn-sm dropdown-toggle"
-                        type="button"
-                        data-bs-toggle="dropdown"
-                        aria-expanded="false"
-                      >
-                        <i className="bi bi-gear me-1"></i>
-                        Actions
-                      </button>
-                      <ul className="dropdown-menu dropdown-menu-end">
-                        <li>
-                          <button
-                            className="dropdown-item"
-                            onClick={handleShowUpdateModal}
-                          >
-                            <i className="bi bi-pencil me-2"></i>
-                            Update User
-                          </button>
-                        </li>
-                        <li>
-                          <button
-                            className="dropdown-item"
-                            onClick={() => setShowAssignRoleConfirmModal(true)}
-                          >
-                            <i className="bi bi-person-gear me-2"></i>
-                            Assign Role
-                          </button>
-                        </li>
-                        <li><hr className="dropdown-divider" /></li>
-                        <li>
-                          <button
-                            className="dropdown-item"
-                            onClick={() => setShowLockModal(true)}
-                          >
-                            <i className={`bi ${selectedUser.is_locked ? "bi-unlock" : "bi-lock"} me-2`}></i>
-                            {selectedUser.is_locked ? "Unlock User" : "Lock User"}
-                          </button>
-                        </li>
-                        {selectedUser.status !== "DELETED" && (
-                          <li>
-                            <button
-                              className="dropdown-item text-danger"
-                              onClick={() => setShowDeleteModal(true)}
-                            >
-                              <i className="bi bi-trash me-2"></i>
-                              Deactivate User
-                            </button>
-                          </li>
-                        )}
-                        {selectedUser.status === "DELETED" && (
-                          <li>
-                            <button
-                              className="dropdown-item text-success"
-                              onClick={() => setShowReactivateModal(true)}
-                            >
-                              <i className="bi bi-arrow-clockwise me-2"></i>
-                              Reactivate User
-                            </button>
-                          </li>
-                        )}
-                      </ul>
+                    <div className="d-flex align-items-center gap-2">
+                      {selectedUser.status === "DELETED" ? (
+                        <span className="badge bg-danger">
+                          <i className="bi bi-x-circle me-1"></i>
+                          Deleted
+                        </span>
+                      ) : (
+                        <span className="badge bg-success">
+                          <i className="bi bi-check-circle me-1"></i>
+                          Active
+                        </span>
+                      )}
+                      {selectedUser.is_locked && (
+                        <span className="badge bg-warning">
+                          <i className="bi bi-lock-fill me-1"></i>
+                          Locked
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -752,34 +738,80 @@ function UsersPage() {
                         <div className="user-avatar-large me-3">
                           <i className="bi bi-person-circle text-primary"></i>
                         </div>
-                        <div className="flex-grow-1">
-                          <div className="d-flex align-items-center">
-                            <h5 className="text-primary mb-0 me-3">{selectedUser.firstName} {selectedUser.lastName}</h5>
-                            <span className="badge bg-primary fs-6 px-3 py-2">
-                              <i className="bi bi-shield-check me-2"></i>
-                              {selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : "No role assigned"}
-                            </span>
-                          </div>
+                        <div>
+                          <h4 className="text-primary mb-1">{selectedUser.firstName} {selectedUser.lastName}</h4>
+                          <p className="text-muted mb-0">
+                            <i className="bi bi-at me-1"></i>
+                            @{selectedUser.username}
+                          </p>
                         </div>
+                      </div>
+                      <div className="role-badge-container">
+                        <span className="badge bg-primary fs-6 px-3 py-2">
+                          <i className="bi bi-shield-check me-2"></i>
+                          {selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : "No role assigned"}
+                        </span>
                       </div>
                     </div>
 
+                    <div className="action-buttons mb-4">
+                      <div className="row g-2">
+                        <div className="col-6 col-md-3">
+                          <button
+                            type="button"
+                            className="btn btn-warning btn-sm w-100"
+                            onClick={handleShowUpdateModal}
+                          >
+                            <i className="bi bi-pencil me-1"></i>
+                            Update
+                          </button>
+                        </div>
+                        <div className="col-6 col-md-3">
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm w-100"
+                            onClick={() => setShowDeleteModal(true)}
+                            disabled={selectedUser.status === "DELETED"}
+                          >
+                            <i className="bi bi-trash me-1"></i>
+                            Deactivate
+                          </button>
+                        </div>
+                        <div className="col-6 col-md-3">
+                          <button
+                            className="btn btn-info btn-sm w-100"
+                            onClick={() => setShowLockModal(true)}
+                          >
+                            <i className={`bi ${selectedUser.is_locked ? "bi-unlock" : "bi-lock"} me-1`}></i>
+                            {selectedUser.is_locked ? "Unlock" : "Lock"}
+                          </button>
+                        </div>
+                        <div className="col-6 col-md-3">
+                          <button
+                            className="btn btn-secondary btn-sm w-100"
+                            onClick={() => setShowAssignRoleConfirmModal(true)}
+                          >
+                            <i className="bi bi-person-gear me-1"></i>
+                            Assign Role
+                          </button>
+                        </div>
+                      </div>
+                      {selectedUser.status === "DELETED" && (
+                        <div className="mt-2">
+                          <button
+                            className="btn btn-success w-100"
+                            onClick={() => setShowReactivateModal(true)}
+                          >
+                            <i className="bi bi-arrow-clockwise me-1"></i>
+                            Reactivate User
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
                     <div className="table-responsive">
                       <table className="table table-sm">
                         <tbody>
-                          <tr>
-                            <td className="fw-bold">First Name</td>
-                            <td>{selectedUser.firstName}</td>
-                          </tr>
-                          <tr>
-                            <td className="fw-bold">Last Name</td>
-                            <td>{selectedUser.lastName}</td>
-                          </tr>
-                          <tr>
-                            <td className="fw-bold">Username</td>
-                            <td>{selectedUser.username}</td>
-                          </tr>
                           <tr>
                             <td className="fw-bold">Status</td>
                             <td>
@@ -814,12 +846,12 @@ function UsersPage() {
                         <button
                           type="button"
                           className="btn btn-primary btn-sm"
-                          disabled={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !['sales', 'supervisor', 'admin'].includes(selectedUser.roles[0].name)}
+                          disabled={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !["sales", "supervisor", "admin"].includes(selectedUser.roles[0].name)}
                           onClick={() => {
                             fetchAvailableStations();
                             setShowAddStationModal(true);
                           }}
-                          title={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !['sales', 'supervisor', 'admin'].includes(selectedUser.roles[0].name) ? "Only sales, supervisor, and admin roles can be assigned stations" : "Add station to user"}
+                          title={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !["sales", "supervisor", "admin"].includes(selectedUser.roles[0].name) ? "Only sales, supervisor, and admin roles can be assigned stations" : "Add station to user"}
                         >
                           <i className="bi bi-plus me-1"></i>
                           Add Station
@@ -862,7 +894,7 @@ function UsersPage() {
                                   <div className="fw-semibold">{userStation.station.name}</div>
                                   <small className="text-muted">
                                     Status:
-                                    <span className={`badge ms-1 ${userStation.status === 'active' ? 'bg-success' : 'bg-secondary'}`}>
+                                    <span className={`badge ms-1 ${userStation.status === "active" ? "bg-success" : "bg-secondary"}`}>
                                       {userStation.status}
                                     </span>
                                   </small>
@@ -892,11 +924,11 @@ function UsersPage() {
                                   )}
                                   <li>
                                     <button
-                                      className={`dropdown-item ${userStation.status === 'active' ? 'text-warning' : 'text-success'}`}
+                                      className={`dropdown-item ${userStation.status === "active" ? "text-warning" : "text-success"}`}
                                       onClick={() => handleToggleStationStatus(userStation.id, userStation.status)}
                                     >
-                                      <i className={`bi ${userStation.status === 'active' ? 'bi-pause' : 'bi-play'} me-2`}></i>
-                                      {userStation.status === 'active' ? 'Deactivate' : 'Activate'}
+                                      <i className={`bi ${userStation.status === "active" ? "bi-pause" : "bi-play"} me-2`}></i>
+                                      {userStation.status === "active" ? "Deactivate" : "Activate"}
                                     </button>
                                   </li>
                                 </ul>
@@ -906,7 +938,7 @@ function UsersPage() {
                         </div>
                       ) : (
                         <div className="text-center py-3">
-                          <i className="bi bi-geo-alt text-muted" style={{ fontSize: '2rem' }}></i>
+                          <i className="bi bi-geo-alt text-muted" style={{ fontSize: "2rem" }}></i>
                           <p className="text-muted mt-2 mb-0">No stations assigned</p>
                           <small className="text-muted">Click "Add Station" to assign stations to this user</small>
                         </div>
@@ -915,7 +947,7 @@ function UsersPage() {
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <i className="bi bi-person text-muted" style={{ fontSize: '3rem' }}></i>
+                    <i className="bi bi-person text-muted" style={{ fontSize: "3rem" }}></i>
                     <p className="text-muted mt-3 mb-0">Select a user to view their details</p>
                   </div>
                 )}

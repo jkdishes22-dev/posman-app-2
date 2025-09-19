@@ -7,83 +7,66 @@ import jwt from "jsonwebtoken";
 import { DecodedToken } from "./components/SecureRoute";
 import { useAuth } from "./contexts/AuthContext";
 import { useApiCall } from "./utils/apiUtils";
-import { standardizeApiError, ApiErrorResponse } from "./utils/errorUtils";
+import { ApiErrorResponse } from "./utils/errorUtils";
 import ErrorDisplay from "./components/ErrorDisplay";
 
 const LoginForm = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [activeField, setActiveField] = useState("username");
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
   const apiCall = useApiCall();
 
-  // Reusable function for role-based routing
-  const redirectBasedOnRole = (decodedToken: DecodedToken | null, fallbackRole?: string) => {
-    const primaryRole = decodedToken?.roles?.[0] || fallbackRole;
-    let targetPath = "/home"; // default
-
-    if (primaryRole === "admin") {
-      targetPath = "/admin";
-    } else if (primaryRole === "supervisor") {
-      targetPath = "/supervisor";
-    } else if (primaryRole === "sales") {
-      targetPath = "/sales";
-    } else if (primaryRole === "cashier") {
-      targetPath = "/home/cashier";
-    } else if (primaryRole === "storekeeper") {
-      targetPath = "/storekeeper";
-    } else {
-      targetPath = "/home";
-    }
-
-    // Try router.push first
-    router.push(targetPath);
-
-    // Fallback: if router.push doesn't work, use window.location after a short delay
-    setTimeout(() => {
-      if (window.location.pathname === "/") {
-        window.location.href = targetPath;
-      }
-    }, 100);
-  };
-
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
+    if (isAuthenticated) {
       const token = localStorage.getItem("token");
       if (token) {
         try {
           const decodedToken = jwt.decode(token) as DecodedToken;
           if (decodedToken && decodedToken.roles && decodedToken.roles.length > 0) {
-            redirectBasedOnRole(decodedToken);
+            const primaryRole = decodedToken.roles[0];
+            if (primaryRole === "admin") {
+              router.push("/admin");
+            } else if (primaryRole === "supervisor") {
+              router.push("/supervisor");
+            } else if (primaryRole === "sales") {
+              router.push("/home");
+            } else if (primaryRole === "cashier") {
+              router.push("/home/cashier");
+            } else if (primaryRole === "storekeeper") {
+              router.push("/storekeeper");
+            } else {
+              router.push("/home");
+            }
           }
         } catch (error) {
           console.error("Error decoding token:", error);
         }
       }
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, router]);
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     if (!username || !password) {
       setError("Please fill in all fields");
-      setErrorDetails(null);
       return;
     }
-
     const formData = { username, password };
-
     try {
+      setError("");
+      setErrorDetails(null);
+
       const result = await apiCall("/api/auth/login", {
         method: "POST",
         body: JSON.stringify(formData),
       });
 
-      if (result.status === 200 && result.data) {
+      if (result.status === 200) {
         const { token, role } = result.data;
         const decodedToken = jwt.decode(token) as DecodedToken;
         const userData = decodedToken && decodedToken.user ? decodedToken.user : null;
@@ -91,21 +74,30 @@ const LoginForm = () => {
         // Use the auth context to handle login
         login(token, userData);
 
-        // Use the reusable function for role-based routing
-        redirectBasedOnRole(decodedToken, role);
+        // Use the decoded token roles for consistent redirect logic
+        if (decodedToken && decodedToken.roles && decodedToken.roles.length > 0) {
+          const primaryRole = decodedToken.roles[0];
+          if (primaryRole === "admin") {
+            router.push("/admin");
+          } else if (primaryRole === "supervisor") {
+            router.push("/supervisor");
+          } else if (primaryRole === "sales") {
+            router.push("/home");
+          } else if (primaryRole === "cashier") {
+            router.push("/home/cashier");
+          } else if (primaryRole === "storekeeper") {
+            router.push("/storekeeper");
+          } else {
+            router.push("/home");
+          }
+        }
       } else {
-        // Handle API error response - use ambiguous message for login failures
-        setError("Invalid credentials. Please check your username and password.");
-        setErrorDetails({
-          message: "Invalid credentials. Please check your username and password.",
-          status: result.status || 401,
-          isLoginError: true
-        });
+        setError(result.error || "Login Failed! Invalid credentials");
+        setErrorDetails(result.errorDetails);
       }
     } catch (err) {
-      const standardizedError = standardizeApiError(err, 0);
-      setError(standardizedError.message);
-      setErrorDetails(standardizedError.details);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -150,16 +142,14 @@ const LoginForm = () => {
         <div className="col d-flex flex-column">
           <div className="p-3 border bg-light mb-3">
             <form onSubmit={handleSubmit} className="px-4 py-3">
-              {error && (
-                <ErrorDisplay
-                  error={error}
-                  errorDetails={errorDetails}
-                  onDismiss={() => {
-                    setError(null);
-                    setErrorDetails(null);
-                  }}
-                />
-              )}
+              <ErrorDisplay
+                error={error}
+                errorDetails={errorDetails}
+                onDismiss={() => {
+                  setError("");
+                  setErrorDetails(null);
+                }}
+              />
               <div className="form-outline mb-4 col-xs-3">
                 <label className="form-label" htmlFor="username">
                   User name / code

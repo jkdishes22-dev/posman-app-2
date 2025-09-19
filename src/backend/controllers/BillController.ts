@@ -110,9 +110,8 @@ export const submitBill = async (req: NextApiRequest, res: NextApiResponse) => {
 export const closeBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
   const { billId } = req.query;
-  const userId = parseInt(req.user?.id as string);
   try {
-    const closedBill = await billService.closeBill(Number(billId), userId);
+    const closedBill = await billService.closeBill(Number(billId));
     res.status(200).json(closedBill);
   } catch (error) {
     res.status(500).json({ message: "Error closing bill", error });
@@ -122,12 +121,11 @@ export const closeBill = async (req: NextApiRequest, res: NextApiResponse) => {
 export const bulkCloseBills = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
   const { billIds } = req.body;
-  const userId = parseInt(req.user?.id as string);
   if (!Array.isArray(billIds) || billIds.length === 0) {
     return res.status(400).json({ error: "billIds must be a non-empty array" });
   }
   try {
-    const results = await billService.closeBillsBulk(billIds.map(Number), userId);
+    const results = await billService.closeBillsBulk(billIds.map(Number));
     res.status(200).json({ results });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -145,87 +143,6 @@ export const bulkSubmitBills = async (req: NextApiRequest, res: NextApiResponse)
     res.status(200).json({ results });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
-  }
-};
-
-
-// ===== BILL VOIDING CONTROLLERS =====
-
-export const requestVoidItem = async (req: NextApiRequest, res: NextApiResponse) => {
-  const billService = new BillService(req.db);
-  const { billId, itemId } = req.query;
-  const { reason } = req.body;
-
-  if (!reason || typeof reason !== "string" || reason.trim().length === 0) {
-    return res.status(400).json({ error: "Valid reason is required" });
-  }
-
-  try {
-    const result = await billService.requestVoidItem(
-      Number(billId),
-      Number(itemId),
-      parseInt(req.user?.id as string),
-      reason.trim()
-    );
-
-    res.status(200).json({
-      message: "Void request created successfully",
-      billItem: result
-    });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
-};
-
-export const approveVoidRequest = async (req: NextApiRequest, res: NextApiResponse) => {
-  const billService = new BillService(req.db);
-  const { billId, itemId } = req.query;
-  const { approved, approvalNotes } = req.body;
-
-  if (typeof approved !== "boolean") {
-    return res.status(400).json({ error: "Approval status (approved) is required" });
-  }
-
-  try {
-    const result = await billService.approveVoidRequest(
-      Number(billId),
-      Number(itemId),
-      parseInt(req.user?.id as string),
-      approved,
-      approvalNotes?.trim()
-    );
-
-    res.status(200).json({
-      message: `Void request ${approved ? "approved" : "rejected"} successfully`,
-      billItem: result.billItem,
-      bill: result.bill
-    });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
-};
-
-export const getPendingVoidRequests = async (req: NextApiRequest, res: NextApiResponse) => {
-  const billService = new BillService(req.db);
-  const { billId } = req.query;
-
-  try {
-    const result = await billService.getPendingVoidRequests(Number(billId));
-    res.status(200).json({ voidRequests: result });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
-};
-
-export const getVoidHistory = async (req: NextApiRequest, res: NextApiResponse) => {
-  const billService = new BillService(req.db);
-  const { billId } = req.query;
-
-  try {
-    const result = await billService.getVoidHistory(Number(billId));
-    res.status(200).json({ voidHistory: result });
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
   }
 };
 
@@ -274,31 +191,5 @@ export const resubmitBill = async (req: NextApiRequest, res: NextApiResponse) =>
     });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
-  }
-};
-
-export const getReopenReasons = async (req: NextApiRequest, res: NextApiResponse) => {
-  try {
-    const reasons = [
-      { id: "mpesa_payment_unconfirmed", name: "M-Pesa Payment Unconfirmed", description: "M-Pesa payment could not be verified" },
-      { id: "cash_payment_disputed", name: "Cash Payment Disputed", description: "Customer disputes cash payment amount" },
-      { id: "payment_refund_required", name: "Payment Refund Required", description: "Refund needed for overpayment" },
-      { id: "customer_complaint", name: "Customer Complaint", description: "Customer complaint about bill accuracy" },
-      { id: "system_error", name: "System Error", description: "Technical error in bill processing" },
-      { id: "other", name: "Other", description: "Other reason not listed above" }
-    ];
-    res.status(200).json({ reasons });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-export const getReopenedBills = async (req: NextApiRequest, res: NextApiResponse) => {
-  try {
-    const billService = new BillService(req.db);
-    const bills = await billService.getReopenedBills();
-    res.status(200).json({ bills });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
   }
 };

@@ -10,6 +10,7 @@ import {
 } from "react-bootstrap";
 import ErrorDisplay from "../../../../../components/ErrorDisplay";
 import { useApiCall } from "../../../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../../../utils/errorUtils";
 
 interface NewItemModalProps {
   selectedCategory: Category | null;
@@ -32,7 +33,6 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   setItemError,
   selectedPricelistId,
 }) => {
-  const apiCall = useApiCall();
   const [itemName, setItemName] = useState("");
   const [itemCode, setItemCode] = useState("");
   const [itemPrice, setItemPrice] = useState<number | "">("");
@@ -41,9 +41,12 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   const [pricelists, setPricelists] = useState([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [addItemError, setAddItemError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+  const [priceListError, setFetchPricelistError] = useState(null);
+  const apiCall = useApiCall();
 
   // Determine context for conditional rendering
   const isFromPricelistPage = !selectedCategory && selectedPricelistId;
@@ -51,33 +54,39 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
 
   useEffect(() => {
     async function fetchPricelists() {
-      const result = await apiCall("/api/menu/pricelists");
-
-      if (result.status === 200) {
-        // Ensure data is an array
-        setPricelists(Array.isArray(result.data) ? result.data : []);
-        setError(null);
-        setErrorDetails(null);
-      } else {
-        setError(result.error || "Failed to fetch pricelists");
-        setErrorDetails(result.errorDetails);
+      try {
+        const result = await apiCall("/api/menu/pricelists");
+        if (result.status === 200) {
+          // Ensure data is an array
+          setPricelists(Array.isArray(result.data) ? result.data : []);
+        } else {
+          setError(result.error || "Failed to fetch pricelists");
+          setErrorDetails(result.errorDetails);
+        }
+      } catch (error: any) {
+        setAddItemError("Network error occurred");
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+        setPricelists([]); // Ensure pricelists is always an array
       }
     }
     fetchPricelists();
-  }, []);
+  }, [apiCall]);
 
   // Fetch categories
   useEffect(() => {
     async function fetchCategories() {
-      const result = await apiCall("/api/menu/categories");
-
-      if (result.status === 200) {
-        setCategories(Array.isArray(result.data) ? result.data : []);
-        setError(null);
-        setErrorDetails(null);
-      } else {
-        setError(result.error || "Failed to fetch categories");
-        setErrorDetails(result.errorDetails);
+      try {
+        const result = await apiCall("/api/menu/categories");
+        if (result.status === 200) {
+          setCategories(Array.isArray(result.data) ? result.data : []);
+        } else {
+          setAuthError({ message: result.error || "Failed to fetch categories" });
+          setErrorDetails(result.errorDetails);
+        }
+      } catch (error) {
+        setAuthError({ message: "Network error occurred" });
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+        setCategories([]);
       }
     }
 
@@ -97,17 +106,17 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
     if (isFromPricelistPage) {
       // Validation for pricelist page (category required, pricelist auto-selected)
       if (!itemName || !itemCode || !itemPrice || !selectedCategoryId) {
-        setError("Please fill in Item Name, Item Code, Item Price, and Category");
+        setAddItemError("Please fill in Item Name, Item Code, Item Price, and Category");
         return;
       }
     } else if (isFromCategoryPage) {
       // Validation for category page (both category and pricelist required)
       if (!itemName || !itemCode || !itemPrice || !pricelistId || !selectedCategory) {
-        setError("Please fill in all fields");
+        setAddItemError("Please fill in all fields");
         return;
       }
     } else {
-      setError("Invalid context: missing required parameters");
+      setAddItemError("Invalid context: missing required parameters");
       return;
     }
 
@@ -131,31 +140,33 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         setPricelistId("");
         setSelectedCategoryId("");
         setIsGroup(false);
-        setError(null);
+        setAddItemError(null);
       } catch (error: any) {
-        setError("Failed to create item: " + error.message);
+        setAddItemError("Failed to create item: " + error.message);
       }
     } else {
       // Default API call for category page
-      const result = await apiCall("/api/menu/items", {
-        method: "POST",
-        body: JSON.stringify(itemData),
-      });
+      try {
+        const result = await apiCall("/api/menu/items", {
+          method: "POST",
+          body: JSON.stringify(itemData),
+        });
 
-      if (result.status === 200 || result.status === 201) {
-        if (selectedCategory?.id && fetchItems) fetchItems(selectedCategory.id);
-        handleModalClose();
-        setItemName("");
-        setItemCode("");
-        setItemPrice("");
-        setPricelistId("");
-        setSelectedCategoryId("");
-        setIsGroup(false);
-        setError(null);
-        setErrorDetails(null);
-      } else {
-        setError(result.error || "Failed to create item");
-        setErrorDetails(result.errorDetails);
+        if (result.status === 201) {
+          if (selectedCategory?.id && fetchItems) fetchItems(selectedCategory.id);
+          handleModalClose();
+          setItemName("");
+          setItemCode("");
+          setItemPrice("");
+          setPricelistId("");
+          setSelectedCategoryId("");
+          setIsGroup(false);
+          setAddItemError(null);
+        } else {
+          setAddItemError(result.error || "Failed to create item");
+        }
+      } catch (error: any) {
+        setAddItemError("Network error occurred");
       }
     }
   };
@@ -179,10 +190,24 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
       </ModalHeader>
       <ModalBody>
         <ErrorDisplay
-          error={itemError || error}
-          errorDetails={errorDetails}
+          error={itemError || addItemError}
           onDismiss={() => {
             if (setItemError) setItemError("");
+            setAddItemError(null);
+          }}
+        />
+        <ErrorDisplay
+          error={authError?.message || null}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setAuthError(null);
+            setErrorDetails(null);
+          }}
+        />
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
             setError(null);
             setErrorDetails(null);
           }}

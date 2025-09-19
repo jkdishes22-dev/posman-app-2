@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Form, Button, Spinner, Alert } from "react-bootstrap";
 import { useApiCall } from "../utils/apiUtils";
+import { ApiErrorResponse } from "../utils/errorUtils";
 import ErrorDisplay from "./ErrorDisplay";
 
 interface ItemSearchResult {
@@ -32,14 +33,15 @@ export default function GlobalItemSearch({
     showResults = true,
     className = ""
 }: GlobalItemSearchProps) {
-    const apiCall = useApiCall();
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<ItemSearchResult[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [errorDetails, setErrorDetails] = useState<any>(null);
+    const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
     const [showDropdown, setShowDropdown] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
+
+    const apiCall = useApiCall();
 
     const searchRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -79,25 +81,33 @@ export default function GlobalItemSearch({
         setError(null);
         setErrorDetails(null);
 
-        const result = await apiCall(`/api/items/search?q=${encodeURIComponent(searchQuery)}&limit=10`);
+        try {
+            const result = await apiCall(`/api/items/search?q=${encodeURIComponent(searchQuery)}&limit=10`);
 
-        if (result.status === 200) {
-            setResults(result.data.items || []);
-            setShowDropdown(true);
-            setSelectedIndex(-1);
-        } else {
-            setError(result.error || "Search failed");
-            setErrorDetails(result.errorDetails);
+            if (result.status === 200) {
+                setResults(result.data.items || []);
+                setShowDropdown(true);
+                setSelectedIndex(-1);
+            } else {
+                setError(result.error || "Search failed");
+                setErrorDetails(result.errorDetails);
+                setResults([]);
+                setShowDropdown(false);
+            }
+        } catch (err: any) {
+            setError("Network error occurred while searching");
+            setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
             setResults([]);
             setShowDropdown(false);
+        } finally {
+            setIsLoading(false);
         }
-
-        setIsLoading(false);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setQuery(e.target.value);
         setError(null);
+        setErrorDetails(null);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -142,6 +152,7 @@ export default function GlobalItemSearch({
         setShowDropdown(false);
         setSelectedIndex(-1);
         setError(null);
+        setErrorDetails(null);
         if (inputRef.current) {
             inputRef.current.focus();
         }

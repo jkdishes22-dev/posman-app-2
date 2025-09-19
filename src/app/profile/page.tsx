@@ -3,18 +3,21 @@ import React, { useEffect, useState } from "react";
 import RoleAwareLayout from "../shared/RoleAwareLayout";
 import { withSecureRoute } from "../components/withSecureRoute";
 import { useApiCall } from "../utils/apiUtils";
+import { ApiErrorResponse } from "../utils/errorUtils";
 import ErrorDisplay from "../components/ErrorDisplay";
 
 const ProfilePage = () => {
-    const apiCall = useApiCall();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [errorDetails, setErrorDetails] = useState<any>(null);
+    const [error, setError] = useState("");
+    const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+    const [success, setSuccess] = useState("");
     const [pwForm, setPwForm] = useState({ current: "", new: "", confirm: "" });
     const [pwError, setPwError] = useState("");
     const [pwSuccess, setPwSuccess] = useState("");
     const [pwLoading, setPwLoading] = useState(false);
+
+    const apiCall = useApiCall();
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -37,7 +40,7 @@ const ProfilePage = () => {
             }
         };
         fetchProfile();
-    }, []);
+    }, [apiCall]);
 
     const handlePwChange = (e) => {
         setPwForm({ ...pwForm, [e.target.name]: e.target.value });
@@ -88,6 +91,15 @@ const ProfilePage = () => {
                     </h1>
                 </div>
 
+                <ErrorDisplay
+                    error={error}
+                    errorDetails={errorDetails}
+                    onDismiss={() => {
+                        setError("");
+                        setErrorDetails(null);
+                    }}
+                />
+
                 {loading ? (
                     <div className="text-center py-5">
                         <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
@@ -95,15 +107,6 @@ const ProfilePage = () => {
                         </div>
                         <p className="mt-3 text-muted">Loading profile...</p>
                     </div>
-                ) : error ? (
-                    <ErrorDisplay
-                        error={error}
-                        onDismiss={() => {
-                            setError(null);
-                            setErrorDetails(null);
-                        }}
-                        errorDetails={errorDetails}
-                    />
                 ) : user ? (
                     <div className="row g-4">
                         <div className="col-md-6">

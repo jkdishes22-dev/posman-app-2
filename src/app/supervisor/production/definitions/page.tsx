@@ -4,6 +4,8 @@ import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
 import { Button } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
 
 interface ProductionDefinition {
   id: number;
@@ -17,9 +19,11 @@ export default function SupervisorProductionDefinitionsPage() {
   const [definitions, setDefinitions] = useState<ProductionDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     fetchDefinitions();
@@ -31,16 +35,16 @@ export default function SupervisorProductionDefinitionsPage() {
       setError(null);
       setErrorDetails(null);
 
-      const response = await fetch("/api/production/definitions");
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await apiCall("/api/production/definitions");
+      if (result.status === 200) {
+        setDefinitions(result.data.definitions || []);
+      } else {
+        setError(result.error || "Failed to fetch production definitions");
+        setErrorDetails(result.errorDetails);
       }
-      const data = await response.json();
-      setDefinitions(data.definitions || []);
     } catch (error) {
-      console.error("Error fetching production definitions:", error);
-      setError("Failed to fetch production definitions");
-      setErrorDetails({ networkError: true, status: 0 });
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     } finally {
       setLoading(false);
     }
@@ -49,23 +53,18 @@ export default function SupervisorProductionDefinitionsPage() {
   const handleAddDefinition = async (definitionData) => {
     try {
       setFormError(null);
-      const response = await fetch("/api/production/definitions", {
+      const result = await apiCall("/api/production/definitions", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(definitionData),
       });
 
-      if (response.ok || response.status === 201) {
+      if (result.status === 200 || result.status === 201) {
         await fetchDefinitions();
         setShowModal(false);
       } else {
-        const errorData = await response.json();
-        setFormError(errorData.error || "Failed to add production definition");
+        setFormError(result.error || "Failed to add production definition");
       }
     } catch (error) {
-      console.error("Error adding production definition:", error);
       setFormError("Network error occurred");
     }
   };
@@ -144,9 +143,8 @@ export default function SupervisorProductionDefinitionsPage() {
                             <td>{definition.ratio}</td>
                             <td>
                               <span
-                                className={`badge ${
-                                  definition.status === "active" ? "bg-success" : "bg-secondary"
-                                }`}
+                                className={`badge ${definition.status === "active" ? "bg-success" : "bg-secondary"
+                                  }`}
                               >
                                 {definition.status}
                               </span>

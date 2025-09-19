@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button } from 'react-bootstrap';
-import { Item, Pricelist, Station } from '../types/types';
-import ViewItems from '../admin/menu/category/components/items/items-view';
+import React, { useState, useEffect } from "react";
+import { Card, Row, Col, Button } from "react-bootstrap";
+import { Item, Pricelist, Station } from "../types/types";
+import ViewItems from "../admin/menu/category/components/items/items-view";
 
 interface PricelistWithItems extends Pricelist {
     items: Item[];
@@ -19,6 +19,8 @@ interface PricelistManagerProps {
     onRefresh?: () => void;
     isAdmin?: boolean;
     className?: string;
+    highlightedItemId?: number | null;
+    onHighlightClear?: () => void;
 }
 
 const PricelistManager: React.FC<PricelistManagerProps> = ({
@@ -28,7 +30,9 @@ const PricelistManager: React.FC<PricelistManagerProps> = ({
     onAddItem,
     onRefresh,
     isAdmin = false,
-    className = ''
+    className = "",
+    highlightedItemId,
+    onHighlightClear
 }) => {
     const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -47,8 +51,11 @@ const PricelistManager: React.FC<PricelistManagerProps> = ({
         <Row className={className}>
             <Col md={4}>
                 <Card>
-                    <Card.Header>
-                        <h6 className="mb-0">Available Pricelists</h6>
+                    <Card.Header className="bg-primary text-white py-2">
+                        <h6 className="mb-0">
+                            <i className="bi bi-list-ul me-2"></i>
+                            Available Pricelists
+                        </h6>
                     </Card.Header>
                     <Card.Body className="p-0">
                         {pricelists.length === 0 ? (
@@ -60,12 +67,12 @@ const PricelistManager: React.FC<PricelistManagerProps> = ({
                                 {pricelists.map((pricelist, index) => (
                                     <button
                                         key={`${pricelist.id}-${index}`}
-                                        className={`list-group-item list-group-item-action ${selectedPricelist?.id === pricelist.id ? 'active' : ''}`}
+                                        className={`list-group-item list-group-item-action ${selectedPricelist?.id === pricelist.id ? "active" : ""}`}
                                         onClick={() => onPricelistSelect(pricelist)}
                                     >
                                         <div className="fw-bold">{pricelist.name}</div>
-                                        {pricelist.description && (
-                                            <div className="text-muted small">{pricelist.description}</div>
+                                        {(pricelist as any).description && (
+                                            <div className="text-muted small">{(pricelist as any).description}</div>
                                         )}
                                     </button>
                                 ))}
@@ -80,7 +87,7 @@ const PricelistManager: React.FC<PricelistManagerProps> = ({
                     <Card.Header>
                         <div className="d-flex justify-content-between align-items-center">
                             <h6 className="mb-0">
-                                {selectedPricelist ? selectedPricelist.name : 'Select a Pricelist'}
+                                {selectedPricelist ? selectedPricelist.name : "Select a Pricelist"}
                             </h6>
                             {isAdmin && selectedPricelist && (
                                 <div className="d-flex gap-2">
@@ -130,6 +137,8 @@ const PricelistManager: React.FC<PricelistManagerProps> = ({
                                 isPricelistSection={true}
                                 isCategoryItemsSection={false}
                                 onItemPick={() => { }} // Read-only for non-admin, controlled for admin
+                                highlightedItemId={highlightedItemId}
+                                onHighlightClear={onHighlightClear}
                             />
                         )}
                     </Card.Body>

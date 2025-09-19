@@ -7,7 +7,7 @@ import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 const PricelistCatalogPage = () => {
     return (
         <RoleAwareLayout>
-            <div>
+            <div className="container-fluid p-0">
                 <PricelistCatalog />
             </div>
         </RoleAwareLayout>

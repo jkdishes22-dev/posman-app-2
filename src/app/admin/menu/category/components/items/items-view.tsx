@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import EditItemModal from "./item-edit";
 import ItemDeleteModal from "./item-delete";
 import { Category, Item } from "../../../../../types/types";
 import { useApiCall } from "../../../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../../../utils/errorUtils";
 
 interface ViewItemsProps {
   selectedCategory: Category | null;
@@ -17,6 +18,8 @@ interface ViewItemsProps {
   isPricelistSection?: boolean;
   isCategoryItemsSection?: boolean;
   onItemPick?: (item: Item) => void;
+  highlightedItemId?: number | null;
+  onHighlightClear?: () => void;
 }
 
 const ViewItems: React.FC<ViewItemsProps> = ({
@@ -31,8 +34,9 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   isPricelistSection = false,
   isCategoryItemsSection = false,
   onItemPick,
+  highlightedItemId,
+  onHighlightClear,
 }) => {
-  const apiCall = useApiCall();
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
@@ -42,6 +46,20 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   const [activeTab, setActiveTab] = useState<"all" | "grouped" | "individual">("all");
   const [subItemsData, setSubItemsData] = useState<Record<number, any>>({});
   const [loadingSubItems, setLoadingSubItems] = useState<Set<number>>(new Set());
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
+
+  // Clear highlight after 3 seconds
+  useEffect(() => {
+    if (highlightedItemId && onHighlightClear) {
+      const timer = setTimeout(() => {
+        onHighlightClear();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedItemId, onHighlightClear]);
 
   // Remove duplicates and filter items
   const allItems = pricelistItems || items;
@@ -92,22 +110,30 @@ const ViewItems: React.FC<ViewItemsProps> = ({
 
     setLoadingSubItems(prev => new Set(prev).add(itemId));
 
-    const result = await apiCall(`/api/menu/items/${itemId}/sub-items`);
+    try {
+      const result = await apiCall(`/api/menu/items/${itemId}/sub-items`);
 
-    if (result.status === 200 && result.data?.success) {
-      setSubItemsData(prev => ({
-        ...prev,
-        [itemId]: result.data.data
-      }));
-    } else {
-      console.error("Failed to fetch sub-items:", result.error || "Unknown error");
+      if (result.status === 200 && result.data.success) {
+        setSubItemsData(prev => ({
+          ...prev,
+          [itemId]: result.data.data
+        }));
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to fetch sub-items");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    } finally {
+      setLoadingSubItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(itemId);
+        return newSet;
+      });
     }
-
-    setLoadingSubItems(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(itemId);
-      return newSet;
-    });
   };
 
   const toggleItemExpansion = (itemId: number) => {
@@ -171,17 +197,27 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                 />
                 {searchTerm && (
                   <button
-                    className="btn btn-outline-secondary btn-lg"
+                    className="btn btn-outline-danger btn-lg"
                     type="button"
                     onClick={() => setSearchTerm("")}
                     title="Clear search"
                     style={{
                       padding: '0.75rem 1rem',
                       borderRadius: '0.5rem',
-                      border: '2px solid #6c757d'
+                      border: '2px solid #dc3545',
+                      minWidth: '50px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#dc3545';
+                      e.currentTarget.style.color = 'white';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#dc3545';
                     }}
                   >
-                    <i className="bi bi-x"></i>
+                    <i className="bi bi-x-lg fs-5"></i>
                   </button>
                 )}
               </div>
@@ -253,7 +289,14 @@ const ViewItems: React.FC<ViewItemsProps> = ({
             {filteredItems.length > 0 ? (
               filteredItems.map((item) => (
                 <React.Fragment key={item.id}>
-                  <tr>
+                  <tr
+                    className={highlightedItemId === item.id ? "table-warning" : ""}
+                    style={highlightedItemId === item.id ? {
+                      backgroundColor: "#fff3cd",
+                      border: "2px solid #ffc107",
+                      animation: "highlight-pulse 1s ease-in-out"
+                    } : {}}
+                  >
                     <td>
                       <div className="d-flex align-items-center">
                         {Boolean(item.isGroup) && (

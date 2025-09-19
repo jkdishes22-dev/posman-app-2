@@ -1,5 +1,47 @@
 /* Material Design Theme - Clean & Consistent */
 
+/* Hamburger Menu Icon Styles */
+.hamburger-icon {
+    width: 20px;
+    height: 16px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+}
+
+.hamburger-icon span {
+    display: block;
+    height: 2px;
+    width: 100%;
+    background-color: currentColor;
+    border-radius: 1px;
+    transition: all 0.3s ease-in-out;
+}
+
+.hamburger-icon:hover span {
+    background-color: var(--md-primary, #1976d2);
+}
+
+/* Item Highlight Animation */
+@keyframes highlight-pulse {
+    0% {
+        background-color: #fff3cd;
+        transform: scale(1);
+    }
+
+    50% {
+        background-color: #ffeaa7;
+        transform: scale(1.02);
+    }
+
+    100% {
+        background-color: #fff3cd;
+        transform: scale(1);
+    }
+}
+
 /* Material Design Color Palette */
 :root {
     --md-primary: #1976d2;

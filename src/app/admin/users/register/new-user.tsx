@@ -1,9 +1,10 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { useApiCall } from "src/app/utils/apiUtils";
+import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
+import ErrorDisplay from "../../../components/ErrorDisplay";
 
 export default function NewUser({ onClose, onSave, error }) {
-  const apiCall = useApiCall();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
@@ -11,18 +12,29 @@ export default function NewUser({ onClose, onSave, error }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [roles, setRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState("");
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     fetchRoles();
   }, []);
 
   const fetchRoles = async () => {
-    const result = await apiCall("/api/roles");
-
-    if (result.status === 200) {
-      setRoles(result.data);
-    } else {
-      console.error("Error fetching roles:", result.error);
+    try {
+      const result = await apiCall("/api/roles");
+      if (result.status === 200) {
+        setRoles(result.data);
+        setFetchError(null);
+        setErrorDetails(null);
+      } else {
+        setFetchError(result.error || "Failed to fetch roles");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error: any) {
+      setFetchError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -55,7 +67,18 @@ export default function NewUser({ onClose, onSave, error }) {
             <h5 className="modal-title">Add new user</h5>
           </div>
           <div className="modal-body">
-            {error && <p style={{ color: "red" }}>{error}</p>}
+            <ErrorDisplay
+              error={error}
+              onDismiss={() => { }}
+            />
+            <ErrorDisplay
+              error={fetchError}
+              errorDetails={errorDetails}
+              onDismiss={() => {
+                setFetchError(null);
+                setErrorDetails(null);
+              }}
+            />
             <form>
               <div className="form-group row m-2">
                 <label htmlFor="firstName" className="col-sm-4 col-form-label">

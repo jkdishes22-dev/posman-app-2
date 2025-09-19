@@ -1,16 +1,13 @@
-import React, { useEffect, useState, ReactNode } from "react";
+import React, { useEffect, useState } from "react";
 import AdminLayout from "./AdminLayout";
 import SupervisorLayout from "./SupervisorLayout";
+import SalesLayout from "./SalesLayout";
+import CashierLayout from "./CashierLayout";
 import HomePageLayout from "./HomePageLayout";
 import CashierPageLayout from "./CashierPageLayout";
-import StoreKeeperPageLayout from "./StoreKeeperPageLayout";
 import jwt from "jsonwebtoken";
 
-interface RoleAwareLayoutProps {
-    children: ReactNode;
-}
-
-export default function RoleAwareLayout({ children }: RoleAwareLayoutProps) {
+export default function RoleAwareLayout({ children }) {
     const [role, setRole] = useState(null);
 
     useEffect(() => {
@@ -25,8 +22,7 @@ export default function RoleAwareLayout({ children }: RoleAwareLayoutProps) {
 
     if (role === "admin") return <AdminLayout authError={null}>{children}</AdminLayout>;
     if (role === "supervisor") return <SupervisorLayout authError={null}>{children}</SupervisorLayout>;
-    if (role === "sales") return <HomePageLayout>{children}</HomePageLayout>;
-    if (role === "cashier") return <CashierPageLayout>{children}</CashierPageLayout>;
-    if (role === "storekeeper") return <StoreKeeperPageLayout authError={null}>{children}</StoreKeeperPageLayout>;
+    if (role === "sales") return <SalesLayout authError={null}>{children}</SalesLayout>;
+    if (role === "cashier") return <CashierLayout authError={null}>{children}</CashierLayout>;
     return <HomePageLayout>{children}</HomePageLayout>;
 } 

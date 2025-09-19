@@ -15,9 +15,8 @@ import { CaptainOrderPrint, CustomerCopyPrint } from "../../shared/ReceiptPrint"
 import { printReceiptWithTimestamp, downloadReceiptAsFile } from "../../shared/printUtils";
 import ReactDOM from "react-dom/client";
 import { useApiCall } from "../../utils/apiUtils";
+import { ApiErrorResponse } from "../../utils/errorUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
-import ReopenedBillsNotification from "../../components/ReopenedBillsNotification";
-import EnhancedResubmitModal from "../../components/EnhancedResubmitModal";
 
 // Receipt component for printing
 const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
@@ -58,24 +57,21 @@ const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) 
 Receipt.displayName = "Receipt";
 
 const MySales = () => {
-  const apiCall = useApiCall();
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [bills, setBills] = useState([]);
   const [filteredBills, setFilteredBills] = useState([]);
   const [selectedBill, setSelectedBill] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+  const apiCall = useApiCall();
   const [billIdFilter, setBillIdFilter] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [error, setError] = useState<string>("");
   const [itemError, setItemError] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [total, setTotal] = useState(0);
   const [selectedBills, setSelectedBills] = useState<number[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("pending");
-  const [resubmitNotes, setResubmitNotes] = useState("");
-  const [showResubmitModal, setShowResubmitModal] = useState(false);
-  const [showEnhancedResubmitModal, setShowEnhancedResubmitModal] = useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
 
   const handleDateChange = (date) => {
@@ -89,127 +85,85 @@ const MySales = () => {
     setError("");
 
     if (filter === "") {
+      // When clearing bill ID filter, fetch bills with current date and status
       fetchBills(selectedDate, statusFilter);
     } else {
-      const filtered = bills.filter((bill: Bill) => bill.id.toString().includes(filter));
-      setFilteredBills(filtered);
-      if (filtered.length === 0) {
-        await fetchBillsByBillId(filter);
-      }
+      // When searching by bill ID, don't use date filter unless explicitly set
+      fetchBills(null, statusFilter, filter);
     }
   };
 
-  const fetchBills = async (date?: Date, status?: string) => {
+  const fetchBills = async (date?: Date, status?: string, billId?: string) => {
     let url = "/api/bills?";
     const params = [];
 
-    // For reopened bills, skip date and bill ID filters by default
-    if (status === "reopened") {
-      params.push(`status=${status}`);
-      params.push(`page=${page}`);
-      params.push(`pageSize=${pageSize}`);
-    } else {
-      // For other statuses, use today's date as default if no date is selected
-      if (date && !isNaN(new Date(date).getTime())) {
-        // Format date as YYYY-MM-DD without timezone conversion
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const formattedDate = `${year}-${month}-${day}`;
-        params.push(`date=${formattedDate}`);
-      } else if (status !== "reopened") {
-        // Default to today's date for non-reopened bills
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        const formattedDate = `${year}-${month}-${day}`;
-        params.push(`date=${formattedDate}`);
-      }
-
-      if (status && status !== "all") {
-        params.push(`status=${status}`);
-      }
-      if (billIdFilter) {
-        params.push(`billId=${billIdFilter}`);
-      }
-      params.push(`page=${page}`);
-      params.push(`pageSize=${pageSize}`);
+    // Only add date filter if date is provided and not today's default
+    if (date && !isNaN(new Date(date).getTime())) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
+      params.push(`date=${formattedDate}`);
     }
+
+    if (status && status !== "all") {
+      params.push(`status=${status}`);
+    }
+
+    if (billId && billId.trim()) {
+      params.push(`billId=${billId.trim()}`);
+    }
+
+    params.push(`page=${page}`);
+    params.push(`pageSize=${pageSize}`);
 
     if (params.length > 0) {
       url += params.join("&");
     }
+
     try {
       const result = await apiCall(url);
       if (result.status === 200) {
-        setBills(result.data.bills || []);
-        setFilteredBills(result.data.bills || []);
-        setTotal(result.data.total || 0);
-        setError(null);
-        setErrorDetails(null);
+        setBills(result.data?.bills || []);
+        setFilteredBills(result.data?.bills || []);
+        setTotal(result.data?.total || 0);
+        setError("");
       } else {
         setError(result.error || "Failed to fetch bills");
         setErrorDetails(result.errorDetails);
       }
-    } catch (error: any) {
+    } catch (error) {
       setError("Network error occurred");
-      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+      setErrorDetails({ networkError: true, status: 0 });
     }
   };
 
   const fetchBillsByBillId = async (billId: number) => {
     try {
       const result = await apiCall(`/api/bills?billId=${billId}`);
-
       if (result.status === 200) {
-        if (!result.data.bills || result.data.bills.length === 0) {
+        if (!result.data?.bills || result.data.bills.length === 0) {
           setError("No bill found with that ID");
-          setErrorDetails(null);
           setFilteredBills([]);
           return;
         }
         setBills(result.data.bills);
         setFilteredBills(result.data.bills);
-        setError(null);
-        setErrorDetails(null);
+        setError("");
       } else {
-        setError("No bill found with that ID");
+        setError(result.error || "No bill found with that ID");
         setErrorDetails(result.errorDetails);
         setFilteredBills([]);
       }
-    } catch (error: any) {
+    } catch (error) {
       setError("Network error occurred");
-      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+      setErrorDetails({ networkError: true, status: 0 });
+      setFilteredBills([]);
     }
   };
 
   const handleBillClick = (bill: number) => {
     setSelectedBill(bill);
-  };
-
-  const handleNotificationBillClick = async (billId: number) => {
-    // Find the bill in the current bills list
-    const bill = bills.find(b => b.id === billId);
-    if (bill) {
-      setSelectedBill(bill);
-      setStatusFilter("reopened");
-      // Fetch reopened bills to ensure we have the latest data
-      await fetchBills(undefined, "reopened");
-    } else {
-      // If bill not found in current list, fetch it specifically
-      try {
-        const result = await apiCall(`/api/bills?billId=${billId}`);
-        if (result.status === 200 && result.data.bills && result.data.bills.length > 0) {
-          setSelectedBill(result.data.bills[0]);
-          setStatusFilter("reopened");
-          await fetchBills(undefined, "reopened");
-        }
-      } catch (error) {
-        setError("Failed to load bill details");
-        setErrorDetails({ message: "Failed to load bill details", networkError: true, status: 0 });
-      }
-    }
   };
 
   const openSubmitModal = () => {
@@ -236,42 +190,6 @@ const MySales = () => {
       ),
     );
     setSelectedBill(updatedBill);
-  };
-
-  const handleResubmitBill = async (billId: number) => {
-    try {
-      const result = await apiCall(`/api/bills/${billId}/resubmit`, {
-        method: "POST",
-        body: JSON.stringify({
-          notes: resubmitNotes
-        })
-      });
-
-      if (result.status === 200) {
-        // Update the bill status in the local state
-        setBills((prevBills) =>
-          prevBills.map((bill) =>
-            bill.id === billId
-              ? { ...bill, status: "submitted", reopen_reason: null, reopened_by: null, reopened_at: null }
-              : bill
-          )
-        );
-
-        // Refresh the filtered bills
-        fetchBills(selectedDate, statusFilter);
-
-        setShowResubmitModal(false);
-        setResubmitNotes("");
-        setSelectedBill(null);
-        alert("Bill resubmitted successfully");
-      } else {
-        setError(result.error || "Failed to resubmit bill");
-        setErrorDetails(result.errorDetails);
-      }
-    } catch (error) {
-      setError("Network error occurred");
-      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
-    }
   };
 
   // Checkbox handlers
@@ -332,10 +250,9 @@ const MySales = () => {
   };
 
   useEffect(() => {
-    if (selectedDate) {
-      fetchBills(selectedDate, statusFilter);
-    }
-  }, [selectedDate, statusFilter]);
+    // Always fetch bills when date, status, billId, or page changes
+    fetchBills(selectedDate, statusFilter, billIdFilter);
+  }, [selectedDate, statusFilter, billIdFilter, page]);
 
   // Clear selectedBill when filters change
   useEffect(() => {
@@ -345,17 +262,17 @@ const MySales = () => {
   return (
     <RoleAwareLayout>
       <SecureRoute roleRequired="sales">
-        <div className="container">
+        <div className="container-fluid p-0">
           {/* Filter row */}
           <div className="row">
             <div className="col-12">
-              <div className="card shadow-sm p-3 mb-3 bg-light border-primary filter-card">
-                <h5 className="card-title text-primary mb-3">Filter My Sales</h5>
-                <div className="row g-3 align-items-end">
+              <div className="card shadow-sm p-1 mb-1 bg-light border-primary filter-card">
+                <h5 className="card-title text-primary mb-1">Filter My Sales</h5>
+                <div className="row g-1 align-items-end">
                   <div className="col-md-4">
                     <div className="form-group">
                       <label htmlFor="filterDate" className="form-label">Billing Date</label>
-                      <div>
+                      <div className="d-flex">
                         <DatePicker
                           selected={selectedDate}
                           onChange={handleDateChange}
@@ -365,6 +282,16 @@ const MySales = () => {
                           maxDate={new Date()}
                           isClearable
                         />
+                        {selectedDate && (
+                          <button
+                            type="button"
+                            className="btn btn-outline-secondary btn-sm ms-2"
+                            onClick={() => handleDateChange(null)}
+                            title="Clear date filter"
+                          >
+                            <i className="bi bi-x"></i>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -384,36 +311,36 @@ const MySales = () => {
                     </div>
                   </div>
                   <div className="col-md-4 d-flex align-items-end">
-                    <div className="btn-group w-100 flex-wrap" role="group" aria-label="Filter actions">
+                    <div className="btn-group w-100" role="group" aria-label="Filter actions">
                       <button
-                        className={`btn btn-outline-primary btn-sm${statusFilter === "pending" ? " active" : ""}`}
+                        className={`btn btn-outline-primary${statusFilter === "pending" ? " active" : ""}`}
                         onClick={() => setStatusFilter("pending")}
                       >
                         Pending
                       </button>
                       <button
-                        className={`btn btn-outline-primary btn-sm${statusFilter === "submitted" ? " active" : ""}`}
+                        className={`btn btn-outline-primary${statusFilter === "submitted" ? " active" : ""}`}
                         onClick={() => setStatusFilter("submitted")}
                       >
                         Submitted
                       </button>
                       <button
-                        className={`btn btn-outline-primary btn-sm${statusFilter === "reopened" ? " active" : ""}`}
-                        onClick={() => setStatusFilter("reopened")}
-                      >
-                        Reopened
-                      </button>
-                      <button
-                        className={`btn btn-outline-primary btn-sm${statusFilter === "closed" ? " active" : ""}`}
+                        className={`btn btn-outline-primary${statusFilter === "closed" ? " active" : ""}`}
                         onClick={() => setStatusFilter("closed")}
                       >
                         Closed
                       </button>
                       <button
-                        className={`btn btn-outline-primary btn-sm${statusFilter === "voided" ? " active" : ""}`}
+                        className={`btn btn-outline-primary${statusFilter === "voided" ? " active" : ""}`}
                         onClick={() => setStatusFilter("voided")}
                       >
                         Voided
+                      </button>
+                      <button
+                        className={`btn btn-outline-primary${statusFilter === "reopened" ? " active" : ""}`}
+                        onClick={() => setStatusFilter("reopened")}
+                      >
+                        Reopened
                       </button>
                     </div>
                   </div>
@@ -421,14 +348,10 @@ const MySales = () => {
               </div>
             </div>
           </div>
-
-          {/* Reopened Bills Notification */}
-          <ReopenedBillsNotification onBillClick={handleNotificationBillClick} />
-
           {/* Bills and details row */}
           <div className="row">
             <div className="col-5">
-              <div className="mb-2">
+              <div className="mb-1">
                 <Button
                   variant="success"
                   size="sm"
@@ -439,11 +362,22 @@ const MySales = () => {
                 </Button>
               </div>
               <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
+                {error && (
+                  <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                    {error}
+                    <button
+                      type="button"
+                      className="btn-close"
+                      aria-label="Close"
+                      onClick={() => setError("")}
+                      style={{ float: "right" }}
+                    ></button>
+                  </div>
+                )}
                 <ErrorDisplay
-                  error={error}
+                  error={errorDetails?.message || null}
                   errorDetails={errorDetails}
                   onDismiss={() => {
-                    setError(null);
                     setErrorDetails(null);
                   }}
                 />
@@ -488,7 +422,7 @@ const MySales = () => {
                           <td>{bill.id}</td>
                           <td>{bill.status}</td>
                           <td>KES {bill.total}</td>
-                          <td>{bill.created_at}</td>
+                          <td>{new Date(bill.created_at).toLocaleString()}</td>
                           <td>
                             {bill.status === "pending" ? (
                               <Button
@@ -497,17 +431,6 @@ const MySales = () => {
                                 onClick={() => handleBillClick(bill)}
                               >
                                 Submit
-                              </Button>
-                            ) : bill.status === "reopened" ? (
-                              <Button
-                                variant="warning"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedBill(bill);
-                                  setShowEnhancedResubmitModal(true);
-                                }}
-                              >
-                                Resubmit
                               </Button>
                             ) : (
                               <Button
@@ -540,16 +463,11 @@ const MySales = () => {
               {selectedBill ? (
                 <div>
                   <div className="card">
-                    <ErrorDisplay
-                      error={error}
-                      errorDetails={errorDetails}
-                      onDismiss={() => {
-                        setError(null);
-                        setErrorDetails(null);
-                      }}
-                    />
+                    {error && (
+                      <p className="text-danger">{error}</p>
+                    )}
                     <div className="card-body">
-                      <div className="d-flex justify-content-between align-items-center mb-2">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
                         {selectedBill.status === "pending" ? (
                           <Button
                             className="m-2"
@@ -558,25 +476,6 @@ const MySales = () => {
                           >
                             Submit Bill (KES: {selectedBill.total})
                           </Button>
-                        ) : selectedBill.status === "reopened" ? (
-                          <div className="d-flex flex-column">
-                            <div className="alert alert-warning mb-2">
-                              <strong>Bill Reopened</strong>
-                              {selectedBill.reopen_reason && (
-                                <div>Reason: {selectedBill.reopen_reason}</div>
-                              )}
-                              {selectedBill.reopened_at && (
-                                <div>Reopened: {new Date(selectedBill.reopened_at).toLocaleString()}</div>
-                              )}
-                            </div>
-                            <Button
-                              className="m-2"
-                              variant="warning"
-                              onClick={() => setShowEnhancedResubmitModal(true)}
-                            >
-                              Resubmit Bill (KES: {selectedBill.total})
-                            </Button>
-                          </div>
                         ) : (
                           <span className="text-success">
                             Bill is {selectedBill.status} <strong> Total: {selectedBill.total} </strong>
@@ -636,6 +535,102 @@ const MySales = () => {
                       </table>
                     </div>
                   </div>
+
+                  {/* Clear Separation Line */}
+                  <hr className="my-4" />
+
+                  {/* Payment Details Section - Only show for submitted/closed bills */}
+                  {(selectedBill.status === "submitted" || selectedBill.status === "closed") && selectedBill.bill_payments && selectedBill.bill_payments.length > 0 && (
+                    <div className="mt-4">
+                      <h6 className="fw-bold text-secondary mb-3">
+                        <i className="bi bi-credit-card me-2"></i>
+                        Payment Details
+                      </h6>
+                      <div className="card bg-light">
+                        <div className="card-body p-3">
+                          {(() => {
+                            const totalPaid = selectedBill.bill_payments.reduce(
+                              (sum, billPayment) => sum + billPayment.payment.creditAmount,
+                              0
+                            );
+                            const billTotal = selectedBill.total;
+                            const amountDifference = totalPaid - billTotal;
+                            const isFullyPaid = billTotal === totalPaid;
+
+                            return (
+                              <div>
+                                {/* Payment Summary - Compact */}
+                                <div className="row mb-3">
+                                  <div className="col-md-4">
+                                    <div className="text-center p-2 bg-white rounded">
+                                      <div className="small text-muted">Bill Total</div>
+                                      <div className="fw-bold">KES {billTotal}</div>
+                                    </div>
+                                  </div>
+                                  <div className="col-md-4">
+                                    <div className="text-center p-2 bg-white rounded">
+                                      <div className="small text-muted">Total Paid</div>
+                                      <div className={`fw-bold ${isFullyPaid ? "text-success" : "text-warning"}`}>
+                                        KES {totalPaid}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="col-md-4">
+                                    <div className="text-center p-2 bg-white rounded">
+                                      <div className="small text-muted">Balance</div>
+                                      <div className={`fw-bold ${amountDifference === 0 ? "text-success" : amountDifference > 0 ? "text-info" : "text-danger"}`}>
+                                        {amountDifference === 0 ? "Fully Paid" : `KES ${amountDifference > 0 ? "+" : ""}${amountDifference}`}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Payment History Table */}
+                                <div className="mt-3">
+                                  <h6 className="small text-muted mb-2">Payment History</h6>
+                                  <div className="table-responsive">
+                                    <table className="table table-sm">
+                                      <thead className="table-light">
+                                        <tr>
+                                          <th>Payment Method</th>
+                                          <th>Amount</th>
+                                          <th>Reference</th>
+                                          <th>Date & Time</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {selectedBill.bill_payments.map((billPayment) => (
+                                          <tr key={billPayment.id}>
+                                            <td>
+                                              <div className="d-flex align-items-center">
+                                                <i className={`bi ${billPayment.payment.paymentType === 'MPESA' ? 'bi-phone text-success' : 'bi-cash text-primary'} me-2`}></i>
+                                                <span className="fw-semibold">{billPayment.payment.paymentType}</span>
+                                              </div>
+                                            </td>
+                                            <td className="fw-semibold">KES {billPayment.payment.creditAmount}</td>
+                                            <td>
+                                              {billPayment.payment.reference ? (
+                                                <code className="small">{billPayment.payment.reference}</code>
+                                              ) : (
+                                                <span className="text-muted">-</span>
+                                              )}
+                                            </td>
+                                            <td className="text-muted small">
+                                              {new Date(billPayment.created_at).toLocaleString()}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p>Select a bill to see the items</p>
@@ -647,87 +642,6 @@ const MySales = () => {
             onHide={closeModal}
             selectedBill={selectedBill}
             onBillSubmitted={handleBillSubmitted}
-          />
-
-          {/* Resubmit Modal */}
-          {showResubmitModal && selectedBill && (
-            <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-              <div className="modal-dialog modal-lg">
-                <div className="modal-content">
-                  <div className="modal-header">
-                    <h5 className="modal-title">
-                      <i className="bi bi-arrow-clockwise me-2"></i>
-                      Resubmit Bill #{selectedBill.id}
-                    </h5>
-                    <button
-                      type="button"
-                      className="btn-close"
-                      onClick={() => {
-                        setShowResubmitModal(false);
-                        setResubmitNotes("");
-                      }}
-                    ></button>
-                  </div>
-                  <div className="modal-body">
-                    <div className="row">
-                      <div className="col-md-6">
-                        <h6>Bill Information</h6>
-                        <p><strong>Total:</strong> KES {selectedBill.total}</p>
-                        <p><strong>Status:</strong> {selectedBill.status}</p>
-                        {selectedBill.reopen_reason && (
-                          <p><strong>Reopen Reason:</strong> {selectedBill.reopen_reason}</p>
-                        )}
-                        {selectedBill.reopened_at && (
-                          <p><strong>Reopened At:</strong> {new Date(selectedBill.reopened_at).toLocaleString()}</p>
-                        )}
-                      </div>
-                      <div className="col-md-6">
-                        <h6>Resubmit Notes</h6>
-                        <textarea
-                          className="form-control"
-                          rows={4}
-                          value={resubmitNotes}
-                          onChange={(e) => setResubmitNotes(e.target.value)}
-                          placeholder="Add notes about the changes made to fix the bill..."
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => {
-                        setShowResubmitModal(false);
-                        setResubmitNotes("");
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-warning"
-                      onClick={() => handleResubmitBill(selectedBill.id)}
-                    >
-                      <i className="bi bi-check-circle me-1"></i>
-                      Resubmit Bill
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Enhanced Resubmit Modal */}
-          <EnhancedResubmitModal
-            show={showEnhancedResubmitModal}
-            onHide={() => setShowEnhancedResubmitModal(false)}
-            bill={selectedBill}
-            onResubmitted={() => {
-              setShowEnhancedResubmitModal(false);
-              // Refresh the bills list
-              fetchBills(selectedDate, statusFilter);
-            }}
           />
         </div>
       </SecureRoute>

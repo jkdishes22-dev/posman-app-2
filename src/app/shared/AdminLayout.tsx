@@ -16,34 +16,119 @@ interface AdminLayoutProps {
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeItem, setActiveItem] = useState("");
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+  const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
   const { user, logout } = useAuth();
   const { currentStation } = useStation();
   const router = useRouter();
 
   useEffect(() => {
-    // Set active item based on current path
+    // Set active item and breadcrumbs based on current path
     const path = window.location.pathname;
+    let activeItemId = "";
+    let breadcrumbItems: Array<{ label: string, path: string }> = [];
+    const expandedMenuIds: string[] = [];
+
+    // Dashboard
     if (path.includes("/admin") && !path.includes("/admin/")) {
-      setActiveItem("dashboard");
-    } else if (path.includes("/admin/users/view")) {
-      setActiveItem("users-view");
-    } else if (path.includes("/admin/users/permission")) {
-      setActiveItem("users-permission");
-    } else if (path.includes("/admin/users/register")) {
-      setActiveItem("users-register");
-    } else if (path.includes("/admin/station")) {
-      setActiveItem("stations");
-    } else if (path.includes("/admin/menu/category")) {
-      setActiveItem("menu-category");
-    } else if (path.includes("/admin/menu/pricelist")) {
-      setActiveItem("menu-pricelist");
-    } else if (path.includes("/admin/production/items")) {
-      setActiveItem("production-items");
-    } else if (path.includes("/admin/production/definitions")) {
-      setActiveItem("production-definitions");
-    } else if (path.includes("/admin/bill")) {
-      setActiveItem("bills");
+      activeItemId = "dashboard";
+      breadcrumbItems = [{ label: "Dashboard", path: "/admin" }];
     }
+    // Users section
+    else if (path.includes("/admin/users")) {
+      expandedMenuIds.push("users");
+      if (path.includes("/admin/users/view")) {
+        activeItemId = "users-view";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Users", path: "/admin/users" },
+          { label: "View Users", path: "/admin/users/view" }
+        ];
+      } else if (path.includes("/admin/users/permission")) {
+        activeItemId = "users-permission";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Users", path: "/admin/users" },
+          { label: "Roles & Permissions", path: "/admin/users/permission" }
+        ];
+      } else if (path.includes("/admin/users/register")) {
+        activeItemId = "users-register";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Users", path: "/admin/users" },
+          { label: "Register User", path: "/admin/users/register" }
+        ];
+      }
+    }
+    // Configuration section
+    else if (path.includes("/admin/station")) {
+      expandedMenuIds.push("configuration");
+      if (path.includes("/admin/station") && !path.includes("/admin/station/user")) {
+        activeItemId = "stations";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Configuration", path: "/admin/configuration" },
+          { label: "Stations", path: "/admin/station" }
+        ];
+      } else if (path.includes("/admin/station/user")) {
+        activeItemId = "station-users";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Configuration", path: "/admin/configuration" },
+          { label: "Station Users", path: "/admin/station/user" }
+        ];
+      }
+    }
+    // Menu & Pricing section
+    else if (path.includes("/admin/menu")) {
+      expandedMenuIds.push("menu-pricing");
+      if (path.includes("/admin/menu/category")) {
+        activeItemId = "menu-category";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Menu & Pricing", path: "/admin/menu" },
+          { label: "Categories", path: "/admin/menu/category" }
+        ];
+      } else if (path.includes("/admin/menu/pricelist")) {
+        activeItemId = "menu-pricelist";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Menu & Pricing", path: "/admin/menu" },
+          { label: "Pricelists", path: "/admin/menu/pricelist" }
+        ];
+      }
+    }
+    // Production section
+    else if (path.includes("/admin/production")) {
+      expandedMenuIds.push("production");
+      if (path.includes("/admin/production/items")) {
+        activeItemId = "production-items";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Production", path: "/admin/production" },
+          { label: "Stock Menu Items", path: "/admin/production/items" }
+        ];
+      } else if (path.includes("/admin/production/definitions")) {
+        activeItemId = "production-definitions";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Production", path: "/admin/production" },
+          { label: "Ratio Definition", path: "/admin/production/definitions" }
+        ];
+      }
+    }
+    // Bills section
+    else if (path.includes("/admin/bill")) {
+      activeItemId = "bills";
+      breadcrumbItems = [
+        { label: "Dashboard", path: "/admin" },
+        { label: "Bills", path: "/admin/bill" }
+      ];
+    }
+
+    setActiveItem(activeItemId);
+    setBreadcrumbs(breadcrumbItems);
+    setExpandedMenus(expandedMenuIds);
   }, []);
 
   const menuItems = [
@@ -178,6 +263,18 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
     router.push(path);
   };
 
+  const toggleMenu = (menuId: string) => {
+    setExpandedMenus(prev =>
+      prev.includes(menuId)
+        ? prev.filter(id => id !== menuId)
+        : [...prev, menuId]
+    );
+  };
+
+  const handleBreadcrumbClick = (path: string) => {
+    router.push(path);
+  };
+
   return (
     <div className="d-flex vh-100">
       {/* Sidebar */}
@@ -194,38 +291,40 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         <div className="p-3 border-bottom border-secondary">
           <div className="d-flex align-items-center">
             {!isCollapsed && (
-              <div>
-                <h5 className="mb-0 text-white">Admin Panel</h5>
-                <small className="text-muted">System Administration</small>
+              <div className="flex-grow-1">
+                <div className="fw-bold text-white">{user?.firstname} {user?.lastname}</div>
+                <small className="text-muted">Administrator</small>
               </div>
             )}
             <button
-              className="btn btn-link text-white ms-auto p-1"
+              className="btn btn-outline-light ms-auto p-2"
               onClick={() => setIsCollapsed(!isCollapsed)}
+              style={{
+                border: "1px solid rgba(255,255,255,0.3)",
+                borderRadius: "6px",
+                minWidth: "36px",
+                minHeight: "36px"
+              }}
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
-              <i className={`bi ${isCollapsed ? "bi-chevron-right" : "bi-chevron-left"}`}></i>
+              <div className="hamburger-icon">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
             </button>
           </div>
         </div>
 
-        {/* User Info */}
+
+        {/* Separator and Navigation Label */}
         {!isCollapsed && (
-          <div className="p-3 border-bottom border-secondary">
-            <div className="d-flex align-items-center">
-              <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3"
-                style={{ width: "40px", height: "40px" }}>
-                <i className="bi bi-person-fill text-white"></i>
-              </div>
-              <div>
-                <div className="fw-bold">{user?.firstname} {user?.lastname}</div>
-                <small className="text-muted">Administrator</small>
-              </div>
+          <div className="px-3 pb-2">
+            <hr className="text-white-50 mb-2" />
+            <div className="text-muted small fw-semibold text-uppercase">
+              <i className="bi bi-list-ul me-1"></i>
+              Navigation
             </div>
-            {currentStation && (
-              <div className="mt-2">
-                <small className="text-muted">Station: {currentStation.name}</small>
-              </div>
-            )}
           </div>
         )}
 
@@ -235,46 +334,48 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
             {menuItems.map((item) => (
               <li key={item.id} className="nav-item mb-2">
                 {item.submenu ? (
-                  <div className="dropdown">
+                  <div>
                     <button
-                      className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""
-                        }`}
+                      className={`nav-link w-100 text-start d-flex align-items-center ${expandedMenus.includes(item.id) ? "active" : ""}`}
+                      onClick={() => toggleMenu(item.id)}
                       style={{
-                        background: activeItem === item.id ? "var(--bs-primary)" : "transparent",
+                        background: expandedMenus.includes(item.id) ? "var(--bs-primary)" : "transparent",
                         border: "none",
-                        color: activeItem === item.id ? "white" : "rgba(255,255,255,0.8)",
+                        color: expandedMenus.includes(item.id) ? "white" : "rgba(255,255,255,0.8)",
                       }}
-                      data-bs-toggle="dropdown"
-                      aria-expanded="false"
                     >
                       <i className={`bi ${item.icon} me-3`}></i>
                       {!isCollapsed && <span>{item.label}</span>}
-                      {!isCollapsed && <i className="bi bi-chevron-down ms-auto"></i>}
+                      {!isCollapsed && (
+                        <i className={`bi ${expandedMenus.includes(item.id) ? "bi-chevron-up" : "bi-chevron-down"} ms-auto`}></i>
+                      )}
                     </button>
-                    <ul className="dropdown-menu dropdown-menu-dark">
-                      {item.submenu.map((subItem) => (
-                        <li key={subItem.id}>
-                          <button
-                            className={`dropdown-item d-flex align-items-center ${activeItem === subItem.id ? "active" : ""
-                              }`}
-                            onClick={() => handleItemClick(subItem.id, subItem.path)}
-                            style={{
-                              background: activeItem === subItem.id ? "var(--bs-primary)" : "transparent",
-                              border: "none",
-                              color: activeItem === subItem.id ? "white" : "rgba(255,255,255,0.8)",
-                            }}
-                          >
-                            <i className={`bi ${subItem.icon} me-2`}></i>
-                            {subItem.label}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                    {expandedMenus.includes(item.id) && !isCollapsed && (
+                      <ul className="nav nav-pills flex-column ms-3 mt-2">
+                        {item.submenu.map((subItem) => (
+                          <li key={subItem.id} className="nav-item mb-1">
+                            <button
+                              className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === subItem.id ? "active" : ""}`}
+                              onClick={() => handleItemClick(subItem.id, subItem.path)}
+                              style={{
+                                background: activeItem === subItem.id ? "var(--bs-primary)" : "transparent",
+                                border: "none",
+                                color: activeItem === subItem.id ? "white" : "rgba(255,255,255,0.8)",
+                                fontSize: "0.9rem",
+                                padding: "0.5rem 0.75rem",
+                              }}
+                            >
+                              <i className={`bi ${subItem.icon} me-2`}></i>
+                              {subItem.label}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 ) : (
                   <button
-                    className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""
-                      }`}
+                    className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""}`}
                     onClick={() => handleItemClick(item.id, item.path)}
                     style={{
                       background: activeItem === item.id ? "var(--bs-primary)" : "transparent",
@@ -291,18 +392,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           </ul>
         </nav>
 
-        {/* Station Switcher */}
-        {!isCollapsed && currentStation && (
-          <div className="p-3 border-top border-secondary">
-            <div className="mb-2">
-              <small className="text-muted text-uppercase fw-semibold">
-                <i className="bi bi-geo-alt me-1"></i>
-                Current Station
-              </small>
-            </div>
-            <StationSwitcher showLabel={false} size="sm" />
-          </div>
-        )}
 
         {/* Logout */}
         <div className="p-3 border-top border-secondary">
@@ -316,19 +405,32 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom">
           <div className="container-fluid">
             <div className="d-flex align-items-center">
-              <button
-                className="btn btn-link me-3"
-                onClick={() => setIsCollapsed(!isCollapsed)}
-              >
-                <i className="bi bi-list"></i>
-              </button>
-              <h4 className="mb-0">Administration Dashboard</h4>
+              <h4 className="mb-0 me-3">Dashboard</h4>
+              {/* Breadcrumbs */}
+              {breadcrumbs.length > 1 && (
+                <nav aria-label="breadcrumb">
+                  <ol className="breadcrumb mb-0">
+                    {breadcrumbs.map((crumb, index) => (
+                      <li key={index} className={`breadcrumb-item ${index === breadcrumbs.length - 1 ? "active" : ""}`}>
+                        {index === breadcrumbs.length - 1 ? (
+                          crumb.label
+                        ) : (
+                          <button
+                            className="btn btn-link p-0 text-decoration-none"
+                            onClick={() => handleBreadcrumbClick(crumb.path)}
+                            style={{ color: "var(--bs-primary)" }}
+                          >
+                            {crumb.label}
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </nav>
+              )}
             </div>
 
             <div className="d-flex align-items-center">
-              <span className="text-muted me-3">
-                Welcome, {user?.firstname} {user?.lastname}
-              </span>
 
               {/* Profile Dropdown */}
               <div className="dropdown">

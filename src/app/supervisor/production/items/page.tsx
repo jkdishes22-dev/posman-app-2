@@ -4,6 +4,8 @@ import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
 import { Button } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import { useApiCall } from "../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
 
 interface InventoryItem {
   id: number;
@@ -17,9 +19,11 @@ export default function SupervisorProductionItemsPage() {
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     fetchInventoryItems();
@@ -31,16 +35,16 @@ export default function SupervisorProductionItemsPage() {
       setError(null);
       setErrorDetails(null);
 
-      const response = await fetch("/api/production/items");
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await apiCall("/api/production/items");
+      if (result.status === 200) {
+        setInventoryItems(result.data.items || []);
+      } else {
+        setError(result.error || "Failed to fetch inventory items");
+        setErrorDetails(result.errorDetails);
       }
-      const data = await response.json();
-      setInventoryItems(data.items || []);
     } catch (error) {
-      console.error("Error fetching inventory items:", error);
-      setError("Failed to fetch inventory items");
-      setErrorDetails({ networkError: true, status: 0 });
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     } finally {
       setLoading(false);
     }
@@ -49,23 +53,18 @@ export default function SupervisorProductionItemsPage() {
   const handleAddInventoryItem = async (itemData) => {
     try {
       setFormError(null);
-      const response = await fetch("/api/production/items", {
+      const result = await apiCall("/api/production/items", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(itemData),
       });
 
-      if (response.ok || response.status === 201) {
+      if (result.status === 200 || result.status === 201) {
         await fetchInventoryItems();
         setShowModal(false);
       } else {
-        const errorData = await response.json();
-        setFormError(errorData.error || "Failed to add inventory item");
+        setFormError(result.error || "Failed to add inventory item");
       }
     } catch (error) {
-      console.error("Error adding inventory item:", error);
       setFormError("Network error occurred");
     }
   };
@@ -142,9 +141,8 @@ export default function SupervisorProductionItemsPage() {
                             <td>{item.code}</td>
                             <td>
                               <span
-                                className={`badge ${
-                                  item.isStock ? "bg-success" : "bg-secondary"
-                                }`}
+                                className={`badge ${item.isStock ? "bg-success" : "bg-secondary"
+                                  }`}
                               >
                                 {item.isStock ? "Active" : "Inactive"}
                               </span>

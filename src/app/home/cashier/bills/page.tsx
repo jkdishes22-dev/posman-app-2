@@ -461,6 +461,12 @@ const CashierBillsPage = () => {
                     </button>
                     <button
                       className="btn btn-outline-primary btn-sm"
+                      onClick={() => handleFilterChange("status", "reopened")}
+                    >
+                      Reopened
+                    </button>
+                    <button
+                      className="btn btn-outline-primary btn-sm"
                       onClick={() => handleFilterChange("status", "all")}
                     >
                       All

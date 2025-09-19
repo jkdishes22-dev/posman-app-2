@@ -9,8 +9,9 @@ import {
 } from "react-bootstrap";
 import AsyncSelect from "react-select/async";
 import { Item } from "src/app/types/types";
-import { useApiCall } from "../../../../../../utils/apiUtils";
-import ErrorDisplay from "../../../../../../components/ErrorDisplay";
+import { useApiCall } from "../../../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../../../utils/errorUtils";
+import ErrorDisplay from "../../../../../components/ErrorDisplay";
 
 interface AddGroupItemModalProps {
   isModalOpen: boolean;
@@ -30,13 +31,14 @@ const AddGroupItemModal = ({
   selectedGroupName,
   addItemToGroup,
 }: AddGroupItemModalProps) => {
-  const apiCall = useApiCall();
   const [selectedItem, setSelectedItem] = useState<ItemOption | null>(null);
   const [portionSize, setPortionSize] = useState<number | null>(null);
   const [initialItems, setInitialItems] = useState<ItemOption[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   // Load initial items when modal opens
   useEffect(() => {
@@ -51,21 +53,29 @@ const AddGroupItemModal = ({
 
   const loadInitialItems = async () => {
     setIsLoading(true);
-    const result = await apiCall(`/api/menu/items?search=a&excludeGrouped=true`);
-
-    if (result.status === 200) {
-      const items = result.data.slice(0, 20).map((item: Item) => ({
-        label: item.name,
-        value: item.id,
-      }));
-      setInitialItems(items);
-    } else {
-      setError(result.error || "Failed to fetch items");
-      setErrorDetails(result.errorDetails);
+    try {
+      // Use a generic search term to get initial items
+      const result = await apiCall(`/api/menu/items?search=a&excludeGrouped=true`);
+      if (result.status === 200) {
+        const items = result.data.slice(0, 20).map((item: Item) => ({
+          label: item.name,
+          value: item.id,
+        }));
+        setInitialItems(items);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to fetch items");
+        setErrorDetails(result.errorDetails);
+        setInitialItems([]);
+      }
+    } catch (error: any) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setInitialItems([]);
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   const fetchModalItems = async (inputValue: string) => {
@@ -81,18 +91,24 @@ const AddGroupItemModal = ({
       );
     }
 
-    const result = await apiCall(
-      `/api/menu/items?search=${encodeURIComponent(inputValue)}&excludeGrouped=true`
-    );
-
-    if (result.status === 200) {
-      return result.data.map((item: Item) => ({
-        label: item.name,
-        value: item.id,
-      }));
-    } else {
-      setError(result.error || "Failed to fetch items");
-      setErrorDetails(result.errorDetails);
+    try {
+      const excludeGrouped = true;
+      const result = await apiCall(
+        `/api/menu/items?search=${encodeURIComponent(inputValue)}&excludeGrouped=${excludeGrouped}`
+      );
+      if (result.status === 200) {
+        return result.data.map((item: Item) => ({
+          label: item.name,
+          value: item.id,
+        }));
+      } else {
+        setError(result.error || "Failed to fetch items");
+        setErrorDetails(result.errorDetails);
+        return [];
+      }
+    } catch (error: any) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       return [];
     }
   };

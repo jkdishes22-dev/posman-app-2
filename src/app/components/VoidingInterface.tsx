@@ -48,8 +48,8 @@ export default function VoidingInterface({
 
     // Business rule validation (Rule 4.3)
     const canVoidItems = (bill: Bill) => {
-        return (bill.status === 'submitted' || bill.status === 'reopened') && 
-               bill.bill_items?.some(item => item.item_status === 'active') || false;
+        return (bill.status === 'submitted' || bill.status === 'reopened') &&
+            bill.bill_items?.some(item => item.item_status === 'active') || false;
     };
 
     const hasPendingVoids = (bill: Bill) => {
@@ -90,7 +90,7 @@ export default function VoidingInterface({
             }
         } catch (error) {
             setError("Network error occurred");
-            setErrorDetails({ networkError: true, status: 0 });
+            setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         }
     };
 
@@ -116,7 +116,7 @@ export default function VoidingInterface({
             }
         } catch (error) {
             setError("Network error occurred");
-            setErrorDetails({ networkError: true, status: 0 });
+            setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         }
     };
 
@@ -160,16 +160,16 @@ export default function VoidingInterface({
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-              <tbody>
-                {bill.bill_items?.map((item) => (
+                            <tbody>
+                                {bill.bill_items?.map((item) => (
                                     <tr key={item.id}>
                                         <td>{item.item.name}</td>
                                         <td>{item.quantity}</td>
                                         <td>${item.subtotal.toFixed(2)}</td>
                                         <td>
                                             <span className={`badge ${item.item_status === 'active' ? 'bg-success' :
-                                                    item.item_status === 'void_pending' ? 'bg-warning' :
-                                                        'bg-danger'
+                                                item.item_status === 'void_pending' ? 'bg-warning' :
+                                                    'bg-danger'
                                                 }`}>
                                                 {item.item_status}
                                             </span>
@@ -209,10 +209,10 @@ export default function VoidingInterface({
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-              <tbody>
-                {bill.bill_items
-                  ?.filter(item => item.item_status === 'void_pending')
-                  .map((item) => (
+                            <tbody>
+                                {bill.bill_items
+                                    ?.filter(item => item.item_status === 'void_pending')
+                                    .map((item) => (
                                         <tr key={item.id}>
                                             <td>{item.item.name}</td>
                                             <td>{item.quantity}</td>

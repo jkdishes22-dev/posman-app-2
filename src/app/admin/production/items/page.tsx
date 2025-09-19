@@ -6,44 +6,41 @@ import { Button } from "react-bootstrap";
 import AuditLog from "../activity-log";
 import InventoryModal from "./new";
 import { InventoryItem } from "src/app/types/types";
-import { useApiCall } from "../../../utils/apiUtils";
-import ErrorDisplay from "../../../components/ErrorDisplay";
+import { useApiCall } from "../../utils/apiUtils";
+import { ApiErrorResponse } from "../../utils/errorUtils";
+import ErrorDisplay from "../../components/ErrorDisplay";
 
 export default function InventoryPage() {
-  const apiCall = useApiCall();
   const [showModal, setShowModal] = useState(false);
   const [inventoryItems, setInventoryItems] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState(null);
   const [authError, setAuthError] = useState(null);
-  const [authErrorDetails, setAuthErrorDetails] = useState(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [fetchErrorDetails, setFetchErrorDetails] = useState(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     async function fetchInventoryItems() {
       try {
+        setFetchError(null);
+        setErrorDetails(null);
+
         const result = await apiCall("/api/production");
         if (result.status === 200) {
           setInventoryItems(result.data);
-          setAuthError(null);
-          setAuthErrorDetails(null);
-          setFetchError(null);
-          setFetchErrorDetails(null);
         } else {
-          setAuthError(result.data);
-          setAuthErrorDetails(result.errorDetails);
           setFetchError(result.error || "Failed to fetch inventory items");
-          setFetchErrorDetails(result.errorDetails);
+          setErrorDetails(result.errorDetails);
         }
       } catch (error: any) {
         setFetchError("Network error occurred");
-        setFetchErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
-        console.error("Failed to fetch inventory items", error);
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       }
     }
 
     fetchInventoryItems();
-  }, []);
+  }, [apiCall]);
 
   useEffect(() => {
     if (selectedItemId) {
@@ -64,14 +61,16 @@ export default function InventoryPage() {
         method: "POST",
         body: JSON.stringify({ name, code, isStock }),
       });
-      if (result.status === 200 || result.status === 201) {
+      if (result.status === 200) {
         setInventoryItems([...inventoryItems, result.data]);
         handleCloseModal();
       } else {
-        console.error("Failed to add inventory item:", result.error);
+        setFetchError(result.error || "Failed to add inventory item");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      console.error("Failed to add inventory item", error);
+      setFetchError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -87,14 +86,16 @@ export default function InventoryPage() {
             handleCloseModal={handleCloseModal}
             handleAddInventoryItem={handleAddInventoryItem}
           />
+
           <ErrorDisplay
             error={fetchError}
-            errorDetails={fetchErrorDetails}
+            errorDetails={errorDetails}
             onDismiss={() => {
               setFetchError(null);
-              setFetchErrorDetails(null);
+              setErrorDetails(null);
             }}
           />
+
           {!fetchError && (
             <table className="table table-striped mt-3">
               <thead>

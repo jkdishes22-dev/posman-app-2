@@ -4,6 +4,8 @@ import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
 import { Button } from "react-bootstrap";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import { useApiCall } from "../../utils/apiUtils";
+import { ApiErrorResponse } from "../../utils/errorUtils";
 
 interface DailyProduction {
   id: number;
@@ -18,10 +20,12 @@ export default function SupervisorDailyProductionPage() {
   const [productions, setProductions] = useState<DailyProduction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     fetchDailyProductions();
@@ -33,16 +37,16 @@ export default function SupervisorDailyProductionPage() {
       setError(null);
       setErrorDetails(null);
 
-      const response = await fetch(`/api/production/daily?date=${selectedDate}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await apiCall(`/api/production/daily?date=${selectedDate}`);
+      if (result.status === 200) {
+        setProductions(result.data.productions || []);
+      } else {
+        setError(result.error || "Failed to fetch daily productions");
+        setErrorDetails(result.errorDetails);
       }
-      const data = await response.json();
-      setProductions(data.productions || []);
     } catch (error) {
-      console.error("Error fetching daily productions:", error);
-      setError("Failed to fetch daily productions");
-      setErrorDetails({ networkError: true, status: 0 });
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     } finally {
       setLoading(false);
     }
@@ -51,23 +55,18 @@ export default function SupervisorDailyProductionPage() {
   const handleAddProduction = async (productionData) => {
     try {
       setFormError(null);
-      const response = await fetch("/api/production/daily", {
+      const result = await apiCall("/api/production/daily", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(productionData),
       });
 
-      if (response.ok || response.status === 201) {
+      if (result.status === 200 || result.status === 201) {
         await fetchDailyProductions();
         setShowModal(false);
       } else {
-        const errorData = await response.json();
-        setFormError(errorData.error || "Failed to add daily production");
+        setFormError(result.error || "Failed to add daily production");
       }
     } catch (error) {
-      console.error("Error adding daily production:", error);
       setFormError("Network error occurred");
     }
   };
@@ -161,10 +160,9 @@ export default function SupervisorDailyProductionPage() {
                             <td>{production.quantity}</td>
                             <td>
                               <span
-                                className={`badge ${
-                                  production.status === "completed" ? "bg-success" : 
-                                  production.status === "in_progress" ? "bg-warning" : "bg-secondary"
-                                }`}
+                                className={`badge ${production.status === "completed" ? "bg-success" :
+                                    production.status === "in_progress" ? "bg-warning" : "bg-secondary"
+                                  }`}
                               >
                                 {production.status}
                               </span>

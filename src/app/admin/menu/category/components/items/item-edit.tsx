@@ -10,6 +10,7 @@ import {
 import { Item } from "../../../../../types/types";
 import { Pricelist } from "@backend/entities/Pricelist";
 import { useApiCall } from "../../../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../../../utils/errorUtils";
 import ErrorDisplay from "../../../../../components/ErrorDisplay";
 
 interface EditItemModalProps {
@@ -25,31 +26,39 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
   onClose,
   onSave,
 }) => {
-  const apiCall = useApiCall();
   const [editedItem, setEditedItem] = useState<Item | null>(item);
   const [error, setError] = useState<string | null>(null); // Error state
-  const [errorDetails, setErrorDetails] = useState<any>(null);
   const [pricelists, setPricelists] = useState([]);
   const [pricelistId, setPricelistId] = useState<number | null>(
     item?.pricelistId || null,
   );
   const [loadingPricelists, setLoadingPricelists] = useState(true);
   const [addItemError, setAddItemError] = useState("");
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     async function fetchPricelists() {
-      const result = await apiCall("/api/menu/pricelists");
-
-      if (result.status === 200) {
-        setPricelists(result.data);
-      } else {
-        setAddItemError(result.error || "Failed to fetch pricelists");
+      try {
+        const result = await apiCall("/api/menu/pricelists");
+        if (result.status === 200) {
+          setPricelists(result.data);
+          setError(null);
+          setErrorDetails(null);
+        } else {
+          setAddItemError(result.error || "Failed to fetch pricelists");
+          setErrorDetails(result.errorDetails);
+        }
+      } catch (error: any) {
+        setAddItemError("Network error occurred");
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+      } finally {
+        setLoadingPricelists(false); // Set loading to false after fetching
       }
-
-      setLoadingPricelists(false); // Set loading to false after fetching
     }
     fetchPricelists();
-  }, []);
+  }, [apiCall]);
 
   useEffect(() => {
     if (item) {
@@ -79,32 +88,28 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
 
   const handleSave = async () => {
     if (editedItem) {
-      const result = await apiCall(`/api/menu/items/${editedItem.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ ...editedItem, pricelistId }),
-      });
+      try {
+        const result = await apiCall(`/api/menu/items/${editedItem.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ ...editedItem, pricelistId }),
+        });
 
-      if (result.status === 200) {
-        onSave(result.data); // Call save function with the updated item
-        onClose(); // Close modal
-      } else {
-        setError(result.error || "Error updating item");
-        setErrorDetails(result.errorDetails);
+        if (result.status === 200) {
+          onSave(result.data); // Call save function with the updated item
+          onClose(); // Close modal
+        } else {
+          setError(result.error || "Failed to update item");
+          setErrorDetails(result.errorDetails);
+        }
+      } catch (error: any) {
+        setError("Network error occurred");
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       }
     }
   };
 
   if (error) {
-    return (
-      <ErrorDisplay
-        error={error}
-        errorDetails={errorDetails}
-        onDismiss={() => {
-          setError(null);
-          setErrorDetails(null);
-        }}
-      />
-    );
+    return <p>{error}</p>; // Display error message
   }
 
   return (
@@ -115,7 +120,19 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
       <ModalBody>
         <ErrorDisplay
           error={addItemError}
-          onDismiss={() => setAddItemError("")}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setAddItemError("");
+            setErrorDetails(null);
+          }}
+        />
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
+          }}
         />
         {loadingPricelists ? (
           <p>Loading Pricelists...</p>

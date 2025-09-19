@@ -131,7 +131,7 @@ export default function ExpressItemSearchModal({
           Express Item Search
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body style={{ maxHeight: '500px', overflowY: 'auto' }}>
+      <Modal.Body style={{ maxHeight: "500px", overflowY: "auto" }}>
         {/* Search Input */}
         <div className="mb-4">
           <Form.Label className="fw-semibold">Search for items by name</Form.Label>
@@ -174,7 +174,7 @@ export default function ExpressItemSearchModal({
           <div className="mb-3">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h6 className="mb-0">
-                {isLoading ? "Searching..." : `Found ${results.length} item${results.length !== 1 ? 's' : ''}`}
+                {isLoading ? "Searching..." : `Found ${results.length} item${results.length !== 1 ? "s" : ""}`}
               </h6>
               {results.length > 0 && (
                 <Button
@@ -190,7 +190,7 @@ export default function ExpressItemSearchModal({
 
             {!isLoading && results.length === 0 && (
               <div className="text-center py-4">
-                <i className="bi bi-search text-muted" style={{ fontSize: '2rem' }}></i>
+                <i className="bi bi-search text-muted" style={{ fontSize: "2rem" }}></i>
                 <p className="text-muted mt-2 mb-0">No items found for "{query}"</p>
               </div>
             )}
@@ -214,22 +214,9 @@ export default function ExpressItemSearchModal({
                         <div className="mt-1">
                           <small className="text-success">
                             <i className="bi bi-list-ul me-1"></i>
-                            Available in {item.totalPricelists} pricelist{item.totalPricelists !== 1 ? 's' : ''}
+                            Available in {item.totalPricelists} pricelist{item.totalPricelists !== 1 ? "s" : ""}
                           </small>
                         </div>
-                      </div>
-                      <div className="text-end">
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleItemSelect(item);
-                          }}
-                        >
-                          <i className="bi bi-eye me-1"></i>
-                          View Item
-                        </Button>
                       </div>
                     </div>
                   </div>

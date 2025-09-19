@@ -2,14 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import RoleAwareLayout from "../../../../../../shared/RoleAwareLayout";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import AddGroupItemModal from "./add-group-item";
 import { Modal, Button } from "react-bootstrap";
-import { useApiCall } from "../../../../../../utils/apiUtils";
-import ErrorDisplay from "../../../../../../components/ErrorDisplay";
+import { useApiCall } from "../../../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../../../utils/errorUtils";
+import ErrorDisplay from "../../../../../components/ErrorDisplay";
 
 function GroupedItemsPage() {
-  const apiCall = useApiCall();
   const [groups, setGroups] = useState([]);
   const [filteredGroups, setFilteredGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
@@ -20,7 +20,9 @@ function GroupedItemsPage() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [itemToRemove, setItemToRemove] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [errorDetails, setErrorDetails] = useState<any>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const apiCall = useApiCall();
 
   useEffect(() => {
     fetchGroups();
@@ -35,14 +37,20 @@ function GroupedItemsPage() {
   }, [searchTerm, groups]);
 
   const fetchGroups = async () => {
-    const result = await apiCall("/api/menu/items/groups");
-
-    if (result.status === 200) {
-      setGroups(result.data);
-      setFilteredGroups(result.data);
-    } else {
-      setError(result.error || "Failed to fetch groups");
-      setErrorDetails(result.errorDetails);
+    try {
+      const result = await apiCall("/api/menu/items/groups");
+      if (result.status === 200) {
+        setGroups(result.data);
+        setFilteredGroups(result.data);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to fetch groups");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error: any) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -60,36 +68,47 @@ function GroupedItemsPage() {
     if (!selectedGroup) {
       return;
     }
-
-    const result = await apiCall(`/api/menu/items/groups/${selectedGroup}`, {
-      method: "POST",
-      body: JSON.stringify({
-        itemId: selectedGroup,
-        subItemId: itemId,
-        portionSize: portionSize,
-      }),
-    });
-
-    if (result.status === 200) {
-      await fetchGroupItemsFromBackend(selectedGroup);
-      closeModal();
-    } else {
-      setError(result.error || "Failed to add item");
-      setErrorDetails(result.errorDetails);
+    try {
+      const result = await apiCall(`/api/menu/items/groups/${selectedGroup}`, {
+        method: "POST",
+        body: JSON.stringify({
+          itemId: selectedGroup,
+          subItemId: itemId,
+          portionSize: portionSize,
+        }),
+      });
+      if (result.status === 200) {
+        await fetchGroupItemsFromBackend(selectedGroup);
+        closeModal();
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to add item");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error: any) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
   const fetchGroupItemsFromBackend = async (groupId: number) => {
-    const result = await apiCall(`/api/menu/items/groups/${groupId}`);
-
-    if (result.status === 200) {
-      // Ensure the items are extracted and set correctly
-      const items = result.data[0].items || [];
-      setGroupItems(items);
-      updateGroupsInState(groupId, items);
-    } else {
-      setError(result.error || "Failed to fetch group items");
-      setErrorDetails(result.errorDetails);
+    try {
+      const result = await apiCall(`/api/menu/items/groups/${groupId}`);
+      if (result.status === 200) {
+        // Ensure the items are extracted and set correctly
+        const items = result.data[0].items || [];
+        setGroupItems(items);
+        updateGroupsInState(groupId, items);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to fetch group items");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error: any) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -121,19 +140,24 @@ function GroupedItemsPage() {
     if (!selectedGroup) {
       return;
     }
-
-    const result = await apiCall(
-      `/api/menu/items/groups/${selectedGroup}/items/${itemId}`,
-      {
-        method: "DELETE",
+    try {
+      const result = await apiCall(
+        `/api/menu/items/groups/${selectedGroup}/items/${itemId}`,
+        {
+          method: "DELETE",
+        },
+      );
+      if (result.status === 200) {
+        await fetchGroupItemsFromBackend(selectedGroup);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to remove item");
+        setErrorDetails(result.errorDetails);
       }
-    );
-
-    if (result.status === 200) {
-      await fetchGroupItemsFromBackend(selectedGroup);
-    } else {
-      setError(result.error || "Failed to remove item");
-      setErrorDetails(result.errorDetails);
+    } catch (error: any) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
