@@ -385,7 +385,7 @@ const BillingSection = () => {
       <div className="row g-1">
         {/* Available Items Section */}
         <div className="col-lg-6">
-          <div className="card border-0 shadow-sm h-100">
+          <div className="card border-0 shadow-sm h-100 items-section">
             <div className="card-header bg-primary text-white py-0">
               <div className="d-flex align-items-center justify-content-between">
                 <h6 className="mb-0 fw-bold">
@@ -461,7 +461,7 @@ const BillingSection = () => {
 
         {/* Billing Section - Improved */}
         <div className="col-lg-6">
-          <div className="card border-0 shadow-sm h-100">
+          <div className="card border-0 shadow-sm h-100 bill-section">
             <div className="card-header bg-success text-white border-0 py-0">
               <div className="d-flex align-items-center justify-content-between">
                 <h6 className="mb-0 fw-bold">
@@ -660,9 +660,9 @@ const BillingSection = () => {
       </div>
 
       {/* Categories Section - Improved */}
-      <div className="row mt-1">
+      <div className="row mt-1 categories-section">
         <div className="col-12">
-          <div className="card border-0 shadow-sm">
+          <div className="card border-0 shadow-sm categories-card">
             <div className="card-body py-1">
               <div className="mb-1">
                 <h5 className="mb-0 text-dark fw-bold d-flex align-items-center">

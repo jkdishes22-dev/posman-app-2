@@ -367,6 +367,17 @@
     transition: all 0.3s ease;
 }
 
+/* Items and Bill Sections - 70% vertical space for billing area */
+.items-section {
+    min-height: 70vh;
+    max-height: 70vh;
+}
+
+.bill-section {
+    min-height: 70vh;
+    max-height: 70vh;
+}
+
 /* Categories Section */
 .categories-section {
     margin-top: 2rem;
@@ -713,23 +724,23 @@
 
     .items-grid {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-        max-height: 350px;
+        max-height: 60vh;
         overflow-y: auto;
         flex: 1;
     }
 
     .categories-section {
-        margin-top: 0.5rem;
+        margin-top: 0.25rem;
         flex-shrink: 0;
     }
 
     .categories-card {
-        max-height: 180px;
+        max-height: 25vh;
     }
 
     .categories-card .card-body {
-        padding: 1rem;
-        max-height: 140px;
+        padding: 0.5rem;
+        max-height: 20vh;
         overflow-y: auto;
     }
 
@@ -758,7 +769,7 @@
     }
 
     .bill-items {
-        max-height: 300px;
+        max-height: 60vh;
         overflow-y: auto;
     }
 }
@@ -771,12 +782,12 @@
 
     .items-grid {
         grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        max-height: 400px;
+        max-height: 65vh;
     }
 
     .categories-grid {
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        max-height: 200px;
+        max-height: 25vh;
     }
 }
 
@@ -788,12 +799,12 @@
 
     .items-grid {
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        max-height: 450px;
+        max-height: 70vh;
     }
 
     .categories-grid {
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        max-height: 220px;
+        max-height: 25vh;
     }
 }
 

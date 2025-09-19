@@ -5,9 +5,9 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import AddGroupItemModal from "./add-group-item";
 import { Modal, Button } from "react-bootstrap";
-import { useApiCall } from "../../../../../utils/apiUtils";
-import { ApiErrorResponse } from "../../../../../utils/errorUtils";
-import ErrorDisplay from "../../../../../components/ErrorDisplay";
+import { useApiCall } from "../../../../../../utils/apiUtils";
+import { ApiErrorResponse } from "../../../../../../utils/errorUtils";
+import ErrorDisplay from "../../../../../../components/ErrorDisplay";
 
 function GroupedItemsPage() {
   const [groups, setGroups] = useState([]);
