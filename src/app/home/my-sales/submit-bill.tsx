@@ -52,7 +52,13 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
         setPaymentValidationError("");
 
         try {
-          const result = await apiCall(`/api/payments/check-reference?reference=${encodeURIComponent(mpesaCode)}`);
+          const result = await apiCall("/api/payments/check-reference", {
+            method: "POST",
+            body: JSON.stringify({
+              reference: mpesaCode.trim(),
+              billId: selectedBill?.id
+            })
+          });
           if (result.status === 200) {
             if (result.data.exists) {
               setPaymentValidationError("M-Pesa reference code already exists. Please use a different code.");
