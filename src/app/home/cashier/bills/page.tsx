@@ -113,11 +113,11 @@ const CashierBillsPage = () => {
   };
 
   const fetchBillById = async (billId: number) => {
-    const url = `/api/bills/${billId}`;
+    const url = `/api/bills?billId=${billId}`;
     try {
       const result = await apiCall(url);
       if (result.status === 200) {
-        setBills([result.data]);
+        setBills(result.data.bills || []);
         setError(null);
         setErrorDetails(null);
       } else {
@@ -775,7 +775,7 @@ const CashierBillsPage = () => {
                   </div>
 
                   {/* Voided Items Count */}
-                  {selectedBill.bill_items && selectedBill.bill_items.some(item => item.item_status === 'voided') && (
+                  {selectedBill.bill_items && selectedBill.bill_items.some(item => item.status === 'voided') && (
                     <div className="mb-3">
                       <div className="d-flex align-items-center mb-2">
                         <i className="bi bi-x-circle me-2 text-muted"></i>
@@ -783,7 +783,7 @@ const CashierBillsPage = () => {
                       </div>
                       <div className="ms-4">
                         <span className="badge bg-danger">
-                          {selectedBill.bill_items.filter(item => item.item_status === 'voided').length} voided
+                          {selectedBill.bill_items.filter(item => item.status === 'voided').length} voided
                         </span>
                       </div>
                     </div>

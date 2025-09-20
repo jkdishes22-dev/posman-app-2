@@ -43,6 +43,14 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
                 { label: "Bills", path: "/home/cashier/bills" }
             ];
         }
+        // Void Requests section
+        else if (path.includes("/home/cashier/void-requests")) {
+            activeItemId = "void-requests";
+            breadcrumbItems = [
+                { label: "Dashboard", path: "/home/cashier" },
+                { label: "Void Requests", path: "/home/cashier/void-requests" }
+            ];
+        }
 
         setActiveItem(activeItemId);
         setBreadcrumbs(breadcrumbItems);
@@ -78,6 +86,12 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
             label: "Bills",
             icon: "bi-receipt",
             path: "/home/cashier/bills",
+        },
+        {
+            id: "void-requests",
+            label: "Void Requests",
+            icon: "bi-exclamation-triangle",
+            path: "/home/cashier/void-requests",
         },
     ];
 

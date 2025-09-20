@@ -28,20 +28,20 @@ export default function VoidingInterface({
 
     // Business rule validation (Rule 4.3)
     const canVoidItems = (bill: Bill) => {
-        return (bill.status === 'submitted' || bill.status === 'reopened') &&
-            bill.bill_items?.some(item => item.item_status === 'active') || false;
+        return (bill.status === 'pending' || bill.status === 'reopened') &&
+            bill.bill_items?.some(item => item.status === 'pending') || false;
     };
 
     const hasPendingVoids = (bill: Bill) => {
-        return bill.bill_items?.some(item => item.item_status === 'void_pending') || false;
+        return bill.bill_items?.some(item => item.status === 'void_pending') || false;
     };
 
     const canVoidItem = (item: BillItem) => {
-        return item.item_status === 'active';
+        return item.status === 'pending';
     };
 
     const canApproveVoid = (item: BillItem) => {
-        return item.item_status === 'void_pending';
+        return item.status === 'void_pending';
     };
 
     // Handle void request (Rule 4.5)
@@ -147,11 +147,11 @@ export default function VoidingInterface({
                                         <td>{item.quantity}</td>
                                         <td>${item.subtotal.toFixed(2)}</td>
                                         <td>
-                                            <span className={`badge ${item.item_status === 'active' ? 'bg-success' :
-                                                item.item_status === 'void_pending' ? 'bg-warning' :
+                                            <span className={`badge ${item.status === 'pending' ? 'bg-success' :
+                                                item.status === 'void_pending' ? 'bg-warning' :
                                                     'bg-danger'
                                                 }`}>
-                                                {item.item_status}
+                                                {item.status}
                                             </span>
                                         </td>
                                         <td>
@@ -191,7 +191,7 @@ export default function VoidingInterface({
                             </thead>
                             <tbody>
                                 {bill.bill_items
-                                    ?.filter(item => item.item_status === 'void_pending')
+                                    ?.filter(item => item.status === 'void_pending')
                                     .map((item) => (
                                         <tr key={item.id}>
                                             <td>{item.item.name}</td>

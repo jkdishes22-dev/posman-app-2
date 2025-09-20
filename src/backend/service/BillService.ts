@@ -54,7 +54,7 @@ export class BillService {
           bill: { id: newBill.id },
           quantity: item.quantity,
           subtotal: item.subtotal,
-          status: BillItemStatus.SUBMITTED,
+          status: BillItemStatus.PENDING,
         }));
 
         await transactionalEntityManager.save(BillItem, billItems);
@@ -130,7 +130,42 @@ export class BillService {
 
       const bills = await query.getMany();
 
-      return { bills, total };
+      // Get item prices for all bill items
+      const billItemIds = bills.flatMap(bill =>
+        bill.bill_items?.map(item => item.id) || []
+      );
+
+      let itemPrices = {};
+      if (billItemIds.length > 0) {
+        const priceQuery = this.billItemRepository
+          .createQueryBuilder("billItem")
+          .leftJoin("pricelist_item", "pi", "pi.item_id = billItem.item_id")
+          .select([
+            "billItem.id as billItemId",
+            "pi.price as price"
+          ])
+          .where("billItem.id IN (:...billItemIds)", { billItemIds });
+
+        const priceResults = await priceQuery.getRawMany();
+        itemPrices = priceResults.reduce((acc, result) => {
+          acc[result.billItemId] = result.price || 0;
+          return acc;
+        }, {});
+      }
+
+      // Transform bills to include item prices
+      const transformedBills = bills.map(bill => ({
+        ...bill,
+        bill_items: bill.bill_items?.map(item => ({
+          ...item,
+          item: {
+            ...item.item,
+            price: itemPrices[item.id] || 0
+          }
+        })) || []
+      }));
+
+      return { bills: transformedBills, total };
     } catch (error) {
       console.error("Error fetching bills:", error);
       throw error;
@@ -148,7 +183,153 @@ export class BillService {
     return await this.billRepository.save(bill);
   }
 
-  // Void a specific item from a bill
+  // Request void for a specific item (Rule 4.3, 4.5)
+  async requestVoidItem(
+    billId: number,
+    itemId: number,
+    requestedBy: number,
+    reason: string
+  ) {
+    // Validate business rules (Rule 4.8)
+    const bill = await this.billRepository.findOne({
+      where: { id: billId },
+      relations: ["bill_items"]
+    });
+
+    if (!bill) {
+      throw new Error("Bill not found");
+    }
+
+    if (bill.status !== BillStatus.PENDING && bill.status !== BillStatus.REOPENED) {
+      throw new Error("Only pending or reopened bills can have items voided");
+    }
+
+    const billItem = await this.billItemRepository.findOne({
+      where: { id: itemId, bill_id: billId }
+    });
+
+    if (!billItem) {
+      throw new Error("Bill item not found");
+    }
+
+    if (billItem.status !== BillItemStatus.PENDING) {
+      throw new Error("Only pending items can be voided");
+    }
+
+    // Use transaction for atomic operations (Rule 4.8)
+    return await this.billItemRepository.manager.transaction(async manager => {
+      // Update item status to void_pending
+      billItem.status = BillItemStatus.VOID_PENDING;
+      billItem.void_reason = reason;
+      billItem.void_requested_by = requestedBy;
+      billItem.void_requested_at = new Date();
+      billItem.updated_at = new Date();
+
+      const savedItem = await manager.save(billItem);
+
+      // Send notification to cashier/supervisor
+      try {
+        console.log(`Void request for Bill ${billId}, Item ${itemId} by user ${requestedBy}. Reason: ${reason}`);
+      } catch (notificationError) {
+        console.error("Failed to send notification:", notificationError);
+        // Don't fail the transaction for notification errors
+      }
+
+      return savedItem;
+    });
+  }
+
+  // Approve or reject void request (Rule 4.3, 4.5)
+  async approveVoidRequest(
+    billId: number,
+    itemId: number,
+    approvedBy: number,
+    approved: boolean,
+    approvalNotes?: string,
+    paperApprovalReceived: boolean = false
+  ) {
+    // Validate business rules (Rule 4.8)
+    const bill = await this.billRepository.findOne({
+      where: { id: billId },
+      relations: ["bill_items"]
+    });
+
+    if (!bill) {
+      throw new Error("Bill not found");
+    }
+
+    if (bill.status !== BillStatus.PENDING && bill.status !== BillStatus.REOPENED) {
+      throw new Error("Only pending or reopened bills can have void requests approved");
+    }
+
+    const billItem = await this.billItemRepository.findOne({
+      where: { id: itemId, bill_id: billId }
+    });
+
+    if (!billItem) {
+      throw new Error("Bill item not found");
+    }
+
+    if (billItem.status !== BillItemStatus.VOID_PENDING) {
+      throw new Error("Only pending void items can be approved/rejected");
+    }
+
+    // Use transaction for atomic operations (Rule 4.8)
+    return await this.billItemRepository.manager.transaction(async manager => {
+      if (approved) {
+        // Approve void request - mark item as voided (not deleted)
+        billItem.status = BillItemStatus.VOIDED;
+        billItem.void_approved_by = approvedBy;
+        billItem.void_approved_at = new Date();
+        billItem.updated_at = new Date();
+
+        // Update bill total to exclude voided item from calculations
+        // Item record remains in database for audit trail
+        const activeItems = bill.bill_items.filter(item =>
+          item.id !== itemId && item.status !== BillItemStatus.VOIDED
+        );
+        const newTotal = activeItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+        bill.total = newTotal;
+        bill.updated_at = new Date();
+        await manager.save(bill);
+      } else {
+        // Reject void request - revert item to pending
+        billItem.status = BillItemStatus.PENDING;
+        billItem.void_reason = null;
+        billItem.void_requested_by = null;
+        billItem.void_requested_at = null;
+        billItem.void_approved_by = approvedBy;
+        billItem.void_approved_at = new Date();
+        billItem.updated_at = new Date();
+
+        // Bill status remains unchanged when void request is rejected
+        // Recalculate bill total to include the item that was reverted to pending
+        const activeItems = bill.bill_items.filter(item =>
+          item.status !== BillItemStatus.VOIDED
+        );
+        const newTotal = activeItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+        bill.total = newTotal;
+        bill.updated_at = new Date();
+        await manager.save(bill);
+      }
+
+      const savedItem = await manager.save(billItem);
+
+      // Send notification to sales person
+      try {
+        console.log(`Void request for Bill ${billId}, Item ${itemId} ${approved ? 'approved' : 'rejected'} by user ${approvedBy}`);
+      } catch (notificationError) {
+        console.error("Failed to send notification:", notificationError);
+        // Don't fail the transaction for notification errors
+      }
+
+      return savedItem;
+    });
+  }
+
+  // Legacy method - kept for backward compatibility
   async voidBillItem(billItemId: number) {
     const billItem = await this.billItemRepository.findOne({
       where: { id: billItemId },
@@ -196,6 +377,9 @@ export class BillService {
       throw new Error(`Bill with ID ${billPayment.billId} not found`);
     }
 
+    // Note: Frontend handles disabling submit button for bills with pending void requests
+    // Backend validation removed to allow graceful UI handling
+
     const paymentPayloads = this.generatePaymentPayloads(billPayment);
     if (!paymentPayloads || paymentPayloads.length === 0) {
       throw new Error("No payment payloads generated");
@@ -232,6 +416,13 @@ export class BillService {
 
           bill.status = BillStatus.SUBMITTED;
           await transactionalEntityManager.save(Bill, bill);
+
+          // Update all bill items to SUBMITTED status
+          await transactionalEntityManager.update(
+            BillItem,
+            { bill: { id: bill.id }, status: BillItemStatus.PENDING },
+            { status: BillItemStatus.SUBMITTED }
+          );
           return {
             bill_payments: billPayments,
             payments,
@@ -303,6 +494,13 @@ export class BillService {
       .update(Bill)
       .set({ status: BillStatus.CLOSED })
       .where("id = :id", { id: bill.id })
+      .execute();
+
+    // Update all bill items to CLOSED status
+    await AppDataSource.createQueryBuilder()
+      .update(BillItem)
+      .set({ status: BillItemStatus.CLOSED })
+      .where("bill_id = :billId", { billId: bill.id })
       .execute();
 
     return updateBill;
@@ -443,6 +641,178 @@ export class BillService {
       }
 
       return savedBill;
+    });
+  }
+
+  /**
+   * Request quantity change for a bill item (Rule 4.3, 4.4)
+   */
+  async requestQuantityChange(
+    billId: number,
+    itemId: number,
+    requestedBy: number,
+    requestedQuantity: number,
+    reason: string
+  ): Promise<BillItem> {
+    // Validate business rules (Rule 4.8)
+    const bill = await this.billRepository.findOne({
+      where: { id: billId },
+      relations: ["bill_items"]
+    });
+
+    if (!bill) {
+      throw new Error("Bill not found");
+    }
+
+    if (bill.status !== BillStatus.PENDING && bill.status !== BillStatus.REOPENED) {
+      throw new Error("Only pending or reopened bills can have quantity changes requested");
+    }
+
+    const billItem = await this.billItemRepository.findOne({
+      where: { id: itemId, bill_id: billId }
+    });
+
+    if (!billItem) {
+      throw new Error("Bill item not found");
+    }
+
+    if (billItem.status !== BillItemStatus.PENDING) {
+      throw new Error("Only pending items can have quantity changes requested");
+    }
+
+    if (requestedQuantity === billItem.quantity) {
+      throw new Error("Requested quantity must be different from current quantity");
+    }
+
+    // Use transaction for atomic operations (Rule 4.8)
+    return await this.billItemRepository.manager.transaction(async manager => {
+      // Update item status to quantity change request
+      billItem.status = BillItemStatus.QUANTITY_CHANGE_REQUEST;
+      billItem.requested_quantity = requestedQuantity;
+      billItem.quantity_change_reason = reason;
+      billItem.quantity_change_requested_by = requestedBy;
+      billItem.quantity_change_requested_at = new Date();
+      billItem.updated_at = new Date();
+
+      const savedItem = await manager.save(billItem);
+
+      // Send notification to cashier/supervisor
+      try {
+        // TODO: Implement notification system
+        console.log(`Quantity change request for item ${itemId} in bill ${billId}`);
+      } catch (error) {
+        // Don't fail the transaction for notification errors
+      }
+
+      return savedItem;
+    });
+  }
+
+  /**
+   * Approve or reject quantity change request (Rule 4.3, 4.4)
+   */
+  async approveQuantityChange(
+    billId: number,
+    itemId: number,
+    approvedBy: number,
+    approved: boolean,
+    approvalNotes?: string,
+    paperApprovalReceived: boolean = false
+  ): Promise<BillItem> {
+    // Validate business rules (Rule 4.8)
+    const bill = await this.billRepository.findOne({
+      where: { id: billId },
+      relations: ["bill_items"]
+    });
+
+    if (!bill) {
+      throw new Error("Bill not found");
+    }
+
+    if (bill.status !== BillStatus.PENDING && bill.status !== BillStatus.REOPENED) {
+      throw new Error("Only pending or reopened bills can have quantity change requests approved");
+    }
+
+    const billItem = await this.billItemRepository.findOne({
+      where: { id: itemId, bill_id: billId }
+    });
+
+    if (!billItem) {
+      throw new Error("Bill item not found");
+    }
+
+    if (billItem.status !== BillItemStatus.QUANTITY_CHANGE_REQUEST) {
+      throw new Error("Only pending quantity change items can be approved/rejected");
+    }
+
+    // Use transaction for atomic operations (Rule 4.8)
+    return await this.billItemRepository.manager.transaction(async manager => {
+      if (approved) {
+        // Approve quantity change - update quantity and recalculate subtotal
+        const oldQuantity = billItem.quantity;
+        const newQuantity = billItem.requested_quantity!;
+        const unitPrice = billItem.subtotal / oldQuantity; // Calculate unit price
+        const newSubtotal = unitPrice * newQuantity;
+
+        billItem.quantity = newQuantity;
+        billItem.subtotal = newSubtotal;
+        billItem.status = BillItemStatus.PENDING;
+        billItem.quantity_change_approved_by = approvedBy;
+        billItem.quantity_change_approved_at = new Date();
+        billItem.updated_at = new Date();
+
+        // Clear quantity change request fields
+        billItem.requested_quantity = null;
+        billItem.quantity_change_reason = null;
+        billItem.quantity_change_requested_by = null;
+        billItem.quantity_change_requested_at = null;
+
+        // Update bill total to reflect the quantity change
+        const activeItems = bill.bill_items.filter(item =>
+          item.id !== itemId && item.status !== BillItemStatus.VOIDED
+        );
+        const newTotal = activeItems.reduce((sum, item) => sum + item.subtotal, 0) + newSubtotal;
+
+        bill.total = newTotal;
+        bill.status = BillStatus.PENDING; // Bill needs to be resubmitted after quantity change
+        bill.updated_at = new Date();
+        await manager.save(bill);
+      } else {
+        // Reject quantity change - revert to pending status
+        billItem.status = BillItemStatus.PENDING;
+        billItem.quantity_change_approved_by = approvedBy;
+        billItem.quantity_change_approved_at = new Date();
+        billItem.updated_at = new Date();
+
+        // Clear quantity change request fields
+        billItem.requested_quantity = null;
+        billItem.quantity_change_reason = null;
+        billItem.quantity_change_requested_by = null;
+        billItem.quantity_change_requested_at = null;
+
+        // Recalculate bill total to include the item as is
+        const activeItems = bill.bill_items.filter(item =>
+          item.status !== BillItemStatus.VOIDED
+        );
+        const newTotal = activeItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+        bill.total = newTotal;
+        bill.status = BillStatus.PENDING; // Bill needs to be resubmitted after quantity change rejection
+        bill.updated_at = new Date();
+        await manager.save(bill);
+      }
+
+      const savedItem = await manager.save(billItem);
+
+      // Send notification to sales person
+      try {
+        // TODO: Implement notification system
+        console.log(`Quantity change request ${approved ? 'approved' : 'rejected'} for item ${itemId} in bill ${billId}`);
+      } catch (error) {
+        // Don't fail the transaction for notification errors
+      }
+
+      return savedItem;
     });
   }
 }

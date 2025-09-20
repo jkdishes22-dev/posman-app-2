@@ -9,7 +9,7 @@ import { Button, Form } from "react-bootstrap";
 import SubmitBillModal from "./submit-bill";
 import TimeZoneAwareDatePicker from "src/app/shared/TimezoneAwareDatePicker";
 import DatePicker from "react-datepicker";
-import { Bill } from "src/app/types/types";
+import { Bill, BillItem, VoidRequestPayload, VoidRequestResponse } from "src/app/types/types";
 import Pagination from "src/app/components/Pagination";
 import { CaptainOrderPrint, CustomerCopyPrint } from "../../shared/ReceiptPrint";
 import { printReceiptWithTimestamp, downloadReceiptAsFile } from "../../shared/printUtils";
@@ -17,7 +17,7 @@ import ReactDOM from "react-dom/client";
 import { useApiCall } from "../../utils/apiUtils";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
-import BillActions from "../../components/BillActions";
+import QuantityChangeModal from "../../components/QuantityChangeModal";
 
 // Receipt component for printing
 const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
@@ -75,9 +75,26 @@ const MySales = () => {
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   const receiptRef = useRef<HTMLDivElement>(null);
 
+  // Void request state
+  const [showVoidModal, setShowVoidModal] = useState<boolean>(false);
+  const [selectedItem, setSelectedItem] = useState<BillItem | null>(null);
+  const [voidReason, setVoidReason] = useState<string>("");
+  const [voidError, setVoidError] = useState<string | null>(null);
+  const [voidErrorDetails, setVoidErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  // Quantity change request state
+  const [showQuantityChangeModal, setShowQuantityChangeModal] = useState<boolean>(false);
+  const [selectedQuantityChangeItem, setSelectedQuantityChangeItem] = useState<BillItem | null>(null);
+
   const handleDateChange = (date) => {
     setSelectedDate(date);
     setSelectedBill(null);
+  };
+
+  const handleStatusFilterChange = (status: string) => {
+    setStatusFilter(status);
+    setSelectedBill(null); // Clear selected bill when changing status
+    fetchBills(selectedDate, status, billIdFilter);
   };
 
   const handleBillIdChange = async (e) => {
@@ -250,6 +267,87 @@ const MySales = () => {
     await downloadReceiptAsFile(CustomerCopyPrint, selectedBill, 'customer');
   };
 
+  // Void request functions
+  const handleVoidRequest = (item: BillItem): void => {
+    setSelectedItem(item);
+    setVoidReason("");
+    setVoidError(null);
+    setVoidErrorDetails(null);
+    setShowVoidModal(true);
+  };
+
+  const handleVoidSubmit = async (): Promise<void> => {
+    if (!voidReason.trim()) {
+      setVoidError("Please provide a reason for voiding this item");
+      return;
+    }
+
+    if (!selectedItem || !selectedBill) {
+      setVoidError("Invalid item or bill selection");
+      return;
+    }
+
+    try {
+      const payload: VoidRequestPayload = { reason: voidReason.trim() };
+      const result = await apiCall(`/api/bills/${selectedBill.id}/items/${selectedItem.id}/void-request`, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+
+      if (result.status === 200) {
+        const response: VoidRequestResponse = result.data;
+        setShowVoidModal(false);
+        setVoidReason("");
+        setSelectedItem(null);
+
+        // Refresh bill data with current filters and update the selected bill with fresh data
+        await fetchBills(selectedDate, statusFilter, billIdFilter);
+
+        // Update the selected bill with fresh data to reflect the void request
+        if (selectedBill) {
+          const result = await apiCall(`/api/bills?billId=${selectedBill.id}`);
+          if (result.status === 200 && result.data?.bills?.length > 0) {
+            setSelectedBill(result.data.bills[0]);
+          }
+        }
+      } else {
+        setVoidError(result.error || "Failed to submit void request");
+        setVoidErrorDetails(result.errorDetails);
+      }
+    } catch (error) {
+      setVoidError("Network error occurred while submitting void request");
+      setVoidErrorDetails({ message: "Network error", networkError: true, status: 0 });
+    }
+  };
+
+  const closeVoidModal = (): void => {
+    setShowVoidModal(false);
+    setVoidReason("");
+    setSelectedItem(null);
+    setVoidError(null);
+    setVoidErrorDetails(null);
+  };
+
+  // Quantity change request handlers
+  const handleQuantityChangeRequest = (item: BillItem): void => {
+    setSelectedQuantityChangeItem(item);
+    setShowQuantityChangeModal(true);
+  };
+
+  const handleQuantityChangeSuccess = async (): Promise<void> => {
+    // Refresh bill data with current filters and update the selected bill with fresh data
+    await fetchBills(selectedDate, statusFilter, billIdFilter);
+
+    // Update the selected bill with fresh data to reflect the quantity change request
+    if (selectedBill) {
+      const result = await apiCall(`/api/bills?billId=${selectedBill.id}`);
+      if (result.status === 200 && result.data?.bills?.length > 0) {
+        setSelectedBill(result.data.bills[0]);
+      }
+    }
+  };
+
+
   useEffect(() => {
     // Always fetch bills when date, status, billId, or page changes
     fetchBills(selectedDate, statusFilter, billIdFilter);
@@ -315,31 +413,31 @@ const MySales = () => {
                     <div className="btn-group w-100" role="group" aria-label="Filter actions">
                       <button
                         className={`btn btn-outline-primary${statusFilter === "pending" ? " active" : ""}`}
-                        onClick={() => setStatusFilter("pending")}
+                        onClick={() => handleStatusFilterChange("pending")}
                       >
                         Pending
                       </button>
                       <button
                         className={`btn btn-outline-primary${statusFilter === "submitted" ? " active" : ""}`}
-                        onClick={() => setStatusFilter("submitted")}
+                        onClick={() => handleStatusFilterChange("submitted")}
                       >
                         Submitted
                       </button>
                       <button
                         className={`btn btn-outline-primary${statusFilter === "closed" ? " active" : ""}`}
-                        onClick={() => setStatusFilter("closed")}
+                        onClick={() => handleStatusFilterChange("closed")}
                       >
                         Closed
                       </button>
                       <button
                         className={`btn btn-outline-primary${statusFilter === "voided" ? " active" : ""}`}
-                        onClick={() => setStatusFilter("voided")}
+                        onClick={() => handleStatusFilterChange("voided")}
                       >
                         Voided
                       </button>
                       <button
                         className={`btn btn-outline-primary${statusFilter === "reopened" ? " active" : ""}`}
-                        onClick={() => setStatusFilter("reopened")}
+                        onClick={() => handleStatusFilterChange("reopened")}
                       >
                         Reopened
                       </button>
@@ -422,21 +520,37 @@ const MySales = () => {
                           </td>
                           <td>{bill.id}</td>
                           <td>
-                            {bill.status === "reopened" ? (
-                              <span className="badge bg-warning text-dark">
-                                <i className="bi bi-exclamation-triangle me-1"></i>
-                                {bill.status}
-                              </span>
-                            ) : (
-                              <span className={`badge ${bill.status === "pending" ? "bg-warning" :
-                                bill.status === "submitted" ? "bg-info" :
-                                  bill.status === "closed" ? "bg-success" :
-                                    bill.status === "voided" ? "bg-secondary" :
-                                      "bg-light text-dark"
-                                }`}>
-                                {bill.status}
-                              </span>
-                            )}
+                            {(() => {
+                              const hasPendingVoids = bill.bill_items?.some((item: BillItem) => item.status === 'void_pending');
+
+                              if (bill.status === "reopened") {
+                                return (
+                                  <span className="badge bg-warning text-dark">
+                                    <i className="bi bi-exclamation-triangle me-1"></i>
+                                    {bill.status}
+                                  </span>
+                                );
+                              } else if (hasPendingVoids) {
+                                const pendingVoidCount = bill.bill_items?.filter((item: BillItem) => item.status === 'void_pending').length || 0;
+                                return (
+                                  <span className="badge bg-warning text-dark">
+                                    <i className="bi bi-exclamation-triangle me-1"></i>
+                                    {bill.status} ({pendingVoidCount} Void{pendingVoidCount > 1 ? 's' : ''} Pending)
+                                  </span>
+                                );
+                              } else {
+                                return (
+                                  <span className={`badge ${bill.status === "pending" ? "bg-warning" :
+                                    bill.status === "submitted" ? "bg-info" :
+                                      bill.status === "closed" ? "bg-success" :
+                                        bill.status === "voided" ? "bg-secondary" :
+                                          "bg-light text-dark"
+                                    }`}>
+                                    {bill.status}
+                                  </span>
+                                );
+                              }
+                            })()}
                           </td>
                           <td>KES {bill.total}</td>
                           <td>{new Date(bill.created_at).toLocaleString()}</td>
@@ -493,15 +607,43 @@ const MySales = () => {
                       <p className="text-danger">{error}</p>
                     )}
                     <div className="card-body">
+                      {/* Void Approval Interface for Cashiers */}
+                      {selectedBill && selectedBill.bill_items?.some((item: BillItem) => item.status === 'void_pending') && (
+                        <div className="alert alert-warning mb-3">
+                          <div className="d-flex align-items-center">
+                            <i className="bi bi-exclamation-triangle me-2"></i>
+                            <div>
+                              <strong>Pending Void Requests</strong>
+                              <p className="mb-0 small">This bill has items with pending void requests that need approval.</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <div className="d-flex justify-content-between align-items-center mb-1">
                         {selectedBill.status === "pending" ? (
-                          <Button
-                            className="m-2"
-                            variant="success"
-                            onClick={openSubmitModal}
-                          >
-                            Submit Bill (KES: {selectedBill.total})
-                          </Button>
+                          (() => {
+                            const hasPendingVoids = selectedBill.bill_items?.some(item => item.status === 'void_pending');
+                            const pendingVoidCount = selectedBill.bill_items?.filter(item => item.status === 'void_pending').length || 0;
+                            return (
+                              <div>
+                                <Button
+                                  className="m-2"
+                                  variant="success"
+                                  onClick={openSubmitModal}
+                                  disabled={hasPendingVoids}
+                                  title={hasPendingVoids ? `Cannot submit bill with ${pendingVoidCount} pending void request${pendingVoidCount > 1 ? 's' : ''}. Please wait for approval.` : "Submit this bill for payment"}
+                                >
+                                  Submit Bill (KES: {selectedBill.total})
+                                </Button>
+                                {hasPendingVoids && (
+                                  <div className="text-warning small mt-1">
+                                    <i className="bi bi-exclamation-triangle me-1"></i>
+                                    {pendingVoidCount} void request{pendingVoidCount > 1 ? 's' : ''} pending approval
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()
                         ) : selectedBill.status === "reopened" ? (
                           <div>
                             {(() => {
@@ -636,6 +778,7 @@ const MySales = () => {
                             <th>Unit Price</th>
                             <th>Quantity</th>
                             <th>Subtotal</th>
+                            <th>Status</th>
                             <th>Action</th>
                           </tr>
                         </thead>
@@ -651,17 +794,67 @@ const MySales = () => {
                                 <td>{item.quantity}</td>
                                 <td>KES {item.subtotal}</td>
                                 <td>
-                                  {selectedBill.status === "pending" ? (
-                                    <Button variant="danger">
-                                      Void Request
-                                    </Button>
-                                  ) : null}
+                                  <span className={`badge ${item.status === 'pending' ? 'bg-success' :
+                                    item.status === 'void_pending' ? 'bg-warning' :
+                                      'bg-danger'
+                                    }`}>
+                                    {item.status}
+                                  </span>
+                                </td>
+                                <td>
+                                  {(selectedBill.status === 'pending' || selectedBill.status === 'reopened') &&
+                                    item.status === 'pending' && (
+                                      <div className="d-flex gap-1">
+                                        <Button
+                                          variant="outline-danger"
+                                          size="sm"
+                                          onClick={() => handleVoidRequest(item)}
+                                          className="d-flex align-items-center gap-1"
+                                          title="Request to void this item"
+                                        >
+                                          <i className="bi bi-exclamation-triangle-fill"></i>
+                                          Request Void
+                                        </Button>
+                                        <Button
+                                          variant="outline-warning"
+                                          size="sm"
+                                          onClick={() => handleQuantityChangeRequest(item)}
+                                          className="d-flex align-items-center gap-1"
+                                          title="Request to change quantity"
+                                        >
+                                          <i className="bi bi-pencil-square"></i>
+                                          Change Qty
+                                        </Button>
+                                      </div>
+                                    )}
+                                  {item.status === 'void_pending' && (
+                                    <div className="d-flex align-items-center gap-2">
+                                      <span className="badge bg-warning text-dark">
+                                        <i className="bi bi-clock me-1"></i>
+                                        Pending Approval
+                                      </span>
+                                      <small className="text-muted">
+                                        Awaiting cashier/supervisor approval
+                                      </small>
+                                    </div>
+                                  )}
+                                  {item.status === 'quantity_change_request' && (
+                                    <div className="d-flex align-items-center gap-2">
+                                      <span className="badge bg-info text-dark">
+                                        <i className="bi bi-pencil-square me-1"></i>
+                                        Quantity Change Pending
+                                      </span>
+                                      <small className="text-muted">
+                                        Awaiting cashier/supervisor approval
+                                      </small>
+                                    </div>
+                                  )}
                                 </td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={6}>No items for this bill</td>
+                              <td colSpan={7}>No items for this bill</td>
                             </tr>
                           )}
                         </tbody>
@@ -765,29 +958,7 @@ const MySales = () => {
                     </div>
                   )}
 
-                  {/* Bill Actions - Voiding and Reopening Features */}
-                  {selectedBill && (
-                    <BillActions
-                      bill={selectedBill}
-                      userRole="sales"
-                      onVoidRequested={() => {
-                        // Refresh bill data after void request
-                        fetchBills();
-                      }}
-                      onVoidApproved={() => {
-                        // Refresh bill data after void approval
-                        fetchBills();
-                      }}
-                      onReopened={() => {
-                        // Refresh bill data after reopening
-                        fetchBills();
-                      }}
-                      onResubmitted={() => {
-                        // Refresh bill data after resubmission
-                        fetchBills();
-                      }}
-                    />
-                  )}
+                  {/* Voiding functionality is now integrated into the main bill items table above */}
                 </div>
               ) : (
                 <p>Select a bill to see the items</p>
@@ -799,6 +970,74 @@ const MySales = () => {
             onHide={closeModal}
             selectedBill={selectedBill}
             onBillSubmitted={handleBillSubmitted}
+          />
+
+          {/* Void Request Modal */}
+          {showVoidModal && (
+            <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+              <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">
+                      Request Void for Item: {selectedItem?.item?.name}
+                    </h5>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      onClick={closeVoidModal}
+                    ></button>
+                  </div>
+                  <div className="modal-body">
+                    <p>You are requesting to void <strong>{selectedItem?.item?.name}</strong> (Quantity: {selectedItem?.quantity}) from Bill #{selectedBill?.id}.</p>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Reason for Voiding</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        value={voidReason}
+                        onChange={(e) => setVoidReason(e.target.value)}
+                        placeholder="e.g., Customer changed mind, wrong item entered, etc."
+                        isInvalid={!!voidError}
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {voidError}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                    <ErrorDisplay
+                      error={voidError}
+                      errorDetails={voidErrorDetails}
+                      onDismiss={() => { setVoidError(null); setVoidErrorDetails(null); }}
+                    />
+                  </div>
+                  <div className="modal-footer d-flex justify-content-between">
+                    <Button
+                      variant="outline-secondary"
+                      onClick={closeVoidModal}
+                      className="d-flex align-items-center gap-1"
+                    >
+                      <i className="bi bi-x-circle me-1"></i>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="danger"
+                      onClick={handleVoidSubmit}
+                      className="d-flex align-items-center gap-1"
+                    >
+                      <i className="bi bi-exclamation-triangle-fill me-1"></i>
+                      Submit Void Request
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Quantity Change Request Modal */}
+          <QuantityChangeModal
+            show={showQuantityChangeModal}
+            onHide={() => setShowQuantityChangeModal(false)}
+            item={selectedQuantityChangeItem}
+            onSuccess={handleQuantityChangeSuccess}
           />
         </div>
       </SecureRoute>
