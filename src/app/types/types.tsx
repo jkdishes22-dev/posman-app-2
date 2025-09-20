@@ -59,7 +59,7 @@ export type BillItem = {
   };
   quantity: number;
   subtotal: number;
-  item_status: string;
+  status: 'pending' | 'submitted' | 'closed' | 'void_pending' | 'voided' | 'deleted';
   void_reason?: string;
   void_requested_by?: number;
   void_requested_at?: string;
@@ -107,4 +107,34 @@ export type InventoryItem = {
   name: string;
   code: string;
   isStock: boolean;
+};
+
+// Voiding system types
+export type VoidRequest = {
+  id: number;
+  billId: number;
+  itemId: number;
+  reason: string;
+  requestedBy: number;
+  requestedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+  approvedBy?: number;
+  approvedAt?: string;
+  approvalNotes?: string;
+  paperApprovalReceived?: boolean;
+};
+
+export type VoidRequestPayload = {
+  reason: string;
+};
+
+export type VoidApprovalPayload = {
+  action: 'approve' | 'reject';
+  approvalNotes?: string;
+  paperApprovalReceived?: boolean;
+};
+
+export type VoidRequestResponse = {
+  message: string;
+  voidRequest: VoidRequest;
 };

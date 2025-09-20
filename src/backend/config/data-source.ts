@@ -111,12 +111,12 @@ export const closeConnection = async (): Promise<void> => {
 };
 
 // Graceful shutdown handler
-process.on('SIGINT', async () => {
+process.on("SIGINT", async () => {
   await closeConnection();
   process.exit(0);
 });
 
-process.on('SIGTERM', async () => {
+process.on("SIGTERM", async () => {
   await closeConnection();
   process.exit(0);
 });

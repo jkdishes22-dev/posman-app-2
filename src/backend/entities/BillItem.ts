@@ -11,16 +11,12 @@ import { Item } from "./Item";
 import { Bill } from "./Bill";
 
 export enum BillItemStatus {
-  ACTIVE = "active",
-  DELETED = "deleted",
+  PENDING = "pending",
   SUBMITTED = "submitted",
-  VOIDED = "voided",
-}
-
-export enum ItemStatus {
-  ACTIVE = "active",
+  CLOSED = "closed",
   VOID_PENDING = "void_pending",
   VOIDED = "voided",
+  DELETED = "deleted",
 }
 
 @Entity("bill_item")
@@ -58,12 +54,6 @@ export class BillItem {
   status: BillItemStatus;
 
   // Voiding tracking columns (Rule 4.1)
-  @Column({
-    type: "enum",
-    enum: ItemStatus,
-    default: ItemStatus.ACTIVE,
-  })
-  item_status: ItemStatus;
 
   @Column({ type: "text", nullable: true })
   void_reason: string;
@@ -88,23 +78,26 @@ export class BillItem {
 
   // Business rule validation methods (Rule 4.3)
   canVoid(bill: Bill): boolean {
-    return (bill.status === 'submitted' || bill.status === 'reopened')
-      && this.item_status === ItemStatus.ACTIVE;
+    return (bill.status === 'pending' || bill.status === 'reopened')
+      && this.status === BillItemStatus.PENDING;
   }
 
   canApproveVoid(bill: Bill): boolean {
-    return bill.status === 'submitted'
-      && this.item_status === ItemStatus.VOID_PENDING;
+    return (bill.status === 'pending' || bill.status === 'reopened')
+      && this.status === BillItemStatus.VOID_PENDING;
   }
 
   // State transition validation (Rule 4.7)
-  canTransitionTo(newStatus: ItemStatus): boolean {
+  canTransitionTo(newStatus: BillItemStatus): boolean {
     const transitions = {
-      [ItemStatus.ACTIVE]: [ItemStatus.VOID_PENDING],
-      [ItemStatus.VOID_PENDING]: [ItemStatus.VOIDED, ItemStatus.ACTIVE], // approved or rejected
-      [ItemStatus.VOIDED]: [] // terminal state
+      [BillItemStatus.PENDING]: [BillItemStatus.SUBMITTED, BillItemStatus.VOID_PENDING],
+      [BillItemStatus.SUBMITTED]: [BillItemStatus.CLOSED],
+      [BillItemStatus.VOID_PENDING]: [BillItemStatus.VOIDED, BillItemStatus.SUBMITTED], // approved or rejected
+      [BillItemStatus.CLOSED]: [], // terminal state
+      [BillItemStatus.VOIDED]: [], // terminal state
+      [BillItemStatus.DELETED]: [] // terminal state
     };
 
-    return transitions[this.item_status]?.includes(newStatus) || false;
+    return transitions[this.status]?.includes(newStatus) || false;
   }
 }
