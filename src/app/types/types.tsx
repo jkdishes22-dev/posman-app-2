@@ -54,17 +54,25 @@ export type Bill = {
 
 export type BillItem = {
   id: number;
+  bill_id: number;
   item: {
     name: string;
+    price: number;
   };
   quantity: number;
   subtotal: number;
-  status: 'pending' | 'submitted' | 'closed' | 'void_pending' | 'voided' | 'deleted';
+  status: 'pending' | 'submitted' | 'closed' | 'void_pending' | 'voided' | 'quantity_change_request' | 'deleted';
   void_reason?: string;
   void_requested_by?: number;
   void_requested_at?: string;
   void_approved_by?: number;
   void_approved_at?: string;
+  requested_quantity?: number;
+  quantity_change_reason?: string;
+  quantity_change_requested_by?: number;
+  quantity_change_requested_at?: string;
+  quantity_change_approved_by?: number;
+  quantity_change_approved_at?: string;
 };
 
 export type BillPayment = {

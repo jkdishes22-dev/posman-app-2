@@ -47,7 +47,7 @@ const CashierDashboard = () => {
     try {
       // Fetch today's date for filtering
       const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
+      const todayStr = today.toISOString().split("T")[0];
 
       // Fetch bills for today
       const billsResult = await apiCall(`/api/bills?date=${todayStr}`);
@@ -57,18 +57,18 @@ const CashierDashboard = () => {
 
         // Calculate summaries
         const totalBills = bills.length;
-        const pendingBills = bills.filter(bill => bill.status === 'submitted' || bill.status === 'reopened').length;
-        const closedBills = bills.filter(bill => bill.status === 'closed').length;
+        const pendingBills = bills.filter(bill => bill.status === "submitted" || bill.status === "reopened").length;
+        const closedBills = bills.filter(bill => bill.status === "closed").length;
         const pendingVoidRequests = bills.filter(bill =>
-          bill.bill_items?.some(item => item.status === 'void_pending')
+          bill.bill_items?.some(item => item.status === "void_pending")
         ).length;
 
         const totalRevenue = bills
-          .filter(bill => bill.status === 'closed')
+          .filter(bill => bill.status === "closed")
           .reduce((sum, bill) => sum + (bill.total || 0), 0);
 
         const todayRevenue = bills
-          .filter(bill => bill.status === 'closed')
+          .filter(bill => bill.status === "closed")
           .reduce((sum, bill) => sum + (bill.total || 0), 0);
 
         const averageBillValue = closedBills > 0 ? todayRevenue / closedBills : 0;
@@ -96,11 +96,11 @@ const CashierDashboard = () => {
 
   const handleQuickAction = (action: string) => {
     switch (action) {
-      case 'bills':
-        router.push('/home/cashier/bills');
+      case "bills":
+        router.push("/home/cashier/bills");
         break;
-      case 'void-requests':
-        router.push('/home/cashier/void-requests');
+      case "void-requests":
+        router.push("/home/cashier/void-requests");
         break;
       default:
         break;
@@ -109,7 +109,7 @@ const CashierDashboard = () => {
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: '400px' }}>
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "400px" }}>
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -122,11 +122,11 @@ const CashierDashboard = () => {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="mb-0">Cashier Dashboard</h2>
         <div className="text-muted">
-          {new Date().toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
+          {new Date().toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric"
           })}
         </div>
       </div>
@@ -246,7 +246,7 @@ const CashierDashboard = () => {
                     variant="primary"
                     size="lg"
                     className="w-100 d-flex align-items-center justify-content-center gap-2"
-                    onClick={() => handleQuickAction('bills')}
+                    onClick={() => handleQuickAction("bills")}
                   >
                     <i className="bi bi-receipt"></i>
                     Manage Bills
@@ -261,7 +261,7 @@ const CashierDashboard = () => {
                     variant="warning"
                     size="lg"
                     className="w-100 d-flex align-items-center justify-content-center gap-2"
-                    onClick={() => handleQuickAction('void-requests')}
+                    onClick={() => handleQuickAction("void-requests")}
                   >
                     <i className="bi bi-exclamation-triangle"></i>
                     Void Requests
@@ -284,12 +284,12 @@ const CashierDashboard = () => {
             Action Required
           </Alert.Heading>
           <p className="mb-0">
-            You have <strong>{summary.pendingVoidRequests}</strong> pending void request{summary.pendingVoidRequests > 1 ? 's' : ''} that need your attention.
+            You have <strong>{summary.pendingVoidRequests}</strong> pending void request{summary.pendingVoidRequests > 1 ? "s" : ""} that need your attention.
             <Button
               variant="outline-warning"
               size="sm"
               className="ms-2"
-              onClick={() => handleQuickAction('void-requests')}
+              onClick={() => handleQuickAction("void-requests")}
             >
               Review Now
             </Button>
@@ -304,12 +304,12 @@ const CashierDashboard = () => {
             Bills Pending
           </Alert.Heading>
           <p className="mb-0">
-            You have <strong>{summary.pendingBills}</strong> bill{summary.pendingBills > 1 ? 's' : ''} waiting to be processed.
+            You have <strong>{summary.pendingBills}</strong> bill{summary.pendingBills > 1 ? "s" : ""} waiting to be processed.
             <Button
               variant="outline-info"
               size="sm"
               className="ms-2"
-              onClick={() => handleQuickAction('bills')}
+              onClick={() => handleQuickAction("bills")}
             >
               Process Bills
             </Button>

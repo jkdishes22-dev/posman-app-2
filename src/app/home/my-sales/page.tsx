@@ -17,6 +17,7 @@ import ReactDOM from "react-dom/client";
 import { useApiCall } from "../../utils/apiUtils";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import QuantityChangeModal from "../../components/QuantityChangeModal";
 
 // Receipt component for printing
 const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
@@ -80,6 +81,10 @@ const MySales = () => {
   const [voidReason, setVoidReason] = useState<string>("");
   const [voidError, setVoidError] = useState<string | null>(null);
   const [voidErrorDetails, setVoidErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  // Quantity change request state
+  const [showQuantityChangeModal, setShowQuantityChangeModal] = useState<boolean>(false);
+  const [selectedQuantityChangeItem, setSelectedQuantityChangeItem] = useState<BillItem | null>(null);
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
@@ -323,47 +328,25 @@ const MySales = () => {
     setVoidErrorDetails(null);
   };
 
-  // Void approval functions for cashiers
-  const handleVoidApproval = async (item: BillItem, action: 'approve' | 'reject'): Promise<void> => {
-    if (!selectedBill) return;
+  // Quantity change request handlers
+  const handleQuantityChangeRequest = (item: BillItem): void => {
+    setSelectedQuantityChangeItem(item);
+    setShowQuantityChangeModal(true);
+  };
 
-    const approvalNotes = prompt(`Enter notes for ${action === 'approve' ? 'approval' : 'rejection'} of void request for ${item.item?.name}:`);
-    if (approvalNotes === null) return; // User cancelled
+  const handleQuantityChangeSuccess = async (): Promise<void> => {
+    // Refresh bill data with current filters and update the selected bill with fresh data
+    await fetchBills(selectedDate, statusFilter, billIdFilter);
 
-    const paperApprovalReceived = action === "approve" ?
-      confirm("Has the physical approval form been received and signed by the chef/order-releaser?") :
-      false;
-
-    try {
-      const payload = {
-        action,
-        approvalNotes: approvalNotes.trim(),
-        paperApprovalReceived
-      };
-
-      const result = await apiCall(`/api/bills/${selectedBill.id}/items/${item.id}/void-approve`, {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-
-      if (result.status === 200) {
-        // Refresh bill data to show updated status
-        await fetchBills(selectedDate, statusFilter, billIdFilter);
-
-        // Update the selected bill with fresh data
-        if (selectedBill) {
-          const result = await apiCall(`/api/bills?billId=${selectedBill.id}`);
-          if (result.status === 200 && result.data?.bills?.length > 0) {
-            setSelectedBill(result.data.bills[0]);
-          }
-        }
-      } else {
-        alert(result.error || `Failed to ${action} void request`);
+    // Update the selected bill with fresh data to reflect the quantity change request
+    if (selectedBill) {
+      const result = await apiCall(`/api/bills?billId=${selectedBill.id}`);
+      if (result.status === 200 && result.data?.bills?.length > 0) {
+        setSelectedBill(result.data.bills[0]);
       }
-    } catch (error) {
-      alert(`Network error occurred while ${action === 'approve' ? 'approving' : 'rejecting'} void request`);
     }
   };
+
 
   useEffect(() => {
     // Always fetch bills when date, status, billId, or page changes
@@ -821,35 +804,49 @@ const MySales = () => {
                                 <td>
                                   {(selectedBill.status === 'pending' || selectedBill.status === 'reopened') &&
                                     item.status === 'pending' && (
-                                      <Button
-                                        variant="outline-danger"
-                                        size="sm"
-                                        onClick={() => handleVoidRequest(item)}
-                                        className="d-flex align-items-center gap-1"
-                                        title="Request to void this item"
-                                      >
-                                        <i className="bi bi-exclamation-triangle-fill"></i>
-                                        Request Void
-                                      </Button>
+                                      <div className="d-flex gap-1">
+                                        <Button
+                                          variant="outline-danger"
+                                          size="sm"
+                                          onClick={() => handleVoidRequest(item)}
+                                          className="d-flex align-items-center gap-1"
+                                          title="Request to void this item"
+                                        >
+                                          <i className="bi bi-exclamation-triangle-fill"></i>
+                                          Request Void
+                                        </Button>
+                                        <Button
+                                          variant="outline-warning"
+                                          size="sm"
+                                          onClick={() => handleQuantityChangeRequest(item)}
+                                          className="d-flex align-items-center gap-1"
+                                          title="Request to change quantity"
+                                        >
+                                          <i className="bi bi-pencil-square"></i>
+                                          Change Qty
+                                        </Button>
+                                      </div>
                                     )}
                                   {item.status === 'void_pending' && (
-                                    <div className="d-flex gap-1">
-                                      <Button
-                                        variant="outline-success"
-                                        size="sm"
-                                        onClick={() => handleVoidApproval(item, 'approve')}
-                                        title="Approve void request"
-                                      >
-                                        <i className="bi bi-check"></i> Approve
-                                      </Button>
-                                      <Button
-                                        variant="outline-danger"
-                                        size="sm"
-                                        onClick={() => handleVoidApproval(item, 'reject')}
-                                        title="Reject void request"
-                                      >
-                                        <i className="bi bi-x"></i> Reject
-                                      </Button>
+                                    <div className="d-flex align-items-center gap-2">
+                                      <span className="badge bg-warning text-dark">
+                                        <i className="bi bi-clock me-1"></i>
+                                        Pending Approval
+                                      </span>
+                                      <small className="text-muted">
+                                        Awaiting cashier/supervisor approval
+                                      </small>
+                                    </div>
+                                  )}
+                                  {item.status === 'quantity_change_request' && (
+                                    <div className="d-flex align-items-center gap-2">
+                                      <span className="badge bg-info text-dark">
+                                        <i className="bi bi-pencil-square me-1"></i>
+                                        Quantity Change Pending
+                                      </span>
+                                      <small className="text-muted">
+                                        Awaiting cashier/supervisor approval
+                                      </small>
                                     </div>
                                   )}
                                 </td>
@@ -1034,6 +1031,14 @@ const MySales = () => {
               </div>
             </div>
           )}
+
+          {/* Quantity Change Request Modal */}
+          <QuantityChangeModal
+            show={showQuantityChangeModal}
+            onHide={() => setShowQuantityChangeModal(false)}
+            item={selectedQuantityChangeItem}
+            onSuccess={handleQuantityChangeSuccess}
+          />
         </div>
       </SecureRoute>
     </RoleAwareLayout >

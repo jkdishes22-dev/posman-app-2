@@ -1,0 +1,62 @@
+import { NextApiRequest, NextApiResponse } from "next";
+import { BillService } from "@services/BillService";
+import { dbMiddleware } from "@backend/middleware/dbMiddleware";
+import { authMiddleware, authorize } from "@backend/middleware/auth";
+import permissions from "@backend/config/managed-roles";
+import { withMiddleware } from "@backend/middleware/middleware-util";
+
+const requestQuantityChange = async (req: NextApiRequest, res: NextApiResponse) => {
+    try {
+        const { billId, itemId } = req.query;
+        const { requestedQuantity, reason } = req.body;
+
+        if (!billId || !itemId || !requestedQuantity || !reason) {
+            return res.status(400).json({
+                error: "billId, itemId, requestedQuantity, and reason are required"
+            });
+        }
+
+        if (requestedQuantity <= 0) {
+            return res.status(400).json({
+                error: "Requested quantity must be greater than 0"
+            });
+        }
+
+        const billService = new BillService(req.db);
+        const userId = parseInt(req.user?.id as string);
+
+        const result = await billService.requestQuantityChange(
+            parseInt(billId as string),
+            parseInt(itemId as string),
+            userId,
+            parseInt(requestedQuantity),
+            reason.trim()
+        );
+
+        return res.status(200).json({
+            message: "Quantity change request submitted successfully",
+            quantityChangeRequest: result
+        });
+
+    } catch (error) {
+        console.error("Error requesting quantity change:", error);
+        return res.status(500).json({
+            error: "Internal server error",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+
+const handler = async (req: NextApiRequest, res: NextApiResponse) => {
+    if (req.method === "POST") {
+        return authMiddleware(authorize([permissions.CAN_EDIT_BILL])(requestQuantityChange))(
+            req,
+            res,
+        );
+    } else {
+        res.setHeader("Allow", ["POST"]);
+        res.status(405).end(`Method ${req.method} Not Allowed`);
+    }
+};
+
+export default withMiddleware(dbMiddleware)(handler);

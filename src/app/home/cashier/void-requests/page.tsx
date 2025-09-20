@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import "react-datepicker/dist/react-datepicker.css";
 import { formatISO } from "date-fns";
 import { Bill } from "src/app/types/types";
-import { Modal, Button, Form } from "react-bootstrap";
+import { Modal, Button, Form, Badge } from "react-bootstrap";
 import Pagination from "../../../components/Pagination";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
@@ -16,6 +16,7 @@ const VoidRequestsPage = () => {
     const [filters, setFilters] = useState({
         billingDate: null,
         status: "pending",
+        requestType: "all", // "all", "void", "quantity_change"
     });
     const [bills, setBills] = useState<Bill[]>([]);
     const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
@@ -25,15 +26,16 @@ const VoidRequestsPage = () => {
     const [error, setError] = useState<string | null>(null);
     const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
 
-    // Void approval states
-    const [showVoidApprovalModal, setShowVoidApprovalModal] = useState(false);
-    const [selectedVoidItem, setSelectedVoidItem] = useState<any>(null);
-    const [voidApprovalAction, setVoidApprovalAction] = useState<'approve' | 'reject' | null>(null);
-    const [voidApprovalNotes, setVoidApprovalNotes] = useState("");
+    // Request approval states
+    const [showApprovalModal, setShowApprovalModal] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<any>(null);
+    const [approvalAction, setApprovalAction] = useState<'approve' | 'reject' | null>(null);
+    const [approvalNotes, setApprovalNotes] = useState("");
     const [paperApprovalReceived, setPaperApprovalReceived] = useState(false);
-    const [voidApprovalLoading, setVoidApprovalLoading] = useState(false);
-    const [voidApprovalError, setVoidApprovalError] = useState<string | null>(null);
-    const [voidApprovalErrorDetails, setVoidApprovalErrorDetails] = useState<ApiErrorResponse | null>(null);
+    const [approvalLoading, setApprovalLoading] = useState(false);
+    const [approvalError, setApprovalError] = useState<string | null>(null);
+    const [approvalErrorDetails, setApprovalErrorDetails] = useState<ApiErrorResponse | null>(null);
+    const [requestType, setRequestType] = useState<'void' | 'quantity_change' | null>(null);
 
     useEffect(() => {
         fetchBills();
@@ -67,11 +69,20 @@ const VoidRequestsPage = () => {
                 const pendingBills = pendingResult.data.bills || [];
                 const reopenedBills = reopenedResult.data.bills || [];
 
-                // Combine and filter for bills with pending void requests
+                // Combine and filter for bills with pending requests
                 const allBills = [...pendingBills, ...reopenedBills];
-                bills = allBills.filter((bill: Bill) =>
-                    bill.bill_items?.some((item: any) => item.status === 'void_pending')
-                );
+                bills = allBills.filter((bill: Bill) => {
+                    if (filters.requestType === 'void') {
+                        return bill.bill_items?.some((item: any) => item.status === 'void_pending');
+                    } else if (filters.requestType === 'quantity_change') {
+                        return bill.bill_items?.some((item: any) => item.status === 'quantity_change_request');
+                    } else {
+                        // "all" - show bills with any pending requests
+                        return bill.bill_items?.some((item: any) =>
+                            item.status === 'void_pending' || item.status === 'quantity_change_request'
+                        );
+                    }
+                });
                 total = bills.length;
             } else {
                 setError("Failed to fetch bills for void requests");
@@ -114,40 +125,46 @@ const VoidRequestsPage = () => {
         setPage(1);
     };
 
-    const handleVoidApproval = (item: any, action: 'approve' | 'reject') => {
-        setSelectedVoidItem(item);
-        setVoidApprovalAction(action);
-        setVoidApprovalNotes("");
+    const handleRequestApproval = (item: any, action: 'approve' | 'reject', type: 'void' | 'quantity_change') => {
+        setSelectedItem(item);
+        setApprovalAction(action);
+        setRequestType(type);
+        setApprovalNotes("");
         setPaperApprovalReceived(false);
-        setVoidApprovalError(null);
-        setVoidApprovalErrorDetails(null);
-        setShowVoidApprovalModal(true);
+        setApprovalError(null);
+        setApprovalErrorDetails(null);
+        setShowApprovalModal(true);
     };
 
-    const handleConfirmVoidApproval = async () => {
-        if (!selectedVoidItem || !voidApprovalAction || !selectedBill) {
+    const handleConfirmApproval = async () => {
+        if (!selectedItem || !approvalAction || !selectedBill || !requestType) {
             return;
         }
 
-        setVoidApprovalLoading(true);
-        setVoidApprovalError(null);
-        setVoidApprovalErrorDetails(null);
+        setApprovalLoading(true);
+        setApprovalError(null);
+        setApprovalErrorDetails(null);
 
         try {
-            const result = await apiCall(`/api/bills/${selectedBill.id}/items/${selectedVoidItem.id}/void-approve`, {
+            const endpoint = requestType === 'void'
+                ? `/api/bills/${selectedBill.id}/items/${selectedItem.id}/void-approve`
+                : `/api/bills/${selectedBill.id}/items/${selectedItem.id}/quantity-change-approve`;
+
+            const result = await apiCall(endpoint, {
                 method: "POST",
                 body: JSON.stringify({
-                    action: voidApprovalAction,
-                    approvalNotes: voidApprovalNotes.trim(),
+                    action: approvalAction,
+                    approvalNotes: approvalNotes.trim(),
                     paperApprovalReceived: paperApprovalReceived
                 })
             });
 
             if (result.status === 200) {
-                setShowVoidApprovalModal(false);
-                setSelectedVoidItem(null);
-                setVoidApprovalAction(null);
-                setVoidApprovalNotes("");
+                setShowApprovalModal(false);
+                setSelectedItem(null);
+                setApprovalAction(null);
+                setRequestType(null);
+                setApprovalNotes("");
                 setPaperApprovalReceived(false);
 
                 // Refresh the bill data to show updated status
@@ -155,25 +172,26 @@ const VoidRequestsPage = () => {
                 // Also refresh the bills list
                 await fetchBills();
             } else {
-                setVoidApprovalError(result.error || "Failed to process void request");
-                setVoidApprovalErrorDetails(result.errorDetails);
+                setApprovalError(result.error || `Failed to process ${requestType} request`);
+                setApprovalErrorDetails(result.errorDetails);
             }
         } catch (error) {
-            setVoidApprovalError("Network error occurred");
-            setVoidApprovalErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+            setApprovalError("Network error occurred");
+            setApprovalErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         } finally {
-            setVoidApprovalLoading(false);
+            setApprovalLoading(false);
         }
     };
 
-    const handleCloseVoidApprovalModal = () => {
-        setShowVoidApprovalModal(false);
-        setSelectedVoidItem(null);
-        setVoidApprovalAction(null);
-        setVoidApprovalNotes("");
+    const handleCloseApprovalModal = () => {
+        setShowApprovalModal(false);
+        setSelectedItem(null);
+        setApprovalAction(null);
+        setRequestType(null);
+        setApprovalNotes("");
         setPaperApprovalReceived(false);
-        setVoidApprovalError(null);
-        setVoidApprovalErrorDetails(null);
+        setApprovalError(null);
+        setApprovalErrorDetails(null);
     };
 
     return (
@@ -192,9 +210,9 @@ const VoidRequestsPage = () => {
             <div className="bg-warning text-dark p-3 mb-4">
                 <h1 className="h4 mb-0 fw-bold">
                     <i className="bi bi-exclamation-triangle me-2"></i>
-                    Void Requests Management
+                    Bill Change Requests Management
                 </h1>
-                <p className="mb-0">Review and approve/reject pending void requests from sales team</p>
+                <p className="mb-0">Review and approve/reject pending void and quantity change requests from sales team</p>
             </div>
 
             {/* Filtering Section */}
@@ -218,13 +236,27 @@ const VoidRequestsPage = () => {
                                         </div>
                                     </div>
                                 </div>
+                                <div className="col-md-3">
+                                    <div className="form-group">
+                                        <label className="form-label fw-semibold">Request Type</label>
+                                        <select
+                                            className="form-select"
+                                            value={filters.requestType}
+                                            onChange={(e) => handleFilterChange("requestType", e.target.value)}
+                                        >
+                                            <option value="all">All Requests</option>
+                                            <option value="void">Void Requests</option>
+                                            <option value="quantity_change">Quantity Change Requests</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div className="col-md-3 d-flex align-items-end">
                                     <div className="btn-group" role="group" aria-label="Filter actions">
                                         <button
                                             className="btn btn-outline-warning btn-sm"
                                             onClick={() => handleFilterChange("status", "pending")}
                                         >
-                                            Pending Voids
+                                            Pending Requests
                                         </button>
                                     </div>
                                 </div>
@@ -242,14 +274,14 @@ const VoidRequestsPage = () => {
                         <div className="card-header bg-light">
                             <h5 className="mb-0 fw-bold">
                                 <i className="bi bi-list-ul me-2 text-primary"></i>
-                                Bills with Pending Void Requests
+                                Bills with Pending Requests
                             </h5>
                         </div>
                         <div className="card-body">
                             {bills.length === 0 ? (
                                 <div className="text-center text-muted py-4">
                                     <i className="bi bi-check-circle display-4"></i>
-                                    <p className="mt-2">No bills with pending void requests found</p>
+                                    <p className="mt-2">No bills with pending requests found</p>
                                 </div>
                             ) : (
                                 <div className="table-responsive">
@@ -260,13 +292,15 @@ const VoidRequestsPage = () => {
                                                 <th>STATUS</th>
                                                 <th>TOTAL</th>
                                                 <th>CREATED BY</th>
-                                                <th>VOID REQUESTS</th>
+                                                <th>PENDING REQUESTS</th>
                                                 <th>ACTIONS</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {bills.map((bill) => {
                                                 const pendingVoidCount = bill.bill_items?.filter((item: any) => item.status === 'void_pending').length || 0;
+                                                const pendingQuantityChangeCount = bill.bill_items?.filter((item: any) => item.status === 'quantity_change_request').length || 0;
+                                                const totalPendingCount = pendingVoidCount + pendingQuantityChangeCount;
                                                 return (
                                                     <tr
                                                         key={bill.id}
@@ -285,9 +319,21 @@ const VoidRequestsPage = () => {
                                                         <td>${bill.total}</td>
                                                         <td>{bill.user?.firstName} {bill.user?.lastName}</td>
                                                         <td>
-                                                            <span className="badge bg-warning text-dark">
-                                                                {pendingVoidCount} pending
-                                                            </span>
+                                                            <div className="d-flex gap-1 flex-wrap">
+                                                                {pendingVoidCount > 0 && (
+                                                                    <Badge bg="warning" text="dark">
+                                                                        {pendingVoidCount} void
+                                                                    </Badge>
+                                                                )}
+                                                                {pendingQuantityChangeCount > 0 && (
+                                                                    <Badge bg="info" text="dark">
+                                                                        {pendingQuantityChangeCount} qty
+                                                                    </Badge>
+                                                                )}
+                                                                {totalPendingCount === 0 && (
+                                                                    <span className="text-muted">None</span>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td>
                                                             <button
@@ -331,7 +377,7 @@ const VoidRequestsPage = () => {
                         <div className="card-header bg-light">
                             <h5 className="mb-0 fw-bold">
                                 <i className="bi bi-receipt me-2 text-primary"></i>
-                                Bill Details & Void Requests
+                                Bill Details & Pending Requests
                             </h5>
                         </div>
                         <div className="card-body">
@@ -345,8 +391,8 @@ const VoidRequestsPage = () => {
                                         <p className="mb-1"><strong>Created At:</strong> {new Date(selectedBill.created_at).toLocaleString()}</p>
                                     </div>
 
-                                    {/* Bill Items with Void Requests */}
-                                    <h6 className="fw-bold text-primary">Items with Pending Void Requests</h6>
+                                    {/* Bill Items with Pending Requests */}
+                                    <h6 className="fw-bold text-primary">Items with Pending Requests</h6>
                                     <div className="table-responsive">
                                         <table className="table table-sm table-hover">
                                             <thead className="table-light">
@@ -355,50 +401,73 @@ const VoidRequestsPage = () => {
                                                     <th>Qty</th>
                                                     <th>Price</th>
                                                     <th>Subtotal</th>
+                                                    <th>Request Type</th>
                                                     <th>Reason</th>
                                                     <th>Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {selectedBill.bill_items
-                                                    ?.filter((item: any) => item.status === 'void_pending')
-                                                    .map((item, index) => (
-                                                        <tr key={index} className="table-warning">
-                                                            <td>
-                                                                <div className="fw-semibold">{item.item.name}</div>
-                                                            </td>
-                                                            <td>{item.quantity}</td>
-                                                            <td>${(item.subtotal / item.quantity).toFixed(2)}</td>
-                                                            <td>${item.subtotal.toFixed(2)}</td>
-                                                            <td>
-                                                                <div className="small text-muted">
-                                                                    {item.void_reason}
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div className="d-flex gap-2">
-                                                                    <button
-                                                                        className="btn btn-success btn-sm d-flex align-items-center gap-1"
-                                                                        onClick={() => handleVoidApproval(item, 'approve')}
-                                                                        title="Approve Void Request"
-                                                                        disabled={voidApprovalLoading}
-                                                                    >
-                                                                        <i className="bi bi-check-circle-fill"></i>
-                                                                        <span className="d-none d-sm-inline">Approve</span>
-                                                                    </button>
-                                                                    <button
-                                                                        className="btn btn-outline-danger btn-sm d-flex align-items-center gap-1"
-                                                                        onClick={() => handleVoidApproval(item, 'reject')}
-                                                                        title="Reject Void Request"
-                                                                        disabled={voidApprovalLoading}
-                                                                    >
-                                                                        <i className="bi bi-x-circle-fill"></i>
-                                                                        <span className="d-none d-sm-inline">Reject</span>
-                                                                    </button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
+                                                    ?.filter((item: any) => item.status === 'void_pending' || item.status === 'quantity_change_request')
+                                                    .map((item, index) => {
+                                                        const isVoidRequest = item.status === 'void_pending';
+                                                        const isQuantityChangeRequest = item.status === 'quantity_change_request';
+                                                        return (
+                                                            <tr key={index} className={isVoidRequest ? "table-warning" : "table-info"}>
+                                                                <td>
+                                                                    <div className="fw-semibold">{item.item.name}</div>
+                                                                </td>
+                                                                <td>
+                                                                    {isQuantityChangeRequest && item.requested_quantity ? (
+                                                                        <div>
+                                                                            <div className="text-decoration-line-through text-muted small">
+                                                                                {item.quantity}
+                                                                            </div>
+                                                                            <div className="fw-bold text-primary">
+                                                                                {item.requested_quantity}
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        item.quantity
+                                                                    )}
+                                                                </td>
+                                                                <td>${(item.subtotal / item.quantity).toFixed(2)}</td>
+                                                                <td>${item.subtotal.toFixed(2)}</td>
+                                                                <td>
+                                                                    <Badge bg={isVoidRequest ? "warning" : "info"} text="dark">
+                                                                        {isVoidRequest ? "Void" : "Qty Change"}
+                                                                    </Badge>
+                                                                </td>
+                                                                <td>
+                                                                    <div className="small text-muted">
+                                                                        {isVoidRequest ? item.void_reason : item.quantity_change_reason}
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <div className="d-flex gap-2">
+                                                                        <button
+                                                                            className="btn btn-success btn-sm d-flex align-items-center gap-1"
+                                                                            onClick={() => handleRequestApproval(item, 'approve', isVoidRequest ? 'void' : 'quantity_change')}
+                                                                            title={`Approve ${isVoidRequest ? 'Void' : 'Quantity Change'} Request`}
+                                                                            disabled={approvalLoading}
+                                                                        >
+                                                                            <i className="bi bi-check-circle-fill"></i>
+                                                                            <span className="d-none d-sm-inline">Approve</span>
+                                                                        </button>
+                                                                        <button
+                                                                            className="btn btn-outline-danger btn-sm d-flex align-items-center gap-1"
+                                                                            onClick={() => handleRequestApproval(item, 'reject', isVoidRequest ? 'void' : 'quantity_change')}
+                                                                            title={`Reject ${isVoidRequest ? 'Void' : 'Quantity Change'} Request`}
+                                                                            disabled={approvalLoading}
+                                                                        >
+                                                                            <i className="bi bi-x-circle-fill"></i>
+                                                                            <span className="d-none d-sm-inline">Reject</span>
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
                                             </tbody>
                                         </table>
                                     </div>
@@ -406,7 +475,7 @@ const VoidRequestsPage = () => {
                             ) : (
                                 <div className="text-center text-muted">
                                     <i className="bi bi-receipt display-4"></i>
-                                    <p className="mt-2">Select a bill to see details and void requests</p>
+                                    <p className="mt-2">Select a bill to see details and pending requests</p>
                                 </div>
                             )}
                         </div>
@@ -414,41 +483,100 @@ const VoidRequestsPage = () => {
                 </div>
             </div>
 
-            {/* Void Approval Modal */}
-            <Modal show={showVoidApprovalModal} onHide={handleCloseVoidApprovalModal} size="lg">
+            {/* Request Approval Modal */}
+            <Modal show={showApprovalModal} onHide={handleCloseApprovalModal} size="lg">
                 <Modal.Header closeButton>
                     <Modal.Title>
-                        <i className="bi bi-exclamation-triangle me-2 text-warning"></i>
-                        {voidApprovalAction === 'approve' ? 'Approve' : 'Reject'} Void Request
+                        <i className={`bi ${requestType === 'void' ? 'bi-exclamation-triangle' : 'bi-pencil-square'} me-2 ${requestType === 'void' ? 'text-warning' : 'text-info'}`}></i>
+                        {approvalAction === 'approve' ? 'Approve' : 'Reject'} {requestType === 'void' ? 'Void' : 'Quantity Change'} Request
                     </Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    {selectedVoidItem && (
+                    {selectedItem && (
                         <div>
                             <div className="alert alert-info">
-                                <h6 className="fw-bold">Item Details:</h6>
-                                <p className="mb-1"><strong>Item:</strong> {selectedVoidItem.item.name}</p>
-                                <p className="mb-1"><strong>Quantity:</strong> {selectedVoidItem.quantity}</p>
-                                <p className="mb-1"><strong>Subtotal:</strong> ${selectedVoidItem.subtotal}</p>
-                                <p className="mb-0"><strong>Void Reason:</strong> {selectedVoidItem.void_reason}</p>
+                                <div className="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 className="fw-bold mb-0">Item Details: {selectedItem.item.name}</h6>
+                                    <span className="badge bg-primary fs-6">Bill #{selectedBill?.id}</span>
+                                </div>
+
+                                {requestType === 'quantity_change' && selectedItem.requested_quantity ? (
+                                    <div className="row">
+                                        <div className="col-6">
+                                            <div className="border rounded p-3 bg-light">
+                                                <h6 className="text-muted mb-3">Current</h6>
+                                                <p className="mb-2"><strong>Quantity:</strong> {selectedItem.quantity}</p>
+                                                <p className="mb-2"><strong>Subtotal:</strong> ${selectedItem.subtotal}</p>
+                                                <p className="mb-0"><strong>Unit Price:</strong> ${selectedItem.item.price}</p>
+                                            </div>
+                                        </div>
+                                        <div className="col-6">
+                                            <div className="border rounded p-3 bg-light">
+                                                <h6 className="text-muted mb-3">Requested</h6>
+                                                <p className="mb-2"><strong>Quantity:</strong> {selectedItem.requested_quantity}</p>
+                                                <p className="mb-2"><strong>Subtotal:</strong> ${(selectedItem.item.price * selectedItem.requested_quantity).toFixed(2)}</p>
+                                                <p className="mb-0"><strong>Unit Price:</strong> ${selectedItem.item.price}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="row">
+                                        <div className="col-12">
+                                            <p className="mb-1"><strong>Quantity:</strong> {selectedItem.quantity}</p>
+                                            <p className="mb-1"><strong>Subtotal:</strong> ${selectedItem.subtotal}</p>
+                                            <p className="mb-0"><strong>Unit Price:</strong> ${selectedItem.item.price}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {requestType === 'quantity_change' && selectedItem.requested_quantity && (
+                                    <div className="mt-3 p-3 bg-white border rounded">
+                                        <h6 className="fw-bold mb-2">Change Summary</h6>
+                                        <div className="row">
+                                            <div className="col-6">
+                                                <p className="mb-1"><strong>Quantity Change:</strong></p>
+                                                <span className={`badge ${selectedItem.requested_quantity > selectedItem.quantity ? 'bg-success' : 'bg-danger'} fs-6`}>
+                                                    {selectedItem.requested_quantity > selectedItem.quantity ? '+' : ''}
+                                                    {selectedItem.requested_quantity - selectedItem.quantity}
+                                                </span>
+                                            </div>
+                                            <div className="col-6">
+                                                <p className="mb-1"><strong>Subtotal Change:</strong></p>
+                                                <span className={`badge ${selectedItem.requested_quantity > selectedItem.quantity ? 'bg-success' : 'bg-danger'} fs-6`}>
+                                                    {selectedItem.requested_quantity > selectedItem.quantity ? '+' : ''}
+                                                    ${((selectedItem.item.price * selectedItem.requested_quantity) - selectedItem.subtotal).toFixed(2)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="mt-3">
+                                    {requestType === 'void' && selectedItem.void_reason && (
+                                        <p className="mb-0"><strong>Void Reason:</strong> {selectedItem.void_reason}</p>
+                                    )}
+                                    {requestType === 'quantity_change' && selectedItem.quantity_change_reason && (
+                                        <p className="mb-0"><strong>Change Reason:</strong> {selectedItem.quantity_change_reason}</p>
+                                    )}
+                                </div>
                             </div>
 
                             <Form.Group className="mb-3">
                                 <Form.Label>
                                     <strong>
-                                        {voidApprovalAction === 'approve' ? 'Approval' : 'Rejection'} Notes
+                                        {approvalAction === 'approve' ? 'Approval' : 'Rejection'} Notes
                                     </strong>
                                 </Form.Label>
                                 <Form.Control
                                     as="textarea"
                                     rows={3}
-                                    value={voidApprovalNotes}
-                                    onChange={(e) => setVoidApprovalNotes(e.target.value)}
-                                    placeholder={`Enter ${voidApprovalAction === 'approve' ? 'approval' : 'rejection'} notes...`}
+                                    value={approvalNotes}
+                                    onChange={(e) => setApprovalNotes(e.target.value)}
+                                    placeholder={`Enter ${approvalAction === 'approve' ? 'approval' : 'rejection'} notes...`}
                                 />
                             </Form.Group>
 
-                            {voidApprovalAction === 'approve' && (
+                            {approvalAction === 'approve' && (
                                 <Form.Group className="mb-3">
                                     <Form.Check
                                         type="checkbox"
@@ -461,11 +589,11 @@ const VoidRequestsPage = () => {
                             )}
 
                             <ErrorDisplay
-                                error={voidApprovalError}
-                                errorDetails={voidApprovalErrorDetails}
+                                error={approvalError}
+                                errorDetails={approvalErrorDetails}
                                 onDismiss={() => {
-                                    setVoidApprovalError(null);
-                                    setVoidApprovalErrorDetails(null);
+                                    setApprovalError(null);
+                                    setApprovalErrorDetails(null);
                                 }}
                             />
                         </div>
@@ -474,27 +602,27 @@ const VoidRequestsPage = () => {
                 <Modal.Footer className="d-flex justify-content-between">
                     <Button
                         variant="outline-secondary"
-                        onClick={handleCloseVoidApprovalModal}
-                        disabled={voidApprovalLoading}
+                        onClick={handleCloseApprovalModal}
+                        disabled={approvalLoading}
                     >
                         <i className="bi bi-x-circle me-1"></i>
                         Cancel
                     </Button>
                     <Button
-                        variant={voidApprovalAction === 'approve' ? 'success' : 'danger'}
-                        onClick={handleConfirmVoidApproval}
-                        disabled={voidApprovalLoading || (voidApprovalAction === 'approve' && !paperApprovalReceived)}
+                        variant={approvalAction === 'approve' ? 'success' : 'danger'}
+                        onClick={handleConfirmApproval}
+                        disabled={approvalLoading || (approvalAction === 'approve' && !paperApprovalReceived)}
                         className="d-flex align-items-center gap-2"
                     >
-                        {voidApprovalLoading ? (
+                        {approvalLoading ? (
                             <>
                                 <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                                 Processing...
                             </>
                         ) : (
                             <>
-                                <i className={`bi ${voidApprovalAction === 'approve' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}></i>
-                                {voidApprovalAction === 'approve' ? 'Approve' : 'Reject'} Void Request
+                                <i className={`bi ${approvalAction === 'approve' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}></i>
+                                {approvalAction === 'approve' ? 'Approve' : 'Reject'} {requestType === 'void' ? 'Void' : 'Quantity Change'} Request
                             </>
                         )}
                     </Button>

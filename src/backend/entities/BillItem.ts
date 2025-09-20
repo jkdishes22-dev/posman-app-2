@@ -16,6 +16,7 @@ export enum BillItemStatus {
   CLOSED = "closed",
   VOID_PENDING = "void_pending",
   VOIDED = "voided",
+  QUANTITY_CHANGE_REQUEST = "quantity_change_request",
   DELETED = "deleted",
 }
 
@@ -70,6 +71,25 @@ export class BillItem {
   @Column({ type: "datetime", nullable: true })
   void_approved_at: Date;
 
+  // Quantity change tracking columns
+  @Column({ type: "int", nullable: true })
+  requested_quantity: number;
+
+  @Column({ type: "text", nullable: true })
+  quantity_change_reason: string;
+
+  @Column({ nullable: true })
+  quantity_change_requested_by: number;
+
+  @Column({ type: "datetime", nullable: true })
+  quantity_change_requested_at: Date;
+
+  @Column({ nullable: true })
+  quantity_change_approved_by: number;
+
+  @Column({ type: "datetime", nullable: true })
+  quantity_change_approved_at: Date;
+
   @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;
 
@@ -87,12 +107,23 @@ export class BillItem {
       && this.status === BillItemStatus.VOID_PENDING;
   }
 
+  canRequestQuantityChange(bill: Bill): boolean {
+    return (bill.status === 'pending' || bill.status === 'reopened')
+      && this.status === BillItemStatus.PENDING;
+  }
+
+  canApproveQuantityChange(bill: Bill): boolean {
+    return (bill.status === 'pending' || bill.status === 'reopened')
+      && this.status === BillItemStatus.QUANTITY_CHANGE_REQUEST;
+  }
+
   // State transition validation (Rule 4.7)
   canTransitionTo(newStatus: BillItemStatus): boolean {
     const transitions = {
-      [BillItemStatus.PENDING]: [BillItemStatus.SUBMITTED, BillItemStatus.VOID_PENDING],
+      [BillItemStatus.PENDING]: [BillItemStatus.SUBMITTED, BillItemStatus.VOID_PENDING, BillItemStatus.QUANTITY_CHANGE_REQUEST],
       [BillItemStatus.SUBMITTED]: [BillItemStatus.CLOSED],
       [BillItemStatus.VOID_PENDING]: [BillItemStatus.VOIDED, BillItemStatus.SUBMITTED], // approved or rejected
+      [BillItemStatus.QUANTITY_CHANGE_REQUEST]: [BillItemStatus.SUBMITTED], // approved or rejected
       [BillItemStatus.CLOSED]: [], // terminal state
       [BillItemStatus.VOIDED]: [], // terminal state
       [BillItemStatus.DELETED]: [] // terminal state
