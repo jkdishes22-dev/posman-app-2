@@ -17,6 +17,7 @@ import ReactDOM from "react-dom/client";
 import { useApiCall } from "../../utils/apiUtils";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import BillActions from "../../components/BillActions";
 
 // Receipt component for printing
 const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
@@ -134,7 +135,7 @@ const MySales = () => {
       }
     } catch (error) {
       setError("Network error occurred");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -157,7 +158,7 @@ const MySales = () => {
       }
     } catch (error) {
       setError("Network error occurred");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setFilteredBills([]);
     }
   };
@@ -420,7 +421,23 @@ const MySales = () => {
                             />
                           </td>
                           <td>{bill.id}</td>
-                          <td>{bill.status}</td>
+                          <td>
+                            {bill.status === "reopened" ? (
+                              <span className="badge bg-warning text-dark">
+                                <i className="bi bi-exclamation-triangle me-1"></i>
+                                {bill.status}
+                              </span>
+                            ) : (
+                              <span className={`badge ${bill.status === "pending" ? "bg-warning" :
+                                bill.status === "submitted" ? "bg-info" :
+                                  bill.status === "closed" ? "bg-success" :
+                                    bill.status === "voided" ? "bg-secondary" :
+                                      "bg-light text-dark"
+                                }`}>
+                                {bill.status}
+                              </span>
+                            )}
+                          </td>
                           <td>KES {bill.total}</td>
                           <td>{new Date(bill.created_at).toLocaleString()}</td>
                           <td>
@@ -431,6 +448,15 @@ const MySales = () => {
                                 onClick={() => handleBillClick(bill)}
                               >
                                 Submit
+                              </Button>
+                            ) : bill.status === "reopened" ? (
+                              <Button
+                                variant="warning"
+                                size="sm"
+                                onClick={() => handleBillClick(bill)}
+                              >
+                                <i className="bi bi-arrow-clockwise me-1"></i>
+                                Resubmit
                               </Button>
                             ) : (
                               <Button
@@ -476,6 +502,113 @@ const MySales = () => {
                           >
                             Submit Bill (KES: {selectedBill.total})
                           </Button>
+                        ) : selectedBill.status === "reopened" ? (
+                          <div>
+                            {(() => {
+                              const billTotal = selectedBill.total;
+                              const payments = selectedBill.bill_payments || [];
+
+                              // Calculate payment breakdown
+                              let cashTotal = 0;
+                              let mpesaTotal = 0;
+                              let otherTotal = 0;
+
+                              payments.forEach(billPayment => {
+                                const amount = billPayment.payment?.creditAmount || 0;
+                                const method = billPayment.payment?.paymentMethod?.toLowerCase() || 'unknown';
+
+                                if (method.includes('cash')) {
+                                  cashTotal += amount;
+                                } else if (method.includes('mpesa') || method.includes('mobile')) {
+                                  mpesaTotal += amount;
+                                } else {
+                                  otherTotal += amount;
+                                }
+                              });
+
+                              const totalPaid = cashTotal + mpesaTotal + otherTotal;
+                              const difference = billTotal - totalPaid;
+                              const isOverpaid = difference < 0;
+                              const isFullyPaid = difference === 0;
+
+                              return (
+                                <div>
+                                  <span className="text-warning">
+                                    Bill is reopened <strong> Total: KES {billTotal.toFixed(2)} </strong>
+                                  </span>
+
+                                  {/* Payment Details */}
+                                  <div className="mt-2">
+                                    {payments.length > 0 ? (
+                                      <div className="card">
+                                        <div className="card-header py-2">
+                                          <h6 className="mb-0">
+                                            <i className="bi bi-credit-card me-2"></i>
+                                            Payment Details
+                                          </h6>
+                                        </div>
+                                        <div className="card-body p-2">
+                                          {payments.map((billPayment, index) => (
+                                            <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
+                                              <div>
+                                                <span className="fw-medium">
+                                                  {billPayment.payment?.paymentType || 'Unknown Method'}
+                                                </span>
+                                                {billPayment.payment?.reference && (
+                                                  <div className="small text-muted">
+                                                    Ref: {billPayment.payment.reference}
+                                                  </div>
+                                                )}
+                                              </div>
+                                              <div className="text-end">
+                                                <span className="fw-bold text-success">
+                                                  KES {(billPayment.payment?.creditAmount || 0).toFixed(2)}
+                                                </span>
+                                                {billPayment.payment?.createdAt && (
+                                                  <div className="small text-muted">
+                                                    {new Date(billPayment.payment.createdAt).toLocaleString()}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          ))}
+                                          <div className="d-flex justify-content-between align-items-center py-2 mt-2 bg-light rounded">
+                                            <span className="fw-bold">Total Paid:</span>
+                                            <span className="fw-bold text-primary">KES {totalPaid.toFixed(2)}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="alert alert-warning py-2 mb-0">
+                                        <i className="bi bi-exclamation-triangle me-2"></i>
+                                        <strong>No payments recorded</strong> - Collect full amount
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Payment Status */}
+                                  <div className="mt-2">
+                                    {isFullyPaid ? (
+                                      <div className="alert alert-success py-2 mb-0">
+                                        <i className="bi bi-check-circle me-2"></i>
+                                        <strong>Payment Complete</strong> - Ready to resubmit
+                                      </div>
+                                    ) : isOverpaid ? (
+                                      <div className="alert alert-warning py-2 mb-0">
+                                        <i className="bi bi-exclamation-triangle me-2"></i>
+                                        <strong>Overpaid by KES {Math.abs(difference).toFixed(2)}</strong> - Review payments
+                                      </div>
+                                    ) : (
+                                      <div className="alert alert-danger py-2 mb-0">
+                                        <i className="bi bi-exclamation-circle me-2"></i>
+                                        <strong>Outstanding: KES {difference.toFixed(2)}</strong> - Collect remaining amount
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
                         ) : (
                           <span className="text-success">
                             Bill is {selectedBill.status} <strong> Total: {selectedBill.total} </strong>
@@ -631,6 +764,30 @@ const MySales = () => {
                       </div>
                     </div>
                   )}
+
+                  {/* Bill Actions - Voiding and Reopening Features */}
+                  {selectedBill && (
+                    <BillActions
+                      bill={selectedBill}
+                      userRole="sales"
+                      onVoidRequested={() => {
+                        // Refresh bill data after void request
+                        fetchBills();
+                      }}
+                      onVoidApproved={() => {
+                        // Refresh bill data after void approval
+                        fetchBills();
+                      }}
+                      onReopened={() => {
+                        // Refresh bill data after reopening
+                        fetchBills();
+                      }}
+                      onResubmitted={() => {
+                        // Refresh bill data after resubmission
+                        fetchBills();
+                      }}
+                    />
+                  )}
                 </div>
               ) : (
                 <p>Select a bill to see the items</p>
@@ -645,7 +802,7 @@ const MySales = () => {
           />
         </div>
       </SecureRoute>
-    </RoleAwareLayout>
+    </RoleAwareLayout >
   );
 };
 

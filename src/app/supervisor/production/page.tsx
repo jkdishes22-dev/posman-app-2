@@ -161,7 +161,7 @@ export default function SupervisorDailyProductionPage() {
                             <td>
                               <span
                                 className={`badge ${production.status === "completed" ? "bg-success" :
-                                    production.status === "in_progress" ? "bg-warning" : "bg-secondary"
+                                  production.status === "in_progress" ? "bg-warning" : "bg-secondary"
                                   }`}
                               >
                                 {production.status}
@@ -207,11 +207,11 @@ export default function SupervisorDailyProductionPage() {
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const formData = new FormData(e.target);
+                      const formData = new FormData(e.target as HTMLFormElement);
                       handleAddProduction({
                         date: formData.get("date"),
                         itemName: formData.get("itemName"),
-                        quantity: parseInt(formData.get("quantity")),
+                        quantity: parseInt(formData.get("quantity") as string),
                         status: formData.get("status"),
                         notes: formData.get("notes"),
                       });

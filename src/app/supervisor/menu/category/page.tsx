@@ -17,6 +17,7 @@ export default function SupervisorCategoryPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
@@ -67,6 +68,21 @@ export default function SupervisorCategoryPage() {
     } catch (error: any) {
       console.error("Error adding category:", error);
       setFormError("Network error occurred");
+    }
+  };
+
+  const fetchItems = async (categoryId) => {
+    try {
+      const result = await apiCall(`/api/menu/items?categoryId=${categoryId}`);
+      if (result.status === 200) {
+        setItems(result.data || []);
+      } else {
+        setItemError(result.error || "Failed to fetch items");
+        setItemErrorDetails(result.errorDetails);
+      }
+    } catch (error) {
+      setItemError("Network error occurred");
+      setItemErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -151,14 +167,10 @@ export default function SupervisorCategoryPage() {
           {/* Category Items Section */}
           <div className="col-md-6">
             <CategoryItems
-              categories={categories}
-              onAddItem={handleAddItem}
-              error={itemError}
-              errorDetails={itemErrorDetails}
-              onErrorDismiss={() => {
-                setItemError(null);
-                setItemErrorDetails(null);
-              }}
+              selectedCategory={selectedCategory}
+              items={items}
+              itemError={itemError}
+              fetchItems={fetchItems}
             />
           </div>
         </div>
@@ -180,7 +192,7 @@ export default function SupervisorCategoryPage() {
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const formData = new FormData(e.target);
+                      const formData = new FormData(e.target as HTMLFormElement);
                       handleAddCategory({
                         name: formData.get("name"),
                         description: formData.get("description"),
@@ -232,8 +244,9 @@ export default function SupervisorCategoryPage() {
         {/* Delete Category Modal */}
         {showDeleteModal && selectedCategory && (
           <CategoryDeleteModal
-            category={selectedCategory}
-            onConfirm={handleDeleteCategory}
+            show={showDeleteModal}
+            categoryName={selectedCategory.name}
+            onConfirm={() => handleDeleteCategory(selectedCategory?.id)}
             onCancel={() => {
               setShowDeleteModal(false);
               setSelectedCategory(null);

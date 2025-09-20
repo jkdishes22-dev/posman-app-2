@@ -194,12 +194,12 @@ export default function UsersPage() {
         setAvailablePermissions(formattedPermissions);
         return formattedPermissions;
       } else {
-        setError(result.error || "Failed to fetch available permissions");
+        setError({ message: result.error || "Failed to fetch available permissions" });
         setErrorDetails(result.errorDetails);
         return [];
       }
     } catch (error) {
-      setError("Network error occurred");
+      setError({ message: "Network error occurred" });
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       return [];
     }

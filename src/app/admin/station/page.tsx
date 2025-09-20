@@ -53,7 +53,7 @@ export default function StationPage() {
         }
       } catch (error: any) {
         setFetchStationsError("Network error occurred while fetching stations");
-        setErrorDetails({ networkError: true, status: 0 });
+        setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         setStations([]);
       }
     };
@@ -99,7 +99,7 @@ export default function StationPage() {
     } catch (error: any) {
       console.error("Failed to fetch station pricelists", error);
       setFetchPricelistsError("Network error occurred while fetching station pricelists");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setPricelists([]);
     } finally {
       setIsLoadingPricelists(false);
@@ -123,7 +123,7 @@ export default function StationPage() {
     } catch (error: any) {
       console.error("Failed to fetch station users", error);
       setFetchUsersError("Network error occurred while fetching station users");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setUsers([]);
     } finally {
       setIsLoadingUsers(false);
@@ -147,7 +147,7 @@ export default function StationPage() {
       }
     } catch (error: any) {
       setError("Network error occurred while adding station");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -162,7 +162,7 @@ export default function StationPage() {
       }
     } catch (error: any) {
       console.error("Failed to fetch available pricelists", error);
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -206,7 +206,7 @@ export default function StationPage() {
         details: [],
         status: 0
       });
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -229,7 +229,7 @@ export default function StationPage() {
       }
     } catch (error: any) {
       console.error("Failed to unlink pricelist", error);
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -260,7 +260,7 @@ export default function StationPage() {
         message: "Network error occurred while setting default pricelist",
         status: 0
       });
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -279,7 +279,7 @@ export default function StationPage() {
       }
     } catch (error) {
       console.error("Error fetching available users:", error);
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setAvailableUsers([]);
     }
   };
@@ -316,7 +316,7 @@ export default function StationPage() {
         details: [],
         status: 0
       });
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -339,7 +339,7 @@ export default function StationPage() {
       }
     } catch (error: any) {
       setError("Network error occurred while removing user from station");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -363,7 +363,7 @@ export default function StationPage() {
       }
     } catch (error: any) {
       setError(`Network error occurred while ${currentStatus === "active" ? "deactivating" : "activating"} user for station`);
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -405,7 +405,7 @@ export default function StationPage() {
       }
     } catch (error: any) {
       setError(`Network error occurred while ${confirmAction.type === "activate" ? "activating" : "deactivating"} station`);
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 

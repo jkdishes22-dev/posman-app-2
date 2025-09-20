@@ -3,27 +3,7 @@ import { Button, Modal, Form, Alert } from "react-bootstrap";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import ErrorDisplay from "./ErrorDisplay";
-
-interface BillItem {
-    id: number;
-    item: {
-        name: string;
-    };
-    quantity: number;
-    subtotal: number;
-    item_status: string;
-    void_reason?: string;
-    void_requested_by?: number;
-    void_requested_at?: string;
-    void_approved_by?: number;
-    void_approved_at?: string;
-}
-
-interface Bill {
-    id: number;
-    status: string;
-    bill_items: BillItem[];
-}
+import { Bill, BillItem } from "../types/types";
 
 interface VoidingInterfaceProps {
     bill: Bill;

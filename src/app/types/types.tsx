@@ -21,6 +21,7 @@ export type Station = {
   id: number;
   name: string;
   status: string;
+  description?: string;
 };
 
 export type Pricelist = {
@@ -75,7 +76,8 @@ export type BillPayment = {
 export type Payment = {
   id: number;
   creditAmount: number;
-  paymentType: string;
+  paymentType: 'CASH' | 'MPESA';
+  paidAt: Date;
   created_at: Date;
   reference: string;
 };

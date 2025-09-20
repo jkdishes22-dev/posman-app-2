@@ -66,7 +66,7 @@ export class PricelistService {
     } catch (error) {
       const duration = Date.now() - startTime;
       logger.error({
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         duration: `${duration}ms`,
         query: 'fetchPricelists'
       }, 'Error fetching pricelists');

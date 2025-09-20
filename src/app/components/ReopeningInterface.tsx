@@ -3,16 +3,8 @@ import { Button, Modal, Form, Alert } from "react-bootstrap";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import ErrorDisplay from "./ErrorDisplay";
-
-interface Bill {
-    id: number;
-    status: string;
-    total: number;
-    reopen_reason?: string;
-    reopened_by?: number;
-    reopened_at?: string;
-    bill_payments?: any[];
-}
+import { Bill } from "../types/types";
+import EnhancedResubmitModal from "./EnhancedResubmitModal";
 
 interface ReopenReason {
     id: string;
@@ -46,6 +38,7 @@ export default function ReopeningInterface({
     const [isResubmitting, setIsResubmitting] = useState(false);
     const [resubmitSuccess, setResubmitSuccess] = useState(false);
     const [reopenReasonsError, setReopenReasonsError] = useState<string | null>(null);
+
 
     // Business rule validation (Rule 4.4)
     const canReopenBill = (bill: Bill) => {
@@ -145,35 +138,6 @@ export default function ReopeningInterface({
         }
     };
 
-    // Handle bill resubmission (Rule 4.5)
-    const handleResubmitBill = async () => {
-        setIsResubmitting(true);
-        setError(null);
-        setErrorDetails(null);
-
-        try {
-            const result = await apiCall(`/api/bills/${bill.id}/resubmit`, {
-                method: "POST",
-                body: JSON.stringify({
-                    notes: resubmitNotes.trim()
-                })
-            });
-
-            if (result.status === 200) {
-                setResubmitSuccess(true);
-                setIsResubmitting(false);
-                // Don't close modal immediately - let user close it manually
-            } else {
-                setError(result.error || "Failed to resubmit bill");
-                setErrorDetails(result.errorDetails);
-                setIsResubmitting(false);
-            }
-        } catch (error) {
-            setError("Network error occurred");
-            setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
-            setIsResubmitting(false);
-        }
-    };
 
     const openReopenModal = () => {
         setSelectedReason("");
@@ -210,13 +174,6 @@ export default function ReopeningInterface({
         setReopenReasonsError(null);
         setIsResubmitting(false);
         setResubmitSuccess(false);
-
-        // Reload bills page if resubmission was successful
-        if (resubmitSuccess) {
-            onResubmitted?.();
-            // Reload the page to show today's bills
-            window.location.reload();
-        }
     };
 
     return (
@@ -241,20 +198,6 @@ export default function ReopeningInterface({
             {/* Sales User - Resubmit Interface */}
             {userRole === 'sales' && canResubmitBill(bill) && (
                 <div className="mb-3">
-                    <Alert variant="info">
-                        <strong>Bill Status:</strong> This bill has been reopened.
-                        Please fix the issues and resubmit for closing.
-                        {bill.reopen_reason && (
-                            <div className="mt-2">
-                                <strong>Reason:</strong> {bill.reopen_reason}
-                            </div>
-                        )}
-                        {bill.reopened_at && (
-                            <div>
-                                <strong>Reopened:</strong> {new Date(bill.reopened_at).toLocaleString()}
-                            </div>
-                        )}
-                    </Alert>
                     <Button
                         variant="primary"
                         onClick={openResubmitModal}
@@ -353,78 +296,13 @@ export default function ReopeningInterface({
                 </Modal.Footer>
             </Modal>
 
-            {/* Resubmit Modal */}
-            <Modal show={showResubmitModal} onHide={closeResubmitModal}>
-                <Modal.Header closeButton>
-                    <Modal.Title>
-                        {resubmitSuccess ? "Bill Resubmitted Successfully" : "Resubmit Bill"}
-                    </Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    {resubmitSuccess ? (
-                        <div className="text-center">
-                            <div className="alert alert-success">
-                                <i className="bi bi-check-circle-fill me-2"></i>
-                                <strong>Success!</strong> Bill #{bill.id} has been resubmitted successfully.
-                            </div>
-                            <p className="mb-0">
-                                The bill is now ready for the cashier to close.
-                            </p>
-                        </div>
-                    ) : (
-                        <>
-                            <p>This bill will be resubmitted for closing. Please add any notes about the changes made:</p>
-
-                            {error && (
-                                <Alert variant="danger" className="mb-3">
-                                    <i className="bi bi-exclamation-triangle me-2"></i>
-                                    {error}
-                                </Alert>
-                            )}
-
-                            <Form.Group className="mb-3">
-                                <Form.Label>Resubmission Notes</Form.Label>
-                                <Form.Control
-                                    as="textarea"
-                                    rows={3}
-                                    value={resubmitNotes}
-                                    onChange={(e) => setResubmitNotes(e.target.value)}
-                                    placeholder="Describe what was fixed or changed..."
-                                    disabled={isResubmitting}
-                                />
-                            </Form.Group>
-                        </>
-                    )}
-                </Modal.Body>
-                <Modal.Footer>
-                    {resubmitSuccess ? (
-                        <Button variant="success" onClick={closeResubmitModal}>
-                            <i className="bi bi-check-circle me-1"></i>
-                            Close & Reload Bills
-                        </Button>
-                    ) : (
-                        <>
-                            <Button variant="secondary" onClick={closeResubmitModal} disabled={isResubmitting}>
-                                Cancel
-                            </Button>
-                            <Button
-                                variant="primary"
-                                onClick={handleResubmitBill}
-                                disabled={isResubmitting}
-                            >
-                                {isResubmitting ? (
-                                    <>
-                                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                        Resubmitting...
-                                    </>
-                                ) : (
-                                    "Resubmit Bill"
-                                )}
-                            </Button>
-                        </>
-                    )}
-                </Modal.Footer>
-            </Modal>
+            {/* Enhanced Resubmit Modal */}
+            <EnhancedResubmitModal
+                show={showResubmitModal}
+                onHide={closeResubmitModal}
+                bill={bill}
+                onResubmitted={onResubmitted}
+            />
         </div>
     );
 }

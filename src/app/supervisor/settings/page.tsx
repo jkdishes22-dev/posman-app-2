@@ -5,9 +5,12 @@ import React, { useState, useEffect } from "react";
 import { Button, Tab, Tabs } from "react-bootstrap";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import { useApiCall } from "../../utils/apiUtils";
+import { ApiErrorResponse } from "../../utils/errorUtils";
 
 export default function SupervisorSettingsPage() {
   const [activeTab, setActiveTab] = useState("system");
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
 
   return (
     <RoleAwareLayout>

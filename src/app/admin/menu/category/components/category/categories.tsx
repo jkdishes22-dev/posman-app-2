@@ -9,10 +9,14 @@ interface Category {
 
 interface CategoriesProps {
   categories: Category[];
-  onCategoryClick: (category: Category) => void;
-  fetchError: string;
+  onCategoryClick?: (category: Category) => void;
+  fetchError?: string;
   onDeleteCategory?: (category: { id: string; name: string }) => void;
   showHeader?: boolean;
+  loading?: boolean;
+  onAddCategory?: () => void;
+  error?: string;
+  onErrorDismiss?: () => void;
 }
 
 const Categories: React.FC<CategoriesProps> = ({
@@ -21,6 +25,10 @@ const Categories: React.FC<CategoriesProps> = ({
   fetchError,
   onDeleteCategory,
   showHeader = true,
+  loading = false,
+  onAddCategory,
+  error,
+  onErrorDismiss,
 }) => {
   const [showAll, setShowAll] = useState(false);
   const [visibleCount, setVisibleCount] = useState(8);
@@ -37,10 +45,10 @@ const Categories: React.FC<CategoriesProps> = ({
 
   // Debug: Log what we're receiving
   console.log('Categories component received:', { categories, type: typeof categories, isArray: Array.isArray(categories) });
-  
+
   // Ensure categories is always an array
   const safeCategories = Array.isArray(categories) ? categories : [];
-  
+
   const filteredCategories = safeCategories.filter((category) => {
     if (statusFilter === "all") return true;
     return category.status === statusFilter;

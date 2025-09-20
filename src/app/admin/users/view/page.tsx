@@ -126,7 +126,7 @@ function UsersPage() {
       }
     } catch (error) {
       setFetchUserError("Network error occurred");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   }
 
@@ -147,7 +147,7 @@ function UsersPage() {
       }
     } catch (err: any) {
       setError("Network error occurred while creating user");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     } finally {
       await fetchUsers();
     }
@@ -180,7 +180,7 @@ function UsersPage() {
       }
     } catch (error: any) {
       setAssignRoleError("Network error occurred while fetching roles");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -205,7 +205,7 @@ function UsersPage() {
       }
     } catch (error: any) {
       setAssignRoleError("Network error occurred while assigning role");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -226,7 +226,7 @@ function UsersPage() {
       }
     } catch (err) {
       setDeleteError("Network error occurred while deleting user");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setShowDeleteModal(false);
     }
   };
@@ -249,7 +249,7 @@ function UsersPage() {
       }
     } catch (err) {
       setReactivateError("Network error occurred while reactivating user");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setShowReactivateModal(false);
     }
   };
@@ -289,7 +289,7 @@ function UsersPage() {
       }
     } catch (err) {
       setUpdateError("Network error occurred while updating user");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setShowUpdateModal(false);
     }
   };
@@ -315,7 +315,7 @@ function UsersPage() {
       }
     } catch (err) {
       setLockError("Network error occurred while locking/unlocking user");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setShowLockModal(false);
     } finally {
       setLockLoading(false);
@@ -342,7 +342,7 @@ function UsersPage() {
       }
     } catch (error) {
       setStationError("Network error occurred");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     } finally {
       setLoadingStations(false);
     }
@@ -364,7 +364,7 @@ function UsersPage() {
       }
     } catch (error) {
       console.error("Failed to fetch available stations:", error);
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -398,7 +398,7 @@ function UsersPage() {
       }
     } catch (error) {
       setStationError("Network error occurred");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -421,7 +421,7 @@ function UsersPage() {
       }
     } catch (error) {
       setStationError("Network error occurred");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -444,7 +444,7 @@ function UsersPage() {
       }
     } catch (error) {
       setStationError("Network error occurred");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -468,7 +468,7 @@ function UsersPage() {
       }
     } catch (error) {
       setStationError("Network error occurred");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 

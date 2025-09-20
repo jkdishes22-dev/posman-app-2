@@ -1,5 +1,5 @@
 import { BillPayment } from "@backend/entities/BillPayment";
-import { Payment } from "@backend/entities/Payment";
+import { Payment, PaymentType } from "@backend/entities/Payment";
 import { Repository, DataSource } from "typeorm";
 
 export class PaymentService {
@@ -25,5 +25,24 @@ export class PaymentService {
     });
     const billPayment = await this.billPaymentRepository.save(newBillPayment);
     return billPayment;
+  }
+
+  async checkMpesaReferenceExists(reference: string, billId: number): Promise<boolean> {
+    // Check if reference already exists for M-Pesa payments
+    const existingPayment = await this.paymentRepository.findOne({
+      where: {
+        reference: reference.trim(),
+        paymentType: PaymentType.MPESA
+      },
+      relations: ["bill_payments", "bill_payments.bill"]
+    });
+
+    if (!existingPayment) {
+      return false;
+    }
+
+    // Check if this reference is used in a different bill
+    const billPayments = await existingPayment.bill_payments;
+    return billPayments.some(bp => bp.bill && bp.bill.id !== billId);
   }
 }

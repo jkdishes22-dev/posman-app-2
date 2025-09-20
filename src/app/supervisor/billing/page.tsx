@@ -8,7 +8,6 @@ import { useStation } from "../../contexts/StationContext";
 import StationSelector from "../../components/StationSelector";
 
 export default function SupervisorBillingPage() {
-  const [showStationSelector, setShowStationSelector] = useState(false);
   const { currentStation, isLoading: stationLoading } = useStation();
 
   return (
@@ -45,14 +44,7 @@ export default function SupervisorBillingPage() {
                     )}
                   </Col>
                   <Col md={6} className="text-end">
-                    <Button
-                      variant={currentStation ? "outline-primary" : "primary"}
-                      onClick={() => setShowStationSelector(true)}
-                      disabled={stationLoading}
-                    >
-                      <i className="bi bi-building me-1"></i>
-                      {currentStation ? "Change Station" : "Select Station"}
-                    </Button>
+                    <StationSelector />
                   </Col>
                 </Row>
               </Card.Body>
@@ -78,28 +70,13 @@ export default function SupervisorBillingPage() {
                     Please select a station to access billing operations.
                     This ensures bills are properly associated with the correct location.
                   </p>
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    onClick={() => setShowStationSelector(true)}
-                  >
-                    <i className="bi bi-building me-2"></i>
-                    Select Station
-                  </Button>
+                  <StationSelector size="lg" />
                 </Card.Body>
               </Card>
             </div>
           </div>
         )}
 
-        {/* Station Selector Modal */}
-        {showStationSelector && (
-          <StationSelector
-            show={showStationSelector}
-            onHide={() => setShowStationSelector(false)}
-            onStationSelect={() => setShowStationSelector(false)}
-          />
-        )}
       </div>
     </RoleAwareLayout>
   );

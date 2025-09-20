@@ -4,15 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Modal, Button, Form, Alert, Row, Col, Card } from "react-bootstrap";
 import { useApiCall } from "../utils/apiUtils";
 import ErrorDisplay from "./ErrorDisplay";
-
-interface Bill {
-    id: number;
-    total: number;
-    status: string;
-    reopen_reason?: string;
-    reopened_at?: string;
-    bill_payments?: any[];
-}
+import { Bill } from "../types/types";
 
 interface EnhancedResubmitModalProps {
     show: boolean;
@@ -37,39 +29,47 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [mpesaValidationError, setMpesaValidationError] = useState<string | null>(null);
+    const [validationTimeout, setValidationTimeout] = useState<NodeJS.Timeout | null>(null);
     const apiCall = useApiCall();
 
     // Calculate total paid amount
-    const totalPaid = bill?.bill_payments?.reduce(
+    const billPayments = bill?.bill_payments ? Object.values(bill.bill_payments) : [];
+    const totalPaid = billPayments.reduce(
         (sum, payment) => sum + (payment.payment?.creditAmount || 0),
         0
-    ) || 0;
+    );
 
     const billTotal = bill?.total || 0;
     const remainingAmount = billTotal - totalPaid;
     const needsPayment = remainingAmount > 0;
 
-    // Validate M-Pesa reference uniqueness
+    // Validate M-Pesa reference uniqueness using API
     const validateMpesaReference = async (reference: string): Promise<boolean> => {
         if (!reference || paymentMethod !== "mpesa") return true;
 
         try {
-            // Check if this reference already exists in the current bill's payments
-            const existingPayment = bill?.bill_payments?.find(
-                payment => payment.payment?.paymentType === 'MPESA' &&
-                    payment.payment?.reference === reference
-            );
+            const result = await apiCall(`/api/payments/check-reference`, {
+                method: "POST",
+                body: JSON.stringify({
+                    reference: reference.trim(),
+                    billId: bill?.id
+                })
+            });
 
-            if (existingPayment) {
-                setMpesaValidationError("This M-Pesa reference has already been used for this bill");
+            if (result.status === 200) {
+                if (result.data.exists) {
+                    setMpesaValidationError("This M-Pesa code already exists. Please use a different M-Pesa code.");
+                    return false;
+                } else {
+                    setMpesaValidationError(null);
+                    return true;
+                }
+            } else {
+                setMpesaValidationError("This M-Pesa code already exists. Please use a different M-Pesa code.");
                 return false;
             }
-
-            // Clear any previous validation error
-            setMpesaValidationError(null);
-            return true;
         } catch (error) {
-            setMpesaValidationError("Error validating M-Pesa reference");
+            setMpesaValidationError("This M-Pesa code already exists. Please use a different M-Pesa code.");
             return false;
         }
     };
@@ -85,6 +85,13 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
             setErrorDetails(null);
             setIsSubmitting(false);
             setSubmitSuccess(false);
+            setMpesaValidationError(null);
+
+            // Clear any existing validation timeout
+            if (validationTimeout) {
+                clearTimeout(validationTimeout);
+                setValidationTimeout(null);
+            }
         }
     }, [show, bill]);
 
@@ -98,11 +105,35 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
         try {
             // First, add payment if needed
             if (needsPayment) {
+                const paymentAmount = paymentMethod === "cash" ? parseFloat(cashAmount) : parseFloat(mpesaAmount);
+
+                // Validate payment amount doesn't exceed remaining amount
+                if (paymentAmount > remainingAmount) {
+                    setError(`Amount cannot exceed outstanding balance of KES ${remainingAmount.toFixed(2)}`);
+                    setIsSubmitting(false);
+                    return;
+                }
+
+                // Validate M-Pesa reference if using M-Pesa
+                if (paymentMethod === "mpesa") {
+                    if (!mpesaTransactionId.trim()) {
+                        setError("Please enter M-Pesa reference");
+                        setIsSubmitting(false);
+                        return;
+                    }
+
+                    const isValidReference = await validateMpesaReference(mpesaTransactionId);
+                    if (!isValidReference) {
+                        setIsSubmitting(false);
+                        return;
+                    }
+                }
+
                 const paymentData = {
                     paymentType: paymentMethod,
-                    creditAmount: paymentMethod === "cash" ? parseFloat(cashAmount) : parseFloat(mpesaAmount),
+                    creditAmount: paymentAmount,
                     ...(paymentMethod === "mpesa" && {
-                        mpesaTransactionId
+                        reference: mpesaTransactionId.trim()
                     })
                 };
 
@@ -131,13 +162,17 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
                 setSubmitSuccess(true);
                 setIsSubmitting(false);
             } else {
-                setError(resubmitResult.error || "Failed to resubmit bill");
+                // Show specific error message from API
+                const errorMessage = resubmitResult.error || "Failed to resubmit bill";
+                setError(errorMessage);
                 setErrorDetails(resubmitResult.errorDetails);
                 setIsSubmitting(false);
             }
         } catch (error) {
-            setError("Network error occurred");
-            setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+            // Show more specific error message
+            const errorMessage = error instanceof Error ? error.message : "Network error occurred";
+            setError(`Failed to resubmit bill: ${errorMessage}`);
+            setErrorDetails({ message: errorMessage, networkError: true, status: 0 });
             setIsSubmitting(false);
         }
     };
@@ -261,12 +296,27 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
                                             <Form.Control
                                                 type="number"
                                                 value={cashAmount}
-                                                onChange={(e) => setCashAmount(e.target.value)}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    const numValue = parseFloat(value);
+                                                    if (numValue > remainingAmount) {
+                                                        setError(`Amount cannot exceed outstanding balance of KES ${remainingAmount.toFixed(2)}`);
+                                                    } else {
+                                                        setError(null);
+                                                    }
+                                                    setCashAmount(value);
+                                                }}
                                                 placeholder="Enter cash amount"
                                                 disabled={isSubmitting}
                                                 min="0"
                                                 max={remainingAmount}
+                                                className={cashAmount && parseFloat(cashAmount) > remainingAmount ? 'is-invalid' : ''}
                                             />
+                                            {cashAmount && parseFloat(cashAmount) > remainingAmount && (
+                                                <div className="invalid-feedback">
+                                                    Amount cannot exceed outstanding balance of KES {remainingAmount.toFixed(2)}
+                                                </div>
+                                            )}
                                         </Form.Group>
                                     ) : (
                                         <>
@@ -275,22 +325,48 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
                                                 <Form.Control
                                                     type="number"
                                                     value={mpesaAmount}
-                                                    onChange={(e) => setMpesaAmount(e.target.value)}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        const numValue = parseFloat(value);
+                                                        if (numValue > remainingAmount) {
+                                                            setError(`Amount cannot exceed outstanding balance of KES ${remainingAmount.toFixed(2)}`);
+                                                        } else {
+                                                            setError(null);
+                                                        }
+                                                        setMpesaAmount(value);
+                                                    }}
                                                     placeholder="Enter M-Pesa amount"
                                                     disabled={isSubmitting}
                                                     min="0"
                                                     max={remainingAmount}
+                                                    className={mpesaAmount && parseFloat(mpesaAmount) > remainingAmount ? 'is-invalid' : ''}
                                                 />
+                                                {mpesaAmount && parseFloat(mpesaAmount) > remainingAmount && (
+                                                    <div className="invalid-feedback">
+                                                        Amount cannot exceed outstanding balance of KES {remainingAmount.toFixed(2)}
+                                                    </div>
+                                                )}
                                             </Form.Group>
                                             <Form.Group className="mb-3">
                                                 <Form.Label>M-Pesa Transaction ID</Form.Label>
                                                 <Form.Control
                                                     type="text"
                                                     value={mpesaTransactionId}
-                                                    onChange={async (e) => {
-                                                        setMpesaTransactionId(e.target.value);
-                                                        if (e.target.value) {
-                                                            await validateMpesaReference(e.target.value);
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        setMpesaTransactionId(value);
+
+                                                        // Clear existing timeout
+                                                        if (validationTimeout) {
+                                                            clearTimeout(validationTimeout);
+                                                        }
+
+                                                        if (value) {
+                                                            // Set new timeout for validation
+                                                            const timeout = setTimeout(() => {
+                                                                validateMpesaReference(value);
+                                                            }, 500); // 500ms delay
+                                                            setValidationTimeout(timeout);
                                                         } else {
                                                             setMpesaValidationError(null);
                                                         }

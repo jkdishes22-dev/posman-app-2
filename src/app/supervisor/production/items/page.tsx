@@ -186,7 +186,7 @@ export default function SupervisorProductionItemsPage() {
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const formData = new FormData(e.target);
+                      const formData = new FormData(e.target as HTMLFormElement);
                       handleAddInventoryItem({
                         name: formData.get("name"),
                         code: formData.get("code"),

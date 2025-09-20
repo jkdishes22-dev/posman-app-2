@@ -1,30 +1,7 @@
 import React from "react";
 import VoidingInterface from "./VoidingInterface";
 import ReopeningInterface from "./ReopeningInterface";
-
-interface BillItem {
-    id: number;
-    item: {
-        name: string;
-    };
-    quantity: number;
-    subtotal: number;
-    item_status: string;
-    void_reason?: string;
-    void_requested_by?: number;
-    void_requested_at?: string;
-    void_approved_by?: number;
-    void_approved_at?: string;
-}
-
-interface Bill {
-    id: number;
-    status: string;
-    reopen_reason?: string;
-    reopened_by?: number;
-    reopened_at?: string;
-    bill_items?: BillItem[];
-}
+import { Bill } from "../types/types";
 
 interface BillActionsProps {
     bill: Bill;

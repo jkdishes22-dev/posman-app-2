@@ -295,7 +295,7 @@ export default function SupervisorPricelistPage() {
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const formData = new FormData(e.target);
+                      const formData = new FormData(e.target as HTMLFormElement);
                       handleAddPricelist({
                         name: formData.get("name"),
                         description: formData.get("description"),
@@ -362,13 +362,13 @@ export default function SupervisorPricelistPage() {
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const formData = new FormData(e.target);
+                      const formData = new FormData(e.target as HTMLFormElement);
                       handleAddItem({
                         itemName: formData.get("itemName"),
                         itemCode: formData.get("itemCode"),
                         category: formData.get("category"),
                         pricelistId: formData.get("pricelistId"),
-                        itemPrice: parseFloat(formData.get("itemPrice")),
+                        itemPrice: parseFloat(formData.get("itemPrice") as string),
                       });
                     }}
                   >

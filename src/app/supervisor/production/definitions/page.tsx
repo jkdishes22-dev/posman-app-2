@@ -188,11 +188,11 @@ export default function SupervisorProductionDefinitionsPage() {
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      const formData = new FormData(e.target);
+                      const formData = new FormData(e.target as HTMLFormElement);
                       handleAddDefinition({
                         name: formData.get("name"),
                         description: formData.get("description"),
-                        ratio: parseFloat(formData.get("ratio")),
+                        ratio: parseFloat(formData.get("ratio") as string),
                         status: "active",
                       });
                     }}

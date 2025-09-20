@@ -77,7 +77,7 @@ function InventoryItemsPage() {
     } catch (error: any) {
       console.error("Error fetching items:", error);
       setFetchError("Network error occurred while fetching items");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setItems([]);
       setFilteredItems([]);
     }
@@ -135,7 +135,7 @@ function InventoryItemsPage() {
     } catch (error: any) {
       console.error("Error adding sub-item to item:", error);
       setAddSubItemError("Network error occurred while adding sub-item");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -152,7 +152,7 @@ function InventoryItemsPage() {
       }
     } catch (error: any) {
       console.error("Error fetching sub-items:", error);
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -193,7 +193,7 @@ function InventoryItemsPage() {
       }
     } catch (error: any) {
       console.error("Error removing sub-item from item:", error);
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
