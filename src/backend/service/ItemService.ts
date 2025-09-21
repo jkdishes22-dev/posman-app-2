@@ -354,7 +354,7 @@ export class ItemService {
       .execute();
   }
 
-  async fetchGroupedItems(groupId?: number) {
+  async fetchGroupedItems(groupId?: number, page: number = 1, limit: number = 10) {
     const queryBuilder = this.itemRepository
       .createQueryBuilder("group")
       .leftJoinAndSelect("group.subItems", "subItem")
@@ -367,6 +367,12 @@ export class ItemService {
 
     if (groupId) {
       queryBuilder.andWhere("group.id = :groupId", { groupId });
+    }
+
+    // If no specific groupId, add pagination
+    if (!groupId) {
+      const offset = (page - 1) * limit;
+      queryBuilder.skip(offset).take(limit);
     }
 
     const rawResults = await queryBuilder
@@ -389,13 +395,35 @@ export class ItemService {
         };
         acc.push(group);
       }
-      group.items.push({
-        id: row.subItem_id,
-        name: row.subItem_name,
-        portionSize: row.portion_size,
-      });
+      if (row.subItem_id) {
+        group.items.push({
+          id: row.subItem_id,
+          name: row.subItem_name,
+          portionSize: row.portion_size,
+        });
+      }
       return acc;
     }, []);
+
+    // If no specific groupId, add pagination metadata
+    if (!groupId) {
+      const totalGroups = await this.itemRepository.count({
+        where: { isGroup: true }
+      });
+      const totalPages = Math.ceil(totalGroups / limit);
+
+      return {
+        groups: groupsWithItems,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalGroups,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+          limit
+        }
+      };
+    }
 
     return groupsWithItems;
   }

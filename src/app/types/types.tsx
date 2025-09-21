@@ -23,6 +23,32 @@ export type Item = {
   stationName: string;
 };
 
+export type GroupItem = {
+  id: number;
+  name: string;
+  portionSize: number;
+};
+
+export type Group = {
+  id: number;
+  name: string;
+  items: GroupItem[];
+};
+
+export type PaginationInfo = {
+  currentPage: number;
+  totalPages: number;
+  totalGroups: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+  limit: number;
+};
+
+export type GroupedItemsResponse = {
+  groups: Group[];
+  pagination: PaginationInfo;
+};
+
 export type Station = {
   id: number;
   name: string;
