@@ -29,26 +29,26 @@ export default function BillActions({
 
     // Business rule validation (Rule 4.3, 4.4)
     const canVoidItems = (bill: Bill) => {
-        return (bill.status === 'submitted' || bill.status === 'reopened') &&
-            bill.bill_items?.some(item => item.status === 'active') || false;
+        return (bill.status === "submitted" || bill.status === "reopened") &&
+            bill.bill_items?.some(item => item.status === "active") || false;
     };
 
     const hasPendingVoids = (bill: Bill) => {
-        return bill.bill_items?.some(item => item.status === 'void_pending') || false;
+        return bill.bill_items?.some(item => item.status === "void_pending") || false;
     };
 
     const canReopenBill = (bill: Bill) => {
-        return bill.status === 'submitted';
+        return bill.status === "submitted";
     };
 
     const canResubmitBill = (bill: Bill) => {
-        return bill.status === 'reopened';
+        return bill.status === "reopened";
     };
 
     return (
         <div className="bill-actions">
             {/* Voiding Actions - Rule 4.6: Separate Components */}
-            {userRole === 'sales' && canVoidItems(bill) && (
+            {userRole === "sales" && canVoidItems(bill) && (
                 <VoidingInterface
                     bill={bill}
                     userRole={userRole}
@@ -57,7 +57,7 @@ export default function BillActions({
                 />
             )}
 
-            {userRole === 'cashier' && hasPendingVoids(bill) && (
+            {userRole === "cashier" && hasPendingVoids(bill) && (
                 <VoidingInterface
                     bill={bill}
                     userRole={userRole}
@@ -67,7 +67,7 @@ export default function BillActions({
             )}
 
             {/* Reopening Actions - Rule 4.6: Separate Components */}
-            {userRole === 'cashier' && canReopenBill(bill) && (
+            {userRole === "cashier" && canReopenBill(bill) && (
                 <ReopeningInterface
                     bill={bill}
                     userRole={userRole}
@@ -76,7 +76,7 @@ export default function BillActions({
                 />
             )}
 
-            {userRole === 'sales' && canResubmitBill(bill) && (
+            {userRole === "sales" && canResubmitBill(bill) && (
                 <ReopeningInterface
                     bill={bill}
                     userRole={userRole}

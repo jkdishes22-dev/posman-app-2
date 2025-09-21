@@ -12,13 +12,6 @@ import { Bill } from "./Bill";
 
 export enum BillItemStatus {
   ACTIVE = "active",
-  DELETED = "deleted",
-  SUBMITTED = "submitted",
-  VOIDED = "voided",
-}
-
-export enum ItemStatus {
-  ACTIVE = "active",
   VOID_PENDING = "void_pending",
   VOIDED = "voided",
 }
@@ -53,17 +46,9 @@ export class BillItem {
   @Column({
     type: "enum",
     enum: BillItemStatus,
-    nullable: true,
+    default: BillItemStatus.ACTIVE,
   })
   status: BillItemStatus;
-
-  // Voiding tracking columns (Rule 4.1)
-  @Column({
-    type: "enum",
-    enum: ItemStatus,
-    default: ItemStatus.ACTIVE,
-  })
-  status: ItemStatus;
 
   @Column({ type: "text", nullable: true })
   void_reason: string;
@@ -80,6 +65,25 @@ export class BillItem {
   @Column({ type: "datetime", nullable: true })
   void_approved_at: Date;
 
+  // Quantity change tracking columns
+  @Column({ type: "int", nullable: true })
+  requested_quantity: number;
+
+  @Column({ type: "text", nullable: true })
+  quantity_change_reason: string;
+
+  @Column({ nullable: true })
+  quantity_change_requested_by: number;
+
+  @Column({ type: "datetime", nullable: true })
+  quantity_change_requested_at: Date;
+
+  @Column({ nullable: true })
+  quantity_change_approved_by: number;
+
+  @Column({ type: "datetime", nullable: true })
+  quantity_change_approved_at: Date;
+
   @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;
 
@@ -89,20 +93,20 @@ export class BillItem {
   // Business rule validation methods (Rule 4.3)
   canVoid(bill: Bill): boolean {
     return (bill.status === 'submitted' || bill.status === 'reopened')
-      && this.status === ItemStatus.ACTIVE;
+      && this.status === BillItemStatus.ACTIVE;
   }
 
   canApproveVoid(bill: Bill): boolean {
     return bill.status === 'submitted'
-      && this.status === ItemStatus.VOID_PENDING;
+      && this.status === BillItemStatus.VOID_PENDING;
   }
 
   // State transition validation (Rule 4.7)
-  canTransitionTo(newStatus: ItemStatus): boolean {
+  canTransitionTo(newStatus: BillItemStatus): boolean {
     const transitions = {
-      [ItemStatus.ACTIVE]: [ItemStatus.VOID_PENDING],
-      [ItemStatus.VOID_PENDING]: [ItemStatus.VOIDED, ItemStatus.ACTIVE], // approved or rejected
-      [ItemStatus.VOIDED]: [] // terminal state
+      [BillItemStatus.ACTIVE]: [BillItemStatus.VOID_PENDING],
+      [BillItemStatus.VOID_PENDING]: [BillItemStatus.VOIDED, BillItemStatus.ACTIVE], // approved or rejected
+      [BillItemStatus.VOIDED]: [] // terminal state
     };
 
     return transitions[this.status]?.includes(newStatus) || false;

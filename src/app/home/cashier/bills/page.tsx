@@ -113,11 +113,11 @@ const CashierBillsPage = () => {
   };
 
   const fetchBillById = async (billId: number) => {
-    const url = `/api/bills/${billId}`;
+    const url = `/api/bills?billId=${billId}`;
     try {
       const result = await apiCall(url);
       if (result.status === 200) {
-        setBills([result.data]);
+        setBills(result.data.bills || []);
         setError(null);
         setErrorDetails(null);
       } else {
