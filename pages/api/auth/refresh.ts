@@ -25,6 +25,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const newRefreshToken = uuidv4();
     user.refreshToken = newRefreshToken;
     await db.getRepository(User).save(user);
-    res.setHeader("Set-Cookie", `refreshToken=${newRefreshToken}; HttpOnly; Path=/; Max-Age=2592000`); // 30 days
+    res.setHeader("Set-Cookie", `refreshToken=${newRefreshToken}; HttpOnly; Path=/; Max-Age=14400`); // 4 hours
     return res.status(200).json({ token });
 } 

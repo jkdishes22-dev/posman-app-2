@@ -45,14 +45,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         roles: user.roles.map((role) => role.name),
       },
       secret,
-      { expiresIn: "8h" },
+      { expiresIn: "15m" },
     );
 
     // Issue refresh token (long-lived)
     const refreshToken = uuidv4();
     user.refreshToken = refreshToken;
     await userRepo.save(user);
-    res.setHeader("Set-Cookie", `refreshToken=${refreshToken}; HttpOnly; Path=/; Max-Age=2592000; Secure; SameSite=Strict`); // 30 days
+    res.setHeader("Set-Cookie", `refreshToken=${refreshToken}; HttpOnly; Path=/; Max-Age=14400; Secure; SameSite=Strict`); // 4 hours
 
     res.status(200).json({ token, role: user.roles[0].name });
   } catch (error: any) {
