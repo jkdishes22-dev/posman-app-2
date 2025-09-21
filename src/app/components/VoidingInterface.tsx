@@ -28,7 +28,7 @@ export default function VoidingInterface({
 
     // Business rule validation (Rule 4.3)
     const canVoidItems = (bill: Bill) => {
-        return (bill.status === 'submitted' || bill.status === 'reopened') &&
+        return (bill.status === 'pending' || bill.status === 'reopened') &&
             bill.bill_items?.some(item => item.status === 'active') || false;
     };
 

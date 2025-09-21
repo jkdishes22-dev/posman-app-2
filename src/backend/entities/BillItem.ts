@@ -92,12 +92,12 @@ export class BillItem {
 
   // Business rule validation methods (Rule 4.3)
   canVoid(bill: Bill): boolean {
-    return (bill.status === 'submitted' || bill.status === 'reopened')
+    return (bill.status === 'pending' || bill.status === 'reopened')
       && this.status === BillItemStatus.ACTIVE;
   }
 
   canApproveVoid(bill: Bill): boolean {
-    return bill.status === 'submitted'
+    return bill.status === 'pending'
       && this.status === BillItemStatus.VOID_PENDING;
   }
 
