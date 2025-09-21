@@ -25,7 +25,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 categoryId: categoryId ? Number(categoryId) : null,
                 userId: req.user?.id,
                 itemCount: items.length
-            }, 'Items fetched for pricelist');
+            }, "Items fetched for pricelist");
 
             res.status(200).json({
                 message: "Items retrieved successfully",
