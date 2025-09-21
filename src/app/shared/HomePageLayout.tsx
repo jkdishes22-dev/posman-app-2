@@ -20,9 +20,6 @@ export default function HomePageLayout({
   const mySales = () => {
     router.push("/home/my-sales");
   };
-  const postSales = () => {
-    router.push("/home/post-sales");
-  };
   const pricelistCatalog = () => {
     router.push("/home/pricelist-catalog");
   };
@@ -55,12 +52,7 @@ export default function HomePageLayout({
             </li>
             <li className="nav-item active">
               <a className="nav-link" href="#" onClick={mySales}>
-                My Sales |
-              </a>
-            </li>
-            <li className="nav-item active">
-              <a className="nav-link" href="#" onClick={postSales}>
-                Post Sales |
+                Sales
               </a>
             </li>
             <li className="nav-item active">

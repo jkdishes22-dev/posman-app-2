@@ -5,6 +5,7 @@ import { Card, Button, Form } from "react-bootstrap";
 import { useStation } from "../contexts/StationContext";
 import { Item, Pricelist, Station } from "../types/types";
 import StationFilter from "./StationFilter";
+import StationSwitcher from "./StationSwitcher";
 import PricelistManager from "./PricelistManager";
 import ExpressItemSearchModal from "./ExpressItemSearchModal";
 import { useApiCall } from "../utils/apiUtils";
@@ -17,12 +18,14 @@ interface PricelistCatalogProps {
 
 interface PricelistWithItems extends Pricelist {
     items: Item[];
-    station_id?: number;
-    station_name?: string;
+    station?: {
+        id: number;
+        name: string;
+    };
 }
 
 const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) => {
-    const { currentStation, availableStations } = useStation();
+    const { currentStation, availableStations, setCurrentStation } = useStation();
     const apiCall = useApiCall();
     const [pricelists, setPricelists] = useState<PricelistWithItems[]>([]);
     const [filteredPricelists, setFilteredPricelists] = useState<PricelistWithItems[]>([]);
@@ -42,6 +45,17 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
         setSelectedStationId(stationId);
     };
 
+    // Handle station switching (for admin/supervisor users)
+    const handleStationSwitch = async (station: Station) => {
+        try {
+            setSelectedPricelist(null); // Clear selected pricelist and items
+            setSelectedStationId(station.id);
+            await setCurrentStation(station); // Actually switch the station
+        } catch (error) {
+            console.error("Failed to switch station:", error);
+        }
+    };
+
     // Fetch pricelists available to the current station
     useEffect(() => {
         if (!currentStation) return;
@@ -51,19 +65,18 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
             setError(null);
 
             try {
-                const result = await apiCall("/api/pricelists/available");
+                const result = await apiCall(`/api/pricelists/available?t=${Date.now()}`);
 
                 if (result.status === 200) {
-                    console.log("API returned:", result.data.length, "pricelists");
+                    const pricelists = result.data?.pricelists || [];
 
                     // Store all station-pricelist relationships for filtering
-                    setPricelists(result.data);
+                    setPricelists(pricelists);
 
                     // Initially show distinct pricelists (no filter applied)
-                    const distinctPricelists = result.data.filter((pricelist, index, self) =>
+                    const distinctPricelists = pricelists.filter((pricelist, index, self) =>
                         index === self.findIndex(p => p.id === pricelist.id)
                     );
-                    console.log("Distinct pricelists:", distinctPricelists.length);
                     setFilteredPricelists(distinctPricelists);
                 } else if (result.status === 401) {
                     localStorage.removeItem("token");
@@ -86,14 +99,7 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
 
     // Filter pricelists when station filter or status filter changes
     useEffect(() => {
-        console.log("Filter effect running:", {
-            pricelistsLength: pricelists.length,
-            selectedStationId,
-            statusFilter
-        });
-
         if (pricelists.length === 0) {
-            console.log("No pricelists, skipping filter");
             return;
         }
 
@@ -102,7 +108,7 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
         // Apply station filter
         if (selectedStationId !== null) {
             filtered = filtered.filter(pricelist =>
-                pricelist.station_id === selectedStationId
+                pricelist.station?.id === selectedStationId
             );
         } else {
             // Show distinct pricelists when no station filter is selected
@@ -116,7 +122,6 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
             filtered = filtered.filter(pricelist => pricelist.status === statusFilter);
         }
 
-        console.log("Final filtered result:", filtered.length, "pricelists");
         setFilteredPricelists(filtered);
     }, [selectedStationId, pricelists, statusFilter]);
 
@@ -194,14 +199,21 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
                             <i className="bi bi-tags-fill me-2"></i>
                             Pricelist Catalog
                         </h4>
-                        <small className="text-white-50">
-                            Current Station: <strong>{currentStation.name}</strong>
-                            {process.env.NODE_ENV === "development" && (
-                                <span className="ms-2">
-                                    (Stations: {availableStations.length}, Pricelists: {filteredPricelists.length}/{pricelists.length})
-                                </span>
-                            )}
-                        </small>
+                        <div className="d-flex align-items-center gap-3">
+                            <small className="text-white-50">
+                                Current Station: <strong>{currentStation.name}</strong>
+                                {process.env.NODE_ENV === "development" && (
+                                    <span className="ms-2">
+                                        (Stations: {availableStations.length}, Pricelists: {filteredPricelists.length}/{pricelists.length})
+                                    </span>
+                                )}
+                            </small>
+                            <StationSwitcher
+                                onStationChange={handleStationSwitch}
+                                showLabel={false}
+                                size="sm"
+                            />
+                        </div>
                     </div>
                     <Button
                         variant="light"
@@ -288,12 +300,10 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
                 show={showExpressSearch}
                 onHide={() => setShowExpressSearch(false)}
                 onPricelistSelect={(pricelistId, pricelistName) => {
-                    console.log("Express search selected pricelist:", pricelistId, pricelistName);
                     setSelectedPricelist(pricelists.find(p => p.id === pricelistId) || null);
                     setShowExpressSearch(false);
                 }}
                 onItemSelect={(item) => {
-                    console.log("Express search selected item:", item);
                     // Highlight the item when navigating to pricelist
                     setHighlightedItemId(item.id);
                     setShowExpressSearch(false);

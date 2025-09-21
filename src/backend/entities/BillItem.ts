@@ -63,7 +63,7 @@ export class BillItem {
     enum: ItemStatus,
     default: ItemStatus.ACTIVE,
   })
-  item_status: ItemStatus;
+  status: ItemStatus;
 
   @Column({ type: "text", nullable: true })
   void_reason: string;
@@ -89,12 +89,12 @@ export class BillItem {
   // Business rule validation methods (Rule 4.3)
   canVoid(bill: Bill): boolean {
     return (bill.status === 'submitted' || bill.status === 'reopened')
-      && this.item_status === ItemStatus.ACTIVE;
+      && this.status === ItemStatus.ACTIVE;
   }
 
   canApproveVoid(bill: Bill): boolean {
     return bill.status === 'submitted'
-      && this.item_status === ItemStatus.VOID_PENDING;
+      && this.status === ItemStatus.VOID_PENDING;
   }
 
   // State transition validation (Rule 4.7)
@@ -105,6 +105,6 @@ export class BillItem {
       [ItemStatus.VOIDED]: [] // terminal state
     };
 
-    return transitions[this.item_status]?.includes(newStatus) || false;
+    return transitions[this.status]?.includes(newStatus) || false;
   }
 }

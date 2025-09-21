@@ -59,7 +59,7 @@ export type BillItem = {
   };
   quantity: number;
   subtotal: number;
-  item_status: string;
+  status: string;
   void_reason?: string;
   void_requested_by?: number;
   void_requested_at?: string;

@@ -97,6 +97,72 @@ export class ItemService {
   }
 
   /**
+   * Fetch items for a specific pricelist
+   */
+  public async fetchItemsForPricelist(
+    pricelistId: number,
+    categoryId?: number
+  ): Promise<any[]> {
+
+    // Get pricelist items for the specified pricelist
+    const pricelistQuery = this.pricelistItemRepository
+      .createQueryBuilder("pi")
+      .leftJoinAndSelect("pi.pricelist", "pricelist")
+      .leftJoinAndSelect("pi.item", "item")
+      .leftJoinAndSelect("item.category", "category")
+      .where("pricelist.id = :pricelistId", { pricelistId })
+      .andWhere("pi.is_enabled = :enabled", { enabled: 1 });
+
+    if (categoryId) {
+      pricelistQuery.andWhere("item.item_category_id = :categoryId", { categoryId });
+    }
+
+    const pricelistItems = await pricelistQuery.getMany();
+
+    if (pricelistItems.length === 0) {
+      logger.debug({ pricelistId }, "No pricelist items found for pricelist");
+      return [];
+    }
+
+    logger.debug({ pricelistId, itemCount: pricelistItems.length }, "Found pricelist items for pricelist");
+
+    // Map pricelist items to the expected format
+    return pricelistItems.map(pi => ({
+      id: pi.item.id,
+      name: pi.item.name,
+      code: pi.item.code,
+      isGroup: Boolean(pi.item.isGroup),
+      category: {
+        id: pi.item.category?.id,
+        name: pi.item.category?.name,
+      },
+      price: pi.price,
+      pricelistId: pi.pricelist.id,
+      pricelistName: pi.pricelist.name,
+    }));
+  }
+
+  /**
+   * Validate that a user has access to a pricelist through their assigned stations
+   */
+  public async validateUserPricelistAccess(userId: number, pricelistId: number): Promise<boolean> {
+    const userStationRepository = this.itemRepository.manager.getRepository("UserStation");
+    const stationPricelistRepository = this.itemRepository.manager.getRepository("StationPricelist");
+
+    // Check if user has access to any station that has this pricelist
+    const accessCheck = await userStationRepository
+      .createQueryBuilder("us")
+      .innerJoin("station_pricelist", "sp", "sp.station_id = us.station_id")
+      .where("us.user_id = :userId", { userId })
+      .andWhere("us.status = :status", { status: "active" })
+      .andWhere("sp.pricelist_id = :pricelistId", { pricelistId })
+      .andWhere("sp.status = :pricelistStatus", { pricelistStatus: "active" })
+      .getCount();
+
+    return accessCheck > 0;
+  }
+
+  /**
    * Fetch items for a specific station using the station's default pricelist
    */
   public async fetchItemsForStation(
@@ -115,7 +181,7 @@ export class ItemService {
       .getOne();
 
     if (!defaultPricelist) {
-      logger.debug({ stationId }, 'No default pricelist found for station');
+      logger.debug({ stationId }, "No default pricelist found for station");
       return [];
     }
 
@@ -134,17 +200,17 @@ export class ItemService {
     const pricelistItems = await pricelistQuery.getMany();
 
     if (pricelistItems.length === 0) {
-      logger.debug({ stationId, pricelistId: defaultPricelist.pricelist.id }, 'No pricelist items found for station');
+      logger.debug({ stationId, pricelistId: defaultPricelist.pricelist.id }, "No pricelist items found for station");
       return [];
     }
 
-    logger.debug({ stationId, itemCount: pricelistItems.length }, 'Found pricelist items for station');
+    logger.debug({ stationId, itemCount: pricelistItems.length }, "Found pricelist items for station");
 
 
     // Extract item IDs from pricelist items
     const itemIds = pricelistItems.map(pi => {
       if (!pi.item) {
-        console.error('Pricelist item missing item data:', pi);
+        console.error("Pricelist item missing item data:", pi);
         return null;
       }
       return pi.item.id;
@@ -510,11 +576,11 @@ export class ItemService {
         query,
         limit,
         foundItems: formattedResults.length
-      }, 'Items searched successfully');
+      }, "Items searched successfully");
 
       return formattedResults;
     } catch (error: any) {
-      logger.error({ error: error.message, query }, 'Failed to search items');
+      logger.error({ error: error.message, query }, "Failed to search items");
       throw new Error("Failed to search items: " + error.message);
     }
   }
@@ -531,7 +597,7 @@ export class ItemService {
         .getMany();
 
       if (userStations.length === 0) {
-        logger.info({ userId }, 'User has no accessible stations');
+        logger.info({ userId }, "User has no accessible stations");
         return [];
       }
 
@@ -548,7 +614,7 @@ export class ItemService {
         .getMany();
 
       if (accessiblePricelists.length === 0) {
-        logger.info({ userId, stationIds }, 'No accessible pricelists found for user stations');
+        logger.info({ userId, stationIds }, "No accessible pricelists found for user stations");
         return [];
       }
 
@@ -601,11 +667,11 @@ export class ItemService {
         foundItems: formattedResults.length,
         accessibleStations: stationIds.length,
         accessiblePricelists: pricelistIds.length
-      }, 'Items searched successfully for user');
+      }, "Items searched successfully for user");
 
       return formattedResults;
     } catch (error: any) {
-      logger.error({ error: error.message, query, userId }, 'Failed to search items for user');
+      logger.error({ error: error.message, query, userId }, "Failed to search items for user");
       throw new Error("Failed to search items for user: " + error.message);
     }
   }

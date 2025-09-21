@@ -30,11 +30,11 @@ export default function BillActions({
     // Business rule validation (Rule 4.3, 4.4)
     const canVoidItems = (bill: Bill) => {
         return (bill.status === 'submitted' || bill.status === 'reopened') &&
-            bill.bill_items?.some(item => item.item_status === 'active') || false;
+            bill.bill_items?.some(item => item.status === 'active') || false;
     };
 
     const hasPendingVoids = (bill: Bill) => {
-        return bill.bill_items?.some(item => item.item_status === 'void_pending') || false;
+        return bill.bill_items?.some(item => item.status === 'void_pending') || false;
     };
 
     const canReopenBill = (bill: Bill) => {

@@ -10,10 +10,11 @@ import ReceiptPrint, { CaptainOrderPrint, CustomerCopyPrint } from './ReceiptPri
 import { printReceiptWithTimestamp, downloadReceiptAsFile } from './printUtils';
 import ReactDOM from "react-dom/client";
 import { useStation } from "../contexts/StationContext";
+import { usePricelist } from "../contexts/PricelistContext";
 import { useAuth } from "../contexts/AuthContext";
 import ErrorDisplay from "../components/ErrorDisplay";
 import StationSelector from "../components/StationSelector";
-import StationStatus from "../components/StationStatus";
+import PricelistSwitcher from "../components/PricelistSwitcher";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 
@@ -23,6 +24,9 @@ const BillingSection = () => {
 
   // Station context
   const { currentStation, isLoading: stationLoading, error: stationError, loadStationsIfNeeded } = useStation();
+
+  // Pricelist context
+  const { currentPricelist, isLoading: pricelistLoading, error: pricelistError, loadPricelistsIfNeeded } = usePricelist();
 
   // API call hook
   const apiCall = useApiCall();
@@ -41,7 +45,6 @@ const BillingSection = () => {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [createdBill, setCreatedBill] = useState(null);
-  const [showStationSelector, setShowStationSelector] = useState(false);
   const [billError, setBillError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categoriesFetched, setCategoriesFetched] = useState(false);
@@ -70,6 +73,9 @@ const BillingSection = () => {
 
     // Load stations if needed
     loadStationsIfNeeded();
+
+    // Load pricelists if needed
+    loadPricelistsIfNeeded();
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -95,39 +101,34 @@ const BillingSection = () => {
     fetchCategories();
   }, []); // Empty dependency array - only run once
 
-  // Refetch items when station changes
+  // Refetch items when pricelist or category changes
   useEffect(() => {
-    if (currentStation && selectedCategory) {
+    if (currentPricelist && selectedCategory) {
       fetchItems(selectedCategory.id);
     }
-  }, [currentStation, selectedCategory]);
+  }, [currentPricelist, selectedCategory]);
 
-  // Auto-hide station selector when station is selected
-  useEffect(() => {
-    if (currentStation) {
-      setShowStationSelector(false);
-    }
-  }, [currentStation]);
 
   const fetchItems = async (categoryId: string) => {
-    if (!currentStation) {
-      setItemError("No station selected. Please select a station first.");
+    if (!currentPricelist) {
+      setItemError("No pricelist selected. Please select a pricelist first.");
       return;
     }
 
     try {
       const result = await apiCall(
-        `/api/menu/items/station?stationId=${currentStation.id}&categoryId=${categoryId}&userId=${userId}`
+        `/api/menu/items/pricelist?pricelistId=${currentPricelist.id}&categoryId=${categoryId}`
       );
 
       if (result.status === 200) {
         setItems(result.data.items || []);
+        setItemError(""); // Clear any previous errors
       } else {
-        setItemError(result.error || "Failed to fetch items for this station");
+        setItemError(result.error || "Failed to fetch items for this pricelist");
         setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      const errorMessage = error.message || "Failed to fetch items for the selected category and station";
+      const errorMessage = error.message || "Failed to fetch items for the selected category and pricelist";
       setItemError(errorMessage);
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
@@ -379,6 +380,17 @@ const BillingSection = () => {
     );
   }
 
+  if (!currentPricelist) {
+    return (
+      <div className="container">
+        <Alert variant="warning">
+          <Alert.Heading>No Pricelist Available</Alert.Heading>
+          <p>No pricelist is available for your current station. Please contact an administrator.</p>
+        </Alert>
+      </div>
+    );
+  }
+
   return (
     <div className="container-fluid p-0">
       {/* Main Content - Improved Layout */}
@@ -397,16 +409,20 @@ const BillingSection = () => {
                     {items.length} items
                   </small>
                   <div className="d-flex align-items-center gap-2">
-                    <StationStatus variant="minimal" />
-                    <button
-                      className={`btn btn-sm ${currentStation ? 'btn-success' : 'btn-light'} text-white`}
-                      type="button"
-                      onClick={() => setShowStationSelector(!showStationSelector)}
-                      title={currentStation ? `Current: ${currentStation.name} - Click to change` : "Choose Station"}
-                    >
-                      <i className={`bi ${currentStation ? 'bi-arrow-repeat' : 'bi-gear'} me-1`}></i>
-                      {currentStation ? 'Switch Station' : 'Choose Station'}
-                    </button>
+                    <span className="badge bg-light text-dark px-2 py-1">
+                      <i className="bi bi-building me-1"></i>
+                      Station: {currentStation?.name || 'Station'}
+                    </span>
+                    <PricelistSwitcher
+                      size="md"
+                      showLabel={true}
+                      onPricelistChange={() => {
+                        // Refetch items when pricelist changes
+                        if (selectedCategory) {
+                          fetchItems(selectedCategory.id);
+                        }
+                      }}
+                    />
                     {createdBill && (
                       <button
                         className="btn btn-sm btn-warning text-dark fw-bold"
@@ -422,18 +438,6 @@ const BillingSection = () => {
                 </div>
               </div>
 
-              {/* Collapsible Station Selector */}
-              {showStationSelector && (
-                <div className="mt-2">
-                  <div className="d-flex justify-content-end">
-                    <div className="card border-0 bg-light shadow-sm" style={{ width: '300px' }}>
-                      <div className="card-body py-1">
-                        <StationSelector showLabel={false} size="sm" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
             <div className="card-body p-0">
               <ErrorDisplay

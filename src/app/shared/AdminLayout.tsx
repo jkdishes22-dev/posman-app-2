@@ -122,7 +122,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       activeItemId = "bills";
       breadcrumbItems = [
         { label: "Dashboard", path: "/admin" },
-        { label: "Bills", path: "/admin/bill" }
+        { label: "Bill", path: "/admin/bill" }
       ];
     }
 
@@ -240,7 +240,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
     },
     {
       id: "bills",
-      label: "Bills",
+      label: "Bill",
       icon: "bi-receipt",
       path: "/admin/bill",
     },

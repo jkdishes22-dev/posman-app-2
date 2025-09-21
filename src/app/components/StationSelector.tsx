@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Form, Alert, Spinner } from 'react-bootstrap';
 import { useStation } from '../contexts/StationContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Station } from '../types/types';
 
 interface StationSelectorProps {
@@ -25,8 +26,14 @@ const StationSelector: React.FC<StationSelectorProps> = ({
         error,
         setCurrentStation
     } = useStation();
+    const { user } = useAuth();
 
     const [isChanging, setIsChanging] = useState(false);
+
+    // Check if user has permission to switch stations (admin/supervisor only)
+    const canSwitchStations = user?.roles?.some(role =>
+        role.name === 'admin' || role.name === 'supervisor'
+    ) || false;
 
     const handleStationChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
         const stationId = parseInt(event.target.value);
@@ -50,6 +57,11 @@ const StationSelector: React.FC<StationSelectorProps> = ({
             setIsChanging(false);
         }
     };
+
+    // Don't show if user doesn't have permission to switch stations
+    if (!canSwitchStations) {
+        return null;
+    }
 
     if (isLoading) {
         return (

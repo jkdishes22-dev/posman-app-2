@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useStation } from '../contexts/StationContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Station } from '../types/types';
 
 interface StationSwitcherProps {
@@ -11,16 +12,22 @@ interface StationSwitcherProps {
     size?: 'sm' | 'md' | 'lg';
 }
 
-const StationSwitcher: React.FC<StationSwitcherProps> = ({ 
-    className = '', 
+const StationSwitcher: React.FC<StationSwitcherProps> = ({
+    className = '',
     onStationChange,
     showLabel = true,
     size = 'md'
 }) => {
     const { currentStation, availableStations, setCurrentStation } = useStation();
+    const { user } = useAuth();
     const [showDropdown, setShowDropdown] = useState(false);
     const [stationError, setStationError] = useState<string | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Check if user has permission to switch stations (admin/supervisor only)
+    const canSwitchStations = user?.roles?.some(role =>
+        role.name === 'admin' || role.name === 'supervisor'
+    ) || false;
 
     // Handle station switching with error handling
     const handleStationSwitch = async (station: Station) => {
@@ -48,6 +55,11 @@ const StationSwitcher: React.FC<StationSwitcherProps> = ({
             return () => document.removeEventListener('mousedown', handleClickOutside);
         }
     }, [showDropdown]);
+
+    // Don't show if user doesn't have permission to switch stations
+    if (!canSwitchStations) {
+        return null;
+    }
 
     if (!currentStation || availableStations.length <= 1) {
         return null;
