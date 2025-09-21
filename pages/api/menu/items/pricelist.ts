@@ -10,26 +10,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         try {
             const itemService = new ItemService(req.db);
             const { pricelistId, categoryId } = req.query;
-            const userId = req.user?.id;
 
             if (!pricelistId) {
                 return res.status(400).json({ message: "Pricelist ID is required" });
             }
 
-            if (!userId) {
-                return res.status(401).json({ message: "User authentication required" });
-            }
-
-            // Validate user access to the pricelist
-            const hasAccess = await itemService.validateUserPricelistAccess(Number(userId), Number(pricelistId));
-            if (!hasAccess) {
-                logger.warn({ userId, pricelistId }, 'User attempted to access unauthorized pricelist');
-                return res.status(403).json({ 
-                    message: "Access denied: You do not have permission to view items from this pricelist" 
-                });
-            }
-
-            // Fetch items for the specific pricelist (now properly authorized)
             const items = await itemService.fetchItemsForPricelist(
                 Number(pricelistId),
                 categoryId ? Number(categoryId) : undefined
@@ -38,7 +23,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             logger.info({
                 pricelistId: Number(pricelistId),
                 categoryId: categoryId ? Number(categoryId) : null,
-                userId,
+                userId: req.user?.id,
                 itemCount: items.length
             }, 'Items fetched for pricelist');
 

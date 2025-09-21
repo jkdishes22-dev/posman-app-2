@@ -143,26 +143,6 @@ export class ItemService {
   }
 
   /**
-   * Validate that a user has access to a pricelist through their assigned stations
-   */
-  public async validateUserPricelistAccess(userId: number, pricelistId: number): Promise<boolean> {
-    const userStationRepository = this.itemRepository.manager.getRepository("UserStation");
-    const stationPricelistRepository = this.itemRepository.manager.getRepository("StationPricelist");
-
-    // Check if user has access to any station that has this pricelist
-    const accessCheck = await userStationRepository
-      .createQueryBuilder("us")
-      .innerJoin("station_pricelist", "sp", "sp.station_id = us.station_id")
-      .where("us.user_id = :userId", { userId })
-      .andWhere("us.status = :status", { status: "active" })
-      .andWhere("sp.pricelist_id = :pricelistId", { pricelistId })
-      .andWhere("sp.status = :pricelistStatus", { pricelistStatus: "active" })
-      .getCount();
-
-    return accessCheck > 0;
-  }
-
-  /**
    * Fetch items for a specific station using the station's default pricelist
    */
   public async fetchItemsForStation(
