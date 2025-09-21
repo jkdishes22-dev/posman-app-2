@@ -4,6 +4,12 @@ export type Category = {
   status?: string;
 };
 
+// Status type definitions
+export type BillStatus = "pending" | "submitted" | "closed" | "reopened";
+export type BillItemStatus = "pending" | "submitted" | "void_pending" | "voided" | "closed" | "quantity_change_request" | "deleted";
+export type VoidRequestStatus = "pending" | "approved" | "rejected";
+export type PaymentType = "CASH" | "MPESA";
+
 export type Item = {
   id: number;
   name: string;
@@ -41,7 +47,7 @@ export type User = {
 export type Bill = {
   id: number;
   total: number;
-  status: string;
+  status: BillStatus;
   bill_payments: Record<string, any>;
   user: User;
   created_at: Date;
@@ -61,7 +67,7 @@ export type BillItem = {
   };
   quantity: number;
   subtotal: number;
-  status: 'active' | 'void_pending' | 'voided';
+  status: BillItemStatus;
   void_reason?: string;
   void_requested_by?: number;
   void_requested_at?: string;
@@ -84,7 +90,7 @@ export type BillPayment = {
 export type Payment = {
   id: number;
   creditAmount: number;
-  paymentType: 'CASH' | 'MPESA';
+  paymentType: PaymentType;
   paidAt: Date;
   created_at: Date;
   reference: string;
@@ -125,7 +131,7 @@ export type VoidRequest = {
   reason: string;
   requestedBy: number;
   requestedAt: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: VoidRequestStatus;
   approvedBy?: number;
   approvedAt?: string;
   approvalNotes?: string;
@@ -136,8 +142,10 @@ export type VoidRequestPayload = {
   reason: string;
 };
 
+export type VoidApprovalAction = "approve" | "reject";
+
 export type VoidApprovalPayload = {
-  action: 'approve' | 'reject';
+  action: VoidApprovalAction;
   approvalNotes?: string;
   paperApprovalReceived?: boolean;
 };
