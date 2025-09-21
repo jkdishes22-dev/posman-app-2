@@ -9,7 +9,7 @@ ADD COLUMN `reopened_at` DATETIME NULL;
 
 -- Add voiding tracking columns to bill_item table
 ALTER TABLE `bill_item` 
-ADD COLUMN `status` ENUM('active', 'void_pending', 'voided') DEFAULT 'active',
+ADD COLUMN `status` ENUM('pending', 'submitted', 'void_pending', 'voided', 'closed', 'quantity_change_request', 'deleted') DEFAULT 'pending',
 ADD COLUMN `void_reason` TEXT NULL,
 ADD COLUMN `void_requested_by` INT NULL,
 ADD COLUMN `void_requested_at` DATETIME NULL,
@@ -30,8 +30,8 @@ CREATE INDEX `IDX_bill_status` ON `bill_item` (`status`);
 CREATE INDEX `IDX_bill_item_void_requested_by` ON `bill_item` (`void_requested_by`, `void_requested_at`);
 CREATE INDEX `IDX_bill_item_void_approved_by` ON `bill_item` (`void_approved_by`, `void_approved_at`);
 
--- Update existing bill_item records to have 'active' status
-UPDATE `bill_item` SET `status` = 'active' WHERE `status` IS NULL;
+-- Update existing bill_item records to have 'pending' status
+UPDATE `bill_item` SET `status` = 'pending' WHERE `status` IS NULL;
 
 -- Log the migration
 INSERT INTO settings (`key`, value)

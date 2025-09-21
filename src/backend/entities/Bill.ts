@@ -14,7 +14,6 @@ import { Station } from "./Station";
 
 export enum BillStatus {
   PENDING = "pending",
-  CANCELLED = "cancelled",
   SUBMITTED = "submitted",
   CLOSED = "closed",
   REOPENED = "reopened",
@@ -60,6 +59,9 @@ export class Bill {
 
   @Column({ nullable: true })
   created_by: number;
+
+  @Column({ nullable: true, unique: true })
+  request_id: string;
 
   @Column({ nullable: true })
   updated_by: number;

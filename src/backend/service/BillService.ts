@@ -37,16 +37,30 @@ export class BillService {
   }
 
   async createBill(payload) {
-    const { items, total, user_id, station_id } = payload;
+    const { items, total, user_id, station_id, request_id } = payload;
 
     return await this.billRepository.manager.transaction(
       async (transactionalEntityManager) => {
+        // Check for idempotency - if request_id is provided, check if bill already exists
+        if (request_id) {
+          const existingBill = await transactionalEntityManager.findOne(Bill, {
+            where: { request_id },
+            relations: ['bill_items', 'bill_items.item', 'user', 'station']
+          });
+
+          if (existingBill) {
+            // Return existing bill for idempotency
+            return existingBill;
+          }
+        }
+
         const newBill = await transactionalEntityManager.save(Bill, {
           user: { id: user_id },
           station: station_id ? { id: station_id } : undefined,
           total,
           status: BillStatus.PENDING,
           created_by: user_id,
+          request_id: request_id || null,
         });
 
         const billItems = items.map((item) => ({
@@ -59,7 +73,13 @@ export class BillService {
 
         await transactionalEntityManager.save(BillItem, billItems);
 
-        return newBill;
+        // Fetch the complete bill with relations for return
+        const completeBill = await transactionalEntityManager.findOne(Bill, {
+          where: { id: newBill.id },
+          relations: ['bill_items', 'bill_items.item', 'user', 'station']
+        });
+
+        return completeBill;
       },
     );
   }

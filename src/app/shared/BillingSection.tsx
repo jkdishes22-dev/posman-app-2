@@ -219,6 +219,7 @@ const BillingSection = () => {
       }
 
       const total = selectedItems.reduce((sum, item) => sum + item.subtotal, 0);
+      const requestId = `bill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const payload = {
         items: selectedItems.map((item) => ({
           item_id: item.id,
@@ -228,13 +229,14 @@ const BillingSection = () => {
         user_id: parseInt(currentUserId), // Use the validated user ID
         station_id: currentStation.id,
         total,
+        request_id: requestId,
       };
       try {
         const result = await apiCall("/api/bills", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        if (result.status === 200) {
+        if (result.status === 201) {
           setShowSubmitModal(false);
           setBillError(""); // Clear any previous errors
           setItems([]); // Clear available items instantly
