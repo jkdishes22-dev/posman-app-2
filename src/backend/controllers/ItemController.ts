@@ -116,10 +116,16 @@ export const fetchGroupedItemsHandler = async (
 ) => {
   const itemService = new ItemService(req.db);
   try {
-    const { groupId } = req.query;
+    const { groupId, page, limit } = req.query;
     const groupIdValue = Array.isArray(groupId) ? groupId[0] : groupId;
+    const pageValue = parseInt(Array.isArray(page) ? page[0] : page || "1");
+    const limitValue = parseInt(Array.isArray(limit) ? limit[0] : limit || "10");
 
-    const items = await itemService.fetchGroupedItems(parseInt(groupIdValue));
+    const items = await itemService.fetchGroupedItems(
+      groupIdValue ? parseInt(groupIdValue) : undefined,
+      pageValue,
+      limitValue
+    );
     res.status(200).json(items);
   } catch (error: any) {
     console.error("Error fetching group items:", error);
