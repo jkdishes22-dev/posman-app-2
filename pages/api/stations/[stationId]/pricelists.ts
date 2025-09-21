@@ -22,10 +22,37 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         // Get all pricelists for a station
         await authMiddleware(
           authorize([permissions.CAN_VIEW_PRICELIST])(async (req, res) => {
+            const pricelistService = new PricelistService(req.db);
+            const stationService = new StationService(req.db);
+
             const pricelists = await pricelistService.getPricelistsByStation(Number(stationId));
+            console.log("Station pricelists API - Raw pricelists:", pricelists);
+
+            // Get station information
+            const station = await stationService.getStationById(Number(stationId));
+            console.log("Station pricelists API - Station info:", station);
+
+            // Transform the data to match the expected format
+            const transformedPricelists = pricelists.map(pricelist => ({
+              id: pricelist.id,
+              name: pricelist.name,
+              status: pricelist.status,
+              is_default: pricelist.is_default,
+              description: pricelist.description || null,
+              station: {
+                id: stationId,
+                name: station?.name || `Station ${stationId}`
+              }
+            }));
+
+            console.log("Station pricelists API - Final response:", {
+              message: "Pricelists fetched successfully",
+              pricelists: transformedPricelists
+            });
+
             res.status(200).json({
               message: "Pricelists fetched successfully",
-              pricelists
+              pricelists: transformedPricelists
             });
           })
         )(req, res);

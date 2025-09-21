@@ -29,7 +29,7 @@ export default function VoidingInterface({
     // Business rule validation (Rule 4.3)
     const canVoidItems = (bill: Bill) => {
         return (bill.status === 'pending' || bill.status === 'reopened') &&
-            bill.bill_items?.some(item => item.status === 'pending') || false;
+            bill.bill_items?.some(item => item.status === 'active') || false;
     };
 
     const hasPendingVoids = (bill: Bill) => {
@@ -37,7 +37,7 @@ export default function VoidingInterface({
     };
 
     const canVoidItem = (item: BillItem) => {
-        return item.status === 'pending';
+        return item.status === 'active';
     };
 
     const canApproveVoid = (item: BillItem) => {
@@ -147,7 +147,7 @@ export default function VoidingInterface({
                                         <td>{item.quantity}</td>
                                         <td>${item.subtotal.toFixed(2)}</td>
                                         <td>
-                                            <span className={`badge ${item.status === 'pending' ? 'bg-success' :
+                                            <span className={`badge ${item.status === 'active' ? 'bg-success' :
                                                 item.status === 'void_pending' ? 'bg-warning' :
                                                     'bg-danger'
                                                 }`}>

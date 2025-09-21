@@ -60,13 +60,18 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     status: row.pricelist_status,
                     is_default: row.pricelist_is_default,
                     description: row.pricelist_description,
-                    station_id: row.station_id,
-                    station_name: row.station_name
+                    station: {
+                        id: row.station_id,
+                        name: row.station_name
+                    }
                 }));
             }
 
             logger.info({ userId, pricelistCount: pricelists.length, isAdmin }, 'Returning pricelists to user');
-            res.status(200).json(pricelists);
+            res.status(200).json({
+                message: "Pricelists fetched successfully",
+                pricelists
+            });
         } catch (error: any) {
             console.error("Error fetching available pricelists:", error);
             res.status(500).json({

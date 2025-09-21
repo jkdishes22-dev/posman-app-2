@@ -6,6 +6,7 @@ import "bootstrap/dist/css/bootstrap.css";
 import BootstrapClient from "./components/BootstrapClient";
 import { AuthProvider } from "./contexts/AuthContext";
 import { StationProvider } from "./contexts/StationContext";
+import { PricelistProvider } from "./contexts/PricelistContext";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -44,7 +45,9 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <AuthProvider>
           <StationProvider>
-            {children}
+            <PricelistProvider>
+              {children}
+            </PricelistProvider>
           </StationProvider>
         </AuthProvider>
         <BootstrapClient />

@@ -198,12 +198,6 @@ const UserHomePage = () => {
                     </a>
                   </div>
                   <div className="col-md-3 mb-1">
-                    <a href="/home/post-sales" className="btn btn-outline-success w-100">
-                      <i className="bi bi-calendar-event me-2"></i>
-                      Post dated Sales
-                    </a>
-                  </div>
-                  <div className="col-md-3 mb-1">
                     <a href="/home/pricelist-catalog" className="btn btn-outline-info w-100">
                       <i className="bi bi-book me-2"></i>
                       Pricelist

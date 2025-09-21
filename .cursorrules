@@ -1,0 +1,1528 @@
+# Cursor Rules for POS Management System
+
+## 1. Using useApiCall() for All API Requests
+
+### Rule 1.1: Never Use Raw Fetch
+- **NEVER** use raw `fetch()` calls in React components
+- **ALWAYS** use `useApiCall()` hook for all API requests
+- **ALWAYS** import: `import { useApiCall } from "../utils/apiUtils";`
+- **ALWAYS** initialize: `const apiCall = useApiCall();`
+
+```typescript
+// ✅ CORRECT
+const apiCall = useApiCall();
+const result = await apiCall("/api/endpoint", {
+  method: "POST",
+  body: JSON.stringify(data)
+});
+
+// ❌ WRONG
+const response = await fetch("/api/endpoint", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(data)
+});
+```
+
+### Rule 1.2: Standard API Call Pattern
+- **ALWAYS** check `result.status === 200` for success
+- **ALWAYS** handle both success and error cases
+- **ALWAYS** use the standardized response format
+
+```typescript
+// ✅ CORRECT Pattern
+const result = await apiCall("/api/endpoint");
+if (result.status === 200) {
+  setData(result.data);
+} else {
+  setError(result.error || "Operation failed");
+  setErrorDetails(result.errorDetails);
+}
+```
+
+### Rule 1.3: Required Imports
+- **ALWAYS** import `useApiCall` from the correct path
+- **ALWAYS** import error utilities together
+
+```typescript
+// ✅ CORRECT Imports
+import { useApiCall } from "../utils/apiUtils";
+import { standardizeApiError, ApiErrorResponse } from "../utils/errorUtils";
+import ErrorDisplay from "../components/ErrorDisplay";
+```
+
+## 2. Standardized HTTP Response Error Handling
+
+### Rule 2.0: Division of Responsibilities
+- **`createApiCall()`**: Handles API calls, error standardization, and returns `errorDetails`
+- **React Components**: Only check `result.status === 200` and set error states
+- **`ErrorDisplay`**: Handles error presentation based on standardized `errorDetails`
+- **NEVER** call `standardizeApiError()` in React components - it's already done by `createApiCall()`
+
+### Rule 2.1: Error State Management
+- **ALWAYS** declare both `error` and `errorDetails` state
+- **ALWAYS** use `ApiErrorResponse` type for error details
+- **ALWAYS** provide dismiss handlers for error clearing
+
+```typescript
+// ✅ CORRECT State Declaration
+const [error, setError] = useState<string | null>(null);
+const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+// ✅ CORRECT Error Clearing
+const clearErrors = () => {
+  setError(null);
+  setErrorDetails(null);
+};
+```
+
+### Rule 2.2: HTTP Status Code Handling
+- **ALWAYS** wrap `apiCall` with try-catch
+- **ALWAYS** check `result.status === 200` for success
+- **ALWAYS** use the `else` block for all non-200 status codes
+- **NEVER** call `standardizeApiError()` in React components - `createApiCall()` already does this
+- **NEVER** handle specific HTTP status codes (401, 403, 404, 500) - let ErrorDisplay handle them
+
+```typescript
+// ✅ CORRECT Status Handling
+try {
+  const result = await apiCall("/api/endpoint");
+  if (result.status === 200) {
+    // Success handling
+  } else {
+    setError(result.error || "Operation failed");
+    setErrorDetails(result.errorDetails);
+  }
+} catch (error) {
+  setError("Network error occurred");
+  setErrorDetails({ networkError: true, status: 0 });
+}
+```
+
+### Rule 2.3: ErrorDisplay Component Usage
+- **ALWAYS** use `ErrorDisplay` component for error presentation
+- **ALWAYS** pass both `error` and `errorDetails` props
+- **ALWAYS** provide `onDismiss` handler
+
+```typescript
+// ✅ CORRECT ErrorDisplay Usage
+<ErrorDisplay
+  error={error}
+  errorDetails={errorDetails}
+  onDismiss={() => {
+    setError(null);
+    setErrorDetails(null);
+  }}
+/>
+```
+
+### Rule 2.4: No-Throw Error Strategy
+- **NEVER** throw errors in React components
+- **ALWAYS** wrap `apiCall` with try-catch
+- **ALWAYS** handle errors by setting state and returning null/empty data
+- **ALWAYS** use graceful degradation for error states
+- **NEVER** call `standardizeApiError()` - `createApiCall()` already standardizes errors
+- **ONLY** check for `result.status === 200` - handle all other cases in `else`
+
+```typescript
+// ✅ CORRECT No-Throw Pattern
+const fetchData = async () => {
+  try {
+    const result = await apiCall("/api/data");
+    if (result.status === 200) {
+      setData(result.data);
+    } else {
+      setError(result.error || "Operation failed");
+      setErrorDetails(result.errorDetails);
+      setData([]); // Graceful fallback
+    }
+  } catch (error) {
+    setError("Network error occurred");
+    setErrorDetails({ networkError: true, status: 0 });
+    setData([]); // Graceful fallback
+  }
+};
+```
+
+### Rule 2.5: Simplified Error Handling
+- **ALWAYS** wrap `apiCall` with try-catch
+- **ALWAYS** check `result.status === 200` for success
+- **ALWAYS** handle all non-200 status codes in the `else` block
+- **NEVER** call `standardizeApiError()` - `createApiCall()` already standardizes errors
+- **NEVER** handle specific status codes - let ErrorDisplay component handle them
+
+```typescript
+// ✅ CORRECT Simplified Error Handling
+try {
+  const result = await apiCall("/api/endpoint");
+  if (result.status === 200) {
+    // Success handling
+  } else {
+    setError(result.error || "Operation failed");
+    setErrorDetails(result.errorDetails);
+  }
+} catch (error) {
+  setError("Network error occurred");
+  setErrorDetails({ networkError: true, status: 0 });
+}
+```
+
+### Rule 2.6: 403 Error Handling
+- **NEVER** use `result.data` for 403 errors - it's always `undefined`
+- **ALWAYS** use `result.error` for 403 error messages
+- **ALWAYS** use `result.errorDetails` for 403 error details
+- **ALWAYS** wrap error message in proper object structure
+
+```typescript
+// ✅ CORRECT 403 Error Handling
+if (result.status === 403) {
+  setAuthError({ message: result.error || "Access denied" });
+  setAuthErrorDetails(result.errorDetails);
+}
+
+// ❌ WRONG 403 Error Handling
+if (result.status === 403) {
+  setAuthError(result.data);  // result.data is undefined for 403s!
+  setAuthErrorDetails(result.errorDetails);
+}
+```
+
+### Rule 2.7: Error State Structure
+- **ALWAYS** ensure error states match the expected interface
+- **ALWAYS** use `{ message: string }` for AuthError objects
+- **ALWAYS** use `result.error` for error messages from apiCall
+
+```typescript
+// ✅ CORRECT Error State Structure
+const [authError, setAuthError] = useState<AuthError>(null);
+setAuthError({ message: result.error || "Access denied" });
+
+// ❌ WRONG Error State Structure
+setAuthError(result.data);  // Wrong type and undefined for 403s
+```
+
+## 3. Role-Based Layout Selection
+
+### Rule 3.0: Universal Role-Based Layout System
+- **ALWAYS** use `RoleAwareLayout` for ALL user roles (admin, supervisor, sales, cashier, storekeeper)
+- **NEVER** use specific layout components directly in pages
+- **ALWAYS** let `RoleAwareLayout` automatically select the correct layout based on user role
+- **ALWAYS** ensure consistent role-based navigation across the entire application
+
+### Rule 3.1: Layout Mapping by Role
+- **ALWAYS** use the correct layout for each role
+- **NEVER** assign AdminLayout to non-admin roles
+- **ALWAYS** use RoleAwareLayout for centralized layout selection
+- **ALWAYS** import SupervisorLayout for supervisor role
+
+```typescript
+// ✅ CORRECT Layout Mapping
+if (role === "admin") return <AdminLayout authError={null}>{children}</AdminLayout>;
+if (role === "supervisor") return <SupervisorLayout authError={null}>{children}</SupervisorLayout>;
+if (role === "sales") return <SalesLayout authError={null}>{children}</SalesLayout>;
+if (role === "cashier") return <CashierLayout authError={null}>{children}</CashierLayout>;
+if (role === "storekeeper") return <StoreKeeperPageLayout authError={null}>{children}</StoreKeeperPageLayout>;
+
+// ❌ WRONG Layout Mapping
+if (role === "supervisor") return <AdminLayout authError={null}>{children}</AdminLayout>; // WRONG!
+```
+
+### Rule 3.2: Layout Component Imports
+- **ALWAYS** import all required layout components
+- **ALWAYS** import SupervisorLayout for supervisor role handling
+- **ALWAYS** ensure layout components are available
+
+```typescript
+// ✅ CORRECT Imports
+import AdminLayout from "./AdminLayout";
+import SupervisorLayout from "./SupervisorLayout";
+import SalesLayout from "./SalesLayout";
+import CashierLayout from "./CashierLayout";
+import HomePageLayout from "./HomePageLayout";
+import CashierPageLayout from "./CashierPageLayout";
+import StoreKeeperPageLayout from "./StoreKeeperPageLayout";
+```
+
+### Rule 3.3: Role-Based Route Redirects
+- **ALWAYS** use consistent redirect paths for each role
+- **ALWAYS** match redirect paths with layout expectations
+- **ALWAYS** use primary role (first role in array) for decisions
+
+```typescript
+// ✅ CORRECT Role Redirects
+const redirectBasedOnRole = (decodedToken: DecodedToken | null, fallbackRole?: string) => {
+  const primaryRole = decodedToken?.roles?.[0] || fallbackRole;
+  if (primaryRole === "admin") {
+    router.push("/admin");
+  } else if (primaryRole === "supervisor") {
+    router.push("/supervisor");
+  } else if (primaryRole === "sales") {
+    router.push("/home");
+  } else if (primaryRole === "cashier") {
+    router.push("/home/cashier");
+  } else if (primaryRole === "storekeeper") {
+    router.push("/storekeeper");
+  } else {
+    router.push("/home");
+  }
+};
+```
+
+### Rule 3.4: Layout Props Consistency
+- **ALWAYS** pass authError prop to layouts that expect it
+- **ALWAYS** use consistent prop structure across layouts
+- **ALWAYS** handle authError display within layout components
+
+```typescript
+// ✅ CORRECT Layout Props
+<AdminLayout authError={authError}>{children}</AdminLayout>
+<SupervisorLayout authError={authError}>{children}</SupervisorLayout>
+<HomePageLayout>{children}</HomePageLayout>
+<CashierPageLayout>{children}</CashierPageLayout>
+```
+
+### Rule 3.5: Layout Selection Logic
+- **ALWAYS** use RoleAwareLayout for centralized role-based layout selection
+- **NEVER** hardcode layout selection in individual pages
+- **NEVER** use AdminLayout, SupervisorLayout, or other specific layouts directly in pages
+- **ALWAYS** ensure layout selection happens before page rendering
+- **ALWAYS** import RoleAwareLayout instead of specific layout components
+
+### Rule 3.6: Page Layout Usage
+- **ALWAYS** use `RoleAwareLayout` in ALL pages that need role-based layouts (admin, supervisor, sales, cashier, storekeeper)
+- **NEVER** use `AdminLayout`, `SupervisorLayout`, `HomePageLayout`, `CashierPageLayout`, or `StoreKeeperPageLayout` directly in pages
+- **ALWAYS** import `RoleAwareLayout` from the correct path
+- **ALWAYS** wrap page content with `<RoleAwareLayout>` tags
+- **ALWAYS** let `RoleAwareLayout` determine the correct layout based on user role
+- **NEVER** use `RoleAwareLayout` in pages that are already wrapped by a parent layout (e.g., pages in `/home/cashier/` are already wrapped by `CashierLayout`)
+
+### Rule 3.7: Layout Hierarchy
+- **ALWAYS** check if a page is already wrapped by a parent layout before adding `RoleAwareLayout`
+- **ALWAYS** use parent layouts when available (e.g., `CashierLayout` for `/home/cashier/*` pages)
+- **NEVER** create duplicate navigation bars by nesting layouts
+
+```typescript
+// ✅ CORRECT Page Layout Usage
+import RoleAwareLayout from "../shared/RoleAwareLayout";
+
+export default function MyPage() {
+  return (
+    <RoleAwareLayout>
+      <div className="container-fluid">
+        {/* Page content */}
+      </div>
+    </RoleAwareLayout>
+  );
+}
+
+// ❌ WRONG Page Layout Usage
+import AdminLayout from "../shared/AdminLayout";
+
+export default function MyPage() {
+  return (
+    <AdminLayout authError={null}>
+      <div className="container-fluid">
+        {/* Page content */}
+      </div>
+    </AdminLayout>
+  );
+}
+
+// ✅ CORRECT Usage with Parent Layout (e.g., /home/cashier/* pages)
+// Parent layout already provides RoleAwareLayout
+export default function CashierBillsPage() {
+  return (
+    <div className="container-fluid">
+      {/* Page content - no RoleAwareLayout needed */}
+    </div>
+  );
+}
+
+// ❌ WRONG Usage with Parent Layout (creates duplicate navigation)
+import RoleAwareLayout from "../shared/RoleAwareLayout";
+
+export default function CashierBillsPage() {
+  return (
+    <RoleAwareLayout>  {/* WRONG - parent already provides this */}
+      <div className="container-fluid">
+        {/* Page content */}
+      </div>
+    </RoleAwareLayout>
+  );
+}
+```
+
+## 4. Bill Voiding and Reopening Features
+
+### Rule 4.1: Database Schema Rules
+- **ALWAYS** add minimal columns to existing `bill` table for reopening tracking
+- **NEVER** create separate tables for simple state changes
+- **ALWAYS** use nullable columns for optional tracking data
+- **ALWAYS** add voiding tracking columns to existing `bill_item` table
+- **ALWAYS** use ENUM for item status with clear states
+- **ALWAYS** consolidate all bill-related logic into existing `BillService` and `BillController`
+
+```sql
+-- ✅ CORRECT Bill Table Additions
+ALTER TABLE bill ADD COLUMN reopen_reason TEXT NULL;
+ALTER TABLE bill ADD COLUMN reopened_by INT NULL;
+ALTER TABLE bill ADD COLUMN reopened_at DATETIME NULL;
+
+-- ✅ CORRECT Bill Item Additions
+ALTER TABLE bill_item ADD COLUMN status ENUM('active', 'void_pending', 'voided') DEFAULT 'active';
+ALTER TABLE bill_item ADD COLUMN void_reason TEXT NULL;
+ALTER TABLE bill_item ADD COLUMN void_requested_by INT NULL;
+ALTER TABLE bill_item ADD COLUMN void_requested_at DATETIME NULL;
+ALTER TABLE bill_item ADD COLUMN void_approved_by INT NULL;
+ALTER TABLE bill_item ADD COLUMN void_approved_at DATETIME NULL;
+
+-- ❌ WRONG - Don't create separate tables
+CREATE TABLE bill_reopen_request (...);  -- WRONG!
+CREATE TABLE bill_void_request (...);    -- WRONG!
+```
+
+### Rule 4.2: Service Consolidation Rules
+- **ALWAYS** consolidate all bill-related logic into existing `BillService` and `BillController`
+- **NEVER** create separate services for voiding or reopening (e.g., `BillVoidService`, `BillReopenService`)
+- **ALWAYS** add voiding and reopening methods to existing `BillService` class
+- **ALWAYS** add voiding and reopening controllers to existing `BillController` class
+- **ALWAYS** use consistent error handling patterns across all bill operations
+
+### Rule 4.3: Feature Separation Rules
+- **ALWAYS** treat voiding and reopening as separate features
+- **NEVER** mix voiding and reopening logic in the same functions
+- **ALWAYS** use different API endpoints for each feature
+- **ALWAYS** implement voiding as approval workflow
+- **ALWAYS** implement reopening as fix-and-resubmit workflow
+
+```typescript
+// ✅ CORRECT - Separate Features
+// VOIDING: Sales → Cashier Approval
+POST /api/bills/{id}/items/{itemId}/void-request
+POST /api/bills/{id}/items/{itemId}/void-approve
+
+// REOPENING: Cashier → Sales Fix
+POST /api/bills/{id}/reopen
+POST /api/bills/{id}/resubmit
+
+// ❌ WRONG - Mixed Features
+POST /api/bills/{id}/state-change  // WRONG!
+```
+
+### Rule 4.3: Voiding Business Rules
+- **ALWAYS** allow voiding only in `submitted` or `reopened` states
+- **ALWAYS** require cashier approval for voiding
+- **ALWAYS** track void request reason and approval
+- **NEVER** allow voiding in `closed` or `voided` states
+- **ALWAYS** treat partially voided bills as `submitted` (still closable)
+- **ALWAYS** treat fully voided bills as `voided` (terminal state)
+
+```typescript
+// ✅ CORRECT Voiding Rules
+const canVoidItem = (bill: Bill, item: BillItem) => {
+  return (bill.status === 'submitted' || bill.status === 'reopened') 
+    && item.status === 'active';
+};
+
+const canApproveVoid = (bill: Bill, item: BillItem) => {
+  return bill.status === 'submitted' 
+    && item.status === 'void_pending';
+};
+
+// ✅ CORRECT Status Calculation
+function calculateBillStatus(bill: Bill): BillState {
+  const items = bill.bill_items;
+  const activeItems = items.filter(item => item.status === 'active');
+  const voidedItems = items.filter(item => item.status === 'voided');
+  
+  // If all items are voided, bill is voided
+  if (voidedItems.length === items.length) {
+    return BillState.VOIDED;
+  }
+  
+  // If some items are voided, bill is still submitted
+  if (voidedItems.length > 0) {
+    return BillState.SUBMITTED; // Partially voided but still closable
+  }
+  
+  // Normal flow
+  return bill.status;
+}
+```
+
+### Rule 4.4: Reopening Business Rules
+- **ALWAYS** allow reopening only in `submitted` state AND when there are actual issues
+- **ALWAYS** validate that bill has payment discrepancies before allowing reopening
+- **ALWAYS** require sales to fix and resubmit
+- **ALWAYS** track reopen reason and who reopened
+- **NEVER** allow reopening in `closed` or `voided` states
+- **NEVER** allow reopening of properly paid bills (prevents misuse)
+- **ALWAYS** show clear status messages indicating why reopening is/isn't needed
+
+```typescript
+// ✅ CORRECT Reopening Rules
+const canReopenBill = (bill: Bill) => {
+  // Only allow reopening if bill is submitted AND has actual issues
+  if (bill.status !== 'submitted') {
+    return false;
+  }
+
+  // Calculate total paid amount
+  const totalPaid = bill.bill_payments?.reduce(
+    (sum, billPayment) => sum + billPayment.payment.creditAmount,
+    0
+  ) || 0;
+
+  // Only allow reopening if there's a payment discrepancy or other issues
+  const hasPaymentDiscrepancy = totalPaid !== bill.total;
+  const hasZeroPayments = totalPaid === 0;
+  const hasPartialPayments = totalPaid > 0 && totalPaid < bill.total;
+
+  // Allow reopening only if there are actual issues that need fixing
+  return hasPaymentDiscrepancy || hasZeroPayments || hasPartialPayments;
+};
+
+const canResubmitBill = (bill: Bill) => {
+  return bill.status === 'reopened';
+};
+```
+
+### Rule 4.5: API Implementation Rules
+- **ALWAYS** use separate endpoints for void request and approval
+- **ALWAYS** use separate endpoints for reopen and resubmit
+- **ALWAYS** validate permissions (sales can request, cashier can approve)
+- **ALWAYS** validate permissions (cashier can reopen, sales can resubmit)
+- **ALWAYS** return clear success/error responses
+
+```typescript
+// ✅ CORRECT Voiding API
+export const voidItemRequestHandler = async (req: NextApiRequest, res: NextApiResponse) => {
+  // Validate: User is sales person
+  // Validate: Bill is in submitted/reopened state
+  // Validate: Item is active
+  // Create void request
+  // Return success response
+};
+
+export const approveVoidRequestHandler = async (req: NextApiRequest, res: NextApiResponse) => {
+  // Validate: User is cashier/supervisor
+  // Validate: Void request exists and is pending
+  // Approve/reject void request
+  // Return success response
+};
+
+// ✅ CORRECT Reopening API
+export const reopenBillHandler = async (req: NextApiRequest, res: NextApiResponse) => {
+  // Validate: User is cashier/supervisor
+  // Validate: Bill is in submitted state
+  // Reopen bill with reason
+  // Return success response
+};
+
+export const resubmitBillHandler = async (req: NextApiRequest, res: NextApiResponse) => {
+  // Validate: User is sales person
+  // Validate: Bill is in reopened state
+  // Resubmit bill with notes
+  // Return success response
+};
+```
+
+### Rule 4.6: Frontend Implementation Rules
+- **ALWAYS** create separate components for voiding and reopening
+- **NEVER** mix voiding and reopening UI in the same component
+- **ALWAYS** show appropriate actions based on user role and bill state
+- **ALWAYS** show voiding actions only to sales users
+- **ALWAYS** show voiding approvals only to cashier/supervisor users
+- **ALWAYS** show reopening actions only to cashier/supervisor users
+- **ALWAYS** show resubmit actions only to sales users
+- **ALWAYS** integrate reopened bills into existing sales page with status filter
+- **NEVER** create separate pages for reopened bills - use status filtering instead
+- **ALWAYS** show reopened bill information (reason, reopened by, reopened at) in bill details
+
+```typescript
+// ✅ CORRECT - Separate Components
+function VoidingInterface({ bill, userRole }) {
+  // Show void requests for cashiers
+  // Show void request buttons for sales
+  // Handle void approval/rejection
+}
+
+function ReopeningInterface({ bill, userRole }) {
+  // Show reopen button for cashiers
+  // Show resubmit button for sales
+  // Handle reopen and resubmit actions
+}
+
+// ✅ CORRECT Role-Based Display
+function BillActions({ bill, userRole }) {
+  return (
+    <div>
+      {/* Voiding Actions */}
+      {userRole === 'sales' && canVoidItems(bill) && (
+        <VoidingInterface bill={bill} />
+      )}
+      
+      {userRole === 'cashier' && hasPendingVoids(bill) && (
+        <VoidApprovalInterface bill={bill} />
+      )}
+      
+      {/* Reopening Actions */}
+      {userRole === 'cashier' && canReopenBill(bill) && (
+        <ReopeningInterface bill={bill} />
+      )}
+      
+      {userRole === 'sales' && bill.status === 'reopened' && (
+        <ResubmitInterface bill={bill} />
+      )}
+    </div>
+  );
+}
+```
+
+### Rule 4.7: State Management Rules
+- **ALWAYS** calculate bill status based on item states
+- **ALWAYS** handle partially voided bills as submitted
+- **ALWAYS** handle fully voided bills as voided
+- **ALWAYS** use clear state transitions for items
+- **ALWAYS** track state change reasons and timestamps
+- **NEVER** allow invalid state transitions
+
+```typescript
+// ✅ CORRECT Item State Transitions
+const ITEM_STATE_TRANSITIONS = {
+  active: ['void_pending'],
+  void_pending: ['voided', 'active'], // approved or rejected
+  voided: [] // terminal state
+};
+
+const canTransitionItem = (from: string, to: string) => {
+  return ITEM_STATE_TRANSITIONS[from]?.includes(to) || false;
+};
+```
+
+### Rule 4.8: Error Handling Rules
+- **ALWAYS** validate business rules before state changes
+- **ALWAYS** return clear error messages for invalid operations
+- **ALWAYS** handle permission errors gracefully
+- **ALWAYS** ensure state changes are atomic
+- **ALWAYS** rollback changes on errors
+- **ALWAYS** maintain data consistency
+- **ALWAYS** provide fallback data for API calls that might fail
+- **ALWAYS** initialize state variables with proper default values
+- **ALWAYS** handle cases where API responses don't match expected format
+
+```typescript
+// ✅ CORRECT Error Handling with Fallbacks
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const result = await apiCall("/api/endpoint");
+      if (result.status === 200) {
+        setData(result.data?.items || []); // Fallback to empty array
+      } else {
+        setData([]); // Fallback on error
+      }
+    } catch (error) {
+      setData([]); // Fallback on network error
+    }
+  };
+  fetchData();
+}, [apiCall]);
+
+// ❌ WRONG - No fallback handling
+useEffect(() => {
+  const fetchData = async () => {
+    const result = await apiCall("/api/endpoint");
+    setData(result.data); // Could be undefined!
+  };
+  fetchData();
+}, [apiCall]);
+```
+
+```typescript
+// ✅ CORRECT Validation
+async function voidItemRequest(billId: number, itemId: number, reason: string) {
+  // Validate bill exists and is in correct state
+  if (bill.status !== 'submitted' && bill.status !== 'reopened') {
+    throw new Error('Bill must be submitted or reopened to void items');
+  }
+  
+  // Validate item exists and is active
+  if (item.status !== 'active') {
+    throw new Error('Item must be active to void');
+  }
+  
+  // Validate user has permission
+  if (userRole !== 'sales') {
+    throw new Error('Only sales users can request item voiding');
+  }
+}
+
+// ✅ CORRECT Atomic Operations
+async function approveVoidRequest(billId: number, itemId: number, approved: boolean) {
+  const transaction = await dataSource.transaction(async manager => {
+    // Update item status
+    await manager.update(BillItem, itemId, {
+      status: approved ? 'voided' : 'active',
+      void_approved_by: currentUser.id,
+      void_approved_at: new Date()
+    });
+    
+    // Update bill status if needed
+    const bill = await manager.findOne(Bill, { where: { id: billId } });
+    const newStatus = calculateBillStatus(bill);
+    await manager.update(Bill, billId, { status: newStatus });
+  });
+}
+```
+
+---
+
+## Quick Reference
+
+### Essential Imports
+```typescript
+import { useApiCall } from "../utils/apiUtils";
+import { ApiErrorResponse } from "../utils/errorUtils";
+import ErrorDisplay from "../components/ErrorDisplay";
+```
+
+### Standard Error State Pattern
+```typescript
+const [error, setError] = useState<string | null>(null);
+const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+```
+
+### Standard API Call Pattern
+```typescript
+try {
+  const result = await apiCall("/api/endpoint");
+  if (result.status === 200) {
+    // Success handling
+  } else {
+    // All non-200 status codes handled here
+    setError(result.error || "Operation failed");
+    setErrorDetails(result.errorDetails);
+  }
+} catch (error) {
+  // All caught exceptions handled here
+  setError("Network error occurred");
+  setErrorDetails({ networkError: true, status: 0 });
+}
+```
+
+### Standard ErrorDisplay Usage
+```typescript
+<ErrorDisplay
+  error={error}
+  errorDetails={errorDetails}
+  onDismiss={() => {
+    setError(null);
+    setErrorDetails(null);
+  }}
+/>
+```
+
+### 403 Error Handling Pattern
+```typescript
+if (result.status === 403) {
+  setAuthError({ message: result.error || "Access denied" });
+  setAuthErrorDetails(result.errorDetails);
+}
+```
+
+### Role-Based Layout Selection
+```typescript
+// Layout mapping by role
+if (role === "admin") return <AdminLayout authError={null}>{children}</AdminLayout>;
+if (role === "supervisor") return <SupervisorLayout authError={null}>{children}</SupervisorLayout>;
+if (role === "sales") return <SalesLayout authError={null}>{children}</SalesLayout>;
+if (role === "cashier") return <CashierLayout authError={null}>{children}</CashierLayout>;
+if (role === "storekeeper") return <StoreKeeperPageLayout authError={null}>{children}</StoreKeeperPageLayout>;
+```
+
+### Feature Separation Pattern
+```typescript
+// VOIDING: Sales → Cashier Approval
+POST /api/bills/{id}/items/{itemId}/void-request
+POST /api/bills/{id}/items/{itemId}/void-approve
+
+// REOPENING: Cashier → Sales Fix
+POST /api/bills/{id}/reopen
+POST /api/bills/{id}/resubmit
+```
+
+### Service Consolidation Pattern
+```typescript
+// ✅ CORRECT - All bill logic in existing services
+// BillService.ts
+export class BillService {
+  // Existing methods...
+  async requestVoidItem(...) { }
+  async approveVoidRequest(...) { }
+  async reopenBill(...) { }
+  async resubmitBill(...) { }
+}
+
+// BillController.ts
+export const requestVoidItem = async (req, res) => { }
+export const approveVoidRequest = async (req, res) => { }
+export const reopenBill = async (req, res) => { }
+export const resubmitBill = async (req, res) => { }
+
+// ❌ WRONG - Separate services
+// BillVoidService.ts - WRONG!
+// BillReopenService.ts - WRONG!
+// BillVoidController.ts - WRONG!
+```
+
+## 5. Role-Aware Layout Implementation
+
+### Rule 5.1: Universal Role-Based Layout System
+- **ALWAYS** use `RoleAwareLayout` for ALL user roles (admin, supervisor, sales, cashier, storekeeper)
+- **NEVER** use specific layout components directly in pages
+- **ALWAYS** let `RoleAwareLayout` automatically select the correct layout based on user role
+- **ALWAYS** ensure consistent role-based navigation across the entire application
+
+### Rule 5.2: Layout Component Structure
+- **ALWAYS** create role-specific layout components following the AdminLayout template
+- **ALWAYS** use side pane design with collapsible sidebar
+- **ALWAYS** include user profile section, navigation menu, station switcher, and logout
+- **ALWAYS** implement consistent styling and behavior across all role layouts
+
+```typescript
+// ✅ CORRECT Layout Component Structure
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../contexts/AuthContext";
+import { useStation } from "../contexts/StationContext";
+import LogoutButton from "../components/LogoutButton";
+import StationSwitcher from "../components/StationSwitcher";
+import { AuthError } from "../types/types";
+
+interface RoleLayoutProps {
+  children: React.ReactNode;
+  authError: AuthError | null;
+}
+
+const RoleLayout: React.FC<RoleLayoutProps> = ({ children, authError }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [activeItem, setActiveItem] = useState("");
+  const { user, logout } = useAuth();
+  const { currentStation } = useStation();
+  const router = useRouter();
+
+  // Active item detection based on current path
+  useEffect(() => {
+    const path = window.location.pathname;
+    // Set activeItem based on path matching
+  }, []);
+
+  // Role-specific menu items
+  const menuItems = [
+    {
+      id: "dashboard",
+      label: "Dashboard",
+      icon: "bi-house",
+      path: "/role-path",
+    },
+    // Add role-specific menu items
+  ];
+
+  const handleItemClick = (itemId: string, path: string) => {
+    setActiveItem(itemId);
+    router.push(path);
+  };
+
+  return (
+    <div className="d-flex vh-100">
+      {/* Sidebar */}
+      <div className={`bg-dark text-white d-flex flex-column ${isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}>
+        {/* Header, User Info, Navigation, Station Switcher, Logout */}
+      </div>
+      
+      {/* Main Content */}
+      <div className="flex-grow-1 d-flex flex-column">
+        {/* Top Navigation with Profile Dropdown */}
+        <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom">
+          {/* Navigation content */}
+        </nav>
+        
+        {/* Page Content */}
+        <main className="flex-grow-1 p-4">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+};
+```
+
+### Rule 5.3: Layout Mapping by Role
+- **ALWAYS** use the correct layout for each role
+- **NEVER** assign AdminLayout to non-admin roles
+- **ALWAYS** use RoleAwareLayout for centralized layout selection
+- **ALWAYS** import SupervisorLayout for supervisor role
+
+```typescript
+// ✅ CORRECT Layout Mapping
+if (role === "admin") return <AdminLayout authError={null}>{children}</AdminLayout>;
+if (role === "supervisor") return <SupervisorLayout authError={null}>{children}</SupervisorLayout>;
+if (role === "sales") return <SalesLayout authError={null}>{children}</SalesLayout>;
+if (role === "cashier") return <CashierLayout authError={null}>{children}</CashierLayout>;
+if (role === "storekeeper") return <StoreKeeperPageLayout authError={null}>{children}</StoreKeeperPageLayout>;
+
+// ❌ WRONG Layout Mapping
+if (role === "supervisor") return <AdminLayout authError={null}>{children}</AdminLayout>; // WRONG!
+```
+
+### Rule 5.4: Layout Component Imports
+- **ALWAYS** import all required layout components
+- **ALWAYS** import SupervisorLayout for supervisor role handling
+- **ALWAYS** ensure layout components are available
+
+```typescript
+// ✅ CORRECT Imports
+import AdminLayout from "./AdminLayout";
+import SupervisorLayout from "./SupervisorLayout";
+import SalesLayout from "./SalesLayout";
+import CashierLayout from "./CashierLayout";
+import HomePageLayout from "./HomePageLayout";
+import CashierPageLayout from "./CashierPageLayout";
+import StoreKeeperPageLayout from "./StoreKeeperPageLayout";
+```
+
+### Rule 5.5: Role-Based Route Redirects
+- **ALWAYS** use consistent redirect paths for each role
+- **ALWAYS** match redirect paths with layout expectations
+- **ALWAYS** use primary role (first role in array) for decisions
+- **ALWAYS** create role-specific pages for shared functionality
+- **NEVER** point non-admin roles to admin paths
+
+```typescript
+// ✅ CORRECT Role Redirects
+const redirectBasedOnRole = (decodedToken: DecodedToken | null, fallbackRole?: string) => {
+  const primaryRole = decodedToken?.roles?.[0] || fallbackRole;
+  if (primaryRole === "admin") {
+    router.push("/admin");
+  } else if (primaryRole === "supervisor") {
+    router.push("/supervisor");
+  } else if (primaryRole === "sales") {
+    router.push("/home");
+  } else if (primaryRole === "cashier") {
+    router.push("/home/cashier");
+  } else if (primaryRole === "storekeeper") {
+    router.push("/storekeeper");
+  } else {
+    router.push("/home");
+  }
+};
+
+// ✅ CORRECT Role-Specific Menu Paths
+// Admin paths
+"/admin/menu/category"
+"/admin/menu/pricelist"
+"/admin/production/items"
+
+// Supervisor paths (should be different)
+"/supervisor/menu/category"
+"/supervisor/menu/pricelist"
+"/supervisor/production/items"
+
+// ❌ WRONG - Don't point supervisors to admin paths
+"/admin/menu/category" // WRONG for supervisor menu!
+```
+
+### Rule 5.6: Layout Props Consistency
+- **ALWAYS** pass authError prop to layouts that expect it
+- **ALWAYS** use consistent prop structure across layouts
+- **ALWAYS** handle authError display within layout components
+
+```typescript
+// ✅ CORRECT Layout Props
+<AdminLayout authError={authError}>{children}</AdminLayout>
+<SupervisorLayout authError={authError}>{children}</SupervisorLayout>
+<HomePageLayout>{children}</HomePageLayout>
+<CashierPageLayout>{children}</CashierPageLayout>
+```
+
+### Rule 5.7: Layout Selection Logic
+- **ALWAYS** use RoleAwareLayout for centralized role-based layout selection
+- **NEVER** hardcode layout selection in individual pages
+- **NEVER** use AdminLayout, SupervisorLayout, or other specific layouts directly in pages
+- **ALWAYS** ensure layout selection happens before page rendering
+- **ALWAYS** import RoleAwareLayout instead of specific layout components
+
+### Rule 5.8: Page Layout Usage
+- **ALWAYS** use `RoleAwareLayout` in ALL pages that need role-based layouts (admin, supervisor, sales, cashier, storekeeper)
+- **NEVER** use `AdminLayout`, `SupervisorLayout`, `HomePageLayout`, `CashierPageLayout`, or `StoreKeeperPageLayout` directly in pages
+- **ALWAYS** import `RoleAwareLayout` from the correct path
+- **ALWAYS** wrap page content with `<RoleAwareLayout>` tags
+- **ALWAYS** let `RoleAwareLayout` determine the correct layout based on user role
+- **NEVER** use `RoleAwareLayout` in pages that are already wrapped by a parent layout (e.g., pages in `/home/cashier/` are already wrapped by `CashierLayout`)
+
+```typescript
+// ✅ CORRECT Page Layout Usage
+import RoleAwareLayout from "../shared/RoleAwareLayout";
+
+export default function MyPage() {
+  return (
+    <RoleAwareLayout>
+      <div className="container-fluid">
+        {/* Page content */}
+      </div>
+    </RoleAwareLayout>
+  );
+}
+
+// ❌ WRONG Page Layout Usage
+import AdminLayout from "../shared/AdminLayout";
+
+export default function MyPage() {
+  return (
+    <AdminLayout authError={null}>
+      <div className="container-fluid">
+        {/* Page content */}
+      </div>
+    </AdminLayout>
+  );
+}
+
+// ✅ CORRECT Usage with Parent Layout (e.g., /home/cashier/* pages)
+// Parent layout already provides RoleAwareLayout
+export default function CashierBillsPage() {
+  return (
+    <div className="container-fluid">
+      {/* Page content - no RoleAwareLayout needed */}
+    </div>
+  );
+}
+
+// ❌ WRONG Usage with Parent Layout (creates duplicate navigation)
+import RoleAwareLayout from "../shared/RoleAwareLayout";
+
+export default function CashierBillsPage() {
+  return (
+    <RoleAwareLayout>  {/* WRONG - parent already provides this */}
+      <div className="container-fluid">
+        {/* Page content */}
+      </div>
+    </RoleAwareLayout>
+  );
+}
+```
+
+### Rule 5.9: Layout Hierarchy
+- **ALWAYS** check if a page is already wrapped by a parent layout before adding `RoleAwareLayout`
+- **ALWAYS** use parent layouts when available (e.g., `CashierLayout` for `/home/cashier/*` pages)
+- **NEVER** create duplicate navigation bars by nesting layouts
+
+### Rule 5.10: Menu Item Structure
+- **ALWAYS** use consistent menu item structure across all role layouts
+- **ALWAYS** include icons, labels, paths, and submenu support
+- **ALWAYS** implement dropdown menus for grouped functionality
+- **ALWAYS** use Bootstrap icons for consistency
+
+```typescript
+// ✅ CORRECT Menu Item Structure
+const menuItems = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: "bi-house",
+    path: "/role-path",
+  },
+  {
+    id: "grouped-feature",
+    label: "Grouped Feature",
+    icon: "bi-gear",
+    submenu: [
+      {
+        id: "sub-feature-1",
+        label: "Sub Feature 1",
+        icon: "bi-gear-fill",
+        path: "/role-path/sub-feature-1",
+      },
+      {
+        id: "sub-feature-2",
+        label: "Sub Feature 2",
+        icon: "bi-gear-fill",
+        path: "/role-path/sub-feature-2",
+      },
+    ],
+  },
+];
+```
+
+### Rule 5.11: Profile Menu Implementation
+- **ALWAYS** include profile dropdown in top navigation bar
+- **ALWAYS** provide Settings, Account, Preferences, and Logout options
+- **ALWAYS** use consistent styling and behavior across all role layouts
+- **ALWAYS** implement logout functionality through the profile menu
+
+### Rule 5.12: Station Display
+- **ALWAYS** show current station in sidebar when available
+- **ALWAYS** use StationSwitcher component for station switching
+- **ALWAYS** provide clear labeling and compact display
+- **ALWAYS** hide station display when no station is selected
+
+### Rule 5.13: Active State Management
+- **ALWAYS** implement active state highlighting for current page
+- **ALWAYS** use path-based active state detection
+- **ALWAYS** highlight both parent and child menu items when appropriate
+- **ALWAYS** provide visual feedback for current location
+
+### Rule 5.14: Responsive Design
+- **ALWAYS** implement collapsible sidebar functionality
+- **ALWAYS** provide toggle button for sidebar collapse/expand
+- **ALWAYS** maintain functionality in collapsed state
+- **ALWAYS** use consistent breakpoints and responsive behavior
+
+### Rule 5.15: Error Handling in Layouts
+- **ALWAYS** display authError in layout components when provided
+- **ALWAYS** use consistent error display styling
+- **ALWAYS** provide clear error messaging for permission issues
+- **ALWAYS** handle missing permissions gracefully
+
+## 6. Station Management Implementation
+
+### Rule 6.1: User Station Data Structure
+- **ALWAYS** use nested structure for user stations: `userStation.station.name`
+- **ALWAYS** use camelCase for frontend properties: `isDefault`, `stationId`
+- **ALWAYS** transform flattened SQL results into nested objects
+- **ALWAYS** include both user station and station data in response
+
+```typescript
+// ✅ CORRECT User Station Structure
+{
+  id: number,
+  user_id: number,
+  station_id: number,
+  isDefault: boolean,
+  status: string,
+  station: {
+    id: number,
+    name: string,
+    status: string
+  }
+}
+
+// ❌ WRONG - Flattened structure
+{
+  id: number,
+  station_id: number,
+  station_name: string,
+  is_default: boolean
+}
+```
+
+### Rule 6.2: Station Management API Endpoints
+- **ALWAYS** support GET, POST, PATCH, DELETE methods for user stations
+- **ALWAYS** use action-based routing for PATCH operations
+- **ALWAYS** include proper permission checks for all operations
+- **ALWAYS** return consistent data structures
+
+```typescript
+// ✅ CORRECT API Endpoint Structure
+if (req.method === "GET") {
+  // Fetch user stations
+}
+if (req.method === "POST") {
+  // Add station to user
+}
+if (req.method === "PATCH") {
+  const { action } = req.body;
+  if (action === "deactivate" || action === "activate") {
+    // Toggle station status
+  } else {
+    // Set default station
+  }
+}
+if (req.method === "DELETE") {
+  // Remove station from user
+}
+```
+
+### Rule 6.3: Station Management Frontend Implementation
+- **ALWAYS** handle loading states for station operations
+- **ALWAYS** validate user roles before allowing station assignment
+- **ALWAYS** provide visual feedback for station status changes
+- **ALWAYS** filter available stations to exclude already assigned ones
+- **ALWAYS** use proper error handling for all station operations
+
+```typescript
+// ✅ CORRECT Station Management Pattern
+const fetchUserStations = async (userId: number) => {
+  setLoadingStations(true);
+  setStationError("");
+  try {
+    const result = await apiCall(`/api/users/${userId}/stations`);
+    if (result.status === 200) {
+      setUserStations(result.data || []);
+    } else {
+      setStationError(result.error || "Failed to fetch user stations");
+    }
+  } catch (error) {
+    setStationError("Network error occurred");
+  } finally {
+    setLoadingStations(false);
+  }
+};
+```
+
+### Rule 6.4: Role-Based Station Assignment
+- **ALWAYS** restrict station assignment to sales, supervisor, and admin roles
+- **ALWAYS** validate user role before allowing station operations
+- **ALWAYS** provide clear error messages for unauthorized operations
+- **ALWAYS** disable station management UI for unauthorized roles
+
+```typescript
+// ✅ CORRECT Role Validation
+const allowedRoles = ["sales", "supervisor", "admin"];
+const userRole = selectedUser.roles?.[0]?.name;
+
+if (!userRole || !allowedRoles.includes(userRole)) {
+  setStationError(`Only users with ${allowedRoles.join(", ")} roles can be assigned stations. Current role: ${userRole || "none"}`);
+  return;
+}
+```
+
+### Rule 6.5: Station Data Transformation
+- **ALWAYS** transform SQL query results into expected frontend structure
+- **ALWAYS** map database column names to frontend property names
+- **ALWAYS** include both user station and station information
+- **ALWAYS** handle null/undefined values gracefully
+
+```typescript
+// ✅ CORRECT Data Transformation
+const results = await this.userStationRepository.query(query, [userId]);
+return results.map((row: any) => ({
+  id: row.id,
+  user_id: row.user_id,
+  station_id: row.station_id,
+  isDefault: row.is_default,
+  status: row.status,
+  station: {
+    id: row.station_id,
+    name: row.station_name,
+    status: row.station_status
+  }
+}));
+```
+
+### Rule 6.6: Station Management UI Components
+- **ALWAYS** show loading states during station operations
+- **ALWAYS** display station status with appropriate badges
+- **ALWAYS** provide dropdown actions for each station
+- **ALWAYS** show default station indicators
+- **ALWAYS** handle empty states gracefully
+
+```typescript
+// ✅ CORRECT Station UI Pattern
+{userStations.map((userStation) => (
+  <div key={userStation.id} className="list-group-item">
+    <div className="d-flex align-items-center">
+      {userStation.isDefault ? (
+        <span className="badge bg-primary">Default</span>
+      ) : (
+        <span className="badge bg-light text-dark">Station</span>
+      )}
+      <div>
+        <div className="fw-semibold">{userStation.station.name}</div>
+        <span className={`badge ${userStation.status === "active" ? "bg-success" : "bg-secondary"}`}>
+          {userStation.status}
+        </span>
+      </div>
+    </div>
+  </div>
+))}
+```
+
+### Rule 6.7: Station Management Error Handling
+- **ALWAYS** provide specific error messages for station operations
+- **ALWAYS** handle network errors gracefully
+- **ALWAYS** validate input before making API calls
+- **ALWAYS** show user-friendly error messages
+
+```typescript
+// ✅ CORRECT Error Handling
+try {
+  const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
+    method: "POST",
+    body: JSON.stringify({ station: selectedStationId }),
+  });
+  if (result.status === 200) {
+    await fetchUserStations(selectedUser.id);
+    setShowAddStationModal(false);
+  } else {
+    setStationError(result.error || "Failed to add station");
+  }
+} catch (error) {
+  setStationError("Network error occurred");
+}
+```
+
+### Rule 6.8: Station Management State Management
+- **ALWAYS** maintain separate state for user stations and available stations
+- **ALWAYS** update station lists after successful operations
+- **ALWAYS** handle loading states for all station operations
+- **ALWAYS** clear form data after successful operations
+
+```typescript
+// ✅ CORRECT State Management
+const [userStations, setUserStations] = useState([]);
+const [availableStations, setAvailableStations] = useState([]);
+const [loadingStations, setLoadingStations] = useState(false);
+const [stationError, setStationError] = useState("");
+```
+
+## 7. Main Branch User Management Patterns
+
+### Rule 7.1: User Management Data Consistency
+- **ALWAYS** follow main branch data structures for user management
+- **ALWAYS** use consistent property naming between frontend and backend
+- **ALWAYS** transform database results to match frontend expectations
+- **ALWAYS** include all necessary related data in API responses
+
+### Rule 7.2: API Response Structure Standards
+- **ALWAYS** return consistent data structures from all user management APIs
+- **ALWAYS** include proper error handling in all API endpoints
+- **ALWAYS** support all CRUD operations for user management
+- **ALWAYS** use proper HTTP status codes and error messages
+
+### Rule 7.3: Frontend-Backend Data Mapping
+- **ALWAYS** map database column names to frontend property names
+- **ALWAYS** handle null/undefined values in data transformation
+- **ALWAYS** include nested objects for related data (e.g., user.station.name)
+- **ALWAYS** use camelCase for frontend properties
+
+```typescript
+// ✅ CORRECT Data Mapping Pattern
+const transformUserStation = (dbRow: any) => ({
+  id: dbRow.id,
+  isDefault: dbRow.is_default,
+  status: dbRow.status,
+  station: {
+    id: dbRow.station_id,
+    name: dbRow.station_name,
+    status: dbRow.station_status
+  }
+});
+```
+
+### Rule 7.4: User Management Feature Completeness
+- **ALWAYS** implement all user management features from main branch
+- **ALWAYS** include station management for applicable roles
+- **ALWAYS** provide proper role-based access control
+- **ALWAYS** implement comprehensive error handling
+
+### Rule 7.5: Main Branch Compatibility
+- **ALWAYS** ensure new features match main branch implementation
+- **ALWAYS** use same data structures and API patterns
+- **ALWAYS** maintain backward compatibility with existing features
+- **ALWAYS** test against main branch functionality
+
+## 8. Pricelist Switching Implementation
+
+### Rule 8.1: Pricelist Context Usage
+- **ALWAYS** use `PricelistContext` for managing pricelist selection in billing
+- **ALWAYS** import: `import { usePricelist } from "../contexts/PricelistContext";`
+- **ALWAYS** initialize: `const { currentPricelist, availablePricelists, setCurrentPricelist } = usePricelist();`
+- **ALWAYS** wrap billing components with `PricelistProvider`
+
+```typescript
+// ✅ CORRECT Pricelist Context Usage
+import { usePricelist } from "../contexts/PricelistContext";
+
+const BillingComponent = () => {
+  const { currentPricelist, availablePricelists, setCurrentPricelist } = usePricelist();
+  
+  // Use pricelist for item fetching
+  const fetchItems = async (categoryId: string) => {
+    if (!currentPricelist) return;
+    
+    const result = await apiCall(
+      `/api/menu/items/pricelist?pricelistId=${currentPricelist.id}&categoryId=${categoryId}`
+    );
+    // Handle result...
+  };
+};
+```
+
+### Rule 8.2: Pricelist Switcher Component
+- **ALWAYS** use `PricelistSwitcher` component for pricelist switching in billing
+- **NEVER** use `StationSwitcher` in billing components
+- **ALWAYS** provide `onPricelistChange` callback to refetch items
+- **ALWAYS** show pricelist switcher only when multiple pricelists are available
+
+```typescript
+// ✅ CORRECT Pricelist Switcher Usage
+<PricelistSwitcher 
+  size="sm"
+  showLabel={false}
+  onPricelistChange={() => {
+    // Refetch items when pricelist changes
+    if (selectedCategory) {
+      fetchItems(selectedCategory.id);
+    }
+  }}
+/>
+
+// ❌ WRONG - Don't use StationSwitcher in billing
+<StationSwitcher /> // WRONG!
+```
+
+### Rule 8.3: Item Fetching by Pricelist
+- **ALWAYS** use `/api/menu/items/pricelist` endpoint for fetching items in billing
+- **ALWAYS** pass `pricelistId` parameter instead of `stationId`
+- **ALWAYS** validate user access to pricelist before fetching items
+- **NEVER** use station-based item fetching in billing components
+
+```typescript
+// ✅ CORRECT Pricelist-based Item Fetching
+const fetchItems = async (categoryId: string) => {
+  if (!currentPricelist) {
+    setItemError("No pricelist selected. Please select a pricelist first.");
+    return;
+  }
+
+  const result = await apiCall(
+    `/api/menu/items/pricelist?pricelistId=${currentPricelist.id}&categoryId=${categoryId}&userId=${userId}`
+  );
+  // Handle result...
+};
+
+// ❌ WRONG - Don't use station-based fetching in billing
+const result = await apiCall(
+  `/api/menu/items/station?stationId=${currentStation.id}&categoryId=${categoryId}`
+); // WRONG!
+```
+
+### Rule 8.4: Station Switching Restrictions
+- **ALWAYS** restrict station switching to admin/supervisor roles only
+- **ALWAYS** hide `StationSwitcher` and `StationSelector` for sales/cashier users
+- **ALWAYS** check user roles before showing station switching UI
+- **ALWAYS** use pricelist switching for sales users instead of station switching
+
+```typescript
+// ✅ CORRECT Role-based Station Switching
+const canSwitchStations = user?.roles?.some(role => 
+  role.name === 'admin' || role.name === 'supervisor'
+) || false;
+
+if (!canSwitchStations) {
+  return null; // Hide station switching UI
+}
+
+// ✅ CORRECT - Use pricelist switching for sales users
+{userRole === 'sales' && (
+  <PricelistSwitcher onPricelistChange={handlePricelistChange} />
+)}
+```
+
+### Rule 8.5: Pricelist Access Validation
+- **ALWAYS** validate user access to pricelists through their assigned stations
+- **ALWAYS** check that pricelist is active and linked to user's stations
+- **ALWAYS** return empty array if user doesn't have access to pricelist
+- **ALWAYS** log access validation for debugging
+
+```typescript
+// ✅ CORRECT Pricelist Access Validation
+private async validateUserPricelistAccess(userId: number, pricelistId: number): Promise<boolean> {
+  const accessCheck = await userStationRepository
+    .createQueryBuilder("us")
+    .innerJoin("station_pricelist", "sp", "sp.station_id = us.station_id")
+    .where("us.user_id = :userId", { userId })
+    .andWhere("us.status = :status", { status: "active" })
+    .andWhere("sp.pricelist_id = :pricelistId", { pricelistId })
+    .andWhere("sp.status = :pricelistStatus", { pricelistStatus: "active" })
+    .getCount();
+
+  return accessCheck > 0;
+}
+```
+
+### Rule 8.6: Pricelist Context Dependencies
+- **ALWAYS** ensure `PricelistProvider` is wrapped around `StationProvider`
+- **ALWAYS** refresh pricelists when station changes
+- **ALWAYS** set default pricelist for current station
+- **ALWAYS** handle pricelist loading states
+
+```typescript
+// ✅ CORRECT Context Hierarchy
+<AuthProvider>
+  <StationProvider>
+    <PricelistProvider>
+      {children}
+    </PricelistProvider>
+  </StationProvider>
+</AuthProvider>
+
+// ✅ CORRECT Pricelist Refresh on Station Change
+useEffect(() => {
+  if (currentStation && isAuthenticated) {
+    refreshPricelists();
+  }
+}, [currentStation, isAuthenticated, refreshPricelists]);
+```
+
+### Rule 8.7: Pricelist UI States
+- **ALWAYS** show "No Pricelist Available" message when no pricelist is accessible
+- **ALWAYS** show loading states during pricelist fetching
+- **ALWAYS** handle pricelist switching errors gracefully
+- **ALWAYS** provide clear feedback for pricelist operations
+
+```typescript
+// ✅ CORRECT Pricelist UI States
+if (!currentPricelist) {
+  return (
+    <Alert variant="warning">
+      <Alert.Heading>No Pricelist Available</Alert.Heading>
+      <p>No pricelist is available for your current station. Please contact an administrator.</p>
+    </Alert>
+  );
+}
+
+// ✅ CORRECT Loading State
+{isLoading && (
+  <Spinner animation="border" size="sm" className="me-2" />
+)}
+```
+
+### Rule 8.8: Pricelist Data Structure
+- **ALWAYS** use consistent pricelist data structure across frontend and backend
+- **ALWAYS** include station information in pricelist objects
+- **ALWAYS** map database results to expected frontend format
+- **ALWAYS** handle null/undefined values gracefully
+
+```typescript
+// ✅ CORRECT Pricelist Data Structure
+interface Pricelist {
+  id: number;
+  name: string;
+  status: string;
+  is_default: boolean;
+  description?: string;
+  station?: {
+    id: number;
+    name: string;
+  };
+}
+
+// ✅ CORRECT Data Transformation
+pricelists = rawPricelists.map(row => ({
+  id: row.pricelist_id,
+  name: row.pricelist_name,
+  status: row.pricelist_status,
+  is_default: row.pricelist_is_default,
+  description: row.pricelist_description,
+  station: {
+    id: row.station_id,
+    name: row.station_name
+  }
+}));
+```
+
+Remember: Always use `useApiCall()` instead of raw fetch, handle HTTP response errors with standardized error states and ErrorDisplay components, use the correct layout for each user role, treat voiding and reopening as separate features with distinct workflows, permissions, and UI components, ensure proper data structure transformation for station management operations, maintain compatibility with main branch user management patterns, and implement pricelist switching for sales users while restricting station switching to admin/supervisor roles only.

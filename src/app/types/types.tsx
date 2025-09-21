@@ -61,7 +61,7 @@ export type BillItem = {
   };
   quantity: number;
   subtotal: number;
-  status: 'pending' | 'submitted' | 'closed' | 'void_pending' | 'voided' | 'quantity_change_request' | 'deleted';
+  status: 'active' | 'void_pending' | 'voided';
   void_reason?: string;
   void_requested_by?: number;
   void_requested_at?: string;

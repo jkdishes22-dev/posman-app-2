@@ -16,7 +16,6 @@ interface SalesLayoutProps {
 const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [activeItem, setActiveItem] = useState("");
-    const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
     const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
     const { user, logout } = useAuth();
     const { currentStation } = useStation();
@@ -27,14 +26,13 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
         const path = window.location.pathname;
         let activeItemId = "";
         let breadcrumbItems: Array<{ label: string, path: string }> = [];
-        const expandedMenuIds: string[] = [];
 
         // Dashboard
         if (path === "/home" || path === "/home/") {
             activeItemId = "dashboard";
             breadcrumbItems = [{ label: "Dashboard", path: "/home" }];
         }
-        // Billing
+        // Bill section
         else if (path.includes("/home/billing")) {
             activeItemId = "bill";
             breadcrumbItems = [
@@ -42,46 +40,27 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
                 { label: "Bill", path: "/home/billing" }
             ];
         }
-        // Sales section
+        // My Sales section
         else if (path.includes("/home/my-sales")) {
-            expandedMenuIds.push("sales");
             activeItemId = "my-sales";
             breadcrumbItems = [
                 { label: "Dashboard", path: "/home" },
-                { label: "Sales", path: "/home/sales" },
                 { label: "My Sales", path: "/home/my-sales" }
             ];
         }
-        else if (path.includes("/home/post-sales")) {
-            expandedMenuIds.push("sales");
-            activeItemId = "post-sales";
-            breadcrumbItems = [
-                { label: "Dashboard", path: "/home" },
-                { label: "Sales", path: "/home/sales" },
-                { label: "Post dated Sales", path: "/home/post-sales" }
-            ];
-        }
-        // Pricelist section
+        // Pricelist Catalog section
         else if (path.includes("/home/pricelist-catalog")) {
             activeItemId = "pricelist-catalog";
             breadcrumbItems = [
                 { label: "Dashboard", path: "/home" },
-                { label: "Pricelist", path: "/home/pricelist-catalog" }
+                { label: "Pricelist Catalog", path: "/home/pricelist-catalog" }
             ];
         }
 
         setActiveItem(activeItemId);
         setBreadcrumbs(breadcrumbItems);
-        setExpandedMenus(expandedMenuIds);
     }, []);
 
-    const toggleMenu = (menuId: string) => {
-        setExpandedMenus(prev =>
-            prev.includes(menuId)
-                ? prev.filter(id => id !== menuId)
-                : [...prev, menuId]
-        );
-    };
 
     const handleItemClick = (itemId: string, path: string) => {
         setActiveItem(itemId);
@@ -102,31 +81,18 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
         {
             id: "bill",
             label: "Bill",
-            icon: "bi-receipt",
+            icon: "bi-cart",
             path: "/home/billing",
         },
         {
-            id: "sales",
-            label: "Sales",
-            icon: "bi-cart",
-            submenu: [
-                {
-                    id: "my-sales",
-                    label: "My Sales",
-                    icon: "bi-receipt",
-                    path: "/home/my-sales",
-                },
-                {
-                    id: "post-sales",
-                    label: "Post dated Sales",
-                    icon: "bi-calendar-event",
-                    path: "/home/post-sales",
-                },
-            ],
+            id: "my-sales",
+            label: "My Sales",
+            icon: "bi-receipt",
+            path: "/home/my-sales",
         },
         {
             id: "pricelist-catalog",
-            label: "Pricelist",
+            label: "Pricelist Catalog",
             icon: "bi-book",
             path: "/home/pricelist-catalog",
         },
@@ -188,60 +154,18 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
                     <ul className="nav nav-pills flex-column">
                         {menuItems.map((item) => (
                             <li key={item.id} className="nav-item mb-2">
-                                {item.submenu ? (
-                                    <div>
-                                        <button
-                                            className={`nav-link w-100 text-start d-flex align-items-center ${expandedMenus.includes(item.id) ? "active" : ""}`}
-                                            onClick={() => toggleMenu(item.id)}
-                                            style={{
-                                                background: expandedMenus.includes(item.id) ? "var(--bs-primary)" : "transparent",
-                                                border: "none",
-                                                color: expandedMenus.includes(item.id) ? "white" : "rgba(255,255,255,0.8)",
-                                            }}
-                                        >
-                                            <i className={`bi ${item.icon} me-3`}></i>
-                                            {!isCollapsed && <span>{item.label}</span>}
-                                            {!isCollapsed && (
-                                                <i className={`bi ${expandedMenus.includes(item.id) ? "bi-chevron-up" : "bi-chevron-down"} ms-auto`}></i>
-                                            )}
-                                        </button>
-                                        {expandedMenus.includes(item.id) && !isCollapsed && (
-                                            <ul className="nav nav-pills flex-column ms-3 mt-2">
-                                                {item.submenu.map((subItem) => (
-                                                    <li key={subItem.id} className="nav-item mb-1">
-                                                        <button
-                                                            className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === subItem.id ? "active" : ""}`}
-                                                            onClick={() => handleItemClick(subItem.id, subItem.path)}
-                                                            style={{
-                                                                background: activeItem === subItem.id ? "var(--bs-primary)" : "transparent",
-                                                                border: "none",
-                                                                color: activeItem === subItem.id ? "white" : "rgba(255,255,255,0.8)",
-                                                                fontSize: "0.9rem",
-                                                                padding: "0.5rem 0.75rem",
-                                                            }}
-                                                        >
-                                                            <i className={`bi ${subItem.icon} me-2`}></i>
-                                                            {subItem.label}
-                                                        </button>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <button
-                                        className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""}`}
-                                        onClick={() => handleItemClick(item.id, item.path)}
-                                        style={{
-                                            background: activeItem === item.id ? "var(--bs-primary)" : "transparent",
-                                            border: "none",
-                                            color: activeItem === item.id ? "white" : "rgba(255,255,255,0.8)",
-                                        }}
-                                    >
-                                        <i className={`bi ${item.icon} me-3`}></i>
-                                        {!isCollapsed && <span>{item.label}</span>}
-                                    </button>
-                                )}
+                                <button
+                                    className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""}`}
+                                    onClick={() => handleItemClick(item.id, item.path)}
+                                    style={{
+                                        background: activeItem === item.id ? "var(--bs-primary)" : "transparent",
+                                        border: "none",
+                                        color: activeItem === item.id ? "white" : "rgba(255,255,255,0.8)",
+                                    }}
+                                >
+                                    <i className={`bi ${item.icon} me-3`}></i>
+                                    {!isCollapsed && <span>{item.label}</span>}
+                                </button>
                             </li>
                         ))}
                     </ul>
