@@ -193,3 +193,25 @@ export const removeItemFromGroupHandler = async (
     });
   }
 };
+
+export const getSubItemsForPlatterHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const itemService = new ItemService(req.db);
+  try {
+    const { groupId } = req.query;
+    if (!groupId) {
+      return res.status(400).json({ message: "Group ID is required" });
+    }
+    const groupIdValue = Array.isArray(groupId) ? groupId[0] : groupId;
+    const result = await itemService.getSubItemsForPlatter(parseInt(groupIdValue));
+    res.status(200).json(result);
+  } catch (error: any) {
+    console.error("Error fetching sub-items for platter:", error);
+    res.status(500).json({
+      message: "Error fetching sub-items for platter",
+      error: error.message,
+    });
+  }
+};
