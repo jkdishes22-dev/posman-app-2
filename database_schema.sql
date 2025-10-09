@@ -58,22 +58,32 @@ CREATE TABLE user (
     updated_by INTEGER
 );
 
--- User-Role Junction Table
+-- User-Role Junction Table (with BaseEntity columns)
 CREATE TABLE user_roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     role_id INTEGER NOT NULL,
-    PRIMARY KEY (user_id, role_id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME,
+    created_by INTEGER,
+    updated_by INTEGER,
     FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
-    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+    UNIQUE(user_id, role_id)
 );
 
--- Role-Permission Junction Table
+-- Role-Permission Junction Table (with BaseEntity columns)
 CREATE TABLE role_permissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     role_id INTEGER NOT NULL,
     permission_id INTEGER NOT NULL,
-    PRIMARY KEY (role_id, permission_id),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME,
+    created_by INTEGER,
+    updated_by INTEGER,
     FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
-    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE,
+    UNIQUE(role_id, permission_id)
 );
 
 -- =====================================================
@@ -366,6 +376,14 @@ CREATE INDEX idx_user_status ON user(status);
 -- User-Role indexes
 CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
 CREATE INDEX idx_user_roles_role_id ON user_roles(role_id);
+CREATE INDEX idx_user_roles_created_at ON user_roles(created_at);
+CREATE INDEX idx_user_roles_created_by ON user_roles(created_by);
+
+-- Role-Permission indexes
+CREATE INDEX idx_role_permissions_role_id ON role_permissions(role_id);
+CREATE INDEX idx_role_permissions_permission_id ON role_permissions(permission_id);
+CREATE INDEX idx_role_permissions_created_at ON role_permissions(created_at);
+CREATE INDEX idx_role_permissions_created_by ON role_permissions(created_by);
 
 -- User Station indexes
 CREATE INDEX idx_user_station_user_status ON user_station(user_id, status);
@@ -437,6 +455,20 @@ CREATE TRIGGER update_bill_item_updated_at
         UPDATE bill_item SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
     END;
 
+CREATE TRIGGER update_user_roles_updated_at 
+    AFTER UPDATE ON user_roles
+    FOR EACH ROW
+    BEGIN
+        UPDATE user_roles SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+CREATE TRIGGER update_role_permissions_updated_at 
+    AFTER UPDATE ON role_permissions
+    FOR EACH ROW
+    BEGIN
+        UPDATE role_permissions SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
 -- =====================================================
 -- SAMPLE DATA FOR TESTING
 -- =====================================================
@@ -485,6 +517,26 @@ INSERT INTO user (username, lastName, firstName, password, status) VALUES
 ('supervisor1', 'Supervisor', 'John', '$2a$10$rQZ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ', 'ACTIVE'),
 ('sales1', 'Sales', 'Jane', '$2a$10$rQZ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ', 'ACTIVE'),
 ('cashier1', 'Cashier', 'Bob', '$2a$10$rQZ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ8KjJ', 'ACTIVE');
+
+-- Insert user-role assignments
+INSERT INTO user_roles (user_id, role_id, created_by) VALUES 
+(1, 1, 1), -- admin user gets admin role
+(2, 2, 1), -- supervisor1 gets supervisor role
+(3, 3, 1), -- sales1 gets sales role
+(4, 4, 1); -- cashier1 gets cashier role
+
+-- Insert role-permission assignments
+INSERT INTO role_permissions (role_id, permission_id, created_by) VALUES 
+-- Admin gets all permissions
+(1, 1, 1), (1, 2, 1), (1, 3, 1), (1, 4, 1), (1, 5, 1), (1, 6, 1), (1, 7, 1), (1, 8, 1),
+(1, 9, 1), (1, 10, 1), (1, 11, 1), (1, 12, 1), (1, 13, 1), (1, 14, 1), (1, 15, 1), (1, 16, 1),
+(1, 17, 1), (1, 18, 1), (1, 19, 1),
+-- Supervisor gets management permissions
+(2, 2, 1), (2, 6, 1), (2, 7, 1), (2, 10, 1), (2, 11, 1), (2, 14, 1), (2, 15, 1), (2, 17, 1), (2, 18, 1), (2, 19, 1),
+-- Sales gets sales permissions
+(3, 2, 1), (3, 6, 1), (3, 10, 1), (3, 11, 1), (3, 13, 1), (3, 14, 1), (3, 15, 1), (3, 17, 1), (3, 19, 1),
+-- Cashier gets cashier permissions
+(4, 2, 1), (4, 6, 1), (4, 10, 1), (4, 11, 1), (4, 14, 1), (4, 15, 1), (4, 16, 1), (4, 17, 1), (4, 18, 1), (4, 19, 1);
 
 -- Insert sample stations
 INSERT INTO station (name, status, description) VALUES 

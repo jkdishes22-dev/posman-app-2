@@ -22,8 +22,8 @@ The database schema is designed to support a comprehensive Point of Sale (POS) m
 - `roles` - User roles (admin, supervisor, sales, cashier, storekeeper)
 - `permissions` - System permissions
 - `permission_scope` - Permission categories
-- `user_roles` - Many-to-many relationship between users and roles
-- `role_permissions` - Many-to-many relationship between roles and permissions
+- `user_roles` - Many-to-many relationship between users and roles (with audit trail)
+- `role_permissions` - Many-to-many relationship between roles and permissions (with audit trail)
 
 #### Station and Pricelist Management
 - `station` - Sales stations/locations
@@ -56,7 +56,21 @@ The database schema is designed to support a comprehensive Point of Sale (POS) m
 
 ## Key Features
 
-### 1. Multi-Role User System
+### 1. Many-to-Many Relationships with Audit Trail
+
+The schema uses TypeORM's pattern of creating separate entities for many-to-many relationships when extra columns are needed. This allows for:
+
+- **Audit Trail**: All junction tables inherit from `BaseEntity`, providing `created_at`, `updated_at`, `created_by`, and `updated_by` columns
+- **Unique Constraints**: Prevents duplicate relationships while allowing additional metadata
+- **Primary Keys**: Each junction record has its own `id` for easier referencing and updates
+
+#### Examples:
+- `user_roles` - Tracks when users were assigned roles and by whom
+- `role_permissions` - Tracks when permissions were granted to roles
+- `station_pricelist` - Tracks pricelist assignments to stations with notes
+- `item_group` - Tracks item groupings with portion sizes
+
+### 2. Multi-Role User System
 - **Admin**: Full system access
 - **Supervisor**: Management and oversight capabilities
 - **Sales**: Order creation and management
