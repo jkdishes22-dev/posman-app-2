@@ -5,7 +5,7 @@ export type Category = {
 };
 
 // Status type definitions
-export type BillStatus = "pending" | "submitted" | "closed" | "reopened";
+export type BillStatus = "pending" | "submitted" | "closed" | "reopened" | "voided";
 export type BillItemStatus = "pending" | "submitted" | "void_pending" | "voided" | "closed" | "quantity_change_request" | "deleted";
 export type VoidRequestStatus = "pending" | "approved" | "rejected";
 export type PaymentType = "CASH" | "MPESA";
