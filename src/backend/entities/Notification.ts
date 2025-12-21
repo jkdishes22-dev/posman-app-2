@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
 import { User } from "./User";
+import { BaseEntity } from "./BaseEntity";
 
 export enum NotificationType {
     BILL_REOPENED = "bill_reopened",
@@ -16,21 +17,18 @@ export enum NotificationStatus {
 }
 
 @Entity("notifications")
-export class Notification {
-    @PrimaryGeneratedColumn()
-    id: number;
-
+export class Notification extends BaseEntity {
     @Column({ type: "varchar", length: 100 })
     type: NotificationType;
 
     @Column({ type: "varchar", length: 255 })
     title: string;
 
-    @Column({ type: "text" })
+    @Column({ type: "varchar", length: 255 })
     message: string;
 
     @Column({ type: "json", nullable: true })
-    data: any;
+    data: Record<string, any>;
 
     @Column({ type: "enum", enum: NotificationStatus, default: NotificationStatus.UNREAD })
     status: NotificationStatus;
@@ -41,17 +39,4 @@ export class Notification {
     @ManyToOne(() => User)
     @JoinColumn({ name: "user_id" })
     user: User;
-
-    @Column({ type: "int", nullable: true })
-    created_by: number;
-
-    @ManyToOne(() => User)
-    @JoinColumn({ name: "created_by" })
-    createdBy: User;
-
-    @CreateDateColumn()
-    created_at: Date;
-
-    @UpdateDateColumn()
-    updated_at: Date;
 }

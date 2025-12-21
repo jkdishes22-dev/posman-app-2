@@ -10,28 +10,33 @@ import { Role } from "./Role";
 import { Exclude } from "class-transformer";
 import { BaseEntity } from "./BaseEntity";
 
+export enum UserStatus {
+  ACTIVE = "ACTIVE",
+  INACTIVE = "INACTIVE",
+}
+
 @Entity("user")
 export class User extends BaseEntity {
-  @Column()
+  @Column({ type: "varchar", length: 255 })
   username!: string;
 
-  @Column()
+  @Column({ type: "varchar", length: 255 })
   lastName!: string;
 
-  @Column()
+  @Column({ type: "varchar", length: 255 })
   firstName!: string;
 
-  @Column()
+  @Column({ type: "varchar", length: 255 })
   @Exclude()
   password!: string;
 
-  @Column({ default: "ACTIVE" })
+  @Column({ type: "varchar", length: 255, enum: UserStatus, default: UserStatus.ACTIVE })
   status!: string;
 
-  @Column({ nullable: true })
+  @Column({ type: "varchar", length: 255, nullable: true })
   refreshToken?: string;
 
-  @Column({ default: false })
+  @Column({ type: "boolean", default: false })
   is_locked!: boolean;
 
   @ManyToMany(() => Role, (role) => role.users)

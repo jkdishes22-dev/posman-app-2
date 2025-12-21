@@ -8,6 +8,7 @@ import {
   JoinTable,
 } from "typeorm";
 import { Category } from "./Category";
+import { BaseEntity } from "./BaseEntity";
 
 export enum ItemStatus {
   ACTIVE = "ACTIVE",
@@ -15,14 +16,11 @@ export enum ItemStatus {
 }
 
 @Entity("item")
-export class Item {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column()
+export class Item extends BaseEntity {
+  @Column({ type: "varchar", length: 255 })
   name: string;
 
-  @Column()
+  @Column({ type: "varchar", length: 255 })
   code: string;
 
   @Column({
@@ -35,13 +33,13 @@ export class Item {
   @JoinColumn({ name: "item_category_id" })
   category: Category;
 
-  @Column({ nullable: true, name: "default_unit_id" })
+  @Column({ type: "int", nullable: true, name: "default_unit_id" })
   defaultUnitId: number;
 
-  @Column({ nullable: true, name: "is_group" })
+  @Column({ type: "boolean", nullable: true, name: "is_group" })
   isGroup: boolean;
 
-  @Column({ nullable: true, name: "is_stock", default: false })
+  @Column({ type: "boolean", nullable: true, name: "is_stock", default: false })
   isStock: boolean;
 
   @ManyToMany(() => Item)

@@ -8,7 +8,7 @@ export enum StationStatus {
 
 @Entity("station")
 export class Station extends BaseEntity {
-  @Column({ nullable: false })
+  @Column({ type: "varchar", length: 255, nullable: false })
   name: string;
 
   @Column({
@@ -18,7 +18,7 @@ export class Station extends BaseEntity {
   })
   status: StationStatus;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ type: "varchar", length: 255, nullable: true })
   description: string;
 
   // Relationship to pricelists through junction table

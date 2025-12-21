@@ -12,7 +12,7 @@ export enum UserStationStatus {
 @Index(["user", "status"]) // Composite index for user + status queries
 @Index(["user", "isDefault", "status"]) // Composite index for default station queries
 export class UserStation extends BaseEntity {
-  @Column({ nullable: true, name: "is_default" })
+  @Column({ type: "boolean", nullable: true, name: "is_default" })
   isDefault!: boolean;
 
   @Column({

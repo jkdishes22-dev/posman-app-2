@@ -1,7 +1,5 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
-import * as process from "process";
-import { getAppTimezone } from "./timezone";
 
 import { User } from "@entities/User";
 import { Role } from "@entities/Role";
@@ -30,11 +28,13 @@ let isInitializing = false;
 
 export const AppDataSource = new DataSource({
   type: "mysql",
-  host: process.env.DB_HOST || "localhost",
-  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306,
-  username: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "password",
-  database: process.env.DB_NAME || "test",
+  host: process.env.DB_HOST || process.env.MYSQL_HOST || "localhost",
+  port: process.env.DB_PORT || process.env.MYSQL_PORT
+    ? parseInt(process.env.DB_PORT || process.env.MYSQL_PORT || "3306")
+    : 3306,
+  username: process.env.DB_USER || process.env.MYSQL_USERNAME || "root",
+  password: process.env.DB_PASSWORD || process.env.MYSQL_PASSWORD || "password",
+  database: process.env.DB_NAME || process.env.MYSQL_DATABASE || "test",
   entities: [
     User,
     Role,
@@ -58,17 +58,12 @@ export const AppDataSource = new DataSource({
     CreditNote,
     ReopenReason,
   ],
-  // migrations: ["src/backend/config/migrations/*.cjs"],
+  migrations: ["src/backend/config/migrations/*.cjs"],
   synchronize: false,
   // logging: true,
   // timezone: getAppTimezone(),
-  poolSize: 20,
-  connectTimeout: 10000,
-  acquireTimeout: 10000,
   extra: {
     connectionLimit: 20,
-    acquireTimeout: 10000,
-    timeout: 10000,
     idleTimeout: 30000,
     maxIdle: 10,
   },
@@ -110,13 +105,15 @@ export const closeConnection = async (): Promise<void> => {
   }
 };
 
-// Graceful shutdown handler
-process.on("SIGINT", async () => {
-  await closeConnection();
-  process.exit(0);
-});
+// Graceful shutdown handler - only set up if process.on exists (Node.js environment)
+if (typeof process !== "undefined" && typeof process.on === "function") {
+  process.on("SIGINT", async () => {
+    await closeConnection();
+    process.exit(0);
+  });
 
-process.on("SIGTERM", async () => {
-  await closeConnection();
-  process.exit(0);
-});
+  process.on("SIGTERM", async () => {
+    await closeConnection();
+    process.exit(0);
+  });
+}

@@ -1,5 +1,6 @@
 import { Column, Entity, OneToMany } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
+import { StationPricelist } from "./StationPricelist";
 
 export enum PriceListStatus {
   ACTIVE = "active",
@@ -9,7 +10,7 @@ export enum PriceListStatus {
 
 @Entity("pricelist")
 export class Pricelist extends BaseEntity {
-  @Column()
+  @Column({ type: "varchar", length: 255 })
   name: string;
 
   @Column({
@@ -23,12 +24,12 @@ export class Pricelist extends BaseEntity {
   @Column({ type: "boolean", default: false })
   is_default: boolean;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ type: "varchar", length: 255, nullable: true })
   description: string;
 
   // Relationship to stations through junction table
   @OneToMany("StationPricelist", "pricelist")
-  stationPricelists: any[];
+  stationPricelists: StationPricelist[];
 
   // @OneToMany(() => PricelistItem, (pricelistItem) => pricelistItem.pricelist)
   // pricelistItems: PricelistItem[];

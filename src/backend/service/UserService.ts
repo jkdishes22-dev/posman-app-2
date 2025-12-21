@@ -110,7 +110,7 @@ export class UserService {
         .createQueryBuilder("permission")
         .innerJoin("role_permissions", "rp", "rp.permission_id = permission.id")
         .where("rp.role_id IN (:...roleIds)", {
-          roleIds: roles.map((role: { id: any }) => role.id),
+          roleIds: roles.map((role: { id: number }) => role.id),
         })
         .getMany();
     }

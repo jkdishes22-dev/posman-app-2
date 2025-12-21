@@ -5,7 +5,7 @@ import { BaseEntity } from "./BaseEntity";
 
 @Entity("permissions")
 export class Permission extends BaseEntity {
-  @Column()
+  @Column({ type: "varchar", length: 255 })
   name: string;
 
   @ManyToMany(() => Role, (role) => role.permissions)

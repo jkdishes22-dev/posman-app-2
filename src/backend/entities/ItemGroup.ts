@@ -4,7 +4,7 @@ import { BaseEntity } from "./BaseEntity";
 
 @Entity("item_group")
 export class ItemGroup extends BaseEntity {
-  @Column("decimal", { precision: 10, scale: 2 })
+  @Column({ type: "double", precision: 10, scale: 2 })
   portion_size!: number;
 
   @ManyToOne(() => Item, { eager: true })

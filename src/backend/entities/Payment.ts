@@ -31,29 +31,9 @@ export class Payment extends BaseEntity {
   })
   paidAt: Date;
 
-  @Column()
+  @Column({ type: "varchar", length: 255 })
   reference: string;
 
-  @Column({
-    type: "datetime",
-    nullable: false,
-    default: () => "CURRENT_TIMESTAMP",
-  })
-  created_at: Date;
-
-  @Column({
-    type: "datetime",
-    nullable: false,
-    default: () => "CURRENT_TIMESTAMP",
-  })
-  updated_at: Date;
-
-  @Column({ nullable: false })
-  created_by: number;
-
-  @Column({ nullable: true })
-  updated_by: number;
-
-  @OneToMany(() => BillPayment, (billPayment) => billPayment.bill)
+  @OneToMany(() => BillPayment, (billPayment) => billPayment.payment)
   bill_payments: Promise<BillPayment[]>;
 }

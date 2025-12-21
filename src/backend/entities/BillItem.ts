@@ -9,6 +9,7 @@ import {
 import type { Relation } from "typeorm";
 import { Item } from "./Item";
 import { Bill, BillStatus } from "./Bill";
+import { BaseEntity } from "./BaseEntity";
 
 export enum BillItemStatus {
   PENDING = "pending",
@@ -23,14 +24,11 @@ export enum BillItemStatus {
 @Entity("bill_item")
 @Index(["bill_id", "created_at"])
 @Index(["item_id", "status"])
-export class BillItem {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column({ nullable: true })
+export class BillItem extends BaseEntity {
+  @Column({ type: "int", nullable: true })
   item_id: number;
 
-  @Column({ nullable: true })
+  @Column({ type: "int", nullable: true })
   bill_id: number;
 
   @ManyToOne(() => Item)
@@ -41,7 +39,7 @@ export class BillItem {
   @JoinColumn({ name: "bill_id" })
   bill: Relation<Bill>;
 
-  @Column({ default: 0 })
+  @Column({ type: "int", default: 0 })
   quantity: number;
 
   @Column({ type: "double", default: 0.0 })
@@ -54,16 +52,16 @@ export class BillItem {
   })
   status: BillItemStatus;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ type: "varchar", length: 255, nullable: true })
   void_reason: string;
 
-  @Column({ nullable: true })
+  @Column({ type: "int", nullable: true })
   void_requested_by: number;
 
   @Column({ type: "datetime", nullable: true })
   void_requested_at: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: "int", nullable: true })
   void_approved_by: number;
 
   @Column({ type: "datetime", nullable: true })
@@ -73,26 +71,20 @@ export class BillItem {
   @Column({ type: "int", nullable: true })
   requested_quantity: number;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ type: "varchar", length: 255, nullable: true })
   quantity_change_reason: string;
 
-  @Column({ nullable: true })
+  @Column({ type: "int", nullable: true })
   quantity_change_requested_by: number;
 
   @Column({ type: "datetime", nullable: true })
   quantity_change_requested_at: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: "int", nullable: true })
   quantity_change_approved_by: number;
 
   @Column({ type: "datetime", nullable: true })
   quantity_change_approved_at: Date;
-
-  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
-  created_at: Date;
-
-  @Column({ type: "datetime", nullable: true })
-  updated_at: Date;
 
   // Business rule validation methods (Rule 4.3)
   canVoid(bill: Bill): boolean {

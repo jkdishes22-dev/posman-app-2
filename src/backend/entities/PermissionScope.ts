@@ -4,7 +4,7 @@ import { BaseEntity } from "./BaseEntity";
 
 @Entity("permission_scope")
 export class PermissionScope extends BaseEntity {
-  @Column()
+  @Column({ type: "varchar", length: 255 })
   name: string;
 
   @OneToMany(() => Permission, (permission) => permission.scope)

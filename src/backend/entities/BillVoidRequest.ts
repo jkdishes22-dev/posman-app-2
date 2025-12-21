@@ -8,6 +8,7 @@ import {
 } from "typeorm";
 import { Bill } from "./Bill";
 import { User } from "./User";
+import { BaseEntity } from "./BaseEntity";
 
 export enum VoidRequestStatus {
   PENDING = "pending",
@@ -18,20 +19,16 @@ export enum VoidRequestStatus {
 
 @Entity("bill_void_request")
 @Index(["bill_id", "status"])
-@Index(["initiated_by", "created_at"])
 @Index(["approved_by", "approved_at"])
-export class BillVoidRequest {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column({ nullable: false })
+export class BillVoidRequest extends BaseEntity {
+  @Column({ type: "int", nullable: false })
   bill_id: number;
 
   @ManyToOne(() => Bill)
   @JoinColumn({ name: "bill_id" })
   bill: Bill;
 
-  @Column({ nullable: false })
+  @Column({ type: "int", nullable: false })
   initiated_by: number;
 
   @ManyToOne(() => User)
@@ -39,7 +36,7 @@ export class BillVoidRequest {
   initiator: User;
 
   @Column({ nullable: true })
-  approved_by: number;
+  approved_by!: number;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: "approved_by" })
@@ -58,14 +55,8 @@ export class BillVoidRequest {
   @Column({ type: "text", nullable: true })
   approval_notes: string;
 
-  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
-  created_at: Date;
-
   @Column({ type: "datetime", nullable: true })
   approved_at: Date;
-
-  @Column({ type: "datetime", nullable: true })
-  updated_at: Date;
 
   // Paper approval tracking
   @Column({ type: "boolean", default: false })

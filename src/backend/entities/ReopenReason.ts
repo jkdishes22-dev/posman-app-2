@@ -5,12 +5,10 @@ import {
     CreateDateColumn,
     UpdateDateColumn,
 } from "typeorm";
+import { BaseEntity } from "./BaseEntity";
 
 @Entity("reopen_reasons")
-export class ReopenReason {
-    @PrimaryGeneratedColumn()
-    id: number;
-
+export class ReopenReason extends BaseEntity {
     @Column({ type: "varchar", length: 100, unique: true })
     reason_key: string;
 
@@ -25,10 +23,4 @@ export class ReopenReason {
 
     @Column({ type: "int", default: 0 })
     sort_order: number;
-
-    @CreateDateColumn()
-    created_at: Date;
-
-    @UpdateDateColumn()
-    updated_at: Date;
 }

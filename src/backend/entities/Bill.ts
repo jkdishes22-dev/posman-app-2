@@ -11,6 +11,7 @@ import { User } from "./User";
 import { BillItem } from "./BillItem";
 import { BillPayment } from "./BillPayment";
 import { Station } from "./Station";
+import { BaseEntity } from "./BaseEntity";
 
 export enum BillStatus {
   PENDING = "pending",
@@ -25,11 +26,8 @@ export enum BillStatus {
 @Index(["user_id", "created_at"])
 @Index(["status", "created_at"])
 @Index(["station_id", "created_at"])
-export class Bill {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column({ nullable: true })
+export class Bill extends BaseEntity {
+  @Column({ type: "int", nullable: true })
   user_id: number;
 
   // @ManyToOne(() => User, (user) => user.bills)
@@ -44,34 +42,22 @@ export class Bill {
   })
   status: BillStatus;
 
-  @Column({ nullable: true })
+  @Column({ type: "double", nullable: true })
   total: number;
 
-  @Column({ nullable: true })
+  @Column({ type: "int", nullable: true })
   cleared_by: number;
 
   @Column({ type: "datetime", nullable: true })
   cleared_at: Date;
 
-  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
-  created_at: Date;
-
-  @Column({ type: "datetime", nullable: true })
-  updated_at: Date;
-
-  @Column({ nullable: true })
-  created_by: number;
-
-  @Column({ nullable: true, unique: true })
+  @Column({ type: "varchar", length: 255, nullable: true, unique: true })
   request_id: string;
 
-  @Column({ nullable: true })
-  updated_by: number;
-
-  @Column({ nullable: true })
+  @Column({ type: "int", nullable: true })
   station_id: number;
 
-  @ManyToOne(() => Station, { nullable: true })
+  @ManyToOne(() => Station)
   @JoinColumn({ name: "station_id" })
   station: Station;
 
@@ -82,16 +68,16 @@ export class Bill {
   bill_payments: BillPayment[];
 
   // Reopening tracking columns (Rule 4.1)
-  @Column({ type: "text", nullable: true })
+  @Column({ type: "varchar", length: 255, nullable: true })
   reopen_reason: string;
 
-  @Column({ nullable: true })
+  @Column({ type: "int", nullable: true })
   reopened_by: number;
 
   @Column({ type: "datetime", nullable: true })
   reopened_at: Date;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ type: "varchar", length: 255, nullable: true })
   notes: string;
 
   // Business rule validation methods (Rule 4.3, 4.4)

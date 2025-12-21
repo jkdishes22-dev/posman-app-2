@@ -13,16 +13,4 @@ export class BillPayment extends BaseEntity {
   @ManyToOne(() => Payment)
   @JoinColumn({ name: "payment_id" })
   payment: Payment;
-
-  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
-  created_at: Date;
-
-  @Column({ type: "datetime", default: () => "CURRENT_TIMESTAMP" })
-  updated_at: Date;
-
-  @Column({ nullable: false })
-  created_by: number;
-
-  @Column({ nullable: true })
-  updated_by: number;
 }

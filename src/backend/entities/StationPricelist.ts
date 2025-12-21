@@ -1,5 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
+import { Station } from "./Station";
+import { Pricelist } from "./Pricelist";
 
 export enum StationPricelistStatus {
     ACTIVE = "active",
@@ -12,13 +14,14 @@ export enum StationPricelistStatus {
 @Index(["station", "is_default"])
 @Index(["pricelist", "status"])
 export class StationPricelist extends BaseEntity {
-    @ManyToOne("Station", { eager: true })
+    @ManyToOne(() => Station, { eager: true })
     @JoinColumn({ name: "station_id" })
-    station: any;
+    station: Station;
 
-    @ManyToOne("Pricelist", { eager: true })
+    @ManyToOne(() => Pricelist, { eager: true })
     @JoinColumn({ name: "pricelist_id" })
-    pricelist: any;
+    pricelist: Pricelist
+
 
     @Column({ type: "boolean", default: false })
     is_default: boolean;
@@ -30,6 +33,6 @@ export class StationPricelist extends BaseEntity {
     })
     status: StationPricelistStatus;
 
-    @Column({ type: "text", nullable: true })
+    @Column({ type: "varchar", length: 255, nullable: true })
     notes: string; // Optional notes about why this pricelist is linked to this station
 }
