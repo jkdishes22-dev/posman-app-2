@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 // import { ensureMetadata } from "@backend/utils/metadata-hack";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
-import permissions from "@backend/config/managed-roles";
+import permissions from "@backend/config/permissions";
 import { fetchGroupedItemsHandler, createGroupItemHandler } from "@controllers/ItemController";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";

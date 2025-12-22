@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { BillService } from "@services/BillService";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
-import permissions from "@backend/config/managed-roles";
+import permissions from "@backend/config/permissions";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 
 const requestQuantityChange = async (req: NextApiRequest, res: NextApiResponse) => {

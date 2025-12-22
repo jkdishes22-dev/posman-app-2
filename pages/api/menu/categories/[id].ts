@@ -1,5 +1,5 @@
 import { authMiddleware, authorize } from "@backend/middleware/auth";
-import permissions from "@backend/config/managed-roles";
+import permissions from "@backend/config/permissions";
 import { NextApiRequest, NextApiResponse } from "next";
 import { deleteCategoryHandler } from "@backend/controllers/CategoryController";
 import { withMiddleware } from "@backend/middleware/middleware-util";

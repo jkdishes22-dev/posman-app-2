@@ -142,6 +142,7 @@ Create a new file following the standard pattern above. Make sure to:
 - `1700000000004-SeedPermissionScopes.cjs` - Seeds permission scopes (system, billing, financial, inventory, stations, pricelists) from PERMISSION_CATEGORIES
 - `1700000000005-SeedPermissions.cjs` - Seeds all permissions from ROLE_PERMISSIONS and maps them to their appropriate scopes
 - `1700000000006-SeedAdminUser.cjs` - Seeds initial admin user for first-time login (credentials configurable via environment variables)
+- `1700000000007-AssignPermissionsToRoles.cjs` - Assigns all permissions to their respective roles in the `role_permissions` table based on ROLE_PERMISSIONS configuration (ensures admin has full permission management capabilities)
 
 ## Troubleshooting
 

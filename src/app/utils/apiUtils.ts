@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { standardizeApiError, StandardizedError } from './errorUtils';
+import { useCallback } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { standardizeApiError, StandardizedError } from "./errorUtils";
 
 export interface ApiResponse<T = any> {
     data?: T;
@@ -39,13 +39,18 @@ export const createApiCall = (logout: () => void) => {
                 };
             }
 
-            if (response.ok) {
+            // All 2XX status codes (200-299) are considered success
+            // This includes: 200 (OK), 201 (Created), 204 (No Content), etc.
+            const isSuccess = response.status >= 200 && response.status < 300;
+
+            if (isSuccess) {
                 return {
                     data,
                     error: undefined,
                     status: response.status
                 };
             } else {
+                // All non-2XX status codes are treated as errors
                 const standardizedError: StandardizedError = standardizeApiError(data, response.status);
                 return {
                     data: undefined,

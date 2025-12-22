@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { PaymentService } from "../../../../src/backend/service/PaymentService";
 import { dbMiddleware } from "../../../../src/backend/middleware/dbMiddleware";
 import { authMiddleware, authorize } from "../../../../src/backend/middleware/auth";
-import permissions from "../../../../src/backend/config/managed-roles";
+import permissions from "@backend/config/permissions";
 import { withMiddleware } from "../../../../src/backend/middleware/middleware-util";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {

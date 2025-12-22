@@ -1,4 +1,4 @@
-import permissions from "@backend/config/managed-roles";
+import permissions from "@backend/config/permissions";
 import { removeItemFromGroupHandler } from "@backend/controllers/ItemController";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";

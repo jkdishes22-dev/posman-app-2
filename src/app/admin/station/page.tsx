@@ -40,7 +40,7 @@ export default function StationPage() {
     const fetchData = async () => {
       try {
         const result = await apiCall("/api/stations");
-        if (result.status === 200) {
+        if (result.status >= 200 && result.status < 300) {
           setStations(result.data || []);
           setFilteredStations(result.data || []);
           setFetchStationsError(null);
@@ -137,10 +137,15 @@ export default function StationPage() {
         body: JSON.stringify({ name, description }),
       });
 
-      if (result.status === 200) {
-        setStations([...stations, result.data]);
+      if (result.status >= 200 && result.status < 300) {
         setShowModal(false);
-        setError(null); // Clear any previous errors
+        setError(null);
+        // Refresh the full list from server to ensure consistency
+        const refreshResult = await apiCall("/api/stations");
+        if (refreshResult.status >= 200 && refreshResult.status < 300) {
+          setStations(refreshResult.data || []);
+          setFilteredStations(refreshResult.data || []);
+        }
       } else {
         setError(result.error || "Failed to add station");
         setErrorDetails(result.errorDetails);

@@ -1,4 +1,4 @@
-import permissions from "@backend/config/managed-roles";
+import permissions from "@backend/config/permissions";
 import { StationService } from "@backend/service/StationService";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";

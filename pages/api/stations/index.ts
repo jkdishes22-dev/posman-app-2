@@ -1,4 +1,4 @@
-import permissions from "@backend/config/managed-roles";
+import permissions from "@backend/config/permissions";
 import {
   addStationHandler,
   fetchStationsHandler,

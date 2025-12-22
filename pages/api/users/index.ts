@@ -8,7 +8,7 @@ import {
   updateOrLockUserHandler,
 } from "@controllers/UserController";
 import { config } from "dotenv";
-import permissions from "@backend/config/managed-roles";
+import permissions from "@backend/config/permissions";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import * as process from "process";
@@ -36,7 +36,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Check cache first
     const now = Date.now();
     const search = Array.isArray(req.query.search) ? req.query.search[0] : req.query.search;
-    const cacheKey = `${req.query.page || 1}_${req.query.pageSize || 10}_${search || ''}`;
+    const cacheKey = `${req.query.page || 1}_${req.query.pageSize || 10}_${search || ""}`;
 
     if (usersCache && usersCache[cacheKey] && (now - usersCacheTimestamp) < USERS_CACHE_DURATION) {
       return res.status(200).json(usersCache[cacheKey]);

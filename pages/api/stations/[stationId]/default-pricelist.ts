@@ -3,7 +3,7 @@ import { withMiddleware } from "@backend/middleware/middleware-util";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { StationService } from "@backend/service/StationService";
-import permissions from "@backend/config/managed-roles";
+import permissions from "@backend/config/permissions";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     const { stationId } = req.query;

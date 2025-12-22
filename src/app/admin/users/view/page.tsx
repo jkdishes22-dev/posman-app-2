@@ -81,6 +81,8 @@ function UsersPage() {
   useEffect(() => {
     if (selectedUser) {
       fetchUserStations(selectedUser.id);
+    } else {
+      setUserStations([]);
     }
   }, [selectedUser]);
 
@@ -333,7 +335,7 @@ function UsersPage() {
     setStationError("");
     try {
       const result = await apiCall(`/api/users/${userId}/stations`);
-      if (result.status === 200) {
+      if (result.status >= 200 && result.status < 300) {
         // The API returns the stations array directly, not wrapped in a stations property
         setUserStations(result.data || []);
       } else {
@@ -351,7 +353,7 @@ function UsersPage() {
   const fetchAvailableStations = async () => {
     try {
       const result = await apiCall("/api/stations");
-      if (result.status === 200) {
+      if (result.status >= 200 && result.status < 300) {
         // Filter out stations that user is already linked to
         const linkedStationIds = userStations.map(us => us.station.id);
         const available = (result.data || []).filter(station =>
@@ -359,11 +361,9 @@ function UsersPage() {
         );
         setAvailableStations(available);
       } else {
-        console.error("Failed to fetch available stations:", result.error);
         setErrorDetails(result.errorDetails);
       }
     } catch (error) {
-      console.error("Failed to fetch available stations:", error);
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
@@ -388,10 +388,12 @@ function UsersPage() {
           station: selectedStationId,
         }),
       });
-      if (result.status === 200) {
+
+      if (result.status >= 200 && result.status < 300) {
         await fetchUserStations(selectedUser.id);
         setShowAddStationModal(false);
         setSelectedStationId("");
+        setStationError("");
       } else {
         setStationError(result.error || "Failed to add station");
         setErrorDetails(result.errorDetails);

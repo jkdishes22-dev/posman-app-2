@@ -1,5 +1,5 @@
 import { authMiddleware, authorize } from "@backend/middleware/auth";
-import permissions from "@backend/config/managed-roles";
+import permissions from "@backend/config/permissions";
 import { NextApiRequest, NextApiResponse } from "next";
 import { fetchPricelistItems } from "@controllers/PricelistController";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";

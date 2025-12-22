@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { UserService } from "@services/UserService";
-import permissions from "@backend/config/managed-roles";
+import permissions from "@backend/config/permissions";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const reqDb = {

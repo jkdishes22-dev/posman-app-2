@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 
 interface StationNewProps {
@@ -15,11 +15,19 @@ const StationNew: React.FC<StationNewProps> = ({
   const [newStationName, setNewStationName] = useState("");
   const [newStationDescription, setNewStationDescription] = useState("");
 
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!show) {
+      setNewStationName("");
+      setNewStationDescription("");
+    }
+  }, [show]);
+
   const handleSave = () => {
+    if (!newStationName.trim()) {
+      return;
+    }
     handleAddStation(newStationName, newStationDescription);
-    setNewStationName("");
-    setNewStationDescription("");
-    handleClose();
   };
 
   return (
