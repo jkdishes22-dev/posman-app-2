@@ -46,12 +46,13 @@ export const ROLE_PERMISSIONS = {
         'can_edit_station_pricelist',
         'can_delete_station_pricelist',
         // Read-only access to business data
-        'can_view_bill',
-        'can_view_bill_item',
-        'can_view_bill_payment',
-        'can_view_inventory',
-        'can_view_payment'
-    ],
+                'can_view_bill',
+                'can_view_bill_item',
+                'can_view_bill_payment',
+                'can_view_inventory',
+                'can_view_payment',
+                'can_view_purchase_order'
+            ],
 
     supervisor: [
         // Sales permissions
@@ -95,6 +96,12 @@ export const ROLE_PERMISSIONS = {
         'can_add_supplier_payment',
         'can_edit_supplier_payment',
         'can_delete_supplier_payment',
+        'can_view_purchase_order',
+        'can_add_purchase_order',
+        'can_edit_purchase_order',
+        'can_delete_purchase_order',
+        'can_receive_purchase_order',
+        'can_adjust_inventory',
         // Additional supervisor permissions
         'can_edit_station',
         'can_view_station_pricelist',
@@ -162,7 +169,13 @@ export const ROLE_PERMISSIONS = {
         'can_view_supplier_payment',
         'can_add_supplier_payment',
         'can_edit_supplier_payment',
-        'can_delete_supplier_payment'
+        'can_delete_supplier_payment',
+        'can_view_purchase_order',
+        'can_add_purchase_order',
+        'can_edit_purchase_order',
+        'can_delete_purchase_order',
+        'can_receive_purchase_order',
+        'can_adjust_inventory'
     ]
 };
 
@@ -207,6 +220,7 @@ export const PERMISSION_CATEGORIES = {
         'can_add_inventory',
         'can_edit_inventory',
         'can_delete_inventory',
+        'can_adjust_inventory',
         'can_view_item',
         'can_add_item',
         'can_edit_item',
@@ -214,7 +228,20 @@ export const PERMISSION_CATEGORIES = {
         'can_view_category',
         'can_add_category',
         'can_edit_category',
-        'can_delete_category'
+        'can_delete_category',
+        'can_view_supplier',
+        'can_add_supplier',
+        'can_edit_supplier',
+        'can_delete_supplier',
+        'can_view_supplier_payment',
+        'can_add_supplier_payment',
+        'can_edit_supplier_payment',
+        'can_delete_supplier_payment',
+        'can_view_purchase_order',
+        'can_add_purchase_order',
+        'can_edit_purchase_order',
+        'can_delete_purchase_order',
+        'can_receive_purchase_order'
     ],
     stations: [
         'can_view_station',

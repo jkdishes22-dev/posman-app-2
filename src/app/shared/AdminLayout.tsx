@@ -125,6 +125,32 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         { label: "Bill", path: "/admin/bill" }
       ];
     }
+    // Supplies section
+    else if (path.includes("/admin/supplies") || path.includes("/storekeeper")) {
+      expandedMenuIds.push("supplies");
+      if (path.includes("/storekeeper/suppliers")) {
+        activeItemId = "supplies-suppliers";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Supplies", path: "/admin/supplies" },
+          { label: "Suppliers", path: "/storekeeper/suppliers" }
+        ];
+      } else if (path.includes("/storekeeper/purchase-orders")) {
+        activeItemId = "supplies-purchase-orders";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Supplies", path: "/admin/supplies" },
+          { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }
+        ];
+      } else if (path.includes("/storekeeper") && !path.includes("/storekeeper/suppliers") && !path.includes("/storekeeper/purchase-orders")) {
+        activeItemId = "supplies-inventory";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Supplies", path: "/admin/supplies" },
+          { label: "Inventory", path: "/storekeeper" }
+        ];
+      }
+    }
 
     setActiveItem(activeItemId);
     setBreadcrumbs(breadcrumbItems);
@@ -248,7 +274,26 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       id: "supplies",
       label: "Supplies",
       icon: "bi-truck",
-      path: "/admin/supplies",
+      submenu: [
+        {
+          id: "supplies-suppliers",
+          label: "Suppliers",
+          icon: "bi-building",
+          path: "/storekeeper/suppliers",
+        },
+        {
+          id: "supplies-purchase-orders",
+          label: "Purchase Orders",
+          icon: "bi-cart-check",
+          path: "/storekeeper/purchase-orders",
+        },
+        {
+          id: "supplies-inventory",
+          label: "Inventory",
+          icon: "bi-boxes",
+          path: "/storekeeper",
+        },
+      ],
     },
     {
       id: "reports",
@@ -336,12 +381,16 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
                 {item.submenu ? (
                   <div>
                     <button
-                      className={`nav-link w-100 text-start d-flex align-items-center ${expandedMenus.includes(item.id) ? "active" : ""}`}
-                      onClick={() => toggleMenu(item.id)}
+                      className={`nav-link w-100 text-start d-flex align-items-center ${expandedMenus.includes(item.id) ? "" : ""}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleMenu(item.id);
+                      }}
                       style={{
-                        background: expandedMenus.includes(item.id) ? "var(--bs-primary)" : "transparent",
+                        background: "transparent",
                         border: "none",
-                        color: expandedMenus.includes(item.id) ? "white" : "rgba(255,255,255,0.8)",
+                        color: "rgba(255,255,255,0.8)",
+                        cursor: "pointer",
                       }}
                     >
                       <i className={`bi ${item.icon} me-3`}></i>

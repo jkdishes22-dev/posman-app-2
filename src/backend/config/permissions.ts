@@ -32,6 +32,7 @@ const permissions = {
     CAN_EDIT_INVENTORY: "can_edit_inventory",
     CAN_DELETE_INVENTORY: "can_delete_inventory",
     CAN_VIEW_INVENTORY: "can_view_inventory",
+    CAN_ADJUST_INVENTORY: "can_adjust_inventory",
 
     // Item
     CAN_ADD_ITEM: "can_add_item",
@@ -112,6 +113,13 @@ const permissions = {
     CAN_EDIT_SUPPLIER_PAYMENT: "can_edit_supplier_payment",
     CAN_DELETE_SUPPLIER_PAYMENT: "can_delete_supplier_payment",
     CAN_VIEW_SUPPLIER_PAYMENT: "can_view_supplier_payment",
+
+    // Purchase Order
+    CAN_VIEW_PURCHASE_ORDER: "can_view_purchase_order",
+    CAN_ADD_PURCHASE_ORDER: "can_add_purchase_order",
+    CAN_EDIT_PURCHASE_ORDER: "can_edit_purchase_order",
+    CAN_DELETE_PURCHASE_ORDER: "can_delete_purchase_order",
+    CAN_RECEIVE_PURCHASE_ORDER: "can_receive_purchase_order",
 
     // User
     CAN_ADD_USER: "can_add_user",

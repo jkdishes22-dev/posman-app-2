@@ -49,13 +49,14 @@ class SeedPermissions1700000000005 {
             financial: [
                 'can_view_payment', 'can_add_payment', 'can_edit_payment', 'can_delete_payment'
             ],
-            // Inventory scope (includes supplier permissions)
+            // Inventory scope (includes supplier and purchase order permissions)
             inventory: [
-                'can_view_inventory', 'can_add_inventory', 'can_edit_inventory', 'can_delete_inventory',
+                'can_view_inventory', 'can_add_inventory', 'can_edit_inventory', 'can_delete_inventory', 'can_adjust_inventory',
                 'can_view_item', 'can_add_item', 'can_edit_item', 'can_delete_item',
                 'can_view_category', 'can_add_category', 'can_edit_category', 'can_delete_category',
                 'can_view_supplier', 'can_add_supplier', 'can_edit_supplier', 'can_delete_supplier',
-                'can_view_supplier_payment', 'can_add_supplier_payment', 'can_edit_supplier_payment', 'can_delete_supplier_payment'
+                'can_view_supplier_payment', 'can_add_supplier_payment', 'can_edit_supplier_payment', 'can_delete_supplier_payment',
+                'can_view_purchase_order', 'can_add_purchase_order', 'can_edit_purchase_order', 'can_delete_purchase_order', 'can_receive_purchase_order'
             ],
             // Stations scope
             stations: [
