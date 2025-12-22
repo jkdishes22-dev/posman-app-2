@@ -47,31 +47,36 @@ const CategoryPage: React.FC = () => {
       body: JSON.stringify(formData),
     });
 
-    if (result.status === 401) {
-      // Already handled by apiCall utility
-      return;
-    } else if (result.status === 201) {
+    if (result.status >= 200 && result.status < 300) {
+      // Success - apiCall handles all 2XX codes
       setFormError("");
-      setCategories((prevCategories) => [...prevCategories, result.data]);
+      // Ensure categories is always an array before spreading
+      setCategories((prevCategories) => {
+        const safePrev = Array.isArray(prevCategories) ? prevCategories : [];
+        return [...safePrev, result.data];
+      });
       setName("");
-    } else if (result.status === 400) {
-      // Handle duplicate category error
-      setFormError(result.data?.message || "Category already exists");
-    } else if (result.status === 403) {
-      setAuthError(result.data);
     } else {
-      setFormError(result.data?.message || result.error || "Failed to create category");
+      // Error - apiCall already standardizes all non-2XX errors (400, 403, 500, etc.)
+      if (result.status === 403) {
+        setAuthError({ message: result.error || "Access denied" });
+      }
+      setFormError(result.error || "Failed to create category");
+      setErrorDetails(result.errorDetails);
     }
   };
 
   const fetchItems = async (categoryId: string) => {
     try {
       const result = await apiCall(`/api/menu/items?category=${categoryId}`);
-      if (result.status === 200) {
+      if (result.status >= 200 && result.status < 300) {
+        // Success - apiCall handles all 2XX codes
         setItems(Array.isArray(result.data) ? result.data : []);
-      } else if (result.status === 403) {
-        setAuthError(result.data);
       } else {
+        // Error - apiCall already standardizes all non-2XX errors
+        if (result.status === 403) {
+          setAuthError({ message: result.error || "Access denied" });
+        }
         setItemError("Failed to fetch items: " + (result.error || "Unknown error"));
         setErrorDetails(result.errorDetails);
       }
@@ -91,19 +96,21 @@ const CategoryPage: React.FC = () => {
       method: "DELETE",
     });
 
-    if (result.status === 401) {
-      // Already handled by apiCall utility
-      return;
-    } else if (result.status === 403) {
-      setAuthError(result.data);
-    } else if (result.status === 200) {
+    if (result.status >= 200 && result.status < 300) {
+      // Success - apiCall handles all 2XX codes
       setCategories((prevCategories) =>
         prevCategories.filter((category) => category.id !== categoryId)
       );
       setShowDeleteModal(false);
       setCategoryToDelete(null);
     } else {
+      // Error - apiCall already standardizes all non-2XX errors (401, 403, 500, etc.)
+      // 401 is already handled by apiCall (auto logout)
+      if (result.status === 403) {
+        setAuthError({ message: result.error || "Access denied" });
+      }
       setFormError(result.error || "Failed to delete category");
+      setErrorDetails(result.errorDetails);
     }
   };
 
@@ -121,23 +128,22 @@ const CategoryPage: React.FC = () => {
       try {
         const result = await apiCall("/api/menu/categories");
 
-        if (result.status === 401) {
-          // Invalid token, logout and redirect to login
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          window.location.href = "/";
-          return;
-        } else if (result.status === 403) {
-          setAuthError(result.data);
-        } else if (result.status === 200) {
-          setCategories(result.data || []);
+        if (result.status >= 200 && result.status < 300) {
+          // Success - apiCall handles all 2XX codes
+          setCategories(Array.isArray(result.data) ? result.data : []);
           setCategoriesLoaded(true);
+          setFetchError(null);
         } else {
+          // Error - apiCall already standardizes all non-2XX errors (401, 403, 500, etc.)
+          // 401 is already handled by apiCall (auto logout)
+          if (result.status === 403) {
+            setAuthError({ message: result.error || "Access denied" });
+          }
           setFetchError(result.error || `Request failed with status ${result.status}`);
           setErrorDetails(result.errorDetails);
         }
       } catch (error: any) {
-        setFetchError(error.message || 'Network error');
+        setFetchError(error.message || "Network error");
         setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       }
     };

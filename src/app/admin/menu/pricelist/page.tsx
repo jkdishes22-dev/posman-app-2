@@ -55,11 +55,13 @@ export default function PricelistPage() {
     async function fetchPricelists() {
       try {
         const result = await apiCall("/api/menu/pricelists");
-        if (result.status === 200) {
-          setPricelists(result.data);
-          setFilteredPricelists(result.data);
+        if (result.status >= 200 && result.status < 300) {
+          // Success - apiCall handles all 2XX codes
+          setPricelists(result.data || []);
+          setFilteredPricelists(result.data || []);
           setFetchPricelistError(null);
         } else {
+          // Error - apiCall already standardizes all non-2XX errors
           setFetchPricelistError(result.error || "Failed to fetch pricelists");
           setErrorDetails(result.errorDetails);
         }
@@ -73,9 +75,11 @@ export default function PricelistPage() {
     async function fetchStations() {
       try {
         const result = await apiCall("/api/stations");
-        if (result.status === 200) {
-          setStations(result.data);
+        if (result.status >= 200 && result.status < 300) {
+          // Success - apiCall handles all 2XX codes
+          setStations(result.data || []);
         } else {
+          // Error - apiCall already standardizes all non-2XX errors
           console.error("Failed to fetch stations:", result.error);
         }
       } catch (error: any) {
@@ -90,8 +94,9 @@ export default function PricelistPage() {
   const fetchPricelistsForStation = useCallback(async (stationId: number) => {
     try {
       const result = await apiCall(`/api/stations/${stationId}/pricelists`);
-      if (result.status === 200) {
-        let filtered = result.data.pricelists || [];
+      if (result.status >= 200 && result.status < 300) {
+        // Success - apiCall handles all 2XX codes
+        let filtered = result.data?.pricelists || [];
         // Apply status filter to station-specific pricelists
         if (statusFilter !== "all") {
           filtered = filtered.filter(pricelist => pricelist.status === statusFilter);
@@ -99,6 +104,7 @@ export default function PricelistPage() {
         setFilteredPricelists(filtered);
         setFetchPricelistError(null);
       } else {
+        // Error - apiCall already standardizes all non-2XX errors
         setFetchPricelistError(result.error || "Failed to fetch pricelists for station");
         setErrorDetails(result.errorDetails);
       }
@@ -166,9 +172,11 @@ export default function PricelistPage() {
 
       const result = await apiCall(url);
 
-      if (result.status === 200) {
-        setPricelistItems(result.data);
+      if (result.status >= 200 && result.status < 300) {
+        // Success - apiCall handles all 2XX codes
+        setPricelistItems(result.data || []);
       } else {
+        // Error - apiCall already standardizes all non-2XX errors
         console.error(`Failed to fetch pricelist items: ${result.error}`);
         setPricelistItems([]);
       }
@@ -210,12 +218,14 @@ export default function PricelistPage() {
         body: JSON.stringify({ name, description, station }),
       });
 
-      if (result.status === 200) {
+      if (result.status >= 200 && result.status < 300) {
+        // Success - apiCall handles all 2XX codes (200, 201, etc.)
         setPricelists([...pricelists, result.data]);
         handleCloseModal();
         setAddPricelistError(null);
         setAddPricelistErrorDetails(null);
       } else {
+        // Error - apiCall already standardizes all non-2XX errors
         setAddPricelistError(result.error || "Failed to add pricelist");
         setAddPricelistErrorDetails(result.errorDetails);
       }
@@ -234,7 +244,8 @@ export default function PricelistPage() {
         body: JSON.stringify(itemData),
       });
 
-      if (result.status === 200) {
+      if (result.status >= 200 && result.status < 300) {
+        // Success - apiCall handles all 2XX codes (200, 201, etc.)
         // Refresh pricelist items if a pricelist is selected
         if (selectedPricelistId) {
           // Delay to ensure database transaction is committed
@@ -249,6 +260,7 @@ export default function PricelistPage() {
         handleCloseItemModal();
         setItemError("");
       } else {
+        // Error - apiCall already standardizes all non-2XX errors
         setItemError(result.error || "Failed to add item");
       }
     } catch (error: any) {
@@ -272,23 +284,27 @@ export default function PricelistPage() {
         body: JSON.stringify({ action: confirmAction.type }),
       });
 
-      if (result.status === 200) {
+      if (result.status >= 200 && result.status < 300) {
+        // Success - apiCall handles all 2XX codes
         console.log("Pricelist status updated successfully, refreshing data...");
         // Refresh pricelists list
         const refreshResult = await apiCall("/api/menu/pricelists");
         console.log("Refreshed pricelists data:", refreshResult.data);
-        if (refreshResult.status === 200) {
-          setPricelists(refreshResult.data);
+        if (refreshResult.status >= 200 && refreshResult.status < 300) {
+          // Success - apiCall handles all 2XX codes
+          setPricelists(refreshResult.data || []);
           // Don't set filteredPricelists here - let the useEffect handle it
           // This ensures proper filtering by both station and status
           console.log("Pricelists updated, useEffect will handle filtering");
         } else {
+          // Error - apiCall already standardizes all non-2XX errors
           console.error("Failed to refresh pricelists:", refreshResult.error);
         }
         setShowConfirmModal(false);
         setConfirmAction(null);
         setFetchPricelistError(null);
       } else {
+        // Error - apiCall already standardizes all non-2XX errors
         setFetchPricelistError(result.error || `Failed to ${confirmAction.type} pricelist`);
         setErrorDetails(result.errorDetails);
       }

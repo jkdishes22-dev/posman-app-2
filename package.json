@@ -20,7 +20,7 @@
     "class-transformer": "^0.5.1",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "express": "^4.21.0",
     "glob": "^11.0.3",
     "jsonwebtoken": "^9.0.2",

@@ -17,9 +17,9 @@ export abstract class BaseEntity {
   @UpdateDateColumn({ type: "datetime", nullable: true })
   readonly updated_at!: Date;
 
-  @Column({ type: "datetime", nullable: true })
+  @Column({ type: "int", nullable: true })
   created_by: number;
 
-  @Column({ type: "datetime", nullable: true })
+  @Column({ type: "int", nullable: true })
   updated_by: number;
 }

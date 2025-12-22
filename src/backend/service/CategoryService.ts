@@ -25,7 +25,8 @@ export class CategoryService {
         "category.id",
         "category.name",
         "category.status",
-        "category.created_at"
+        "category.created_at",
+        "category.updated_at"
       ])
       .orderBy("category.name", "ASC")
       .getMany();
