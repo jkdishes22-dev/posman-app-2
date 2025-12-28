@@ -6,14 +6,23 @@ interface QuantityModalProps {
   item: Item | null;
   onClose: () => void;
   onConfirm: (quantity: number) => void;
+  availableQuantity?: number;
+  alreadyInBill?: number;
 }
 
 const QuantityModal: React.FC<QuantityModalProps> = ({
   item,
   onClose,
   onConfirm,
+  availableQuantity,
+  alreadyInBill = 0,
 }) => {
   const [quantity, setQuantity] = useState<string>("");
+  const [quantityError, setQuantityError] = useState<string>("");
+  
+  const maxAvailable = availableQuantity !== undefined 
+    ? availableQuantity - alreadyInBill 
+    : undefined;
 
   const handleNumberClick = (num: string) => {
     // Concatenate number button clicks
@@ -34,10 +43,24 @@ const QuantityModal: React.FC<QuantityModalProps> = ({
 
   const handleConfirm = () => {
     const quantityNumber = parseInt(quantity, 10);
-    if (!isNaN(quantityNumber) && quantityNumber > 0) {
-      onConfirm(quantityNumber);
-      onClose(); // Close modal after confirming
+    
+    if (isNaN(quantityNumber) || quantityNumber <= 0) {
+      setQuantityError("Quantity must be greater than 0");
+      return;
     }
+
+    // Validate against available inventory
+    if (maxAvailable !== undefined && quantityNumber > maxAvailable) {
+      setQuantityError(
+        `Cannot add ${quantityNumber} units. Only ${maxAvailable} available ` +
+        `(${availableQuantity} total - ${alreadyInBill} already in bill).`
+      );
+      return;
+    }
+
+    setQuantityError("");
+    onConfirm(quantityNumber);
+    onClose(); // Close modal after confirming
   };
 
   return (
@@ -48,6 +71,19 @@ const QuantityModal: React.FC<QuantityModalProps> = ({
       <Modal.Body>
         <div className="text-center">
           <h5>Choose Quantity:</h5>
+          {availableQuantity !== undefined && (
+            <div className="alert alert-info mb-3">
+              <strong>Available:</strong> {maxAvailable} units
+              {alreadyInBill > 0 && (
+                <span className="text-muted">
+                  {" "}({availableQuantity} total - {alreadyInBill} already in bill)
+                </span>
+              )}
+            </div>
+          )}
+          {quantityError && (
+            <div className="alert alert-danger mb-3">{quantityError}</div>
+          )}
           <div className="d-grid gap-2">
             {/* 3x3 grid for numbers */}
             <div className="row mb-2">

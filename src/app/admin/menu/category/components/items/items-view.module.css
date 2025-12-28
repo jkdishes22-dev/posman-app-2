@@ -1,0 +1,193 @@
+/* Search Dropdown Styles */
+.searchContainer {
+    position: relative;
+}
+
+.searchInputWrapper {
+    flex: 1;
+    position: relative;
+}
+
+.searchInputContainer {
+    font-size: 0.95rem;
+    padding: 0.5rem 0.75rem;
+    border: 2px solid #dee2e6;
+    border-radius: 0.5rem;
+    transition: all 0.15s ease-in-out;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: white;
+    min-height: 38px;
+}
+
+.searchInputContainer:focus-within {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.searchInput {
+    flex: 1;
+    outline: none;
+    font-size: 0.95rem;
+    background-color: transparent;
+    border: none;
+}
+
+.searchDropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 0.25rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    background-color: white;
+}
+
+.clearFilterOption {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+.clearFilterOption:hover {
+    background-color: #e9ecef;
+}
+
+.dropdownItem {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #dee2e6;
+    cursor: pointer;
+    background-color: white;
+}
+
+.dropdownItem:hover {
+    background-color: #f8f9fa;
+}
+
+.dropdownItemSelected {
+    background-color: #e7f3ff;
+}
+
+.dropdownItemSelected:hover {
+    background-color: #e7f3ff;
+}
+
+.dropdownEmpty {
+    padding: 0.75rem;
+    text-align: center;
+    color: #6c757d;
+}
+
+.clearButton {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 2px solid #dc3545;
+    min-width: 40px;
+    transition: all 0.2s ease;
+}
+
+.clearButton:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Table Styles */
+.tableContainer {
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.tableContainerBilling {
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.itemsTable {
+    table-layout: auto;
+    width: 100%;
+}
+
+/* Expanded Item Styles */
+.expandedRow {
+    width: 100%;
+}
+
+.expandedContent {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.expandedContentBilling {
+    width: 100%;
+    overflow: hidden;
+}
+
+.expandedContentInner {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+}
+
+.ingredientCard {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background-color: white;
+    border-radius: 0.25rem;
+    border: 1px solid #dee2e6;
+    font-size: 0.85rem;
+}
+
+.ingredientTable {
+    margin-bottom: 0;
+    width: 100%;
+    table-layout: auto;
+}
+
+.ingredientTableHeader {
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.ingredientTableCell {
+    font-size: 0.8rem;
+}
+
+/* Highlight Styles */
+.highlightedRow {
+    background-color: #fff3cd;
+    border: 2px solid #ffc107;
+    animation: highlight-pulse 1s ease-in-out;
+}
+
+@keyframes highlight-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+}
+
+/* Expand Button */
+.expandButton {
+    font-size: 0.9rem;
+    min-width: 30px;
+}
+
+.expandButtonIcon {
+    font-size: 1.2rem;
+    font-weight: bold;
+}

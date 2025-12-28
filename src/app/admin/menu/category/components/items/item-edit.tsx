@@ -193,6 +193,24 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
                   onChange={handleChange}
                 />
               </div>
+              <div className="form-group">
+                <label>
+                  Allow Negative Inventory{" "}
+                  <i
+                    className="bi bi-question-circle text-muted"
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    data-bs-html="true"
+                    title="When enabled, this item can be sold even when inventory is zero or negative. Use with caution - this bypasses normal inventory validation."
+                  ></i>
+                </label>
+                <input
+                  type="checkbox"
+                  name="allowNegativeInventory"
+                  checked={editedItem.allowNegativeInventory || false}
+                  onChange={handleChange}
+                />
+              </div>
             </>
           )
         )}

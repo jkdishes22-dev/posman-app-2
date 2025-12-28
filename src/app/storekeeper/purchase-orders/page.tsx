@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
@@ -58,6 +58,16 @@ export default function PurchaseOrdersPage() {
     const [suppliers, setSuppliers] = useState<any[]>([]);
     const [items, setItems] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Item search states for type-ahead
+    const [itemSearchQueries, setItemSearchQueries] = useState<Record<number, string>>({});
+    const [itemSearchResults, setItemSearchResults] = useState<Record<number, any[]>>({});
+    const [itemSearchLoading, setItemSearchLoading] = useState<Record<number, boolean>>({});
+    const [showItemDropdowns, setShowItemDropdowns] = useState<Record<number, boolean>>({});
+
+    // Supplier search states for type-ahead
+    const [supplierSearchQuery, setSupplierSearchQuery] = useState<string>("");
+    const [showSupplierDropdown, setShowSupplierDropdown] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
     const [authError, setAuthError] = useState<AuthError>(null);
@@ -167,6 +177,11 @@ export default function PurchaseOrdersPage() {
             items: [{ item_id: "", quantity_ordered: "", unit_price: "" }],
         });
         setFormError(null);
+        setItemSearchQueries({});
+        setItemSearchResults({});
+        setShowItemDropdowns({});
+        setSupplierSearchQuery("");
+        setShowSupplierDropdown(false);
         setShowCreateModal(true);
     };
 
@@ -210,6 +225,65 @@ export default function PurchaseOrdersPage() {
         const newItems = [...formData.items];
         newItems[index] = { ...newItems[index], [field]: value };
         setFormData({ ...formData, items: newItems });
+
+        // Trigger search for item_id field
+        if (field === "item_id") {
+            if (value.length >= 2) {
+                searchSuppliableItems(index, value);
+            } else if (value.length === 0) {
+                // Clear item selection and search state when field is cleared
+                newItems[index] = { ...newItems[index], item_id: "" };
+                setFormData({ ...formData, items: newItems });
+                setItemSearchResults(prev => ({ ...prev, [index]: [] }));
+                setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
+                setItemSearchQueries(prev => ({ ...prev, [index]: "" }));
+            } else {
+                // For single character, just update query but don't search yet
+                setItemSearchQueries(prev => ({ ...prev, [index]: value }));
+                setItemSearchResults(prev => ({ ...prev, [index]: [] }));
+                setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
+            }
+        }
+    };
+
+    const searchSuppliableItems = async (index: number, query: string) => {
+        if (query.length < 2) {
+            setItemSearchResults(prev => ({ ...prev, [index]: [] }));
+            setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
+            return;
+        }
+
+        setItemSearchLoading(prev => ({ ...prev, [index]: true }));
+        setItemSearchQueries(prev => ({ ...prev, [index]: query }));
+
+        try {
+            const result = await apiCall(`/api/items/suppliable?q=${encodeURIComponent(query)}&limit=10`);
+            if (result.status >= 200 && result.status < 300) {
+                setItemSearchResults(prev => ({ ...prev, [index]: result.data?.items || [] }));
+                setShowItemDropdowns(prev => ({ ...prev, [index]: true }));
+            } else {
+                setItemSearchResults(prev => ({ ...prev, [index]: [] }));
+                setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
+            }
+        } catch (error: any) {
+            setItemSearchResults(prev => ({ ...prev, [index]: [] }));
+            setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
+        } finally {
+            setItemSearchLoading(prev => ({ ...prev, [index]: false }));
+        }
+    };
+
+    const selectItem = (index: number, item: any) => {
+        const newItems = [...formData.items];
+        newItems[index] = {
+            ...newItems[index],
+            item_id: item.id.toString()
+        };
+        setFormData({ ...formData, items: newItems });
+        setItemSearchResults(prev => ({ ...prev, [index]: [] }));
+        setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
+        // Store the item name for display
+        setItemSearchQueries(prev => ({ ...prev, [index]: `${item.name} (${item.code})` }));
     };
 
     const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -359,7 +433,9 @@ export default function PurchaseOrdersPage() {
     };
 
     const canReceive = (po: PurchaseOrder) => {
-        return po.status === "sent" || po.status === "partial";
+        // Allow receiving from draft, sent, or partial status
+        // Draft POs can be received directly without sending first
+        return po.status === "draft" || po.status === "sent" || po.status === "partial";
     };
 
     const canCancel = (po: PurchaseOrder) => {
@@ -497,7 +573,7 @@ export default function PurchaseOrdersPage() {
                                                     ? new Date(po.expected_delivery_date).toLocaleDateString()
                                                     : "-"}
                                             </td>
-                                            <td>${po.total_amount.toFixed(2)}</td>
+                                            <td>${po?.total_amount != null ? Number(po.total_amount).toFixed(2) : "0.00"}</td>
                                             <td>{getStatusBadge(po.status)}</td>
                                             <td>
                                                 <Button
@@ -540,7 +616,18 @@ export default function PurchaseOrdersPage() {
                 </Card>
 
                 {/* Create PO Modal */}
-                <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
+                <Modal
+                    show={showCreateModal}
+                    onHide={() => {
+                        setShowCreateModal(false);
+                        setItemSearchQueries({});
+                        setItemSearchResults({});
+                        setShowItemDropdowns({});
+                        setSupplierSearchQuery("");
+                        setShowSupplierDropdown(false);
+                    }}
+                    size="lg"
+                >
                     <Modal.Header closeButton>
                         <Modal.Title>Create Purchase Order</Modal.Title>
                     </Modal.Header>
@@ -551,22 +638,86 @@ export default function PurchaseOrdersPage() {
                                     {formError}
                                 </Alert>
                             )}
-                            <Form.Group className="mb-3">
+                            <Form.Group className="mb-3 position-relative">
                                 <Form.Label>Supplier <span className="text-danger">*</span></Form.Label>
-                                <Form.Select
-                                    value={formData.supplier_id}
-                                    onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
+                                <Form.Control
+                                    type="text"
+                                    placeholder="Search suppliers by name..."
+                                    value={supplierSearchQuery || (formData.supplier_id ? suppliers.find(s => s.id.toString() === formData.supplier_id)?.name || "" : "")}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setSupplierSearchQuery(value);
+
+                                        // Filter suppliers as user types
+                                        if (value.length >= 1) {
+                                            setShowSupplierDropdown(true);
+                                        } else {
+                                            setShowSupplierDropdown(false);
+                                            setFormData({ ...formData, supplier_id: "" });
+                                        }
+                                    }}
+                                    onFocus={() => {
+                                        // Always show dropdown when focused if there are suppliers
+                                        if (suppliers.length > 0) {
+                                            setShowSupplierDropdown(true);
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        // Delay closing dropdown to allow click on dropdown items
+                                        setTimeout(() => {
+                                            setShowSupplierDropdown(false);
+                                        }, 200);
+                                    }}
                                     required
-                                >
-                                    <option value="">Select supplier...</option>
-                                    {suppliers
-                                        .filter(s => s.status === "active")
-                                        .map((supplier) => (
-                                            <option key={supplier.id} value={supplier.id.toString()}>
-                                                {supplier.name}
-                                            </option>
-                                        ))}
-                                </Form.Select>
+                                    autoComplete="off"
+                                />
+                                {showSupplierDropdown && (
+                                    <div
+                                        className="position-absolute w-100 bg-white border rounded shadow-lg"
+                                        style={{ zIndex: 1050, maxHeight: "200px", overflowY: "auto", top: "100%" }}
+                                    >
+                                        {suppliers
+                                            .filter(s => {
+                                                if (!supplierSearchQuery) return s.status === "active";
+                                                const query = supplierSearchQuery.toLowerCase();
+                                                return s.status === "active" && (
+                                                    s.name.toLowerCase().includes(query) ||
+                                                    s.contact_person?.toLowerCase().includes(query) ||
+                                                    s.email?.toLowerCase().includes(query)
+                                                );
+                                            })
+                                            .map((supplier) => (
+                                                <div
+                                                    key={supplier.id}
+                                                    className="p-2 border-bottom cursor-pointer hover-bg-light"
+                                                    style={{ cursor: "pointer" }}
+                                                    onClick={() => {
+                                                        setFormData({ ...formData, supplier_id: supplier.id.toString() });
+                                                        setSupplierSearchQuery(supplier.name);
+                                                        setShowSupplierDropdown(false);
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.classList.add("bg-light")}
+                                                    onMouseLeave={(e) => e.currentTarget.classList.remove("bg-light")}
+                                                >
+                                                    <div className="fw-semibold">{supplier.name}</div>
+                                                    {supplier.contact_person && (
+                                                        <small className="text-muted">Contact: {supplier.contact_person}</small>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        {suppliers.filter(s => {
+                                            if (!supplierSearchQuery) return s.status === "active";
+                                            const query = supplierSearchQuery.toLowerCase();
+                                            return s.status === "active" && (
+                                                s.name.toLowerCase().includes(query) ||
+                                                s.contact_person?.toLowerCase().includes(query) ||
+                                                s.email?.toLowerCase().includes(query)
+                                            );
+                                        }).length === 0 && (
+                                                <div className="p-2 text-muted">No suppliers found</div>
+                                            )}
+                                    </div>
+                                )}
                             </Form.Group>
                             <Row>
                                 <Col md={6}>
@@ -602,15 +753,70 @@ export default function PurchaseOrdersPage() {
                                         <Card.Body>
                                             <Row>
                                                 <Col md={4}>
-                                                    <Form.Group>
-                                                        <Form.Label>Item</Form.Label>
+                                                    <Form.Group className="position-relative">
+                                                        <Form.Label>Item (Suppliable Only) <span className="text-danger">*</span></Form.Label>
                                                         <Form.Control
                                                             type="text"
-                                                            placeholder="Item ID"
-                                                            value={item.item_id}
-                                                            onChange={(e) => updateItemRow(index, "item_id", e.target.value)}
+                                                            placeholder="Search by name or code..."
+                                                            value={itemSearchQueries[index] !== undefined ? itemSearchQueries[index] : ""}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value;
+                                                                // Allow deletion - user can clear and search again
+                                                                setItemSearchQueries(prev => ({ ...prev, [index]: value }));
+                                                                updateItemRow(index, "item_id", value);
+                                                            }}
+                                                            onFocus={() => {
+                                                                // If there's already a selected item, keep showing it
+                                                                // Otherwise, if there's a query, search
+                                                                const currentQuery = itemSearchQueries[index] || "";
+                                                                if (currentQuery.length >= 2 && !item.item_id) {
+                                                                    searchSuppliableItems(index, currentQuery);
+                                                                }
+                                                            }}
+                                                            onBlur={() => {
+                                                                // Delay closing dropdown to allow click on dropdown items
+                                                                setTimeout(() => {
+                                                                    setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
+                                                                }, 200);
+                                                            }}
                                                             required
+                                                            autoComplete="off"
                                                         />
+                                                        {itemSearchLoading[index] && (
+                                                            <div className="position-absolute end-0 top-50 translate-middle-y me-2">
+                                                                <Spinner animation="border" size="sm" />
+                                                            </div>
+                                                        )}
+                                                        {showItemDropdowns[index] && itemSearchResults[index] && itemSearchResults[index].length > 0 && (
+                                                            <div
+                                                                className="position-absolute w-100 bg-white border rounded shadow-lg"
+                                                                style={{ zIndex: 1050, maxHeight: "200px", overflowY: "auto", top: "100%" }}
+                                                            >
+                                                                {itemSearchResults[index].map((resultItem: any) => (
+                                                                    <div
+                                                                        key={resultItem.id}
+                                                                        className="p-2 border-bottom cursor-pointer hover-bg-light"
+                                                                        style={{ cursor: "pointer" }}
+                                                                        onClick={() => selectItem(index, resultItem)}
+                                                                        onMouseEnter={(e) => e.currentTarget.classList.add("bg-light")}
+                                                                        onMouseLeave={(e) => e.currentTarget.classList.remove("bg-light")}
+                                                                    >
+                                                                        <div className="fw-semibold">{resultItem.name}</div>
+                                                                        <small className="text-muted">
+                                                                            Code: <code>{resultItem.code}</code> | Category: {resultItem.category}
+                                                                        </small>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {showItemDropdowns[index] && itemSearchResults[index] && itemSearchResults[index].length === 0 && itemSearchQueries[index] && itemSearchQueries[index].length >= 2 && (
+                                                            <div
+                                                                className="position-absolute w-100 bg-white border rounded shadow-lg p-2"
+                                                                style={{ zIndex: 1050, top: "100%" }}
+                                                            >
+                                                                <div className="text-muted">No suppliable items found</div>
+                                                            </div>
+                                                        )}
                                                     </Form.Group>
                                                 </Col>
                                                 <Col md={3}>
@@ -719,7 +925,7 @@ export default function PurchaseOrdersPage() {
                                             </Card.Header>
                                             <Card.Body>
                                                 <p className="mb-2">
-                                                    <strong>Total Amount:</strong> ${selectedPO.total_amount.toFixed(2)}
+                                                    <strong>Total Amount:</strong> ${selectedPO?.total_amount != null ? Number(selectedPO.total_amount).toFixed(2) : "0.00"}
                                                 </p>
                                                 {selectedPO.notes && (
                                                     <p className="mb-0">
@@ -761,8 +967,8 @@ export default function PurchaseOrdersPage() {
                                                                 </Badge>
                                                             )}
                                                         </td>
-                                                        <td>${item.unit_price.toFixed(2)}</td>
-                                                        <td>${item.subtotal.toFixed(2)}</td>
+                                                        <td>${item?.unit_price != null ? Number(item.unit_price).toFixed(2) : "0.00"}</td>
+                                                        <td>${item?.subtotal != null ? Number(item.subtotal).toFixed(2) : "0.00"}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -771,7 +977,7 @@ export default function PurchaseOrdersPage() {
                                                     <td colSpan={5} className="text-end fw-bold">
                                                         Total:
                                                     </td>
-                                                    <td className="fw-bold">${selectedPO.total_amount.toFixed(2)}</td>
+                                                    <td className="fw-bold">${selectedPO?.total_amount != null ? Number(selectedPO.total_amount).toFixed(2) : "0.00"}</td>
                                                 </tr>
                                             </tfoot>
                                         </Table>

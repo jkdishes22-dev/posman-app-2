@@ -8,12 +8,15 @@ export enum InventoryTransactionType {
     ADJUSTMENT = "adjustment",
     TRANSFER = "transfer",
     RETURN = "return",
+    PRODUCTION = "production",
+    DISPOSAL = "disposal",
 }
 
 export enum InventoryReferenceType {
     BILL = "bill",
     PURCHASE_ORDER = "purchase_order",
     MANUAL_ADJUSTMENT = "manual_adjustment",
+    PRODUCTION_ISSUE = "production_issue",
 }
 
 @Entity("inventory_transaction")

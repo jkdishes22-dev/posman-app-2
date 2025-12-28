@@ -122,6 +122,9 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_delete_purchase_order',
                 'can_receive_purchase_order',
                 'can_adjust_inventory',
+                // Production permissions
+                'can_issue_production',
+                'can_view_production_history',
                 // Additional supervisor permissions
                 'can_edit_station',
                 'can_view_station_pricelist',
@@ -192,7 +195,10 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_edit_purchase_order',
                 'can_delete_purchase_order',
                 'can_receive_purchase_order',
-                'can_adjust_inventory'
+                'can_adjust_inventory',
+                // Production permissions
+                'can_issue_production',
+                'can_view_production_history'
             ]
         };
 

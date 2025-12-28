@@ -26,7 +26,9 @@ export const fetchProdutionItemsHandler = async (
 ) => {
   const productionService = new ProductionService(req.db);
   try {
-    const items = await productionService.fetchProductionItems();
+    // Check if we need composite items only (for recipes)
+    const compositeOnly = req.query.compositeOnly === "true";
+    const items = await productionService.fetchProductionItems(compositeOnly);
     res.status(200).json(items);
   } catch (error: any) {
     console.error("Error fetching production items:", error);

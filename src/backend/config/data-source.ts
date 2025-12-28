@@ -29,6 +29,8 @@ import { PurchaseOrder } from "@backend/entities/PurchaseOrder";
 import { InventoryTransaction } from "@backend/entities/InventoryTransaction";
 import { SupplierPayment } from "@backend/entities/SupplierPayment";
 import { SupplierTransaction } from "@backend/entities/SupplierTransaction";
+import { ProductionIssue } from "@backend/entities/ProductionIssue";
+import { ProductionPreparation } from "@backend/entities/ProductionPreparation";
 
 let connectionInstance: DataSource | null = null;
 let isInitializing = false;
@@ -66,11 +68,13 @@ export const AppDataSource = new DataSource({
     ReopenReason,
     Supplier,
     Inventory,
-    PurchaseOrder,
     PurchaseOrderItem,
+    PurchaseOrder,
     InventoryTransaction,
     SupplierPayment,
     SupplierTransaction,
+    ProductionIssue,
+    ProductionPreparation,
   ],
   migrations: ["src/backend/config/migrations/*.cjs"],
   synchronize: false,

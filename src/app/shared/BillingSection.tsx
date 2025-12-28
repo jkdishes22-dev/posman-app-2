@@ -50,6 +50,8 @@ const BillingSection = () => {
   const [categoriesFetched, setCategoriesFetched] = useState(false);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
+  const [itemInventory, setItemInventory] = useState<Record<number, number>>({});
+  const [hasExpandedItems, setHasExpandedItems] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -121,8 +123,14 @@ const BillingSection = () => {
       );
 
       if (result.status === 200) {
-        setItems(result.data.items || []);
+        const fetchedItems = result.data.items || [];
+        setItems(fetchedItems);
         setItemError(""); // Clear any previous errors
+
+        // Fetch available inventory for all items
+        if (fetchedItems.length > 0) {
+          fetchItemInventory(fetchedItems.map((item: Item) => item.id));
+        }
       } else {
         setItemError(result.error || "Failed to fetch items for this pricelist");
         setErrorDetails(result.errorDetails);
@@ -134,37 +142,94 @@ const BillingSection = () => {
     }
   };
 
+  const fetchItemInventory = async (itemIds: number[]) => {
+    if (itemIds.length === 0) {
+      return;
+    }
+
+    try {
+      const itemIdsParam = itemIds.join(",");
+      const result = await apiCall(`/api/inventory/available?itemIds=${itemIdsParam}`);
+
+      if (result.status === 200) {
+        setItemInventory(result.data.available || {});
+      }
+    } catch (error) {
+      // Silently fail - inventory display is optional
+      console.error("Error fetching item inventory:", error);
+    }
+  };
+
   const handlePickItem = (item: Item) => {
     if (!item.price) {
       return;
     }
+
+    // Check available inventory before allowing pick
+    const available = itemInventory[item.id] ?? 0;
+    const alreadyInBill = selectedItems.find(i => i.id === item.id);
+    const alreadyReserved = alreadyInBill ? alreadyInBill.quantity : 0;
+    const availableAfterReserved = available - alreadyReserved;
+
+    // If item has inventory tracking and no stock available, show error
+    if (available === 0 && itemInventory.hasOwnProperty(item.id)) {
+      setBillError(`Cannot add ${item.name}. No inventory available. Please issue more ${item.name} to inventory first.`);
+      return;
+    }
+
     setCurrentItem(item);
     setShowQuantityModal(true);
   };
 
   const handleQuantityConfirm = (quantity: number) => {
-    if (currentItem) {
-      setSelectedItems((prev) => {
-        const existingItemIndex = prev.findIndex(
-          (i) => i.id === currentItem.id,
+    if (!currentItem) {
+      return;
+    }
+
+    // Validate inventory before adding
+    const available = itemInventory[currentItem.id] ?? 0;
+    const alreadyInBill = selectedItems.find(i => i.id === currentItem.id);
+    const alreadyReserved = alreadyInBill ? alreadyInBill.quantity : 0;
+    const availableAfterReserved = available - alreadyReserved;
+
+    // If item has inventory tracking, validate quantity
+    if (itemInventory.hasOwnProperty(currentItem.id)) {
+      if (availableAfterReserved < quantity) {
+        setBillError(
+          `Cannot add ${quantity} ${currentItem.name}. ` +
+          `Only ${availableAfterReserved} available (${available} total - ${alreadyReserved} already in bill). ` +
+          `Please issue more ${currentItem.name} to inventory first.`
         );
-        if (existingItemIndex >= 0) {
-          const updatedItems = [...prev];
-          updatedItems[existingItemIndex].quantity = quantity;
-          updatedItems[existingItemIndex].subtotal =
-            currentItem.price * quantity;
-          return updatedItems;
-        } else {
-          return [
-            ...prev,
-            {
-              ...currentItem,
-              quantity,
-              subtotal: currentItem.price * quantity,
-            },
-          ];
-        }
-      });
+        return;
+      }
+    }
+
+    setBillError(""); // Clear any previous errors
+    setSelectedItems((prev) => {
+      const existingItemIndex = prev.findIndex(
+        (i) => i.id === currentItem.id,
+      );
+      if (existingItemIndex >= 0) {
+        const updatedItems = [...prev];
+        updatedItems[existingItemIndex].quantity = quantity;
+        updatedItems[existingItemIndex].subtotal =
+          currentItem.price * quantity;
+        return updatedItems;
+      } else {
+        return [
+          ...prev,
+          {
+            ...currentItem,
+            quantity,
+            subtotal: currentItem.price * quantity,
+          },
+        ];
+      }
+    });
+
+    // Refresh inventory after adding item to bill to show updated availability
+    if (items.length > 0) {
+      fetchItemInventory(items.map((item: Item) => item.id));
     }
   };
 
@@ -176,6 +241,7 @@ const BillingSection = () => {
   const handleCloseSubmitModal = () => {
     setShowSubmitModal(false);
     setBillError(""); // Clear error when modal is closed
+    setErrorDetails(null); // Clear error details when modal is closed
   };
   const handleShowCancelModal = () => setShowCancelModal(true);
   const handleCloseCancelModal = () => setShowCancelModal(false);
@@ -239,7 +305,6 @@ const BillingSection = () => {
         if (result.status === 201) {
           setShowSubmitModal(false);
           setBillError(""); // Clear any previous errors
-          setItems([]); // Clear available items instantly
           setCreatedBill({
             ...result.data.bill,
             bill_items: selectedItems.map(item => ({
@@ -249,6 +314,12 @@ const BillingSection = () => {
             user: { firstName: waitress },
             currency: "KES",
           });
+
+          // Refresh inventory after bill creation to show updated availability
+          // Keep items visible but refresh their inventory
+          if (items.length > 0) {
+            fetchItemInventory(items.map((item: Item) => item.id));
+          }
         } else {
           setBillError(result.error || "Failed to submit picked items");
           setErrorDetails(result.errorDetails);
@@ -319,10 +390,6 @@ const BillingSection = () => {
     // Reset all bill-related state without reloading the page
     setCreatedBill(null);
     setSelectedItems([]);
-    setSelectedCategory(null);
-    setItems([]); // Clear the available items list
-    setWaitress("");
-    setUserId("");
     setShowSubmitModal(false);
     setShowCancelModal(false);
     setShowQuantityModal(false);
@@ -330,6 +397,11 @@ const BillingSection = () => {
     setItemError("");
     setFetchCategoryError("");
     setBillError(""); // Clear bill errors
+
+    // Refresh inventory for current items to show updated availability
+    if (items.length > 0) {
+      fetchItemInventory(items.map((item: Item) => item.id));
+    }
   };
 
   const totalAmount = selectedItems.reduce(
@@ -460,6 +532,9 @@ const BillingSection = () => {
                 isPricelistSection={false}
                 isCategoryItemsSection={false}
                 onItemPick={createdBill ? undefined : handlePickItem}
+                itemInventory={itemInventory}
+                selectedItems={selectedItems}
+                onExpandedChange={setHasExpandedItems}
               />
             </div>
           </div>
@@ -666,9 +741,9 @@ const BillingSection = () => {
       </div>
 
       {/* Categories Section - Improved */}
-      <div className="row mt-1 categories-section">
+      <div className={`row mt-1 categories-section ${hasExpandedItems ? "categories-section-expanded" : ""}`}>
         <div className="col-12">
-          <div className="card border-0 shadow-sm categories-card">
+          <div className={`card border-0 shadow-sm categories-card ${hasExpandedItems ? "categories-card-expanded" : ""}`}>
             <div className="card-body py-1">
               <div className="mb-1">
                 <h5 className="mb-0 text-dark fw-bold d-flex align-items-center">
@@ -699,8 +774,17 @@ const BillingSection = () => {
       {showQuantityModal && (
         <QuantityModal
           item={currentItem}
-          onClose={() => setShowQuantityModal(false)}
+          onClose={() => {
+            setShowQuantityModal(false);
+            setCurrentItem(null);
+          }}
           onConfirm={handleQuantityConfirm}
+          availableQuantity={currentItem ? itemInventory[currentItem.id] : undefined}
+          alreadyInBill={
+            currentItem
+              ? selectedItems.find(i => i.id === currentItem.id)?.quantity || 0
+              : 0
+          }
         />
       )}
 
@@ -710,12 +794,14 @@ const BillingSection = () => {
           <Modal.Title className="fw-bold">Confirm Billing</Modal.Title>
         </Modal.Header>
         <Modal.Body className="py-4">
-          {billError && (
-            <div className="alert alert-danger mb-3" role="alert">
-              <i className="bi bi-exclamation-triangle me-2"></i>
-              {billError}
-            </div>
-          )}
+          <ErrorDisplay
+            error={billError}
+            errorDetails={errorDetails}
+            onDismiss={() => {
+              setBillError("");
+              setErrorDetails(null);
+            }}
+          />
           <div className="text-center">
             {isSubmitting ? (
               <>

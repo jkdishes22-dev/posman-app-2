@@ -119,16 +119,22 @@ function UsersPage() {
         setUsers(result.data?.users || []);
         setTotal(result.data?.total || 0);
         setFetchUserError("");
+        setError(null);
+        setErrorDetails(null);
       } else if (result.status === 403) {
+        setError(result.error || "Access denied");
+        setErrorDetails(result.errorDetails);
         setAuthError({ message: result.error || "Access denied" });
-        setErrorDetails(result.errorDetails);
+        setFetchUserError("");
       } else {
-        setFetchUserError(result.error || "Failed to fetch users");
+        setError(result.error || "Failed to fetch users");
         setErrorDetails(result.errorDetails);
+        setFetchUserError(result.error || "Failed to fetch users");
       }
     } catch (error) {
-      setFetchUserError("Network error occurred");
+      setError("Network error occurred");
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+      setFetchUserError("Network error occurred");
     }
   }
 
@@ -502,9 +508,11 @@ function UsersPage() {
         </div>
 
         <ErrorDisplay
-          error={errorDetails?.message || null}
+          error={error || fetchUserError || null}
           errorDetails={errorDetails}
           onDismiss={() => {
+            setError("");
+            setFetchUserError("");
             setErrorDetails(null);
           }}
         />
@@ -578,7 +586,6 @@ function UsersPage() {
                         </th>
                         <th className="fw-semibold">First Name</th>
                         <th className="fw-semibold">Last Name</th>
-                        <th className="fw-semibold">Username</th>
                         <th className="fw-semibold text-center">Role</th>
                         <th className="fw-semibold text-center">Status</th>
                         <th className="fw-semibold text-center">Locked</th>
@@ -587,7 +594,7 @@ function UsersPage() {
                     <tbody>
                       {filteredUsers.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="text-center py-5">
+                          <td colSpan={6} className="text-center py-5">
                             <div className="empty-state">
                               <i className="bi bi-search text-muted" style={{ fontSize: "3rem" }}></i>
                               <h5 className="text-muted mt-3 mb-2">No users found</h5>
@@ -641,9 +648,6 @@ function UsersPage() {
                               </div>
                             </td>
                             <td className="fw-medium">{user.lastName}</td>
-                            <td>
-                              <code className="text-muted">@{user.username}</code>
-                            </td>
                             <td>
                               {user.roles && user.roles.length > 0 ? (
                                 <span className="badge bg-primary rounded-pill" title={`Role: ${user.roles[0].name}`}>

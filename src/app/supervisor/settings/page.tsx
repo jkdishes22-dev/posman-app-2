@@ -88,7 +88,7 @@ export default function SupervisorSettingsPage() {
                               </Button>
                               <Button
                                 variant="outline-success"
-                                onClick={() => window.location.href = '/supervisor/production/definitions'}
+                                onClick={() => window.location.href = '/supervisor/menu/recipes'}
                               >
                                 <i className="bi bi-calculator me-1"></i>
                                 Manage Definitions

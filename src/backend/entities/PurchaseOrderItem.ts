@@ -1,4 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn, Index } from "typeorm";
+import type { Relation } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { PurchaseOrder } from "./PurchaseOrder";
 import { Item } from "./Item";
@@ -12,7 +13,7 @@ export class PurchaseOrderItem extends BaseEntity {
 
     @ManyToOne(() => PurchaseOrder, (po) => po.items)
     @JoinColumn({ name: "purchase_order_id" })
-    purchase_order: PurchaseOrder;
+    purchase_order: Relation<PurchaseOrder>;
 
     @Column({ type: "int", nullable: true, name: "item_id" })
     item_id: number;

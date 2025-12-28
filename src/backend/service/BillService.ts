@@ -1,5 +1,6 @@
 import { Bill, BillStatus } from "@entities/Bill";
 import { BillItem, BillItemStatus } from "@entities/BillItem";
+import { Item } from "@entities/Item";
 import { AppDataSource } from "@backend/config/data-source";
 import { UserService } from "./UserService";
 import { BillPaymentInterface } from "@backend/interfaces/BillPayment";
@@ -45,7 +46,47 @@ export class BillService {
   async createBill(payload) {
     const { items, total, user_id, station_id, request_id } = payload;
 
-    return await this.billRepository.manager.transaction(
+    // Validate inventory availability BEFORE creating the bill
+    // Use the same logic as the frontend availability check
+    const itemIds = items.map((item: any) => item.item_id);
+    const availableInventory = await this.inventoryService.getAvailableInventoryForItems(itemIds);
+
+    // Batch load all items to check allowNegativeInventory flags
+    const itemRepository = this.billRepository.manager.getRepository(Item);
+    const itemEntities = await itemRepository.find({
+      where: itemIds.map(id => ({ id })),
+    });
+    const itemsMap = new Map<number, Item>();
+    for (const itemEntity of itemEntities) {
+      itemsMap.set(itemEntity.id, itemEntity);
+    }
+
+    // Check each item's availability (respect allowNegativeInventory flag)
+    for (const item of items) {
+      const itemEntity = itemsMap.get(item.item_id);
+      const allowNegative = Boolean(itemEntity?.allowNegativeInventory) || Number(itemEntity?.allowNegativeInventory) === 1;
+
+      // Skip validation for items that allow negative inventory
+      if (allowNegative) {
+        continue;
+      }
+
+      const available = availableInventory.get(item.item_id) || 0;
+      const requestedQuantity = item.quantity;
+
+      if (available < requestedQuantity) {
+        const itemName = itemEntity?.name || `Item ${item.item_id}`;
+
+        throw new Error(
+          `Insufficient inventory for ${itemName}. ` +
+          `Available: ${available}, Requested: ${requestedQuantity}. ` +
+          `Please issue more ${itemName} to inventory before adding to bill.`
+        );
+      }
+    }
+
+    // Create bill in transaction
+    const completeBill = await this.billRepository.manager.transaction(
       async (transactionalEntityManager) => {
         // Check for idempotency - if request_id is provided, check if bill already exists
         if (request_id) {
@@ -80,28 +121,35 @@ export class BillService {
         await transactionalEntityManager.save(BillItem, billItems);
 
         // Fetch the complete bill with relations for return
-        const completeBill = await transactionalEntityManager.findOne(Bill, {
+        const bill = await transactionalEntityManager.findOne(Bill, {
           where: { id: newBill.id },
           relations: ["bill_items", "bill_items.item", "user", "station"]
         });
 
-        // Reserve inventory for bill (Phase 1: Reservation)
-        // This happens outside the transaction to use InventoryService's own transaction
-        // but we need to ensure the bill is saved first
-        if (completeBill) {
-          try {
-            await this.inventoryService.reserveInventoryForBill(completeBill.id, user_id);
-          } catch (error: any) {
-            // If inventory reservation fails, we should rollback the bill creation
-            // But since we're outside the transaction, we need to handle this differently
-            // For now, we'll let it fail and the caller should handle the error
-            throw new Error(`Failed to reserve inventory: ${error.message}`);
-          }
+        if (!bill) {
+          throw new Error("Failed to fetch created bill");
         }
 
-        return completeBill;
+        return bill;
       },
     );
+
+    // Reserve inventory for bill (Phase 1: Reservation)
+    // This happens AFTER the transaction commits to ensure the bill is visible
+    // Pass the bill object directly to avoid lookup issues
+    console.log(`[BillService] About to reserve inventory for bill ${completeBill.id} with ${completeBill.bill_items?.length || 0} items`);
+    try {
+      await this.inventoryService.reserveInventoryForBill(completeBill, user_id);
+      console.log(`[BillService] Successfully reserved inventory for bill ${completeBill.id}`);
+    } catch (error: any) {
+      console.error(`[BillService] Failed to reserve inventory for bill ${completeBill.id}:`, error);
+      // If inventory reservation fails, we should delete the bill or mark it as failed
+      // For now, we'll let it fail and the caller should handle the error
+      // TODO: Consider adding a cleanup mechanism for bills with failed inventory reservation
+      throw new Error(`Failed to reserve inventory: ${error.message}`);
+    }
+
+    return completeBill;
   }
 
   async fetchBills(userId: number, billFilter: BillFilter, page = 1, pageSize = 20) {

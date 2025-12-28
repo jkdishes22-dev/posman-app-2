@@ -8,8 +8,9 @@ import AddSubItemModal from "./new";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
 import { useApiCall } from "src/app/utils/apiUtils";
 import { ApiErrorResponse } from "src/app/utils/errorUtils";
+import { useTooltips } from "../../../hooks/useTooltips";
 
-function InventoryItemsPage() {
+function RecipesPage() {
   const [items, setItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -23,6 +24,7 @@ function InventoryItemsPage() {
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const apiCall = useApiCall();
   const [addSubItemError, setAddSubItemError] = useState<string | null>(null);
+  useTooltips();
 
   useEffect(() => {
     fetchItems();
@@ -38,9 +40,9 @@ function InventoryItemsPage() {
 
   const fetchItems = async () => {
     try {
-      const result = await apiCall("/api/production");
+      // Fetch only composite items for recipes
+      const result = await apiCall("/api/production?compositeOnly=true");
       if (result.status === 200) {
-        // Ensure data is an array before setting it
         const itemsArray = Array.isArray(result.data) ? result.data : [];
         setItems(itemsArray);
         setFilteredItems(itemsArray);
@@ -61,7 +63,7 @@ function InventoryItemsPage() {
           detailedError += `\n\nYour roles: ${userRoles.join(', ')}`;
         }
         if (!isAdmin) {
-          detailedError += `\n\nNote: You need admin privileges to access production definitions.`;
+          detailedError += `\n\nNote: You need admin privileges to access recipes.`;
         }
 
         setFetchError(detailedError);
@@ -129,12 +131,12 @@ function InventoryItemsPage() {
         setAddSubItemError(detailedError);
         setErrorDetails(result.errorDetails);
       } else {
-        setAddSubItemError(result.error || "Failed to add sub-item");
+        setAddSubItemError(result.error || "Failed to add ingredient");
         setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      console.error("Error adding sub-item to item:", error);
-      setAddSubItemError("Network error occurred while adding sub-item");
+      console.error("Error adding ingredient:", error);
+      setAddSubItemError("Network error occurred while adding ingredient");
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
@@ -147,11 +149,11 @@ function InventoryItemsPage() {
         setSubItems(items);
         updateItemsInState(itemId, items);
       } else {
-        console.error("Failed to fetch sub-items:", result.error);
+        console.error("Failed to fetch ingredients:", result.error);
         setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      console.error("Error fetching sub-items:", error);
+      console.error("Error fetching ingredients:", error);
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
@@ -188,11 +190,11 @@ function InventoryItemsPage() {
       if (result.status === 200) {
         await fetchSubItemsFromBackend(selectedItem);
       } else {
-        console.error("Failed to remove sub-item:", result.error);
+        console.error("Failed to remove ingredient:", result.error);
         setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
-      console.error("Error removing sub-item from item:", error);
+      console.error("Error removing ingredient:", error);
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
@@ -211,10 +213,20 @@ function InventoryItemsPage() {
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
           <h1 className="h4 mb-0 fw-bold">
-            <i className="bi bi-box-seam me-2"></i>
-            Production Definitions
+            <i className="bi bi-journal-text me-2"></i>
+            Recipes
+            <i 
+              className="bi bi-question-circle ms-2" 
+              style={{ cursor: "help", fontSize: "0.9rem" }}
+              data-bs-toggle="tooltip" 
+              data-bs-placement="bottom"
+              data-bs-html="true"
+              title="<strong>Recipes:</strong> Define how much stock items (ingredients) are deducted when composite items are sold.<br/><br/><strong>Composite Items:</strong> Items with recipes that define ingredient ratios (left panel).<br/><strong>Stock Items:</strong> Purchased/supplied items used as ingredients.<br/><strong>Portion Size:</strong> Amount deducted per unit sold.<br/><br/><strong>Example:</strong> 'Breakfast Combo' with Eggs (portion 2) → selling 5 combos deducts 10 eggs.<br/><br/><strong>Note:</strong> Simple items without recipes default to 1:1 deduction."
+            ></i>
           </h1>
+          <p className="mb-0 small mt-2">Define how much stock items (ingredients) are deducted when composite items are sold</p>
         </div>
+
 
         {/* Error Display */}
         {fetchError && (
@@ -253,7 +265,7 @@ function InventoryItemsPage() {
             <div className="d-flex align-items-start">
               <i className="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
               <div className="flex-grow-1">
-                <strong>Add Sub-Item Error</strong>
+                <strong>Add Ingredient Error</strong>
                 <div className="mt-2">
                   {addSubItemError.split('\n').map((line, index) => (
                     <div key={index} className={line.includes('Missing permissions:') || line.includes('Your roles:') ? 'small text-muted' : ''}>
@@ -293,10 +305,17 @@ function InventoryItemsPage() {
           <div className="col-md-4">
             <div className="card shadow-sm">
               <div className="card-header bg-light">
-                <h5 className="mb-0 fw-bold">
-                  <i className="bi bi-box-seam me-2 text-primary"></i>
-                  Stock Menu Items
-                </h5>
+                    <h5 className="mb-0 fw-bold">
+                    <i className="bi bi-box-seam me-2 text-primary"></i>
+                    Composite Items
+                    <i 
+                      className="bi bi-question-circle ms-2 text-muted" 
+                      style={{ cursor: "help" }}
+                      data-bs-toggle="tooltip" 
+                      data-bs-placement="right"
+                      title="Items with recipes that define ingredient ratios. Select an item to view or edit its recipe."
+                    ></i>
+                  </h5>
               </div>
               <div className="card-body">
                 <div className="mb-3">
@@ -324,7 +343,7 @@ function InventoryItemsPage() {
                       </li>
                     ))
                   ) : (
-                    <li className="list-group-item">No items found</li>
+                    <li className="list-group-item">No composite items found</li>
                   )}
                 </div>
               </div>
@@ -337,12 +356,19 @@ function InventoryItemsPage() {
                 <div className="d-flex justify-content-between align-items-center">
                   <h5 className="mb-0 fw-bold">
                     <i className="bi bi-list-ul me-2 text-primary"></i>
-                    Sub-Items for {selectedItem ? selectedItemName : "Selected Item"}
+                    Ingredients for {selectedItem ? selectedItemName : "Selected Item"}
+                    <i 
+                      className="bi bi-question-circle ms-2 text-muted" 
+                      style={{ cursor: "help" }}
+                      data-bs-toggle="tooltip" 
+                      data-bs-placement="right"
+                      title="Stock items that will be deducted from inventory when this item is sold. Only stock items (isStock: true) can be added as ingredients."
+                    ></i>
                   </h5>
                   {selectedItem && (
                     <button className="btn btn-success btn-sm" onClick={openModal}>
                       <i className="bi bi-plus-circle me-1"></i>
-                      Add New Sub-Item
+                      Add Ingredient
                     </button>
                   )}
                 </div>
@@ -353,8 +379,8 @@ function InventoryItemsPage() {
                     <table className="table table-hover">
                       <thead className="table-light">
                         <tr>
-                          <th className="fw-semibold">Name</th>
-                          <th className="fw-semibold">Portion Size</th>
+                          <th className="fw-semibold">Ingredient</th>
+                          <th className="fw-semibold">Portion Size <span className="text-muted small">(per unit sold)</span></th>
                           <th className="fw-semibold text-center">Actions</th>
                         </tr>
                       </thead>
@@ -379,7 +405,8 @@ function InventoryItemsPage() {
                           <tr>
                             <td colSpan={3} className="text-center py-4">
                               <i className="bi bi-inbox text-muted" style={{ fontSize: '2rem' }}></i>
-                              <p className="text-muted mt-2 mb-0">No sub-items available</p>
+                              <p className="text-muted mt-2 mb-0">No ingredients defined</p>
+                              <p className="text-muted small mt-1">Add stock items (ingredients) that will be deducted when this item is sold</p>
                             </td>
                           </tr>
                         )}
@@ -389,7 +416,8 @@ function InventoryItemsPage() {
                 ) : (
                   <div className="text-center py-4">
                     <i className="bi bi-cursor text-muted" style={{ fontSize: '3rem' }}></i>
-                    <p className="text-muted mt-3 mb-0">Select an item to view its sub-items</p>
+                    <p className="text-muted mt-3 mb-0">Select a composite item to view or edit its recipe</p>
+                    <p className="text-muted small mt-2">Define which stock items (ingredients) are used and how much is deducted per unit sold</p>
                   </div>
                 )}
               </div>
@@ -411,7 +439,7 @@ function InventoryItemsPage() {
           <Modal.Title>Confirm Action</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Are you sure you want to remove this sub-item from the stock item?
+          Are you sure you want to remove this ingredient from the recipe?
         </Modal.Body>
         <Modal.Footer>
           <Button
@@ -429,4 +457,5 @@ function InventoryItemsPage() {
   );
 }
 
-export default InventoryItemsPage;
+export default RecipesPage;
+

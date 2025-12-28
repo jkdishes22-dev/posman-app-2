@@ -83,16 +83,18 @@ export class PurchaseOrderService {
             throw new Error(`Supplier ${input.supplier_id} not found`);
         }
 
-        // Check supplier credit limit
+        // Check supplier credit limit (only if credit_limit > 0)
         const balance = await this.supplierService.getSupplierBalance(input.supplier_id);
         const totalAmount = input.items.reduce(
             (sum, item) => sum + item.quantity_ordered * item.unit_price,
             0
         );
 
-        if (balance.available_credit < totalAmount) {
+        // Only enforce credit limit if supplier has a credit limit set (> 0)
+        // This allows creating POs for suppliers without credit limits (cash on delivery, etc.)
+        if (supplier.credit_limit > 0 && balance.available_credit < totalAmount) {
             throw new Error(
-                `Purchase order amount (${totalAmount}) exceeds available credit (${balance.available_credit})`
+                `Purchase order amount (${totalAmount}) exceeds available credit (${balance.available_credit}). Credit limit: ${supplier.credit_limit}`
             );
         }
 

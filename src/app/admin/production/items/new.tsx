@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 import { InventoryItem } from "src/app/types/types";
+import { useTooltips } from "../../../hooks/useTooltips";
 
 interface InventoryModalProps {
   showModal: boolean;
@@ -16,6 +17,7 @@ function InventoryModal({
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [isStock, setIsStock] = useState(true);
+  useTooltips();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,7 +51,17 @@ function InventoryModal({
           </Form.Group>
 
           <Form.Group>
-            <Form.Label>Stock Item</Form.Label>
+            <Form.Label>
+              Stock Item (Suppliable)
+              <i 
+                className="bi bi-question-circle ms-1 text-muted" 
+                style={{ cursor: "help" }}
+                data-bs-toggle="tooltip" 
+                data-bs-placement="right"
+                data-bs-html="true"
+                title="<strong>Stock Items (isStock: true):</strong> Items purchased/supplied (e.g., Eggs, Milk, Flour). Can be used as ingredients in recipes and are received via purchase orders.<br/><br/><strong>Sellable Items (isStock: false):</strong> Items produced and sold (e.g., Tortilla, Coffee, Omelette). Composite items (isGroup: true) can have recipes that specify how much stock items are deducted when sold.<br/><br/><strong>Note:</strong> Items can be both stock and sellable (e.g., Milk can be purchased AND produced). The system handles both inventory pools separately."
+              ></i>
+            </Form.Label>
             <Form.Check
               type="checkbox"
               checked={isStock}

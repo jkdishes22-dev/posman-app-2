@@ -51,7 +51,7 @@ export const createItemHandler = async (
 ) => {
   const itemService = new ItemService(req.db);
   try {
-    const { name, code, price, category, pricelistId, isGroup } = req.body;
+    const { name, code, price, category, pricelistId, isGroup, isStock } = req.body;
     const user_id = parseInt(req.user.id, 10);
 
     const itemData = {
@@ -59,6 +59,7 @@ export const createItemHandler = async (
       code,
       category,
       isGroup,
+      isStock: isStock || false, // Default to false if not provided
     };
     const item = await itemService.createItem(
       itemData,

@@ -46,6 +46,13 @@ export default function AdminPage() {
       path: "/admin/production"
     },
     {
+      title: "Inventory Management",
+      description: "View inventory levels, low stock alerts, and manage stock",
+      icon: "bi-boxes",
+      color: "info",
+      path: "/storekeeper"
+    },
+    {
       title: "Bill Management",
       description: "Process bills and help users with billing",
       icon: "bi-receipt",

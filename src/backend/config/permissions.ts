@@ -32,7 +32,6 @@ const permissions = {
     CAN_EDIT_INVENTORY: "can_edit_inventory",
     CAN_DELETE_INVENTORY: "can_delete_inventory",
     CAN_VIEW_INVENTORY: "can_view_inventory",
-    CAN_ADJUST_INVENTORY: "can_adjust_inventory",
 
     // Item
     CAN_ADD_ITEM: "can_add_item",
@@ -138,6 +137,10 @@ const permissions = {
     CAN_EDIT_PERMISSION_SCOPE: "can_edit_permission_scope",
     CAN_DELETE_PERMISSION_SCOPE: "can_delete_permission_scope",
     CAN_VIEW_PERMISSION_SCOPE: "can_view_permission_scope",
+
+    // Production
+    CAN_ISSUE_PRODUCTION: "can_issue_production",
+    CAN_VIEW_PRODUCTION_HISTORY: "can_view_production_history",
 };
 
 export default permissions;

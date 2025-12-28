@@ -159,7 +159,7 @@ export default function SuppliersPage() {
       email: supplier.email || "",
       phone: supplier.phone || "",
       address: supplier.address || "",
-      credit_limit: supplier.credit_limit.toString(),
+      credit_limit: supplier.credit_limit != null ? supplier.credit_limit.toString() : "",
       payment_terms: supplier.payment_terms || "",
       status: supplier.status,
     });
@@ -406,7 +406,7 @@ export default function SuppliersPage() {
                       <td>{supplier.contact_person || "-"}</td>
                       <td>{supplier.email || "-"}</td>
                       <td>{supplier.phone || "-"}</td>
-                      <td>${supplier.credit_limit.toFixed(2)}</td>
+                      <td>${supplier?.credit_limit != null ? Number(supplier.credit_limit).toFixed(2) : "0.00"}</td>
                       <td>
                         <Badge bg={supplier.status === "active" ? "success" : "secondary"}>
                           {supplier.status}
@@ -420,7 +420,8 @@ export default function SuppliersPage() {
                           onClick={() => handleViewDetails(supplier)}
                           title="View Details"
                         >
-                          <i className="bi bi-eye"></i>
+                          <i className="bi bi-eye me-1"></i>
+                          View
                         </Button>
                         <Button
                           variant="outline-primary"
@@ -429,7 +430,8 @@ export default function SuppliersPage() {
                           onClick={() => handleEdit(supplier)}
                           title="Edit"
                         >
-                          <i className="bi bi-pencil"></i>
+                          <i className="bi bi-pencil me-1"></i>
+                          Edit
                         </Button>
                         <Button
                           variant="outline-danger"
@@ -437,7 +439,8 @@ export default function SuppliersPage() {
                           onClick={() => handleDelete(supplier)}
                           title="Delete"
                         >
-                          <i className="bi bi-trash"></i>
+                          <i className="bi bi-trash me-1"></i>
+                          Delete
                         </Button>
                       </td>
                     </tr>
@@ -455,11 +458,20 @@ export default function SuppliersPage() {
           </Modal.Header>
           <Form onSubmit={handleSubmit}>
             <Modal.Body>
-              {formError && (
+              {formError && errorDetails?.status === 403 ? (
+                <ErrorDisplay
+                  error={formError}
+                  errorDetails={errorDetails}
+                  onDismiss={() => {
+                    setFormError(null);
+                    setErrorDetails(null);
+                  }}
+                />
+              ) : formError ? (
                 <Alert variant="danger" dismissible onClose={() => setFormError(null)}>
                   {formError}
                 </Alert>
-              )}
+              ) : null}
               <Row>
                 <Col md={6}>
                   <Form.Group className="mb-3">
@@ -575,11 +587,20 @@ export default function SuppliersPage() {
           </Modal.Header>
           <Form onSubmit={handleSubmit}>
             <Modal.Body>
-              {formError && (
+              {formError && errorDetails?.status === 403 ? (
+                <ErrorDisplay
+                  error={formError}
+                  errorDetails={errorDetails}
+                  onDismiss={() => {
+                    setFormError(null);
+                    setErrorDetails(null);
+                  }}
+                />
+              ) : formError ? (
                 <Alert variant="danger" dismissible onClose={() => setFormError(null)}>
                   {formError}
                 </Alert>
-              )}
+              ) : null}
               <Row>
                 <Col md={6}>
                   <Form.Group className="mb-3">
@@ -694,11 +715,20 @@ export default function SuppliersPage() {
             <Modal.Title>Confirm Delete</Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            {formError && (
+            {formError && errorDetails?.status === 403 ? (
+              <ErrorDisplay
+                error={formError}
+                errorDetails={errorDetails}
+                onDismiss={() => {
+                  setFormError(null);
+                  setErrorDetails(null);
+                }}
+              />
+            ) : formError ? (
               <Alert variant="danger" dismissible onClose={() => setFormError(null)}>
                 {formError}
               </Alert>
-            )}
+            ) : null}
             <p>
               Are you sure you want to delete supplier <strong>{selectedSupplier?.name}</strong>?
             </p>
@@ -763,7 +793,7 @@ export default function SuppliersPage() {
                       </Card.Header>
                       <Card.Body>
                         <p className="mb-2">
-                          <strong>Credit Limit:</strong> ${selectedSupplier.credit_limit.toFixed(2)}
+                          <strong>Credit Limit:</strong> ${selectedSupplier?.credit_limit != null ? Number(selectedSupplier.credit_limit).toFixed(2) : "0.00"}
                         </p>
                         <p className="mb-2">
                           <strong>Payment Terms:</strong> {selectedSupplier.payment_terms || "-"}

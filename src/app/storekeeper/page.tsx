@@ -38,31 +38,42 @@ export default function StorekeeperPage() {
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
 
   useEffect(() => {
-    fetchLowStockItems();
+    fetchDashboardData();
   }, [apiCall]);
 
-  const fetchLowStockItems = async () => {
+  const fetchDashboardData = async () => {
     setIsLoading(true);
     setError(null);
     setErrorDetails(null);
 
     try {
-      const result = await apiCall("/api/inventory/low-stock");
-      if (result.status >= 200 && result.status < 300) {
-        const items = Array.isArray(result.data) ? result.data : [];
-        setLowStockItems(items);
+      // Fetch stats and low stock items in parallel
+      const [statsResult, lowStockResult] = await Promise.all([
+        apiCall("/api/inventory/stats"),
+        apiCall("/api/inventory/low-stock")
+      ]);
 
-        // Calculate stats
-        const outOfStock = items.filter(item => item.available_quantity === 0).length;
-        setStats({
-          totalItems: 0, // TODO: Fetch total items count
-          lowStockItems: items.length,
-          outOfStockItems: outOfStock,
-          recentMovements: 0, // TODO: Fetch recent movements count
-        });
+      // Handle stats
+      if (statsResult.status === 200) {
+        setStats(statsResult.data);
       } else {
-        setError(result.error || "Failed to fetch low stock items");
-        setErrorDetails(result.errorDetails);
+        console.warn("Failed to fetch inventory stats:", statsResult.error);
+        // Set default stats on error
+        setStats({
+          totalItems: 0,
+          lowStockItems: 0,
+          outOfStockItems: 0,
+          recentMovements: 0
+        });
+      }
+
+      // Handle low stock items
+      if (lowStockResult.status >= 200 && lowStockResult.status < 300) {
+        const items = Array.isArray(lowStockResult.data) ? lowStockResult.data : [];
+        setLowStockItems(items);
+      } else {
+        setError(lowStockResult.error || "Failed to fetch low stock items");
+        setErrorDetails(lowStockResult.errorDetails);
       }
     } catch (error: any) {
       setError("Network error occurred");
@@ -132,7 +143,19 @@ export default function StorekeeperPage() {
         {/* Key Metrics */}
         <Row className="mb-4">
           <Col md={3}>
-            <Card className="text-center h-100">
+            <Card
+              className="text-center h-100"
+              style={{ cursor: "pointer" }}
+              onClick={() => router.push("/storekeeper/stock")}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+              }}
+            >
               <Card.Body>
                 <div className="text-primary mb-2">
                   <i className="bi bi-box fs-1"></i>
@@ -143,7 +166,19 @@ export default function StorekeeperPage() {
             </Card>
           </Col>
           <Col md={3}>
-            <Card className="text-center h-100">
+            <Card
+              className="text-center h-100"
+              style={{ cursor: "pointer" }}
+              onClick={() => router.push("/storekeeper/stock?filter=lowStock")}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+              }}
+            >
               <Card.Body>
                 <div className="text-warning mb-2">
                   <i className="bi bi-exclamation-triangle fs-1"></i>
@@ -154,7 +189,19 @@ export default function StorekeeperPage() {
             </Card>
           </Col>
           <Col md={3}>
-            <Card className="text-center h-100">
+            <Card
+              className="text-center h-100"
+              style={{ cursor: "pointer" }}
+              onClick={() => router.push("/storekeeper/stock?filter=outOfStock")}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+              }}
+            >
               <Card.Body>
                 <div className="text-danger mb-2">
                   <i className="bi bi-x-circle fs-1"></i>
@@ -165,7 +212,19 @@ export default function StorekeeperPage() {
             </Card>
           </Col>
           <Col md={3}>
-            <Card className="text-center h-100">
+            <Card
+              className="text-center h-100"
+              style={{ cursor: "pointer" }}
+              onClick={() => router.push("/storekeeper/inventory/transactions")}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+              }}
+            >
               <Card.Body>
                 <div className="text-info mb-2">
                   <i className="bi bi-arrow-left-right fs-1"></i>
@@ -257,10 +316,17 @@ export default function StorekeeperPage() {
                   </Button>
                   <Button
                     variant="info"
-                    onClick={() => router.push("/storekeeper/inventory")}
+                    onClick={() => router.push("/storekeeper/stock")}
                   >
                     <i className="bi bi-box-seam me-2"></i>
-                    Inventory Details
+                    Inventory List
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => router.push("/storekeeper/inventory/transactions")}
+                  >
+                    <i className="bi bi-arrow-left-right me-2"></i>
+                    View Transactions
                   </Button>
                 </div>
               </Card.Body>

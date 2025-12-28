@@ -17,6 +17,7 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "bootstrap": "^5.3.3",
+    "bootstrap-icons": "^1.13.1",
     "class-transformer": "^0.5.1",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",

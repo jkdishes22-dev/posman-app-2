@@ -15,29 +15,57 @@ export default function RoleAwareLayout({ children }) {
     useEffect(() => {
         const extractRole = () => {
             const token = localStorage.getItem("token");
-            if (token) {
-                try {
-                    const decoded = jwt.decode(token) as any;
-                    if (decoded && decoded.roles && Array.isArray(decoded.roles) && decoded.roles.length > 0) {
-                        // Roles in JWT are strings (role names), not objects
-                        const roleName = decoded.roles[0];
-                        // Ensure it's a string and lowercase for comparison
-                        const normalizedRole = typeof roleName === "string" ? roleName.toLowerCase() : String(roleName).toLowerCase();
+            if (!token) {
+                setRole(null);
+                setIsLoading(false);
+                return;
+            }
+
+            try {
+                const decoded = jwt.decode(token) as any;
+                if (decoded && decoded.roles) {
+                    // Handle both array and single role formats
+                    let rolesArray: any[] = [];
+                    if (Array.isArray(decoded.roles)) {
+                        rolesArray = decoded.roles;
+                    } else if (typeof decoded.roles === 'string') {
+                        rolesArray = [decoded.roles];
+                    } else if (decoded.roles && typeof decoded.roles === 'object') {
+                        // Handle case where roles might be objects with a 'name' property
+                        rolesArray = Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles];
+                    }
+
+                    if (rolesArray.length > 0) {
+                        // Extract role name - handle both string and object formats
+                        const firstRole = rolesArray[0];
+                        const roleName = typeof firstRole === "string"
+                            ? firstRole
+                            : (firstRole?.name || firstRole?.role || String(firstRole));
+
+                        // Normalize role name
+                        const normalizedRole = typeof roleName === "string"
+                            ? roleName.toLowerCase()
+                            : String(roleName).toLowerCase();
+
                         setRole(normalizedRole);
+                        setIsLoading(false);
                         return;
                     }
-                } catch (error) {
-                    console.error("Error decoding token in RoleAwareLayout:", error);
                 }
+            } catch (error) {
+                console.error("Error decoding token in RoleAwareLayout:", error);
             }
+
+            // No valid role found
             setRole(null);
+            setIsLoading(false);
         };
 
         extractRole();
-        setIsLoading(false);
 
         // Listen for storage changes (e.g., when user logs in/out)
         const handleStorageChange = () => {
+            setIsLoading(true);
             extractRole();
         };
 
@@ -52,7 +80,7 @@ export default function RoleAwareLayout({ children }) {
 
     // Role-based layout selection (case-insensitive)
     const normalizedRole = role?.toLowerCase();
-    
+
     if (normalizedRole === "admin") {
         return <AdminLayout authError={null}>{children}</AdminLayout>;
     }
@@ -68,7 +96,7 @@ export default function RoleAwareLayout({ children }) {
     if (normalizedRole === "storekeeper") {
         return <StoreKeeperPageLayout authError={null}>{children}</StoreKeeperPageLayout>;
     }
-    
+
     // Default fallback for users without a recognized role
     return <HomePageLayout>{children}</HomePageLayout>;
 } 

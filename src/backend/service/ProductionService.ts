@@ -21,10 +21,22 @@ export class ProductionService {
     return savedItem;
   }
 
-  async fetchProductionItems() {
+  async fetchProductionItems(compositeOnly: boolean = false) {
+    if (compositeOnly) {
+      // Return only composite items (isGroup: true) for recipes
+      const items = await this.itemRepository.find({
+        where: {
+          isGroup: true,
+        },
+      });
+      return items;
+    }
+    
+    // Return sellable items (isStock: false) for production issuing
+    // These are the items that can be produced and sold
     const items = await this.itemRepository.find({
       where: {
-        isStock: true,
+        isStock: false,
       },
     });
     return items;

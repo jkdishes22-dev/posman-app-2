@@ -74,8 +74,9 @@ export default function UsersPage() {
       const result = await apiCall("/api/roles/scopes");
       if (result.status === 200) {
         setScopes(result.data);
+        // Initialize with scope.name as key to match fetchPermissions
         const emptyPermissionsByScope = result.data.reduce((acc, scope) => {
-          acc[scope.id] = [];
+          acc[scope.name] = [];
           return acc;
         }, {});
         setPermissionsByScope(emptyPermissionsByScope);
@@ -95,10 +96,12 @@ export default function UsersPage() {
       const result = await apiCall(`/api/roles/${role.id}/permissions`);
       if (result.status === 200) {
         setError(null);
+        // Initialize all scopes with empty arrays first
         const updatedPermissionsByScope = scopes.reduce((acc, scope) => {
           acc[scope.name] = [];
           return acc;
         }, {});
+        // Populate with actual permissions
         result.data.forEach((perm) => {
           if (!updatedPermissionsByScope[perm.scope]) {
             updatedPermissionsByScope[perm.scope] = [];
@@ -173,25 +176,38 @@ export default function UsersPage() {
     setShowAddModal(true);
   };
 
-  const fetchAvailablePermissions = async () => {
+  const fetchAvailablePermissions = async (inputValue: string = "") => {
     if (!selectedScope) {
       return [];
     }
     try {
       const result = await apiCall(`/api/roles/scopes/${selectedScope.id}/permissions`);
       if (result.status === 200) {
-        const allPermissions = result.data[0].permissions;
+        // Handle both array and object response formats
+        const scopeData = Array.isArray(result.data) ? result.data[0] : result.data;
+        const allPermissions = scopeData?.permissions || [];
         const existingPermissions = permissionsByScope[selectedScope.name] || [];
+        const existingPermissionNames = existingPermissions.map((p: any) => p.name || p);
 
-        const filteredPermissions = allPermissions.filter(
-          (permission) => !existingPermissions.includes(permission.name),
+        // Filter out already assigned permissions
+        let filteredPermissions = allPermissions.filter(
+          (permission: any) => !existingPermissionNames.includes(permission.name),
         );
-        const formattedPermissions = filteredPermissions.map((permission) => ({
+
+        // Filter by search input if provided
+        if (inputValue && inputValue.trim().length > 0) {
+          const searchTerm = inputValue.toLowerCase().trim();
+          filteredPermissions = filteredPermissions.filter((permission: any) =>
+            permission.name.toLowerCase().includes(searchTerm)
+          );
+        }
+
+        const formattedPermissions = filteredPermissions.map((permission: any) => ({
           label: permission.name,
           value: permission.id,
         }));
 
-        setAvailablePermissions(formattedPermissions);
+        setAvailablePermissions(formattedPermissions.map((p: any) => p.label));
         return formattedPermissions;
       } else {
         setError({ message: result.error || "Failed to fetch available permissions" });
@@ -375,7 +391,7 @@ export default function UsersPage() {
                             </div>
                           </div>
                           <div className="card-body">
-                            {permissionsByScope[selectedScope.name].length > 0 ? (
+                            {permissionsByScope[selectedScope.name] && permissionsByScope[selectedScope.name].length > 0 ? (
                               <div className="row g-2">
                                 {permissionsByScope[selectedScope.name].map((perm) => (
                                   <div key={perm.id || perm} className="col-md-6 col-lg-4">
@@ -456,9 +472,17 @@ export default function UsersPage() {
           <Form.Group className="mb-3">
             <Form.Label>Permission</Form.Label>
             <AsyncSelect
-              loadOptions={fetchAvailablePermissions}
+              loadOptions={(inputValue) => fetchAvailablePermissions(inputValue)}
               defaultOptions
-              onChange={setSelectedPermission} // Update the selected permission
+              onChange={setSelectedPermission}
+              placeholder="Search permissions..."
+              isSearchable={true}
+              cacheOptions={false}
+              noOptionsMessage={({ inputValue }) =>
+                inputValue.length > 0
+                  ? `No permissions found for "${inputValue}"`
+                  : "Type to search permissions"
+              }
             />
           </Form.Group>
         </Modal.Body>

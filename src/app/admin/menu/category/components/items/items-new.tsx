@@ -11,6 +11,7 @@ import {
 import ErrorDisplay from "../../../../../components/ErrorDisplay";
 import { useApiCall } from "../../../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../../../utils/errorUtils";
+import { useTooltips } from "../../../../../hooks/useTooltips";
 
 interface NewItemModalProps {
   selectedCategory: Category | null;
@@ -38,6 +39,8 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   const [itemPrice, setItemPrice] = useState<number | "">("");
   const [pricelistId, setPricelistId] = useState<string>("");
   const [isGroup, setIsGroup] = useState(false);
+  const [isStock, setIsStock] = useState(false);
+  const [allowNegativeInventory, setAllowNegativeInventory] = useState(false);
   const [pricelists, setPricelists] = useState([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
@@ -47,6 +50,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [priceListError, setFetchPricelistError] = useState(null);
   const apiCall = useApiCall();
+  useTooltips();
 
   // Determine context for conditional rendering
   const isFromPricelistPage = !selectedCategory && selectedPricelistId;
@@ -127,6 +131,8 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
       category: isFromCategoryPage ? selectedCategory?.id : (selectedCategoryId || null),
       pricelistId: isFromPricelistPage ? selectedPricelistId : pricelistId,
       isGroup,
+      isStock,
+      allowNegativeInventory,
     };
 
     // Use custom handler if provided (for pricelist page), otherwise use default API call
@@ -140,6 +146,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         setPricelistId("");
         setSelectedCategoryId("");
         setIsGroup(false);
+        setIsStock(false);
         setAddItemError(null);
       } catch (error: any) {
         setAddItemError("Failed to create item: " + error.message);
@@ -298,6 +305,41 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
               type="checkbox"
               checked={isGroup}
               onChange={(e) => setIsGroup(e.target.checked)}
+            />
+          </div>
+          <div className="form-group">
+            <label>
+              Is Stock Item (Suppliable)
+              <i 
+                className="bi bi-question-circle ms-1 text-muted" 
+                style={{ cursor: "help" }}
+                data-bs-toggle="tooltip" 
+                data-bs-placement="right"
+                data-bs-html="true"
+                title="<strong>Stock Items (isStock: true):</strong> Items purchased/supplied (e.g., Eggs, Milk, Flour). Can be used as ingredients in recipes and are received via purchase orders.<br/><br/><strong>Sellable Items (isStock: false):</strong> Items produced and sold (e.g., Tortilla, Coffee, Omelette). Composite items (isGroup: true) can have recipes that specify how much stock items are deducted when sold.<br/><br/><strong>Note:</strong> Items can be both stock and sellable (e.g., Milk can be purchased AND produced). The system handles both inventory pools separately."
+              ></i>
+            </label>
+            <input
+              type="checkbox"
+              checked={isStock}
+              onChange={(e) => setIsStock(e.target.checked)}
+            />
+          </div>
+          <div className="form-group">
+            <label>
+              Allow Negative Inventory{" "}
+              <i
+                className="bi bi-question-circle text-muted"
+                data-bs-toggle="tooltip"
+                data-bs-placement="right"
+                data-bs-html="true"
+                title="When enabled, this item can be sold even when inventory is zero or negative. Use with caution - this bypasses normal inventory validation."
+              ></i>
+            </label>
+            <input
+              type="checkbox"
+              checked={allowNegativeInventory}
+              onChange={(e) => setAllowNegativeInventory(e.target.checked)}
             />
           </div>
           <ModalFooter>
