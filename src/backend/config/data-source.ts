@@ -22,6 +22,15 @@ import { Payment } from "@backend/entities/Payment";
 import { Notification } from "@backend/entities/Notification";
 import { CreditNote } from "@backend/entities/CreditNote";
 import { ReopenReason } from "@backend/entities/ReopenReason";
+import { Supplier } from "@backend/entities/Supplier";
+import { Inventory } from "@backend/entities/Inventory";
+import { PurchaseOrderItem } from "@backend/entities/PurchaseOrderItem";
+import { PurchaseOrder } from "@backend/entities/PurchaseOrder";
+import { InventoryTransaction } from "@backend/entities/InventoryTransaction";
+import { SupplierPayment } from "@backend/entities/SupplierPayment";
+import { SupplierTransaction } from "@backend/entities/SupplierTransaction";
+import { ProductionIssue } from "@backend/entities/ProductionIssue";
+import { ProductionPreparation } from "@backend/entities/ProductionPreparation";
 
 let connectionInstance: DataSource | null = null;
 let isInitializing = false;
@@ -57,6 +66,15 @@ export const AppDataSource = new DataSource({
     Notification,
     CreditNote,
     ReopenReason,
+    Supplier,
+    Inventory,
+    PurchaseOrderItem,
+    PurchaseOrder,
+    InventoryTransaction,
+    SupplierPayment,
+    SupplierTransaction,
+    ProductionIssue,
+    ProductionPreparation,
   ],
   migrations: ["src/backend/config/migrations/*.cjs"],
   synchronize: false,

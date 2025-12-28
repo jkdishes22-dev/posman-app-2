@@ -1,0 +1,344 @@
+"use client";
+import React, { useState, useEffect } from "react";
+import RoleAwareLayout from "../../../shared/RoleAwareLayout";
+import "bootstrap/dist/css/bootstrap.min.css";
+import {
+    Card,
+    Table,
+    Badge,
+    Button,
+    Form,
+    InputGroup,
+    Spinner,
+    Alert,
+    Row,
+    Col,
+    Pagination,
+} from "react-bootstrap";
+import { useApiCall } from "../../../utils/apiUtils";
+import ErrorDisplay from "../../../components/ErrorDisplay";
+import { ApiErrorResponse } from "../../../utils/errorUtils";
+import { AuthError } from "../../../types/types";
+
+interface InventoryTransaction {
+    id: number;
+    item_id: number;
+    item: {
+        id: number;
+        name: string;
+        code: string;
+    };
+    transaction_type: string;
+    quantity: number;
+    reference_type: string | null;
+    reference_id: number | null;
+    notes: string | null;
+    created_at: string;
+    created_by: number | null;
+}
+
+const DEFAULT_PAGE_SIZE = 10;
+
+export default function InventoryTransactionsPage() {
+    const apiCall = useApiCall();
+
+    const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+    const [authError, setAuthError] = useState<AuthError>(null);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [searchTerm, setSearchTerm] = useState<string>("");
+    const [itemIdFilter, setItemIdFilter] = useState<string>("");
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
+
+    // Debounce search term
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchTerm(searchTerm);
+            setPage(1); // Reset to first page when search changes
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        fetchTransactions();
+    }, [apiCall, page, itemIdFilter, debouncedSearchTerm]);
+
+    const fetchTransactions = async () => {
+        setIsLoading(true);
+        setError(null);
+        setErrorDetails(null);
+
+        try {
+            const params = new URLSearchParams({
+                page: page.toString(),
+                pageSize: DEFAULT_PAGE_SIZE.toString(),
+            });
+            if (itemIdFilter) {
+                params.append("itemId", itemIdFilter);
+            }
+            if (debouncedSearchTerm) {
+                params.append("search", debouncedSearchTerm);
+            }
+
+            const result = await apiCall(`/api/inventory/transactions?${params.toString()}`);
+            if (result.status === 200) {
+                setTransactions(result.data?.transactions || []);
+                setTotal(result.data?.total || 0);
+            } else {
+                if (result.status === 403) {
+                    setAuthError({ message: result.error || "Access denied" });
+                }
+                setError(result.error || "Failed to fetch transactions");
+                setErrorDetails(result.errorDetails);
+                setTransactions([]);
+            }
+        } catch (error: any) {
+            setError("Network error occurred");
+            setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+            setTransactions([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const getTransactionTypeBadge = (type: string) => {
+        const badges: { [key: string]: { bg: string; label: string } } = {
+            "bill_sale": { bg: "danger", label: "Bill Sale" },
+            "production_issue": { bg: "success", label: "Production Issue" },
+            "manual_adjustment": { bg: "warning", label: "Manual Adjustment" },
+            "purchase_order": { bg: "info", label: "Purchase Order" },
+            "disposal": { bg: "dark", label: "Disposal" },
+        };
+        const badge = badges[type] || { bg: "secondary", label: type };
+        return <Badge bg={badge.bg}>{badge.label}</Badge>;
+    };
+
+    const getQuantityDisplay = (quantity: number) => {
+        const isPositive = quantity > 0;
+        return (
+            <span className={isPositive ? "text-success" : "text-danger"}>
+                {isPositive ? "+" : ""}{quantity}
+            </span>
+        );
+    };
+
+    const formatReferenceType = (referenceType: string | null): string => {
+        if (!referenceType) return "";
+        // Convert snake_case to Title Case
+        return referenceType
+            .split("_")
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" ");
+    };
+
+    const totalPages = Math.ceil(total / DEFAULT_PAGE_SIZE);
+    const startItem = total === 0 ? 0 : (page - 1) * DEFAULT_PAGE_SIZE + 1;
+    const endItem = Math.min(page * DEFAULT_PAGE_SIZE, total);
+
+    return (
+        <RoleAwareLayout>
+            <div className="container-fluid">
+                {/* Header */}
+                <div className="bg-primary text-white p-3 mb-4">
+                    <h1 className="h4 mb-0 fw-bold">
+                        <i className="bi bi-arrow-left-right me-2"></i>
+                        Inventory Transactions
+                    </h1>
+                </div>
+
+                <ErrorDisplay
+                    error={error}
+                    errorDetails={errorDetails}
+                    onDismiss={() => {
+                        setError(null);
+                        setErrorDetails(null);
+                    }}
+                />
+
+                {/* Filters */}
+                <Card className="mb-4">
+                    <Card.Body>
+                        <Row>
+                            <Col md={6}>
+                                <Form.Group>
+                                    <Form.Label>Search Items</Form.Label>
+                                    <InputGroup>
+                                        <InputGroup.Text>
+                                            <i className="bi bi-search"></i>
+                                        </InputGroup.Text>
+                                        <Form.Control
+                                            type="text"
+                                            placeholder="Search by item name or code..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </InputGroup>
+                                </Form.Group>
+                            </Col>
+                            <Col md={4}>
+                                <Form.Group>
+                                    <Form.Label>Filter by Item ID</Form.Label>
+                                    <Form.Control
+                                        type="number"
+                                        placeholder="Item ID (optional)"
+                                        value={itemIdFilter}
+                                        onChange={(e) => {
+                                            setItemIdFilter(e.target.value);
+                                            setPage(1);
+                                        }}
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={2} className="d-flex align-items-end">
+                                <Button
+                                    variant="outline-secondary"
+                                    onClick={() => {
+                                        setItemIdFilter("");
+                                        setSearchTerm("");
+                                        setPage(1);
+                                    }}
+                                >
+                                    Clear
+                                </Button>
+                            </Col>
+                        </Row>
+                    </Card.Body>
+                </Card>
+
+                {/* Transactions Table */}
+                <Card>
+                    <Card.Header className="bg-light">
+                        <div className="d-flex justify-content-between align-items-center">
+                            <h5 className="mb-0 fw-bold">
+                                Transactions ({total > 0 ? `${startItem}-${endItem} of ${total}` : "0"})
+                            </h5>
+                        </div>
+                    </Card.Header>
+                    <Card.Body>
+                        {isLoading ? (
+                            <div className="text-center py-5">
+                                <Spinner animation="border" />
+                                <p className="mt-2">Loading transactions...</p>
+                            </div>
+                        ) : transactions.length === 0 ? (
+                            <div className="text-center py-5">
+                                <p className="text-muted">No transactions found</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="table-responsive">
+                                    <Table striped bordered hover>
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Item</th>
+                                                <th>Type</th>
+                                                <th>Quantity</th>
+                                                <th>Reference</th>
+                                                <th>Notes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {transactions.map((transaction) => (
+                                                <tr key={transaction.id}>
+                                                    <td>
+                                                        {new Date(transaction.created_at).toLocaleString()}
+                                                    </td>
+                                                    <td>
+                                                        <div>
+                                                            <strong>{transaction.item.name}</strong>
+                                                            <br />
+                                                            <small className="text-muted">
+                                                                {transaction.item.code}
+                                                            </small>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        {getTransactionTypeBadge(transaction.transaction_type)}
+                                                    </td>
+                                                    <td className="fw-bold">
+                                                        {getQuantityDisplay(transaction.quantity)}
+                                                    </td>
+                                                    <td>
+                                                        {transaction.reference_type ? (
+                                                            <Badge bg="secondary">
+                                                                {formatReferenceType(transaction.reference_type)}
+                                                                {transaction.reference_id ? ` #${transaction.reference_id}` : ""}
+                                                            </Badge>
+                                                        ) : (
+                                                            <span className="text-muted">-</span>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        {transaction.notes || (
+                                                            <span className="text-muted">-</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                </div>
+
+                                {/* Pagination */}
+                                {total > 0 && (
+                                    <div className="d-flex justify-content-between align-items-center mt-3">
+                                        <div className="text-muted">
+                                            Showing {startItem} to {endItem} of {total} transactions
+                                        </div>
+                                        {totalPages > 1 && (
+                                            <Pagination className="mb-0">
+                                                <Pagination.First
+                                                    onClick={() => setPage(1)}
+                                                    disabled={page === 1}
+                                                />
+                                                <Pagination.Prev
+                                                    onClick={() => setPage(Math.max(1, page - 1))}
+                                                    disabled={page === 1}
+                                                />
+                                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                                    .filter((p) => {
+                                                        if (totalPages <= 7) return true;
+                                                        return (
+                                                            p === 1 ||
+                                                            p === totalPages ||
+                                                            (p >= page - 1 && p <= page + 1)
+                                                        );
+                                                    })
+                                                    .map((p, idx, arr) => (
+                                                        <React.Fragment key={p}>
+                                                            {idx > 0 && arr[idx - 1] !== p - 1 && (
+                                                                <Pagination.Ellipsis />
+                                                            )}
+                                                            <Pagination.Item
+                                                                active={p === page}
+                                                                onClick={() => setPage(p)}
+                                                            >
+                                                                {p}
+                                                            </Pagination.Item>
+                                                        </React.Fragment>
+                                                    ))}
+                                                <Pagination.Next
+                                                    onClick={() => setPage(Math.min(totalPages, page + 1))}
+                                                    disabled={page === totalPages}
+                                                />
+                                                <Pagination.Last
+                                                    onClick={() => setPage(totalPages)}
+                                                    disabled={page === totalPages}
+                                                />
+                                            </Pagination>
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </Card.Body>
+                </Card>
+            </div>
+        </RoleAwareLayout>
+    );
+}
+

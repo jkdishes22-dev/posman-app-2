@@ -42,6 +42,9 @@ export class Item extends BaseEntity {
   @Column({ type: "boolean", nullable: true, name: "is_stock", default: false })
   isStock: boolean;
 
+  @Column({ type: "boolean", nullable: true, name: "allow_negative_inventory", default: false })
+  allowNegativeInventory?: boolean;
+
   @ManyToMany(() => Item)
   @JoinTable({
     name: "item_group",

@@ -1,10 +1,10 @@
-import React from 'react';
-import { Alert, Collapse } from 'react-bootstrap';
-import { useState } from 'react';
+import React from "react";
+import { Alert, Collapse } from "react-bootstrap";
+import { useState } from "react";
 
 interface ErrorDisplayProps {
     error: string | null;
-    variant?: 'danger' | 'warning' | 'info';
+    variant?: "danger" | "warning" | "info";
     dismissible?: boolean;
     onDismiss?: () => void;
     className?: string;
@@ -24,7 +24,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
     variant,
     dismissible = true,
     onDismiss,
-    className = '',
+    className = "",
     errorDetails
 }) => {
     const [showDetails, setShowDetails] = useState(false);
@@ -33,27 +33,27 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
 
     // Intelligent error type detection based on status and error details
     const getErrorType = () => {
-        if (errorDetails?.isLoginError) return 'loginError';
-        if (errorDetails?.networkError) return 'network';
-        if (errorDetails?.status === 401) return 'unauthorized';
-        if (errorDetails?.status === 403) return 'forbidden';
-        if (errorDetails?.status === 404) return 'notFound';
-        if (errorDetails?.status === 500) return 'serverError';
-        if (errorDetails?.status && errorDetails.status >= 400) return 'clientError';
-        return 'generic';
+        if (errorDetails?.isLoginError) return "loginError";
+        if (errorDetails?.networkError) return "network";
+        if (errorDetails?.status === 401) return "unauthorized";
+        if (errorDetails?.status === 403) return "forbidden";
+        if (errorDetails?.status === 404) return "notFound";
+        if (errorDetails?.status === 500) return "serverError";
+        if (errorDetails?.status && errorDetails.status >= 400) return "clientError";
+        return "generic";
     };
 
     const getErrorTitle = () => {
         const errorType = getErrorType();
         switch (errorType) {
-            case 'loginError': return 'Login Failed';
-            case 'network': return 'Connection Error';
-            case 'unauthorized': return 'Authentication Required';
-            case 'forbidden': return 'Access Denied';
-            case 'notFound': return 'Not Found';
-            case 'serverError': return 'Server Error';
-            case 'clientError': return 'Request Error';
-            default: return 'Error';
+            case "loginError": return "Login Failed";
+            case "network": return "Connection Error";
+            case "unauthorized": return "Authentication Required";
+            case "forbidden": return "Access Denied";
+            case "notFound": return "Not Found";
+            case "serverError": return "Server Error";
+            case "clientError": return "Request Error";
+            default: return "Error";
         }
     };
 
@@ -61,18 +61,22 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
         if (variant) return variant; // Use explicit variant if provided
         const errorType = getErrorType();
         switch (errorType) {
-            case 'loginError': return 'danger';
-            case 'network': return 'warning';
-            case 'unauthorized': return 'info';
-            case 'forbidden': return 'danger';
-            case 'notFound': return 'warning';
-            case 'serverError': return 'danger';
-            case 'clientError': return 'warning';
-            default: return 'danger';
+            case "loginError": return "danger";
+            case "network": return "warning";
+            case "unauthorized":
+                // 401 errors should be warning (yellow) for admin users with permission issues, danger (red) for auth failures
+                return (errorDetails?.isAdmin && errorDetails?.missingPermissions) ? "warning" : "danger";
+            case "forbidden": return "danger";
+            case "notFound": return "warning";
+            case "serverError": return "danger";
+            case "clientError": return "warning";
+            default: return "danger";
         }
     };
 
-    const isPermissionError = error.includes('Missing permissions') || error.includes('Forbidden') || errorDetails?.status === 403;
+    const isPermissionError = error.includes("Missing permissions") || error.includes("Forbidden") ||
+        errorDetails?.status === 403 ||
+        (errorDetails?.status === 401 && errorDetails?.missingPermissions);
     const hasAdminDetails = errorDetails?.isAdmin && errorDetails?.missingPermissions;
     const finalVariant = getErrorVariant();
     const errorTitle = getErrorTitle();
@@ -127,8 +131,8 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
                 </div>
             )}
 
-            {/* Permission Error Template */}
-            {isPermissionError && hasAdminDetails && (
+            {/* Permission Error Template - Show for both 401 and 403 if admin and has permission details */}
+            {isPermissionError && errorDetails?.isAdmin && errorDetails?.missingPermissions && (
                 <div className="mt-3">
                     <button
                         className="btn btn-light btn-sm shadow-1 fw-medium"
@@ -136,8 +140,8 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
                         onClick={() => setShowDetails(!showDetails)}
                         aria-expanded={showDetails}
                     >
-                        <i className={`bi bi-chevron-down me-1 ${showDetails ? 'rotate-180' : ''}`}></i>
-                        {showDetails ? 'Hide' : 'Show'} Permission Details
+                        <i className={`bi bi-chevron-down me-1 ${showDetails ? "rotate-180" : ""}`}></i>
+                        {showDetails ? "Hide" : "Show"} Permission Details
                     </button>
 
                     <Collapse in={showDetails}>
@@ -191,6 +195,23 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
                             </div>
                         </div>
                     </Collapse>
+                </div>
+            )}
+
+            {/* 401 Error Template for Admin Users - Show helpful message even without permission details */}
+            {errorDetails?.status === 401 && errorDetails?.isAdmin && !errorDetails?.missingPermissions && (
+                <div className="mt-3">
+                    <div className="alert alert-warning mb-0">
+                        <small>
+                            <strong>💡 Admin Note:</strong> Your authentication token may be invalid or expired.
+                            If you believe you should have access to this feature, please check:
+                            <ul className="mb-0 mt-2">
+                                <li>Your token may have expired - try logging out and back in</li>
+                                <li>You may be missing the required permission - check your role permissions in Users → Roles → Permissions</li>
+                                <li>For production history, ensure you have the <code>can_view_production_history</code> permission</li>
+                            </ul>
+                        </small>
+                    </div>
                 </div>
             )}
         </Alert>

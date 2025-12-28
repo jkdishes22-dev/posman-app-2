@@ -1,5 +1,6 @@
 import { Bill, BillStatus } from "@entities/Bill";
 import { BillItem, BillItemStatus } from "@entities/BillItem";
+import { Item } from "@entities/Item";
 import { AppDataSource } from "@backend/config/data-source";
 import { UserService } from "./UserService";
 import { BillPaymentInterface } from "@backend/interfaces/BillPayment";
@@ -8,6 +9,8 @@ import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { getAppTimezone } from "@backend/config/timezone";
 import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment, PaymentType } from "@backend/entities/Payment";
+import { InventoryService } from "./InventoryService";
+import { NotificationService } from "./NotificationService";
 import { Service } from "typedi";
 import { DataSource, EntityNotFoundError, Repository } from "typeorm";
 
@@ -26,6 +29,8 @@ export class BillService {
   private billPaymentRepository: Repository<BillPayment>;
 
   private userService: UserService;
+  private inventoryService: InventoryService;
+  private notificationService: NotificationService;
 
   constructor(dataSource: DataSource) {
     this.billRepository = dataSource.getRepository(Bill);
@@ -34,18 +39,60 @@ export class BillService {
     this.billPaymentRepository = dataSource.getRepository(BillPayment);
 
     this.userService = new UserService(dataSource);
+    this.inventoryService = new InventoryService(dataSource);
+    this.notificationService = new NotificationService();
   }
 
   async createBill(payload) {
     const { items, total, user_id, station_id, request_id } = payload;
 
-    return await this.billRepository.manager.transaction(
+    // Validate inventory availability BEFORE creating the bill
+    // Use the same logic as the frontend availability check
+    const itemIds = items.map((item: any) => item.item_id);
+    const availableInventory = await this.inventoryService.getAvailableInventoryForItems(itemIds);
+
+    // Batch load all items to check allowNegativeInventory flags
+    const itemRepository = this.billRepository.manager.getRepository(Item);
+    const itemEntities = await itemRepository.find({
+      where: itemIds.map(id => ({ id })),
+    });
+    const itemsMap = new Map<number, Item>();
+    for (const itemEntity of itemEntities) {
+      itemsMap.set(itemEntity.id, itemEntity);
+    }
+
+    // Check each item's availability (respect allowNegativeInventory flag)
+    for (const item of items) {
+      const itemEntity = itemsMap.get(item.item_id);
+      const allowNegative = Boolean(itemEntity?.allowNegativeInventory) || Number(itemEntity?.allowNegativeInventory) === 1;
+
+      // Skip validation for items that allow negative inventory
+      if (allowNegative) {
+        continue;
+      }
+
+      const available = availableInventory.get(item.item_id) || 0;
+      const requestedQuantity = item.quantity;
+
+      if (available < requestedQuantity) {
+        const itemName = itemEntity?.name || `Item ${item.item_id}`;
+
+        throw new Error(
+          `Insufficient inventory for ${itemName}. ` +
+          `Available: ${available}, Requested: ${requestedQuantity}. ` +
+          `Please issue more ${itemName} to inventory before adding to bill.`
+        );
+      }
+    }
+
+    // Create bill in transaction
+    const completeBill = await this.billRepository.manager.transaction(
       async (transactionalEntityManager) => {
         // Check for idempotency - if request_id is provided, check if bill already exists
         if (request_id) {
           const existingBill = await transactionalEntityManager.findOne(Bill, {
             where: { request_id },
-            relations: ['bill_items', 'bill_items.item', 'user', 'station']
+            relations: ["bill_items", "bill_items.item", "user", "station"]
           });
 
           if (existingBill) {
@@ -74,14 +121,35 @@ export class BillService {
         await transactionalEntityManager.save(BillItem, billItems);
 
         // Fetch the complete bill with relations for return
-        const completeBill = await transactionalEntityManager.findOne(Bill, {
+        const bill = await transactionalEntityManager.findOne(Bill, {
           where: { id: newBill.id },
-          relations: ['bill_items', 'bill_items.item', 'user', 'station']
+          relations: ["bill_items", "bill_items.item", "user", "station"]
         });
 
-        return completeBill;
+        if (!bill) {
+          throw new Error("Failed to fetch created bill");
+        }
+
+        return bill;
       },
     );
+
+    // Reserve inventory for bill (Phase 1: Reservation)
+    // This happens AFTER the transaction commits to ensure the bill is visible
+    // Pass the bill object directly to avoid lookup issues
+    console.log(`[BillService] About to reserve inventory for bill ${completeBill.id} with ${completeBill.bill_items?.length || 0} items`);
+    try {
+      await this.inventoryService.reserveInventoryForBill(completeBill, user_id);
+      console.log(`[BillService] Successfully reserved inventory for bill ${completeBill.id}`);
+    } catch (error: any) {
+      console.error(`[BillService] Failed to reserve inventory for bill ${completeBill.id}:`, error);
+      // If inventory reservation fails, we should delete the bill or mark it as failed
+      // For now, we'll let it fail and the caller should handle the error
+      // TODO: Consider adding a cleanup mechanism for bills with failed inventory reservation
+      throw new Error(`Failed to reserve inventory: ${error.message}`);
+    }
+
+    return completeBill;
   }
 
   async fetchBills(userId: number, billFilter: BillFilter, page = 1, pageSize = 20) {
@@ -192,14 +260,31 @@ export class BillService {
     }
   }
 
-  async cancelBill(billId: number) {
-    const bill = await this.billRepository.findOne({ where: { id: billId } });
+  async cancelBill(billId: number, userId?: number) {
+    const bill = await this.billRepository.findOne({
+      where: { id: billId },
+      relations: ["bill_items", "bill_items.item"]
+    });
 
     if (!bill) {
       throw new Error("Bill not found");
     }
 
+    // Only release inventory if bill is still in PENDING status
+    // If already submitted, inventory was already deducted
+    if (bill.status === BillStatus.PENDING && userId) {
+      try {
+        await this.inventoryService.releaseInventoryReservation(billId, userId);
+      } catch (error: any) {
+        // Log error but don't fail cancellation
+        console.error(`Failed to release inventory reservation for bill ${billId}:`, error);
+      }
+    }
+
     bill.status = BillStatus.CANCELLED;
+    if (userId) {
+      bill.updated_by = userId;
+    }
     return await this.billRepository.save(bill);
   }
 
@@ -243,13 +328,32 @@ export class BillService {
       billItem.void_reason = reason;
       billItem.void_requested_by = requestedBy;
       billItem.void_requested_at = new Date();
-      billItem.updated_at = new Date();
 
       const savedItem = await manager.save(billItem);
 
       // Send notification to cashier/supervisor
+      // Note: We need to determine who should receive the notification (cashier/supervisor)
+      // For now, we'll get the bill's user (sales person) and notify supervisors/cashiers
+      // This could be enhanced to query for users with cashier/supervisor roles
       try {
-        console.log(`Void request for Bill ${billId}, Item ${itemId} by user ${requestedBy}. Reason: ${reason}`);
+        const bill = await manager.findOne(Bill, {
+          where: { id: billId },
+          relations: ["user"]
+        });
+
+        if (bill && bill.user_id) {
+          // Get supervisor/cashier users - for now, we'll need to query for users with appropriate roles
+          // This is a simplified approach - in production, you'd query for users with cashier/supervisor roles
+          // For now, we'll create a notification for the bill owner (they can forward it)
+          // TODO: Enhance to send to all cashiers/supervisors
+          await this.notificationService.createVoidRequestNotification(
+            billId,
+            itemId,
+            bill.user_id, // Send to bill owner for now
+            requestedBy,
+            reason
+          );
+        }
       } catch (notificationError) {
         console.error("Failed to send notification:", notificationError);
         // Don't fail the transaction for notification errors
@@ -301,7 +405,6 @@ export class BillService {
         billItem.status = BillItemStatus.VOIDED;
         billItem.void_approved_by = approvedBy;
         billItem.void_approved_at = new Date();
-        billItem.updated_at = new Date();
 
         // Update bill total to exclude voided item from calculations
         // Item record remains in database for audit trail
@@ -311,7 +414,6 @@ export class BillService {
         const newTotal = activeItems.reduce((sum, item) => sum + item.subtotal, 0);
 
         bill.total = newTotal;
-        bill.updated_at = new Date();
         await manager.save(bill);
       } else {
         // Reject void request - revert item to pending
@@ -321,7 +423,6 @@ export class BillService {
         billItem.void_requested_at = null;
         billItem.void_approved_by = approvedBy;
         billItem.void_approved_at = new Date();
-        billItem.updated_at = new Date();
 
         // Bill status remains unchanged when void request is rejected
         // Recalculate bill total to include the item that was reverted to pending
@@ -331,15 +432,32 @@ export class BillService {
         const newTotal = activeItems.reduce((sum, item) => sum + item.subtotal, 0);
 
         bill.total = newTotal;
-        bill.updated_at = new Date();
         await manager.save(bill);
       }
 
       const savedItem = await manager.save(billItem);
 
-      // Send notification to sales person
+      // Send notification to sales person who requested the void
       try {
-        console.log(`Void request for Bill ${billId}, Item ${itemId} ${approved ? 'approved' : 'rejected'} by user ${approvedBy}`);
+        const salesUserId = billItem.void_requested_by;
+        if (salesUserId) {
+          if (approved) {
+            await this.notificationService.createVoidApprovedNotification(
+              billId,
+              itemId,
+              salesUserId,
+              approvedBy
+            );
+          } else {
+            await this.notificationService.createVoidRejectedNotification(
+              billId,
+              itemId,
+              salesUserId,
+              approvedBy,
+              approvalNotes || "No reason provided"
+            );
+          }
+        }
       } catch (notificationError) {
         console.error("Failed to send notification:", notificationError);
         // Don't fail the transaction for notification errors
@@ -443,6 +561,17 @@ export class BillService {
             { bill: { id: bill.id }, status: BillItemStatus.PENDING },
             { status: BillItemStatus.SUBMITTED }
           );
+
+          // Convert inventory reservation to actual deduction (Phase 2: Deduction)
+          // This happens outside the transaction to use InventoryService's own transaction
+          try {
+            await this.inventoryService.deductInventoryForSale(bill.id, billPayment.userId);
+          } catch (error: any) {
+            // Log error but don't fail bill submission
+            // Inventory deduction is important but shouldn't block payment processing
+            console.error(`Failed to deduct inventory for bill ${bill.id}:`, error);
+          }
+
           return {
             bill_payments: billPayments,
             payments,
@@ -598,7 +727,7 @@ export class BillService {
       bill.reopen_reason = reasonKey;
       bill.reopened_by = reopenedBy;
       bill.reopened_at = new Date();
-      bill.updated_at = new Date();
+      // updated_at is automatically managed by TypeORM's UpdateDateColumn
       bill.updated_by = reopenedBy;
 
       const savedBill = await manager.save(bill);
@@ -642,7 +771,7 @@ export class BillService {
     return await this.billRepository.manager.transaction(async manager => {
       // Update bill status to submitted
       bill.status = BillStatus.SUBMITTED;
-      bill.updated_at = new Date();
+      // updated_at is automatically managed by TypeORM's UpdateDateColumn
       bill.updated_by = resubmittedBy;
 
       // Clear reopening tracking columns
@@ -712,7 +841,7 @@ export class BillService {
       billItem.quantity_change_reason = reason;
       billItem.quantity_change_requested_by = requestedBy;
       billItem.quantity_change_requested_at = new Date();
-      billItem.updated_at = new Date();
+      // updated_at is automatically managed by TypeORM's UpdateDateColumn
 
       const savedItem = await manager.save(billItem);
 
@@ -779,7 +908,7 @@ export class BillService {
         billItem.status = BillItemStatus.PENDING;
         billItem.quantity_change_approved_by = approvedBy;
         billItem.quantity_change_approved_at = new Date();
-        billItem.updated_at = new Date();
+        // updated_at is automatically managed by TypeORM's UpdateDateColumn
 
         // Clear quantity change request fields
         billItem.requested_quantity = null;
@@ -795,14 +924,14 @@ export class BillService {
 
         bill.total = newTotal;
         bill.status = BillStatus.PENDING; // Bill needs to be resubmitted after quantity change
-        bill.updated_at = new Date();
+        // updated_at is automatically managed by TypeORM's UpdateDateColumn
         await manager.save(bill);
       } else {
         // Reject quantity change - revert to pending status
         billItem.status = BillItemStatus.PENDING;
         billItem.quantity_change_approved_by = approvedBy;
         billItem.quantity_change_approved_at = new Date();
-        billItem.updated_at = new Date();
+        // updated_at is automatically managed by TypeORM's UpdateDateColumn
 
         // Clear quantity change request fields
         billItem.requested_quantity = null;
@@ -818,7 +947,7 @@ export class BillService {
 
         bill.total = newTotal;
         bill.status = BillStatus.PENDING; // Bill needs to be resubmitted after quantity change rejection
-        bill.updated_at = new Date();
+        // updated_at is automatically managed by TypeORM's UpdateDateColumn
         await manager.save(bill);
       }
 
@@ -827,7 +956,7 @@ export class BillService {
       // Send notification to sales person
       try {
         // TODO: Implement notification system
-        console.log(`Quantity change request ${approved ? 'approved' : 'rejected'} for item ${itemId} in bill ${billId}`);
+        console.log(`Quantity change request ${approved ? "approved" : "rejected"} for item ${itemId} in bill ${billId}`);
       } catch (error) {
         // Don't fail the transaction for notification errors
       }

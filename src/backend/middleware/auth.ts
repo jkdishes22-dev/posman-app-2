@@ -57,7 +57,48 @@ export const authMiddleware = (handler) => {
       }
       return handler(req, res);
     } catch (error: any) {
-      return res.status(401).json({ message: "Invalid token", object: error });
+      // For invalid token, return 401 but try to include user info if available from token decode attempt
+      let userRoles: string[] = [];
+      let isAdmin = false;
+      
+      try {
+        // Try to decode token to get user info even if verification failed
+        const token = req.headers.authorization?.split(" ")[1];
+        if (token) {
+          const decoded = jwt.decode(token) as any;
+          if (decoded?.roles) {
+            // Handle both array and single role formats, and both string and object formats
+            let rolesArray: any[] = [];
+            if (Array.isArray(decoded.roles)) {
+              rolesArray = decoded.roles;
+            } else {
+              rolesArray = [decoded.roles];
+            }
+            
+            // Extract role names (handle both string roles and object roles with 'name' property)
+            userRoles = rolesArray.map((role: any) => {
+              if (typeof role === "string") {
+                return role;
+              } else if (role?.name) {
+                return role.name;
+              } else {
+                return String(role);
+              }
+            });
+            
+            isAdmin = userRoles.some((role: string) => role.toLowerCase() === "admin");
+          }
+        }
+      } catch (decodeError) {
+        // Ignore decode errors
+      }
+      
+      return res.status(401).json({ 
+        message: "Invalid token", 
+        object: error,
+        userRoles: userRoles.length > 0 ? userRoles : undefined,
+        isAdmin: isAdmin || undefined
+      });
     }
   };
 };

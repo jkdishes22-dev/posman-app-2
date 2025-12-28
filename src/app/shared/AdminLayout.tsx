@@ -51,13 +51,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           { label: "Users", path: "/admin/users" },
           { label: "Roles & Permissions", path: "/admin/users/permission" }
         ];
-      } else if (path.includes("/admin/users/register")) {
-        activeItemId = "users-register";
-        breadcrumbItems = [
-          { label: "Dashboard", path: "/admin" },
-          { label: "Users", path: "/admin/users" },
-          { label: "Register User", path: "/admin/users/register" }
-        ];
       }
     }
     // Configuration section
@@ -101,19 +94,19 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
     // Production section
     else if (path.includes("/admin/production")) {
       expandedMenuIds.push("production");
-      if (path.includes("/admin/production/items")) {
-        activeItemId = "production-items";
+      if (path === "/admin/production" || path === "/admin/production/") {
+        activeItemId = "production-issuing";
         breadcrumbItems = [
           { label: "Dashboard", path: "/admin" },
           { label: "Production", path: "/admin/production" },
-          { label: "Stock Menu Items", path: "/admin/production/items" }
+          { label: "Issue Production", path: "/admin/production" }
         ];
-      } else if (path.includes("/admin/production/definitions")) {
-        activeItemId = "production-definitions";
+      } else if (path.includes("/admin/menu/recipes")) {
+        activeItemId = "menu-recipes";
         breadcrumbItems = [
           { label: "Dashboard", path: "/admin" },
-          { label: "Production", path: "/admin/production" },
-          { label: "Ratio Definition", path: "/admin/production/definitions" }
+          { label: "Menu & Pricing", path: "/admin/menu" },
+          { label: "Recipes", path: "/admin/menu/recipes" }
         ];
       }
     }
@@ -124,6 +117,51 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         { label: "Dashboard", path: "/admin" },
         { label: "Bill", path: "/admin/bill" }
       ];
+    }
+    // Supplies section
+    else if (path.includes("/admin/supplies") || (path.includes("/storekeeper") && (path.includes("/storekeeper/suppliers") || path.includes("/storekeeper/purchase-orders")))) {
+      expandedMenuIds.push("supplies");
+      if (path.includes("/storekeeper/suppliers")) {
+        activeItemId = "supplies-suppliers";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Supplies", path: "/admin/supplies" },
+          { label: "Suppliers", path: "/storekeeper/suppliers" }
+        ];
+      } else if (path.includes("/storekeeper/purchase-orders")) {
+        activeItemId = "supplies-purchase-orders";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Supplies", path: "/admin/supplies" },
+          { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }
+        ];
+      }
+    }
+    // Inventory section
+    else if (path.includes("/storekeeper")) {
+      expandedMenuIds.push("inventory");
+      if (path.includes("/storekeeper/inventory/transactions")) {
+        activeItemId = "inventory-transactions";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Inventory", path: "/storekeeper" },
+          { label: "Transactions", path: "/storekeeper/inventory/transactions" }
+        ];
+      } else if (path.includes("/storekeeper/stock")) {
+        activeItemId = "inventory-list";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Inventory", path: "/storekeeper" },
+          { label: "Inventory List", path: "/storekeeper/stock" }
+        ];
+      } else {
+        activeItemId = "inventory-dashboard";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Inventory", path: "/storekeeper" },
+          { label: "Dashboard", path: "/storekeeper" }
+        ];
+      }
     }
 
     setActiveItem(activeItemId);
@@ -154,12 +192,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           label: "Roles & Permissions",
           icon: "bi-shield-check",
           path: "/admin/users/permission",
-        },
-        {
-          id: "users-register",
-          label: "Register User",
-          icon: "bi-person-plus",
-          path: "/admin/users/register",
         },
       ],
     },
@@ -194,10 +226,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           path: "/admin/menu/category",
         },
         {
-          id: "menu-group-items",
-          label: "Group Items",
-          icon: "bi-collection",
-          path: "/admin/menu/category/components/items/grouped",
+          id: "menu-recipes",
+          label: "Recipes",
+          icon: "bi-journal-text",
+          path: "/admin/menu/recipes",
         },
         {
           id: "menu-pricelist",
@@ -213,28 +245,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       icon: "bi-box-seam",
       submenu: [
         {
-          id: "production-items",
-          label: "Stock Menu Items",
-          icon: "bi-box",
-          path: "/admin/production/items",
-        },
-        {
-          id: "production-definitions",
-          label: "Ratio Definition",
-          icon: "bi-calculator",
-          path: "/admin/production/definitions",
-        },
-        {
-          id: "production-daily",
-          label: "Daily Production",
-          icon: "bi-calendar-day",
-          path: "/admin/production",
-        },
-        {
           id: "production-issuing",
-          label: "Issuing",
+          label: "Issue Production",
           icon: "bi-arrow-up-circle",
-          path: "/admin/production/restock",
+          path: "/admin/production",
         },
       ],
     },
@@ -248,7 +262,45 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       id: "supplies",
       label: "Supplies",
       icon: "bi-truck",
-      path: "/admin/supplies",
+      submenu: [
+        {
+          id: "supplies-suppliers",
+          label: "Suppliers",
+          icon: "bi-building",
+          path: "/storekeeper/suppliers",
+        },
+        {
+          id: "supplies-purchase-orders",
+          label: "Purchase Orders",
+          icon: "bi-cart-check",
+          path: "/storekeeper/purchase-orders",
+        },
+      ],
+    },
+    {
+      id: "inventory",
+      label: "Inventory",
+      icon: "bi-boxes",
+      submenu: [
+        {
+          id: "inventory-dashboard",
+          label: "Dashboard",
+          icon: "bi-speedometer2",
+          path: "/storekeeper",
+        },
+        {
+          id: "inventory-list",
+          label: "Inventory List",
+          icon: "bi-list-ul",
+          path: "/storekeeper/stock",
+        },
+        {
+          id: "inventory-transactions",
+          label: "Transactions",
+          icon: "bi-arrow-left-right",
+          path: "/storekeeper/inventory/transactions",
+        },
+      ],
     },
     {
       id: "reports",
@@ -336,12 +388,16 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
                 {item.submenu ? (
                   <div>
                     <button
-                      className={`nav-link w-100 text-start d-flex align-items-center ${expandedMenus.includes(item.id) ? "active" : ""}`}
-                      onClick={() => toggleMenu(item.id)}
+                      className={`nav-link w-100 text-start d-flex align-items-center ${expandedMenus.includes(item.id) ? "" : ""}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleMenu(item.id);
+                      }}
                       style={{
-                        background: expandedMenus.includes(item.id) ? "var(--bs-primary)" : "transparent",
+                        background: "transparent",
                         border: "none",
-                        color: expandedMenus.includes(item.id) ? "white" : "rgba(255,255,255,0.8)",
+                        color: "rgba(255,255,255,0.8)",
+                        cursor: "pointer",
                       }}
                     >
                       <i className={`bi ${item.icon} me-3`}></i>

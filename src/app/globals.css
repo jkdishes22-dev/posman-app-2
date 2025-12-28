@@ -301,6 +301,12 @@
     flex-shrink: 0;
     /* Allow categories to take remaining space but with max height */
     max-height: 30vh;
+    transition: max-height 0.3s ease, margin-top 0.3s ease;
+}
+
+.categories-section-expanded {
+    max-height: 15vh;
+    margin-top: 0.25rem;
 }
 
 .categories-card {
@@ -308,6 +314,11 @@
     /* Slightly more space for categories */
     overflow: hidden;
     /* Prevent card from growing */
+    transition: max-height 0.3s ease;
+}
+
+.categories-card-expanded {
+    max-height: 13vh;
 }
 
 .categories-card .card-body {
@@ -319,6 +330,11 @@
     /* Custom scrollbar styling */
     scrollbar-width: thin;
     scrollbar-color: #ccc #f1f1f1;
+    transition: max-height 0.3s ease;
+}
+
+.categories-card-expanded .card-body {
+    max-height: 10vh;
 }
 
 .categories-card .card-body::-webkit-scrollbar {

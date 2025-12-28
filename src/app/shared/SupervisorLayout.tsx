@@ -41,7 +41,9 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             { path: "/supervisor/menu/pricelist", item: "menu-pricelist" },
             { path: "/home/pricelist-catalog", item: "pricelist-catalog" },
             { path: "/supervisor/production/items", item: "production-items" },
-            { path: "/supervisor/production/definitions", item: "production-definitions" },
+            { path: "/supervisor/menu/recipes", item: "menu-recipes" },
+            { path: "/supervisor/production/issue", item: "production-issue" },
+            { path: "/supervisor/production/history", item: "production-history" },
             { path: "/supervisor/production", item: "production-daily" },
             { path: "/supervisor/reports/sales", item: "sales-reports" },
             { path: "/supervisor/reports/bills", item: "bills-reports" },
@@ -56,10 +58,18 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         // Determine breadcrumbs and expanded menus based on path
         if (path.includes("/supervisor/menu")) {
             expandedMenuIds.push("menu-pricing");
-            breadcrumbItems = [
-                { label: "Dashboard", path: "/supervisor" },
-                { label: "Menu & Pricing", path: "/supervisor/menu" }
-            ];
+            if (path.includes("/supervisor/menu/recipes")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Menu & Pricing", path: "/supervisor/menu" },
+                    { label: "Recipes", path: "/supervisor/menu/recipes" }
+                ];
+            } else {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Menu & Pricing", path: "/supervisor/menu" }
+                ];
+            }
         } else if (path.includes("/supervisor/production")) {
             expandedMenuIds.push("production");
             breadcrumbItems = [
@@ -164,6 +174,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     path: "/supervisor/menu/category",
                 },
                 {
+                    id: "menu-recipes",
+                    label: "Recipes",
+                    icon: "bi-journal-text",
+                    path: "/supervisor/menu/recipes",
+                },
+                {
                     id: "menu-pricelist",
                     label: "Pricelists",
                     icon: "bi-tags",
@@ -183,22 +199,22 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             icon: "bi-box-seam",
             submenu: [
                 {
-                    id: "production-items",
-                    label: "Stock Menu Items",
-                    icon: "bi-box",
-                    path: "/supervisor/production/items",
-                },
-                {
-                    id: "production-definitions",
-                    label: "Ratio Definition",
-                    icon: "bi-calculator",
-                    path: "/supervisor/production/definitions",
-                },
-                {
                     id: "production-daily",
                     label: "Daily Production",
                     icon: "bi-calendar-day",
                     path: "/supervisor/production",
+                },
+                {
+                    id: "production-issue",
+                    label: "Issue Production",
+                    icon: "bi-plus-circle",
+                    path: "/supervisor/production/issue",
+                },
+                {
+                    id: "production-history",
+                    label: "Production History",
+                    icon: "bi-clock-history",
+                    path: "/supervisor/production/history",
                 },
             ],
         },

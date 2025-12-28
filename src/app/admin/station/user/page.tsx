@@ -20,6 +20,7 @@ function StationUsersPage() {
   const [authError, setAuthError] = useState<AuthError>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+  const [loadingUsers, setLoadingUsers] = useState(true);
 
   const apiCall = useApiCall();
 
@@ -39,11 +40,13 @@ function StationUsersPage() {
   }, [searchTerm, users]);
 
   const fetchUsers = async () => {
+    setLoadingUsers(true);
     try {
-      const result = await apiCall("/api/users");
+      // Fetch all users with a large page size to get all users
+      const result = await apiCall("/api/users?page=1&pageSize=1000");
       if (result.status === 200) {
-        // Ensure data is an array
-        const usersArray = Array.isArray(result.data) ? result.data : [];
+        // API returns { users, total }, extract users array
+        const usersArray = Array.isArray(result.data?.users) ? result.data.users : [];
         setUsers(usersArray);
         setFilteredUsers(usersArray);
         setError(null);
@@ -61,6 +64,8 @@ function StationUsersPage() {
       // Set empty arrays on error
       setUsers([]);
       setFilteredUsers([]);
+    } finally {
+      setLoadingUsers(false);
     }
   };
 
@@ -215,7 +220,12 @@ function StationUsersPage() {
               className="list-group"
               style={{ maxHeight: "400px", overflowY: "auto" }} // Make sidebar scrollable
             >
-              {filteredUsers.length > 0 ? (
+              {loadingUsers ? (
+                <li className="list-group-item text-center">
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Loading users...
+                </li>
+              ) : filteredUsers.length > 0 ? (
                 filteredUsers.map((user: User) => (
                   <li
                     key={user.id}
@@ -296,9 +306,9 @@ function StationUsersPage() {
                                 (station) =>
                                   station && (
                                     <tr key={station.id}>
-                                      <td>{station.name}</td>
+                                      <td>{station.station?.name || "N/A"}</td>
                                       <td>
-                                        {station.is_default ? (
+                                        {station.isDefault ? (
                                           <span>Yes</span>
                                         ) : (
                                           <Button

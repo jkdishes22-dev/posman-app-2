@@ -71,7 +71,8 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_view_bill_item',
                 'can_view_bill_payment',
                 'can_view_inventory',
-                'can_view_payment'
+                'can_view_payment',
+                'can_view_purchase_order'
             ],
             supervisor: [
                 // Sales permissions
@@ -115,6 +116,15 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_add_supplier_payment',
                 'can_edit_supplier_payment',
                 'can_delete_supplier_payment',
+                'can_view_purchase_order',
+                'can_add_purchase_order',
+                'can_edit_purchase_order',
+                'can_delete_purchase_order',
+                'can_receive_purchase_order',
+                'can_adjust_inventory',
+                // Production permissions
+                'can_issue_production',
+                'can_view_production_history',
                 // Additional supervisor permissions
                 'can_edit_station',
                 'can_view_station_pricelist',
@@ -179,7 +189,16 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_view_supplier_payment',
                 'can_add_supplier_payment',
                 'can_edit_supplier_payment',
-                'can_delete_supplier_payment'
+                'can_delete_supplier_payment',
+                'can_view_purchase_order',
+                'can_add_purchase_order',
+                'can_edit_purchase_order',
+                'can_delete_purchase_order',
+                'can_receive_purchase_order',
+                'can_adjust_inventory',
+                // Production permissions
+                'can_issue_production',
+                'can_view_production_history'
             ]
         };
 

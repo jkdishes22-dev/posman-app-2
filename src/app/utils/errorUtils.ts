@@ -35,19 +35,33 @@ export const standardizeApiError = (error: any, status: number): StandardizedErr
     }
 
     if (status === 401) {
+        // 401: Unauthorized - show error but don't logout
+        // Admin sees "Missing permission", others see "Unauthorized"
+        const isAdmin = error.isAdmin || error.userRoles?.includes("admin");
         return {
-            message: "Authentication required",
-            details: { status: 401, authError: true }
+            message: isAdmin ? "Missing permission" : "Unauthorized",
+            details: {
+                status: 401,
+                authError: true,
+                isAdmin,
+                userRoles: error.userRoles,
+                missingPermissions: error.missingPermissions
+            }
         };
     }
 
     if (status === 403) {
+        // 403: Forbidden - could be permission issue or token expiration
+        // Admin sees "Missing permission", others see "Forbidden"
+        const isAdmin = error.isAdmin || error.userRoles?.includes("admin");
+        const hasPermissionDetails = error.missingPermissions || error.requiredPermissions;
+
         return {
-            message: error.message || "Access denied",
+            message: (isAdmin && hasPermissionDetails) ? "Missing permission" : (error.message || "Forbidden"),
             details: {
                 status: 403,
                 missingPermissions: error.missingPermissions,
-                isAdmin: error.isAdmin,
+                isAdmin,
                 userRoles: error.userRoles,
                 requiredPermissions: error.requiredPermissions
             }

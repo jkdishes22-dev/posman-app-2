@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import "./styles/improved-pos.css";
 import "bootstrap/dist/css/bootstrap.css";
+import "bootstrap-icons/font/bootstrap-icons.min.css";
 import BootstrapClient from "./components/BootstrapClient";
 import { AuthProvider } from "./contexts/AuthContext";
 import { StationProvider } from "./contexts/StationContext";

@@ -132,6 +132,7 @@ export class ItemService {
       name: pi.item.name,
       code: pi.item.code,
       isGroup: Boolean(pi.item.isGroup),
+      isStock: Boolean(pi.item.isStock),
       category: {
         id: pi.item.category?.id,
         name: pi.item.category?.name,

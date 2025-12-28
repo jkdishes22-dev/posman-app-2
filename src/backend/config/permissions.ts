@@ -113,6 +113,13 @@ const permissions = {
     CAN_DELETE_SUPPLIER_PAYMENT: "can_delete_supplier_payment",
     CAN_VIEW_SUPPLIER_PAYMENT: "can_view_supplier_payment",
 
+    // Purchase Order
+    CAN_VIEW_PURCHASE_ORDER: "can_view_purchase_order",
+    CAN_ADD_PURCHASE_ORDER: "can_add_purchase_order",
+    CAN_EDIT_PURCHASE_ORDER: "can_edit_purchase_order",
+    CAN_DELETE_PURCHASE_ORDER: "can_delete_purchase_order",
+    CAN_RECEIVE_PURCHASE_ORDER: "can_receive_purchase_order",
+
     // User
     CAN_ADD_USER: "can_add_user",
     CAN_EDIT_USER: "can_edit_user",
@@ -130,6 +137,10 @@ const permissions = {
     CAN_EDIT_PERMISSION_SCOPE: "can_edit_permission_scope",
     CAN_DELETE_PERMISSION_SCOPE: "can_delete_permission_scope",
     CAN_VIEW_PERMISSION_SCOPE: "can_view_permission_scope",
+
+    // Production
+    CAN_ISSUE_PRODUCTION: "can_issue_production",
+    CAN_VIEW_PRODUCTION_HISTORY: "can_view_production_history",
 };
 
 export default permissions;
