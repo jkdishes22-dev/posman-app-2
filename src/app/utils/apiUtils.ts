@@ -28,7 +28,7 @@ export const createApiCall = (logout: () => void, getUser?: () => any) => {
 
             const data = await response.json();
 
-            // Handle 401 (Unauthorized) - Never logout, just show error
+            // Handle 401 (Unauthorized) - Check if token is invalid/expired
             if (response.status === 401) {
                 // Check if this is a login request (no token means it's a login attempt)
                 const token = localStorage.getItem("token");
@@ -43,27 +43,47 @@ export const createApiCall = (logout: () => void, getUser?: () => any) => {
                         errorDetails: { isLoginError: true, status: 401 }
                     };
                 } else {
-                    // 401 for authenticated requests - show error but don't logout
-                    // Check if user is admin to show appropriate message
-                    let isAdmin = false;
-                    if (getUser) {
-                        try {
-                            const user = getUser();
-                            isAdmin = user?.roles?.some((role: any) => role.name === "admin" || role === "admin") || false;
-                        } catch (e) {
-                            // User context not available, default to false
-                        }
-                    }
+                    // Check if this is a token expiration/invalid token error
+                    const errorMessage = (data.message || data.error || "").toLowerCase();
+                    const isTokenExpired = (
+                        errorMessage.includes("invalid token") ||
+                        errorMessage.includes("token expired") ||
+                        errorMessage.includes("expired token") ||
+                        errorMessage.includes("no token provided")
+                    );
 
-                    // Add admin info to error data for proper message display
-                    const errorData = { ...data, isAdmin };
-                    const standardizedError: StandardizedError = standardizeApiError(errorData, 401);
-                    return {
-                        data: undefined,
-                        error: standardizedError.message,
-                        status: 401,
-                        errorDetails: standardizedError.details
-                    };
+                    if (isTokenExpired) {
+                        // Token expiration/invalid - logout immediately
+                        logout();
+                        return {
+                            data: undefined,
+                            error: "Session expired. Please log in again.",
+                            status: 401,
+                            errorDetails: { status: 401, tokenExpired: true }
+                        };
+                    } else {
+                        // 401 for other reasons (e.g., missing permissions) - show error but don't logout
+                        // Check if user is admin to show appropriate message
+                        let isAdmin = false;
+                        if (getUser) {
+                            try {
+                                const user = getUser();
+                                isAdmin = user?.roles?.some((role: any) => role.name === "admin" || role === "admin") || false;
+                            } catch (e) {
+                                // User context not available, default to false
+                            }
+                        }
+
+                        // Add admin info to error data for proper message display
+                        const errorData = { ...data, isAdmin };
+                        const standardizedError: StandardizedError = standardizeApiError(errorData, 401);
+                        return {
+                            data: undefined,
+                            error: standardizedError.message,
+                            status: 401,
+                            errorDetails: standardizedError.details
+                        };
+                    }
                 }
             }
 

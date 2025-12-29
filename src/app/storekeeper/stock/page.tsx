@@ -20,6 +20,7 @@ import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { AuthError } from "../../types/types";
+import { useTooltips } from "../../hooks/useTooltips";
 
 interface InventoryItem {
     item_id: number;
@@ -45,6 +46,7 @@ interface InventoryItem {
 export default function StockManagementPage() {
     const apiCall = useApiCall();
     const searchParams = useSearchParams();
+    useTooltips();
 
     const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
     const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
@@ -222,7 +224,16 @@ export default function StockManagementPage() {
         <RoleAwareLayout>
             <div className="container-fluid">
                 <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h2>Stock Management</h2>
+                    <h2>
+                        Stock Management
+                        <i
+                            className="bi bi-question-circle ms-2 text-muted"
+                            style={{ cursor: "help", fontSize: "0.9rem" }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="bottom"
+                            title="View all inventory items and their current levels"
+                        ></i>
+                    </h2>
                 </div>
 
                 <ErrorDisplay

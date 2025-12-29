@@ -19,6 +19,7 @@ import ErrorDisplay from "../../../components/ErrorDisplay";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { AuthError } from "../../../types/types";
 import { format } from "date-fns";
+import { useTooltips } from "../../../hooks/useTooltips";
 
 interface ProductionPreparation {
     id: number;
@@ -245,6 +246,13 @@ export default function SupervisorPreparationsPage() {
                     <h1 className="h4 mb-0 fw-bold">
                         <i className="bi bi-clipboard-check me-2"></i>
                         Production Preparations
+                        <i 
+                            className="bi bi-question-circle ms-2" 
+                            style={{ cursor: "help", fontSize: "0.9rem" }}
+                            data-bs-toggle="tooltip" 
+                            data-bs-placement="bottom"
+                            title="Review and approve production preparations"
+                        ></i>
                     </h1>
                     <p className="mb-0 small">Review and approve chef preparation requests</p>
                 </div>

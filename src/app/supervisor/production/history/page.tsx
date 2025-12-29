@@ -19,6 +19,7 @@ import ErrorDisplay from "../../../components/ErrorDisplay";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { AuthError } from "../../../types/types";
 import DisposeItemModal from "../../../admin/production/DisposeItemModal";
+import { useTooltips } from "../../../hooks/useTooltips";
 
 interface ProductionIssue {
     id: number;
@@ -43,6 +44,7 @@ interface ProductionIssue {
 
 export default function ProductionHistoryPage() {
     const apiCall = useApiCall();
+    useTooltips();
 
     const [productionIssues, setProductionIssues] = useState<ProductionIssue[]>([]);
     const [filteredIssues, setFilteredIssues] = useState<ProductionIssue[]>([]);
@@ -175,7 +177,16 @@ export default function ProductionHistoryPage() {
         <RoleAwareLayout>
             <div className="container-fluid">
                 <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h2>Production History</h2>
+                    <h2>
+                        Production History
+                        <i 
+                            className="bi bi-question-circle ms-2 text-muted" 
+                            style={{ cursor: "help", fontSize: "0.9rem" }}
+                            data-bs-toggle="tooltip" 
+                            data-bs-placement="bottom"
+                            title="View and manage production preparation records"
+                        ></i>
+                    </h2>
                     <Button variant="primary" href="/supervisor/production/issue">
                         Issue Production
                     </Button>
