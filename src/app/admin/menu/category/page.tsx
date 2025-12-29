@@ -11,9 +11,11 @@ import ErrorDisplay from "../../../components/ErrorDisplay";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
+import { useTooltips } from "../../../hooks/useTooltips";
 
 const CategoryPage: React.FC = () => {
   const apiCall = useApiCall();
+  useTooltips();
 
   const [name, setName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -158,6 +160,13 @@ const CategoryPage: React.FC = () => {
           <h1 className="h4 mb-0 fw-bold">
             <i className="bi bi-grid me-2"></i>
             Menu Management
+            <i
+              className="bi bi-question-circle ms-2"
+              style={{ cursor: "help", fontSize: "0.9rem" }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="bottom"
+              title="Manage menu categories and organize items"
+            ></i>
           </h1>
         </div>
 

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
 import AdminLayout from "./AdminLayout";
 import SupervisorLayout from "./SupervisorLayout";
@@ -23,6 +25,21 @@ export default function RoleAwareLayout({ children }) {
 
             try {
                 const decoded = jwt.decode(token) as any;
+                
+                // Check if token is expired
+                if (decoded && decoded.exp) {
+                    const expirationTime = decoded.exp * 1000; // Convert to milliseconds
+                    const currentTime = Date.now();
+                    if (currentTime >= expirationTime) {
+                        // Token is expired - clear it and show default layout
+                        console.warn("Token expired in RoleAwareLayout");
+                        localStorage.removeItem("token");
+                        setRole(null);
+                        setIsLoading(false);
+                        return;
+                    }
+                }
+                
                 if (decoded && decoded.roles) {
                     // Handle both array and single role formats
                     let rolesArray: any[] = [];
@@ -54,6 +71,8 @@ export default function RoleAwareLayout({ children }) {
                 }
             } catch (error) {
                 console.error("Error decoding token in RoleAwareLayout:", error);
+                // If token is completely invalid, clear it
+                localStorage.removeItem("token");
             }
 
             // No valid role found

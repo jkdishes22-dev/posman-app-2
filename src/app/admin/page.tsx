@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 
 import RoleAwareLayout from "../shared/RoleAwareLayout";
 import SecureRoute from "../components/SecureRoute";
+import { useTooltips } from "../hooks/useTooltips";
 
 export default function AdminPage() {
   const router = useRouter();
+  useTooltips();
 
   const adminFeatures = [
     {
@@ -77,6 +79,13 @@ export default function AdminPage() {
             <h1 className="h3 mb-0 fw-bold">
               <i className="bi bi-shield-check me-2"></i>
               Admin Dashboard
+              <i
+                className="bi bi-question-circle ms-2"
+                style={{ cursor: "help", fontSize: "0.9rem" }}
+                data-bs-toggle="tooltip"
+                data-bs-placement="bottom"
+                title="Central hub for managing all aspects of your POS system including users, menus, stations, production, and inventory"
+              ></i>
             </h1>
             <p className="mb-0 text-white-50">Manage your POS system and users</p>
           </div>
@@ -100,6 +109,9 @@ export default function AdminPage() {
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
                   }}
+                  data-bs-toggle="tooltip"
+                  data-bs-placement="top"
+                  title={feature.description}
                 >
                   <Card.Body className="p-4">
                     <div className="d-flex align-items-center mb-3">

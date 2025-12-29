@@ -11,8 +11,10 @@ import ErrorDisplay from "../../../components/ErrorDisplay";
 import ExpressItemSearchModal from "../../../components/ExpressItemSearchModal";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
+import { useTooltips } from "../../../hooks/useTooltips";
 
 export default function PricelistPage() {
+  useTooltips();
   const [showModal, setShowModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
   const [showExpressSearch, setShowExpressSearch] = useState(false);
@@ -333,10 +335,19 @@ export default function PricelistPage() {
             <h1 className="h4 mb-0 fw-bold">
               <i className="bi bi-tags me-2"></i>
               Pricelist Management
+              <i
+                className="bi bi-question-circle ms-2"
+                style={{ cursor: "help", fontSize: "0.9rem" }}
+                data-bs-toggle="tooltip"
+                data-bs-placement="bottom"
+                title="Configure pricing for different stations or customer groups"
+              ></i>
             </h1>
             <button
               onClick={() => setShowExpressSearch(true)}
               className="btn btn-outline-light btn-sm"
+              data-bs-toggle="tooltip"
+              data-bs-placement="bottom"
               title="Search for items across all pricelists"
             >
               <i className="bi bi-lightning me-1"></i>

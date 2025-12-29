@@ -7,6 +7,7 @@ import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import StationSwitcher from "../components/StationSwitcher";
 import { AuthError } from "../types/types";
+import { useTooltips } from "../hooks/useTooltips";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -14,6 +15,7 @@ interface AdminLayoutProps {
 }
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
+  useTooltips();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeItem, setActiveItem] = useState("");
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
@@ -310,6 +312,34 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
     },
   ];
 
+  const getMenuTooltip = (label: string): string => {
+    const tooltips: { [key: string]: string } = {
+      "Dashboard": "View admin dashboard and system overview",
+      "Users": "Manage user accounts and access",
+      "View Users": "View and manage system users",
+      "Roles & Permissions": "Manage role-based permissions for users",
+      "Configuration": "Configure system settings",
+      "Stations": "Manage POS stations and their configurations",
+      "Station Users": "Assign users to stations and manage access",
+      "Menu & Pricing": "Manage menu items and pricing",
+      "Categories": "Manage menu categories and organize items",
+      "Recipes": "Manage composite items and their ingredients",
+      "Pricelists": "Configure pricing for different stations or customer groups",
+      "Production": "Manage production and inventory",
+      "Issue Production": "Create a new production issue record",
+      "Bill": "View and manage bills",
+      "Supplies": "Manage suppliers and purchase orders",
+      "Suppliers": "Manage supplier information",
+      "Purchase Orders": "Create and manage purchase orders",
+      "Inventory": "Manage inventory levels and transactions",
+      "Inventory Dashboard": "Overview of inventory levels and alerts",
+      "Inventory List": "View all inventory items and their current levels",
+      "Transactions": "View all inventory movement transactions",
+      "Reports": "View reports and system analytics",
+    };
+    return tooltips[label] || `Navigate to ${label}`;
+  };
+
   const handleItemClick = (itemId: string, path: string) => {
     setActiveItem(itemId);
     router.push(path);
@@ -399,6 +429,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
                         color: "rgba(255,255,255,0.8)",
                         cursor: "pointer",
                       }}
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="right"
+                      title={getMenuTooltip(item.label)}
                     >
                       <i className={`bi ${item.icon} me-3`}></i>
                       {!isCollapsed && <span>{item.label}</span>}
@@ -420,6 +453,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
                                 fontSize: "0.9rem",
                                 padding: "0.5rem 0.75rem",
                               }}
+                              data-bs-toggle="tooltip"
+                              data-bs-placement="right"
+                              title={getMenuTooltip(subItem.label)}
                             >
                               <i className={`bi ${subItem.icon} me-2`}></i>
                               {subItem.label}
@@ -438,6 +474,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
                       border: "none",
                       color: activeItem === item.id ? "white" : "rgba(255,255,255,0.8)",
                     }}
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    title={getMenuTooltip(item.label)}
                   >
                     <i className={`bi ${item.icon} me-3`}></i>
                     {!isCollapsed && <span>{item.label}</span>}

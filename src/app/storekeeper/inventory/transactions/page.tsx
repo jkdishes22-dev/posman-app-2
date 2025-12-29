@@ -19,6 +19,7 @@ import { useApiCall } from "../../../utils/apiUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { AuthError } from "../../../types/types";
+import { useTooltips } from "../../../hooks/useTooltips";
 
 interface InventoryTransaction {
     id: number;
@@ -41,6 +42,7 @@ const DEFAULT_PAGE_SIZE = 10;
 
 export default function InventoryTransactionsPage() {
     const apiCall = useApiCall();
+    useTooltips();
 
     const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -105,15 +107,24 @@ export default function InventoryTransactionsPage() {
     };
 
     const getTransactionTypeBadge = (type: string) => {
-        const badges: { [key: string]: { bg: string; label: string } } = {
-            "bill_sale": { bg: "danger", label: "Bill Sale" },
-            "production_issue": { bg: "success", label: "Production Issue" },
-            "manual_adjustment": { bg: "warning", label: "Manual Adjustment" },
-            "purchase_order": { bg: "info", label: "Purchase Order" },
-            "disposal": { bg: "dark", label: "Disposal" },
+        const badges: { [key: string]: { bg: string; label: string; tooltip: string } } = {
+            "bill_sale": { bg: "danger", label: "Bill Sale", tooltip: "Inventory deducted when items are sold in a bill" },
+            "production_issue": { bg: "success", label: "Production Issue", tooltip: "Inventory added when production items are issued" },
+            "manual_adjustment": { bg: "warning", label: "Manual Adjustment", tooltip: "Manual inventory quantity adjustment" },
+            "purchase_order": { bg: "info", label: "Purchase Order", tooltip: "Inventory added from purchase orders" },
+            "disposal": { bg: "dark", label: "Disposal", tooltip: "Inventory removed due to expiration or damage" },
         };
-        const badge = badges[type] || { bg: "secondary", label: type };
-        return <Badge bg={badge.bg}>{badge.label}</Badge>;
+        const badge = badges[type] || { bg: "secondary", label: type, tooltip: `Transaction type: ${type}` };
+        return (
+            <Badge
+                bg={badge.bg}
+                data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                title={badge.tooltip}
+            >
+                {badge.label}
+            </Badge>
+        );
     };
 
     const getQuantityDisplay = (quantity: number) => {
@@ -146,6 +157,13 @@ export default function InventoryTransactionsPage() {
                     <h1 className="h4 mb-0 fw-bold">
                         <i className="bi bi-arrow-left-right me-2"></i>
                         Inventory Transactions
+                        <i
+                            className="bi bi-question-circle ms-2"
+                            style={{ cursor: "help", fontSize: "0.9rem" }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="bottom"
+                            title="View all inventory movement transactions"
+                        ></i>
                     </h1>
                 </div>
 

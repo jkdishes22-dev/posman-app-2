@@ -7,6 +7,7 @@ import { useApiCall } from "../utils/apiUtils";
 import ErrorDisplay from "../components/ErrorDisplay";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import { useRouter } from "next/navigation";
+import { useTooltips } from "../hooks/useTooltips";
 
 interface LowStockItem {
   item_id: number;
@@ -24,6 +25,7 @@ interface LowStockItem {
 export default function StorekeeperPage() {
   const apiCall = useApiCall();
   const router = useRouter();
+  useTooltips();
 
   const [stats, setStats] = useState({
     totalItems: 0,
@@ -111,6 +113,13 @@ export default function StorekeeperPage() {
             <h1 className="h4 mb-0 fw-bold">
               <i className="bi bi-boxes me-2"></i>
               Inventory Dashboard
+              <i
+                className="bi bi-question-circle ms-2"
+                style={{ cursor: "help", fontSize: "0.9rem" }}
+                data-bs-toggle="tooltip"
+                data-bs-placement="bottom"
+                title="Overview of inventory levels and alerts"
+              ></i>
             </h1>
             <div>
               <Button
@@ -155,6 +164,9 @@ export default function StorekeeperPage() {
                 e.currentTarget.style.transform = "translateY(0)";
                 e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
               }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="View all inventory items and their current levels"
             >
               <Card.Body>
                 <div className="text-primary mb-2">
@@ -178,6 +190,9 @@ export default function StorekeeperPage() {
                 e.currentTarget.style.transform = "translateY(0)";
                 e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
               }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="Items with quantity below minimum stock level"
             >
               <Card.Body>
                 <div className="text-warning mb-2">
@@ -201,6 +216,9 @@ export default function StorekeeperPage() {
                 e.currentTarget.style.transform = "translateY(0)";
                 e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
               }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="Items with zero available quantity"
             >
               <Card.Body>
                 <div className="text-danger mb-2">
@@ -224,6 +242,9 @@ export default function StorekeeperPage() {
                 e.currentTarget.style.transform = "translateY(0)";
                 e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
               }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="View recent inventory transactions and movements"
             >
               <Card.Body>
                 <div className="text-info mb-2">

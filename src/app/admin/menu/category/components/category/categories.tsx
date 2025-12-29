@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Image from "next/image";
+import { useTooltips } from "../../../../../hooks/useTooltips";
 
 interface Category {
   id: string;
@@ -30,6 +31,7 @@ const Categories: React.FC<CategoriesProps> = ({
   error,
   onErrorDismiss,
 }) => {
+  useTooltips();
   const [showAll, setShowAll] = useState(false);
   const [visibleCount, setVisibleCount] = useState(8);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -104,6 +106,10 @@ const Categories: React.FC<CategoriesProps> = ({
                           width={24}
                           height={24}
                           className="m-1"
+                          style={{ cursor: "pointer" }}
+                          data-bs-toggle="tooltip"
+                          data-bs-placement="top"
+                          title="Delete this category"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (onDeleteCategory) {

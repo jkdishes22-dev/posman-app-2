@@ -15,6 +15,7 @@ import { useApiCall } from "../../../utils/apiUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { AuthError } from "../../../types/types";
+import { useTooltips } from "../../../hooks/useTooltips";
 
 interface SellableItem {
     id: number;
@@ -46,6 +47,7 @@ interface ProductionIssue {
 
 export default function ProductionIssuePage() {
     const apiCall = useApiCall();
+    useTooltips();
 
     const [selectedItem, setSelectedItem] = useState<SellableItem | null>(null);
     const [itemSearchQuery, setItemSearchQuery] = useState<string>("");

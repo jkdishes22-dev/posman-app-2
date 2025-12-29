@@ -8,11 +8,13 @@ import Pagination from "../../../components/Pagination";
 import { withSecureRoute } from "../../../components/withSecureRoute"; import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import { useTooltips } from "../../../hooks/useTooltips";
 
 const DEFAULT_PAGE_SIZE = parseInt(process.env.NEXT_PUBLIC_PAGE_SIZE || "10", 10);
 const DEFAULT_REFRESH_INTERVAL_SECONDS = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS || "300", 10);
 
 function UsersPage() {
+  useTooltips();
   const [showModal, setShowModal] = useState(false);
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -489,6 +491,13 @@ function UsersPage() {
             <h1 className="h4 mb-0 fw-bold">
               <i className="bi bi-people me-2"></i>
               User Management
+              <i
+                className="bi bi-question-circle ms-2"
+                style={{ cursor: "help", fontSize: "0.9rem" }}
+                data-bs-toggle="tooltip"
+                data-bs-placement="bottom"
+                title="View and manage system users"
+              ></i>
             </h1>
             <div className="d-flex align-items-center gap-3">
               <span className="badge bg-light text-dark">
@@ -499,6 +508,9 @@ function UsersPage() {
                 type="button"
                 className="btn btn-light btn-sm"
                 onClick={handleShow}
+                data-bs-toggle="tooltip"
+                data-bs-placement="bottom"
+                title="Create a new user account"
               >
                 <i className="bi bi-person-plus me-1"></i>
                 Add User
@@ -767,6 +779,9 @@ function UsersPage() {
                             type="button"
                             className="btn btn-warning btn-sm w-100"
                             onClick={handleShowUpdateModal}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Edit user information"
                           >
                             <i className="bi bi-pencil me-1"></i>
                             Update
@@ -778,6 +793,9 @@ function UsersPage() {
                             className="btn btn-danger btn-sm w-100"
                             onClick={() => setShowDeleteModal(true)}
                             disabled={selectedUser.status === "DELETED"}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Deactivate this user account"
                           >
                             <i className="bi bi-trash me-1"></i>
                             Deactivate
@@ -787,6 +805,9 @@ function UsersPage() {
                           <button
                             className="btn btn-info btn-sm w-100"
                             onClick={() => setShowLockModal(true)}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title={selectedUser.is_locked ? "Unlock this user account" : "Lock this user account"}
                           >
                             <i className={`bi ${selectedUser.is_locked ? "bi-unlock" : "bi-lock"} me-1`}></i>
                             {selectedUser.is_locked ? "Unlock" : "Lock"}
@@ -796,6 +817,9 @@ function UsersPage() {
                           <button
                             className="btn btn-secondary btn-sm w-100"
                             onClick={() => setShowAssignRoleConfirmModal(true)}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Assign a role to this user"
                           >
                             <i className="bi bi-person-gear me-1"></i>
                             Assign Role
@@ -807,6 +831,9 @@ function UsersPage() {
                           <button
                             className="btn btn-success w-100"
                             onClick={() => setShowReactivateModal(true)}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Reactivate this deactivated user account"
                           >
                             <i className="bi bi-arrow-clockwise me-1"></i>
                             Reactivate User

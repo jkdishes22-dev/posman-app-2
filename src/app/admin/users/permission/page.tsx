@@ -12,6 +12,7 @@ import jwt from "jsonwebtoken";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
+import { useTooltips } from "../../../hooks/useTooltips";
 
 type ErrorState = {
   message: string;
@@ -23,6 +24,7 @@ type ErrorState = {
 
 export default function UsersPage() {
   const apiCall = useApiCall();
+  useTooltips();
   const [roles, setRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [selectedScope, setSelectedScope] = useState<Scope | null>(null);
@@ -289,6 +291,13 @@ export default function UsersPage() {
           <h1 className="h4 mb-0 fw-bold">
             <i className="bi bi-shield-check me-2"></i>
             User Roles & Permissions
+            <i
+              className="bi bi-question-circle ms-2"
+              style={{ cursor: "help", fontSize: "0.9rem" }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="bottom"
+              title="Manage role-based permissions for users"
+            ></i>
           </h1>
         </div>
 
@@ -323,6 +332,13 @@ export default function UsersPage() {
                 <h5 className="mb-0 fw-bold">
                   <i className="bi bi-people me-2 text-primary"></i>
                   Roles
+                  <i
+                    className="bi bi-question-circle ms-2 text-muted"
+                    style={{ cursor: "help", fontSize: "0.85rem" }}
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    title="Select a role to view or edit its permissions"
+                  ></i>
                 </h5>
               </div>
               <div className="card-body p-0">
@@ -364,6 +380,9 @@ export default function UsersPage() {
                               <button
                                 className={`nav-link ${selectedScope?.id === scope.id ? "active" : ""}`}
                                 onClick={() => setSelectedScope(scope)}
+                                data-bs-toggle="tooltip"
+                                data-bs-placement="top"
+                                title={`View permissions for ${scope.name} category`}
                               >
                                 <i className="bi bi-tag me-1"></i>
                                 {scope.name}

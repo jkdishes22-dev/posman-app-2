@@ -20,6 +20,7 @@ import { ApiErrorResponse } from "../../utils/errorUtils";
 import { format } from "date-fns";
 import IssueProductionModal from "./IssueProductionModal";
 import DisposeItemModal from "./DisposeItemModal";
+import { useTooltips } from "../../hooks/useTooltips";
 
 interface SellableItem {
     id: number;
@@ -56,6 +57,7 @@ interface ProductionPreparation {
 
 export default function AdminProductionPage() {
     const apiCall = useApiCall();
+    useTooltips();
 
     // Modal state
     const [showIssueModal, setShowIssueModal] = useState<boolean>(false);
@@ -204,13 +206,49 @@ export default function AdminProductionPage() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "issued":
-                return <Badge bg="success">Issued</Badge>;
+                return (
+                    <Badge
+                        bg="success"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="Production has been issued to inventory"
+                    >
+                        Issued
+                    </Badge>
+                );
             case "approved":
-                return <Badge bg="info">Approved</Badge>;
+                return (
+                    <Badge
+                        bg="info"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="Production has been approved (legacy status, not used in current workflow)"
+                    >
+                        Approved
+                    </Badge>
+                );
             case "pending":
-                return <Badge bg="warning">Pending</Badge>;
+                return (
+                    <Badge
+                        bg="warning"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="Production is pending supervisor approval"
+                    >
+                        Pending
+                    </Badge>
+                );
             case "rejected":
-                return <Badge bg="danger">Rejected</Badge>;
+                return (
+                    <Badge
+                        bg="danger"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="Production has been rejected by supervisor"
+                    >
+                        Rejected
+                    </Badge>
+                );
             default:
                 return <Badge bg="secondary">{status}</Badge>;
         }
@@ -221,10 +259,25 @@ export default function AdminProductionPage() {
             <div className="container-fluid">
                 <div className="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h2 className="mb-0">Production History</h2>
+                        <h2 className="mb-0">
+                            Production History
+                            <i
+                                className="bi bi-question-circle ms-2 text-muted"
+                                style={{ cursor: "help", fontSize: "0.9rem" }}
+                                data-bs-toggle="tooltip"
+                                data-bs-placement="bottom"
+                                title="View and manage production preparation records"
+                            ></i>
+                        </h2>
                         <p className="text-muted small mb-0">View and manage production records</p>
                     </div>
-                    <Button variant="primary" onClick={() => setShowIssueModal(true)}>
+                    <Button
+                        variant="primary"
+                        onClick={() => setShowIssueModal(true)}
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="left"
+                        title="Create a new production issue record"
+                    >
                         <i className="bi bi-plus-circle me-2"></i>
                         Issue Production
                     </Button>
@@ -376,7 +429,9 @@ export default function AdminProductionPage() {
                                                         variant="outline-danger"
                                                         size="sm"
                                                         onClick={() => handleDisposeClick(prep)}
-                                                        title="Dispose/Expire this item"
+                                                        data-bs-toggle="tooltip"
+                                                        data-bs-placement="left"
+                                                        title="Remove expired or damaged items from inventory"
                                                     >
                                                         <i className="bi bi-trash me-1"></i>
                                                         Dispose
