@@ -37,7 +37,7 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
       breadcrumbItems = [{ label: "Dashboard", path: "/storekeeper" }];
     }
     // Inventory section
-    else if (path.includes("/storekeeper") && !path.includes("/storekeeper/suppliers") && !path.includes("/storekeeper/purchase-orders") && !path.includes("/storekeeper/reorder")) {
+    else if (path.includes("/storekeeper") && !path.includes("/storekeeper/suppliers") && !path.includes("/storekeeper/purchase-orders")) {
       expandedMenuIds.push("inventory");
       if (path.includes("/storekeeper/inventory/transactions")) {
         activeItemId = "inventory-transactions";
@@ -79,16 +79,6 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
         { label: "Dashboard", path: "/storekeeper" },
         { label: "Suppliers", path: "/storekeeper/suppliers" },
         { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }
-      ];
-    }
-    // Reorder Management
-    else if (path.includes("/storekeeper/reorder")) {
-      expandedMenuIds.push("suppliers");
-      activeItemId = "suppliers-reorder";
-      breadcrumbItems = [
-        { label: "Dashboard", path: "/storekeeper" },
-        { label: "Suppliers", path: "/storekeeper/suppliers" },
-        { label: "Reorder Management", path: "/storekeeper/reorder" }
       ];
     }
 
@@ -146,12 +136,6 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
           icon: "bi-cart-check",
           path: "/storekeeper/purchase-orders",
         },
-        {
-          id: "suppliers-reorder",
-          label: "Reorder Management",
-          icon: "bi-arrow-repeat",
-          path: "/storekeeper/reorder",
-        },
       ],
     },
     {
@@ -188,7 +172,6 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
       "Transactions": "View all inventory movement transactions",
       "Suppliers": "Manage suppliers and purchase orders",
       "Purchase Orders": "Create and manage purchase orders",
-      "Reorder Management": "Manage reorder points and stock replenishment",
       "Reports": "View reports and system analytics",
     };
     return tooltips[label] || `Navigate to ${label}`;
