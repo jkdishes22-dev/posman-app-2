@@ -15,4 +15,4 @@ const SalesBillingPage = () => {
     );
 };
 
-export default withSecureRoute(SalesBillingPage, { roleRequired: "sales" });
+export default withSecureRoute(SalesBillingPage, { rolesRequired: ["sales", "supervisor"] });

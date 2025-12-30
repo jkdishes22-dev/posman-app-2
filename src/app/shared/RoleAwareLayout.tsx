@@ -8,16 +8,22 @@ import CashierLayout from "./CashierLayout";
 import HomePageLayout from "./HomePageLayout";
 import CashierPageLayout from "./CashierPageLayout";
 import StoreKeeperPageLayout from "./StoreKeeperPageLayout";
+import { useAuth } from "../contexts/AuthContext";
 import jwt from "jsonwebtoken";
 
 export default function RoleAwareLayout({ children }) {
     const [role, setRole] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const { logout, isAuthenticated } = useAuth();
 
     useEffect(() => {
         const extractRole = () => {
             const token = localStorage.getItem("token");
             if (!token) {
+                // No token - if we were authenticated, logout
+                if (isAuthenticated) {
+                    logout();
+                }
                 setRole(null);
                 setIsLoading(false);
                 return;
@@ -25,30 +31,30 @@ export default function RoleAwareLayout({ children }) {
 
             try {
                 const decoded = jwt.decode(token) as any;
-                
+
                 // Check if token is expired
                 if (decoded && decoded.exp) {
                     const expirationTime = decoded.exp * 1000; // Convert to milliseconds
                     const currentTime = Date.now();
                     if (currentTime >= expirationTime) {
-                        // Token is expired - clear it and show default layout
+                        // Token is expired - logout properly
                         console.warn("Token expired in RoleAwareLayout");
-                        localStorage.removeItem("token");
+                        logout();
                         setRole(null);
                         setIsLoading(false);
                         return;
                     }
                 }
-                
+
                 if (decoded && decoded.roles) {
                     // Handle both array and single role formats
                     let rolesArray: any[] = [];
                     if (Array.isArray(decoded.roles)) {
                         rolesArray = decoded.roles;
-                    } else if (typeof decoded.roles === 'string') {
+                    } else if (typeof decoded.roles === "string") {
                         rolesArray = [decoded.roles];
-                    } else if (decoded.roles && typeof decoded.roles === 'object') {
-                        // Handle case where roles might be objects with a 'name' property
+                    } else if (decoded.roles && typeof decoded.roles === "object") {
+                        // Handle case where roles might be objects with a "name" property
                         rolesArray = Array.isArray(decoded.roles) ? decoded.roles : [decoded.roles];
                     }
 
@@ -71,13 +77,24 @@ export default function RoleAwareLayout({ children }) {
                 }
             } catch (error) {
                 console.error("Error decoding token in RoleAwareLayout:", error);
-                // If token is completely invalid, clear it
-                localStorage.removeItem("token");
+                // If token is completely invalid, logout properly
+                logout();
+                setRole(null);
+                setIsLoading(false);
+                return;
             }
 
-            // No valid role found
-            setRole(null);
-            setIsLoading(false);
+            // No valid role found - if we have a token but no role, something is wrong
+            const currentToken = localStorage.getItem("token");
+            if (currentToken && !role) {
+                // Token exists but couldn't extract role - might be invalid
+                // Don't logout here, let apiUtils handle it on next API call
+                setRole(null);
+                setIsLoading(false);
+            } else {
+                setRole(null);
+                setIsLoading(false);
+            }
         };
 
         extractRole();
@@ -90,11 +107,27 @@ export default function RoleAwareLayout({ children }) {
 
         window.addEventListener("storage", handleStorageChange);
         return () => window.removeEventListener("storage", handleStorageChange);
-    }, []);
+    }, [logout, isAuthenticated]);
 
     // Show loading state briefly to avoid flashing wrong layout
     if (isLoading) {
         return <div>Loading...</div>;
+    }
+
+    // If there's no token and we're not authenticated, we're likely being logged out
+    // Show a redirecting message instead of the default layout
+    const token = localStorage.getItem("token");
+    if (!token && !isAuthenticated && role === null) {
+        return (
+            <div className="d-flex justify-content-center align-items-center vh-100">
+                <div className="text-center">
+                    <div className="spinner-border text-primary mb-3" role="status">
+                        <span className="visually-hidden">Redirecting...</span>
+                    </div>
+                    <p className="text-muted">Redirecting to login...</p>
+                </div>
+            </div>
+        );
     }
 
     // Role-based layout selection (case-insensitive)

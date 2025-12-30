@@ -204,11 +204,23 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
 
                     const stations = stationsResult.status === 200 ? (stationsResult.data.stations || []) : [];
 
-                    // Fetch default station
-                    const defaultResult = await apiCall("/api/users/me/default-station");
+                    // Fetch default station with timeout handling
                     let defaultStation = null;
-                    if (defaultResult.status === 200) {
-                        defaultStation = defaultResult.data.station || null;
+                    try {
+                        // Add timeout to prevent hanging
+                        const timeoutPromise = new Promise((resolve) => {
+                            setTimeout(() => resolve({ status: 408, error: "Request timeout" }), 5000);
+                        });
+
+                        const defaultResultPromise = apiCall("/api/users/me/default-station");
+                        const defaultResult = await Promise.race([defaultResultPromise, timeoutPromise]) as any;
+
+                        if (defaultResult.status === 200) {
+                            defaultStation = defaultResult.data?.station || null;
+                        }
+                    } catch (err) {
+                        console.warn("Failed to fetch default station (non-blocking):", err);
+                        // Continue without default station - user can select manually
                     }
 
                     setAvailableStations(stations);

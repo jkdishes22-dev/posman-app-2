@@ -7,6 +7,7 @@ import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import StationSwitcher from "../components/StationSwitcher";
 import { AuthError } from "../types/types";
+import { useTooltips } from "../hooks/useTooltips";
 
 interface StoreKeeperPageLayoutProps {
   children: React.ReactNode;
@@ -14,6 +15,7 @@ interface StoreKeeperPageLayoutProps {
 }
 
 const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children, authError }) => {
+  useTooltips();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeItem, setActiveItem] = useState("");
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
@@ -35,32 +37,58 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
       breadcrumbItems = [{ label: "Dashboard", path: "/storekeeper" }];
     }
     // Inventory section
-    else if (path.includes("/storekeeper") && !path.includes("/storekeeper/suppliers") && !path.includes("/storekeeper/purchase-orders")) {
+    else if (path.includes("/storekeeper") && !path.includes("/storekeeper/suppliers") && !path.includes("/storekeeper/purchase-orders") && !path.includes("/storekeeper/reorder")) {
       expandedMenuIds.push("inventory");
-      activeItemId = "inventory-dashboard";
-      breadcrumbItems = [
-        { label: "Dashboard", path: "/storekeeper" },
-        { label: "Inventory", path: "/storekeeper" }
-      ];
+      if (path.includes("/storekeeper/inventory/transactions")) {
+        activeItemId = "inventory-transactions";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/storekeeper" },
+          { label: "Inventory", path: "/storekeeper" },
+          { label: "Transactions", path: "/storekeeper/inventory/transactions" }
+        ];
+      } else if (path.includes("/storekeeper/stock")) {
+        activeItemId = "inventory-list";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/storekeeper" },
+          { label: "Inventory", path: "/storekeeper" },
+          { label: "Inventory List", path: "/storekeeper/stock" }
+        ];
+      } else {
+        activeItemId = "inventory-dashboard";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/storekeeper" },
+          { label: "Inventory", path: "/storekeeper" }
+        ];
+      }
     }
     // Suppliers
     else if (path.includes("/storekeeper/suppliers")) {
-      expandedMenuIds.push("procurement");
-      activeItemId = "procurement-suppliers";
+      expandedMenuIds.push("suppliers");
+      activeItemId = "suppliers-list";
       breadcrumbItems = [
         { label: "Dashboard", path: "/storekeeper" },
-        { label: "Procurement", path: "/storekeeper" },
+        { label: "Suppliers", path: "/storekeeper/suppliers" },
         { label: "Suppliers", path: "/storekeeper/suppliers" }
       ];
     }
     // Purchase Orders
     else if (path.includes("/storekeeper/purchase-orders")) {
-      expandedMenuIds.push("procurement");
-      activeItemId = "procurement-purchase-orders";
+      expandedMenuIds.push("suppliers");
+      activeItemId = "suppliers-purchase-orders";
       breadcrumbItems = [
         { label: "Dashboard", path: "/storekeeper" },
-        { label: "Procurement", path: "/storekeeper" },
+        { label: "Suppliers", path: "/storekeeper/suppliers" },
         { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }
+      ];
+    }
+    // Reorder Management
+    else if (path.includes("/storekeeper/reorder")) {
+      expandedMenuIds.push("suppliers");
+      activeItemId = "suppliers-reorder";
+      breadcrumbItems = [
+        { label: "Dashboard", path: "/storekeeper" },
+        { label: "Suppliers", path: "/storekeeper/suppliers" },
+        { label: "Reorder Management", path: "/storekeeper/reorder" }
       ];
     }
 
@@ -88,38 +116,38 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
           path: "/storekeeper",
         },
         {
-          id: "inventory-stock",
-          label: "Stock Management",
-          icon: "bi-box",
+          id: "inventory-list",
+          label: "Inventory List",
+          icon: "bi-list-ul",
           path: "/storekeeper/stock",
         },
         {
-          id: "inventory-movements",
-          label: "Stock Movements",
+          id: "inventory-transactions",
+          label: "Transactions",
           icon: "bi-arrow-left-right",
-          path: "/storekeeper/movements",
+          path: "/storekeeper/inventory/transactions",
         },
       ],
     },
     {
-      id: "procurement",
-      label: "Procurement",
+      id: "suppliers",
+      label: "Suppliers",
       icon: "bi-truck",
       submenu: [
         {
-          id: "procurement-suppliers",
+          id: "suppliers-list",
           label: "Suppliers",
           icon: "bi-building",
           path: "/storekeeper/suppliers",
         },
         {
-          id: "procurement-purchase-orders",
+          id: "suppliers-purchase-orders",
           label: "Purchase Orders",
           icon: "bi-cart-check",
           path: "/storekeeper/purchase-orders",
         },
         {
-          id: "procurement-reorder",
+          id: "suppliers-reorder",
           label: "Reorder Management",
           icon: "bi-arrow-repeat",
           path: "/storekeeper/reorder",
@@ -149,6 +177,21 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
 
   const handleBreadcrumbClick = (path: string) => {
     router.push(path);
+  };
+
+  const getMenuTooltip = (label: string): string => {
+    const tooltips: { [key: string]: string } = {
+      "Dashboard": "View inventory dashboard and system overview",
+      "Inventory": "Manage inventory levels and transactions",
+      "Overview": "Overview of inventory levels and alerts",
+      "Inventory List": "View all inventory items and their current levels",
+      "Transactions": "View all inventory movement transactions",
+      "Suppliers": "Manage suppliers and purchase orders",
+      "Purchase Orders": "Create and manage purchase orders",
+      "Reorder Management": "Manage reorder points and stock replenishment",
+      "Reports": "View reports and system analytics",
+    };
+    return tooltips[label] || `Navigate to ${label}`;
   };
 
   return (

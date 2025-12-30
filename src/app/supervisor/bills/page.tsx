@@ -86,7 +86,7 @@ const SupervisorBillsPage: React.FC = () => {
 
     return (
         <RoleAwareLayout>
-            <div className="container-fluid">
+            <div className="container-fluid" style={{ overflowX: "hidden" }}>
                 <div className="row">
                     <div className="col-12">
                         <div className="d-flex justify-content-between align-items-center mb-4">
@@ -109,8 +109,8 @@ const SupervisorBillsPage: React.FC = () => {
                         {/* Filters */}
                         <div className="card mb-4">
                             <div className="card-body">
-                                <div className="row">
-                                    <div className="col-md-4">
+                                <div className="row g-3">
+                                    <div className="col-12 col-md-6 col-lg-4">
                                         <label className="form-label">Status Filter</label>
                                         <select
                                             className="form-select"
@@ -125,7 +125,7 @@ const SupervisorBillsPage: React.FC = () => {
                                             <option value="voided">Voided</option>
                                         </select>
                                     </div>
-                                    <div className="col-md-4">
+                                    <div className="col-12 col-md-6 col-lg-4">
                                         <label className="form-label">Search</label>
                                         <input
                                             type="text"
@@ -135,9 +135,9 @@ const SupervisorBillsPage: React.FC = () => {
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
-                                    <div className="col-md-4 d-flex align-items-end">
+                                    <div className="col-12 col-md-12 col-lg-4 d-flex align-items-end">
                                         <button
-                                            className="btn btn-outline-secondary"
+                                            className="btn btn-outline-secondary w-100"
                                             onClick={() => {
                                                 setSearchTerm("");
                                                 setStatusFilter("all");
@@ -171,17 +171,17 @@ const SupervisorBillsPage: React.FC = () => {
                                         <p>No bills found</p>
                                     </div>
                                 ) : (
-                                    <div className="table-responsive">
+                                    <div className="table-responsive" style={{ overflowX: "auto" }}>
                                         <table className="table table-hover">
                                             <thead>
                                                 <tr>
                                                     <th>Bill ID</th>
                                                     <th>User</th>
-                                                    <th>Station</th>
+                                                    <th className="d-none d-md-table-cell">Station</th>
                                                     <th>Total</th>
                                                     <th>Status</th>
-                                                    <th>Created</th>
-                                                    <th>Actions</th>
+                                                    <th className="d-none d-lg-table-cell">Created</th>
+                                                    <th style={{ minWidth: "100px" }}>Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -193,21 +193,31 @@ const SupervisorBillsPage: React.FC = () => {
                                                         <td>
                                                             {bill.user.firstName} {bill.user.lastName}
                                                         </td>
-                                                        <td>{bill.station?.name || 'N/A'}</td>
+                                                        <td className="d-none d-md-table-cell">{bill.station?.name || "N/A"}</td>
                                                         <td>
-                                                            <strong>${bill.total.toFixed(2)}</strong>
+                                                            <strong>${(Number(bill.total) || 0).toFixed(2)}</strong>
                                                         </td>
                                                         <td>{getStatusBadge(bill.status)}</td>
-                                                        <td>
+                                                        <td className="d-none d-lg-table-cell">
                                                             {new Date(bill.created_at).toLocaleDateString()}
                                                         </td>
                                                         <td>
-                                                            <button className="btn btn-sm btn-outline-primary me-2">
-                                                                <i className="bi bi-eye"></i>
-                                                            </button>
-                                                            <button className="btn btn-sm btn-outline-warning">
-                                                                <i className="bi bi-pencil"></i>
-                                                            </button>
+                                                            <div className="d-flex gap-1 flex-wrap">
+                                                                <button 
+                                                                    className="btn btn-sm btn-outline-primary"
+                                                                    title="View bill details"
+                                                                >
+                                                                    <i className="bi bi-eye"></i>
+                                                                    <span className="d-none d-sm-inline ms-1">View</span>
+                                                                </button>
+                                                                <button 
+                                                                    className="btn btn-sm btn-outline-warning"
+                                                                    title="Edit bill"
+                                                                >
+                                                                    <i className="bi bi-pencil"></i>
+                                                                    <span className="d-none d-sm-inline ms-1">Edit</span>
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}

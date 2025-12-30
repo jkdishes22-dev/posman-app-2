@@ -173,9 +173,9 @@ const QuantityChangeModal: React.FC<QuantityChangeModalProps> = ({
 
                     {requestedQuantity !== item.quantity && (
                         <Alert variant="info" className="mb-0">
-                            <strong>New Subtotal:</strong> KES {((item.subtotal / item.quantity) * requestedQuantity).toFixed(2)}
+                            <strong>New Subtotal:</strong> KES {(((Number(item.subtotal) || 0) / (Number(item.quantity) || 1)) * (Number(requestedQuantity) || 0)).toFixed(2)}
                             <br />
-                            <strong>Difference:</strong> KES {((item.subtotal / item.quantity) * requestedQuantity - item.subtotal).toFixed(2)}
+                            <strong>Difference:</strong> KES {((((Number(item.subtotal) || 0) / (Number(item.quantity) || 1)) * (Number(requestedQuantity) || 0)) - (Number(item.subtotal) || 0)).toFixed(2)}
                         </Alert>
                     )}
                 </Modal.Body>

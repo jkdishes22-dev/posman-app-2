@@ -11,7 +11,7 @@ export interface DecodedToken {
   exp?: number;
 }
 
-const SecureRoute = ({ children, roleRequired, allowAnyAuthenticated = false }) => {
+const SecureRoute = ({ children, roleRequired, rolesRequired, allowAnyAuthenticated = false }) => {
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
@@ -30,11 +30,19 @@ const SecureRoute = ({ children, roleRequired, allowAnyAuthenticated = false }) 
       const decodedToken = jwt.decode(token) as DecodedToken | null;
       if (!decodedToken) {
         router.push("/login");
-      } else if (!allowAnyAuthenticated && (!Array.isArray(decodedToken.roles) || !decodedToken.roles.includes(roleRequired))) {
-        router.push("/not-authorized");
+      } else if (!allowAnyAuthenticated) {
+        // Support both single role and array of roles
+        const allowedRoles = rolesRequired || (roleRequired ? [roleRequired] : []);
+        if (allowedRoles.length > 0) {
+          const hasRequiredRole = Array.isArray(decodedToken.roles) && 
+            allowedRoles.some(role => decodedToken.roles.includes(role));
+          if (!hasRequiredRole) {
+            router.push("/not-authorized");
+          }
+        }
       }
     }
-  }, [isClient, router, roleRequired, allowAnyAuthenticated]);
+  }, [isClient, router, roleRequired, rolesRequired, allowAnyAuthenticated]);
 
   if (!isClient) {
     return null; // or a loading spinner

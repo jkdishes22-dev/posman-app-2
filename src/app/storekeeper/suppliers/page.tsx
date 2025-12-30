@@ -824,20 +824,20 @@ export default function SuppliersPage() {
                         <Col md={4}>
                           <div className="text-center">
                             <p className="text-muted mb-1">Credit Balance</p>
-                            <h4 className="text-success">${supplierBalance.credit_balance?.toFixed(2) || "0.00"}</h4>
+                            <h4 className="text-success">${(Number(supplierBalance.credit_balance) || 0).toFixed(2)}</h4>
                           </div>
                         </Col>
                         <Col md={4}>
                           <div className="text-center">
                             <p className="text-muted mb-1">Debit Balance</p>
-                            <h4 className="text-danger">${supplierBalance.debit_balance?.toFixed(2) || "0.00"}</h4>
+                            <h4 className="text-danger">${(Number(supplierBalance.debit_balance) || 0).toFixed(2)}</h4>
                           </div>
                         </Col>
                         <Col md={4}>
                           <div className="text-center">
                             <p className="text-muted mb-1">Net Balance</p>
                             <h4 className={supplierBalance.net_balance >= 0 ? "text-success" : "text-danger"}>
-                              ${supplierBalance.net_balance?.toFixed(2) || "0.00"}
+                              ${(Number(supplierBalance.net_balance) || 0).toFixed(2)}
                             </h4>
                           </div>
                         </Col>
@@ -877,10 +877,10 @@ export default function SuppliersPage() {
                                 <Badge bg="info">{transaction.transaction_type}</Badge>
                               </td>
                               <td className={transaction.debit_amount > 0 ? "text-danger" : ""}>
-                                {transaction.debit_amount > 0 ? `$${transaction.debit_amount.toFixed(2)}` : "-"}
+                                {transaction.debit_amount > 0 ? `$${(Number(transaction.debit_amount) || 0).toFixed(2)}` : "-"}
                               </td>
                               <td className={transaction.credit_amount > 0 ? "text-success" : ""}>
-                                {transaction.credit_amount > 0 ? `$${transaction.credit_amount.toFixed(2)}` : "-"}
+                                {transaction.credit_amount > 0 ? `$${(Number(transaction.credit_amount) || 0).toFixed(2)}` : "-"}
                               </td>
                               <td>{transaction.notes || "-"}</td>
                             </tr>

@@ -229,7 +229,7 @@ export default function SupervisorProductionReportsPage() {
                     </div>
                     <div className="d-flex justify-content-between">
                       <span>Efficiency:</span>
-                      <span className="badge bg-primary">{totals.efficiency.toFixed(1)}%</span>
+                      <span className="badge bg-primary">{(Number(totals.efficiency) || 0).toFixed(1)}%</span>
                     </div>
                   </div>
                 </div>
@@ -306,7 +306,7 @@ export default function SupervisorProductionReportsPage() {
                               <span className="badge bg-secondary">{report.pendingItems}</span>
                             </td>
                             <td>
-                              <span className="badge bg-primary">{report.efficiency.toFixed(1)}%</span>
+                              <span className="badge bg-primary">{(Number(report.efficiency) || 0).toFixed(1)}%</span>
                             </td>
                             <td>
                               {report.topProducers.slice(0, 2).map((producer, idx) => (

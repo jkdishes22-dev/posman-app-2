@@ -27,8 +27,15 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     return res.status(200).json(cached.data);
                 }
 
+                // Add timeout to prevent hanging
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error("Request timeout")), 5000); // 5 second timeout
+                });
+
                 const stationService = new StationService(req.db);
-                const defaultStation = await stationService.getUserDefaultStation(Number(userId));
+                const defaultStationPromise = stationService.getUserDefaultStation(Number(userId));
+
+                const defaultStation = await Promise.race([defaultStationPromise, timeoutPromise]) as any;
 
                 let response;
                 if (!defaultStation) {
@@ -44,7 +51,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     };
                 }
 
-                // Cache the response
+                // Cache the response (even if null, to prevent repeated queries)
                 defaultStationCache.set(cacheKey, {
                     data: response,
                     timestamp: Date.now()
@@ -53,9 +60,21 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 res.status(200).json(response);
             } catch (error: any) {
                 console.error("Error fetching user default station:", error);
-                res.status(500).json({
-                    message: "Error fetching default station",
-                    error: error.message,
+
+                // Return a cached response if available, even if expired, to prevent complete failure
+                const userId = req.user?.id;
+                if (userId) {
+                    const cacheKey = `default-station-${userId}`;
+                    const cached = defaultStationCache.get(cacheKey);
+                    if (cached) {
+                        return res.status(200).json(cached.data);
+                    }
+                }
+
+                // If timeout or other error, return a safe default response
+                res.status(200).json({
+                    message: "No default station found for user",
+                    hasDefaultStation: false
                 });
             }
         })(req, res);

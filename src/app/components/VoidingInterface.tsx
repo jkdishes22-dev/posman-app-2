@@ -28,20 +28,20 @@ export default function VoidingInterface({
 
     // Business rule validation (Rule 4.3)
     const canVoidItems = (bill: Bill) => {
-        return (bill.status === 'pending' || bill.status === 'reopened') &&
-            bill.bill_items?.some(item => item.status === 'pending') || false;
+        return (bill.status === "pending" || bill.status === "reopened") &&
+            bill.bill_items?.some(item => item.status === "pending") || false;
     };
 
     const hasPendingVoids = (bill: Bill) => {
-        return bill.bill_items?.some(item => item.status === 'void_pending') || false;
+        return bill.bill_items?.some(item => item.status === "void_pending") || false;
     };
 
     const canVoidItem = (item: BillItem) => {
-        return item.status === 'pending';
+        return item.status === "pending";
     };
 
     const canApproveVoid = (item: BillItem) => {
-        return item.status === 'void_pending';
+        return item.status === "void_pending";
     };
 
     // Handle void request (Rule 4.5)
@@ -91,7 +91,7 @@ export default function VoidingInterface({
                 setApprovalNotes("");
                 onVoidApproved?.();
             } else {
-                setError(result.error || `Failed to ${approved ? 'approve' : 'reject'} void request`);
+                setError(result.error || `Failed to ${approved ? "approve" : "reject"} void request`);
                 setErrorDetails(result.errorDetails);
             }
         } catch (error) {
@@ -126,7 +126,7 @@ export default function VoidingInterface({
             />
 
             {/* Sales User - Void Request Interface */}
-            {userRole === 'sales' && canVoidItems(bill) && (
+            {userRole === "sales" && canVoidItems(bill) && (
                 <div className="mb-3">
                     <h6>Item Voiding</h6>
                     <div className="table-responsive">
@@ -145,11 +145,11 @@ export default function VoidingInterface({
                                     <tr key={item.id}>
                                         <td>{item.item.name}</td>
                                         <td>{item.quantity}</td>
-                                        <td>${item.subtotal.toFixed(2)}</td>
+                                        <td>${(Number(item.subtotal) || 0).toFixed(2)}</td>
                                         <td>
-                                            <span className={`badge ${item.status === 'pending' ? 'bg-success' :
-                                                item.status === 'void_pending' ? 'bg-warning' :
-                                                    'bg-danger'
+                                            <span className={`badge ${item.status === "pending" ? "bg-success" :
+                                                item.status === "void_pending" ? "bg-warning" :
+                                                    "bg-danger"
                                                 }`}>
                                                 {item.status}
                                             </span>
@@ -174,7 +174,7 @@ export default function VoidingInterface({
             )}
 
             {/* Cashier/Supervisor User - Void Approval Interface */}
-            {userRole === 'cashier' && hasPendingVoids(bill) && (
+            {userRole === "cashier" && hasPendingVoids(bill) && (
                 <div className="mb-3">
                     <h6>Pending Void Requests</h6>
                     <div className="table-responsive">
@@ -191,14 +191,14 @@ export default function VoidingInterface({
                             </thead>
                             <tbody>
                                 {bill.bill_items
-                                    ?.filter(item => item.status === 'void_pending')
+                                    ?.filter(item => item.status === "void_pending")
                                     .map((item) => (
                                         <tr key={item.id}>
                                             <td>{item.item.name}</td>
                                             <td>{item.quantity}</td>
-                                            <td>${item.subtotal.toFixed(2)}</td>
+                                            <td>${(Number(item.subtotal) || 0).toFixed(2)}</td>
                                             <td>{item.void_reason}</td>
-                                            <td>{item.void_requested_at ? new Date(item.void_requested_at).toLocaleString() : 'N/A'}</td>
+                                            <td>{item.void_requested_at ? new Date(item.void_requested_at).toLocaleString() : "N/A"}</td>
                                             <td>
                                                 <div className="btn-group" role="group">
                                                     <Button
@@ -235,7 +235,7 @@ export default function VoidingInterface({
                         <div>
                             <p><strong>Item:</strong> {selectedItem.item.name}</p>
                             <p><strong>Quantity:</strong> {selectedItem.quantity}</p>
-                            <p><strong>Amount:</strong> ${selectedItem.subtotal.toFixed(2)}</p>
+                            <p><strong>Amount:</strong> ${(Number(selectedItem.subtotal) || 0).toFixed(2)}</p>
 
                             <Form.Group className="mb-3">
                                 <Form.Label>Reason for voiding *</Form.Label>

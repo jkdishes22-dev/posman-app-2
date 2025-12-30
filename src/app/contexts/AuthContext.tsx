@@ -65,8 +65,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.removeItem("user");
         setIsAuthenticated(false);
         setUser(null);
-        router.push("/");
-    }, []); // Remove router dependency to stabilize the function
+        // Use window.location for immediate redirect to ensure it happens
+        if (typeof window !== "undefined") {
+            window.location.href = "/";
+        } else {
+            router.push("/");
+        }
+    }, [router]);
 
     const checkAuth = useCallback((): boolean => {
         const token = localStorage.getItem("token");

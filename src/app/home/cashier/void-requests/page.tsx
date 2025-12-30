@@ -29,13 +29,13 @@ const VoidRequestsPage = () => {
     // Request approval states
     const [showApprovalModal, setShowApprovalModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState<any>(null);
-    const [approvalAction, setApprovalAction] = useState<'approve' | 'reject' | null>(null);
+    const [approvalAction, setApprovalAction] = useState<"approve" | "reject" | null>(null);
     const [approvalNotes, setApprovalNotes] = useState("");
     const [paperApprovalReceived, setPaperApprovalReceived] = useState(false);
     const [approvalLoading, setApprovalLoading] = useState(false);
     const [approvalError, setApprovalError] = useState<string | null>(null);
     const [approvalErrorDetails, setApprovalErrorDetails] = useState<ApiErrorResponse | null>(null);
-    const [requestType, setRequestType] = useState<'void' | 'quantity_change' | null>(null);
+    const [requestType, setRequestType] = useState<"void" | "quantity_change" | null>(null);
 
     useEffect(() => {
         fetchBills();
@@ -58,11 +58,11 @@ const VoidRequestsPage = () => {
             baseParams.push(`pageSize=${pageSize}`);
 
             // Fetch pending bills
-            const pendingUrl = `/api/bills?status=pending${baseParams.length > 0 ? '&' + baseParams.join('&') : ''}`;
+            const pendingUrl = `/api/bills?status=pending${baseParams.length > 0 ? "&" + baseParams.join("&") : ""}`;
             const pendingResult = await apiCall(pendingUrl);
 
             // Fetch reopened bills
-            const reopenedUrl = `/api/bills?status=reopened${baseParams.length > 0 ? '&' + baseParams.join('&') : ''}`;
+            const reopenedUrl = `/api/bills?status=reopened${baseParams.length > 0 ? "&" + baseParams.join("&") : ""}`;
             const reopenedResult = await apiCall(reopenedUrl);
 
             if (pendingResult.status === 200 && reopenedResult.status === 200) {
@@ -72,14 +72,14 @@ const VoidRequestsPage = () => {
                 // Combine and filter for bills with pending requests
                 const allBills = [...pendingBills, ...reopenedBills];
                 bills = allBills.filter((bill: Bill) => {
-                    if (filters.requestType === 'void') {
-                        return bill.bill_items?.some((item: any) => item.status === 'void_pending');
-                    } else if (filters.requestType === 'quantity_change') {
-                        return bill.bill_items?.some((item: any) => item.status === 'quantity_change_request');
+                    if (filters.requestType === "void") {
+                        return bill.bill_items?.some((item: any) => item.status === "void_pending");
+                    } else if (filters.requestType === "quantity_change") {
+                        return bill.bill_items?.some((item: any) => item.status === "quantity_change_request");
                     } else {
                         // "all" - show bills with any pending requests
                         return bill.bill_items?.some((item: any) =>
-                            item.status === 'void_pending' || item.status === 'quantity_change_request'
+                            item.status === "void_pending" || item.status === "quantity_change_request"
                         );
                     }
                 });
@@ -125,7 +125,7 @@ const VoidRequestsPage = () => {
         setPage(1);
     };
 
-    const handleRequestApproval = (item: any, action: 'approve' | 'reject', type: 'void' | 'quantity_change') => {
+    const handleRequestApproval = (item: any, action: "approve" | "reject", type: "void" | "quantity_change") => {
         setSelectedItem(item);
         setApprovalAction(action);
         setRequestType(type);
@@ -146,7 +146,7 @@ const VoidRequestsPage = () => {
         setApprovalErrorDetails(null);
 
         try {
-            const endpoint = requestType === 'void'
+            const endpoint = requestType === "void"
                 ? `/api/bills/${selectedBill.id}/items/${selectedItem.id}/void-approve`
                 : `/api/bills/${selectedBill.id}/items/${selectedItem.id}/quantity-change-approve`;
 
@@ -230,7 +230,7 @@ const VoidRequestsPage = () => {
                                             <input
                                                 type="date"
                                                 className="form-control"
-                                                value={filters.billingDate ? filters.billingDate.toISOString().split('T')[0] : ''}
+                                                value={filters.billingDate ? filters.billingDate.toISOString().split("T")[0] : ""}
                                                 onChange={(e) => handleFilterChange("billingDate", e.target.value ? new Date(e.target.value) : null)}
                                             />
                                         </div>
@@ -298,15 +298,15 @@ const VoidRequestsPage = () => {
                                         </thead>
                                         <tbody>
                                             {bills.map((bill) => {
-                                                const pendingVoidCount = bill.bill_items?.filter((item: any) => item.status === 'void_pending').length || 0;
-                                                const pendingQuantityChangeCount = bill.bill_items?.filter((item: any) => item.status === 'quantity_change_request').length || 0;
+                                                const pendingVoidCount = bill.bill_items?.filter((item: any) => item.status === "void_pending").length || 0;
+                                                const pendingQuantityChangeCount = bill.bill_items?.filter((item: any) => item.status === "quantity_change_request").length || 0;
                                                 const totalPendingCount = pendingVoidCount + pendingQuantityChangeCount;
                                                 return (
                                                     <tr
                                                         key={bill.id}
-                                                        style={{ cursor: 'pointer' }}
+                                                        style={{ cursor: "pointer" }}
                                                         onClick={() => fetchBillById(bill.id)}
-                                                        className={selectedBill?.id === bill.id ? 'table-primary' : ''}
+                                                        className={selectedBill?.id === bill.id ? "table-primary" : ""}
                                                     >
                                                         <td>{bill.id}</td>
                                                         <td>
@@ -408,10 +408,10 @@ const VoidRequestsPage = () => {
                                             </thead>
                                             <tbody>
                                                 {selectedBill.bill_items
-                                                    ?.filter((item: any) => item.status === 'void_pending' || item.status === 'quantity_change_request')
+                                                    ?.filter((item: any) => item.status === "void_pending" || item.status === "quantity_change_request")
                                                     .map((item, index) => {
-                                                        const isVoidRequest = item.status === 'void_pending';
-                                                        const isQuantityChangeRequest = item.status === 'quantity_change_request';
+                                                        const isVoidRequest = item.status === "void_pending";
+                                                        const isQuantityChangeRequest = item.status === "quantity_change_request";
                                                         return (
                                                             <tr key={index} className={isVoidRequest ? "table-warning" : "table-info"}>
                                                                 <td>
@@ -431,8 +431,8 @@ const VoidRequestsPage = () => {
                                                                         item.quantity
                                                                     )}
                                                                 </td>
-                                                                <td>${(item.subtotal / item.quantity).toFixed(2)}</td>
-                                                                <td>${item.subtotal.toFixed(2)}</td>
+                                                                <td>${((Number(item.subtotal) || 0) / (Number(item.quantity) || 1)).toFixed(2)}</td>
+                                                                <td>${(Number(item.subtotal) || 0).toFixed(2)}</td>
                                                                 <td>
                                                                     <Badge bg={isVoidRequest ? "warning" : "info"} text="dark">
                                                                         {isVoidRequest ? "Void" : "Qty Change"}
@@ -447,8 +447,8 @@ const VoidRequestsPage = () => {
                                                                     <div className="d-flex gap-2">
                                                                         <button
                                                                             className="btn btn-success btn-sm d-flex align-items-center gap-1"
-                                                                            onClick={() => handleRequestApproval(item, 'approve', isVoidRequest ? 'void' : 'quantity_change')}
-                                                                            title={`Approve ${isVoidRequest ? 'Void' : 'Quantity Change'} Request`}
+                                                                            onClick={() => handleRequestApproval(item, "approve", isVoidRequest ? "void" : "quantity_change")}
+                                                                            title={`Approve ${isVoidRequest ? "Void" : "Quantity Change"} Request`}
                                                                             disabled={approvalLoading}
                                                                         >
                                                                             <i className="bi bi-check-circle-fill"></i>
@@ -456,8 +456,8 @@ const VoidRequestsPage = () => {
                                                                         </button>
                                                                         <button
                                                                             className="btn btn-outline-danger btn-sm d-flex align-items-center gap-1"
-                                                                            onClick={() => handleRequestApproval(item, 'reject', isVoidRequest ? 'void' : 'quantity_change')}
-                                                                            title={`Reject ${isVoidRequest ? 'Void' : 'Quantity Change'} Request`}
+                                                                            onClick={() => handleRequestApproval(item, "reject", isVoidRequest ? "void" : "quantity_change")}
+                                                                            title={`Reject ${isVoidRequest ? "Void" : "Quantity Change"} Request`}
                                                                             disabled={approvalLoading}
                                                                         >
                                                                             <i className="bi bi-x-circle-fill"></i>
@@ -487,8 +487,8 @@ const VoidRequestsPage = () => {
             <Modal show={showApprovalModal} onHide={handleCloseApprovalModal} size="lg">
                 <Modal.Header closeButton>
                     <Modal.Title>
-                        <i className={`bi ${requestType === 'void' ? 'bi-exclamation-triangle' : 'bi-pencil-square'} me-2 ${requestType === 'void' ? 'text-warning' : 'text-info'}`}></i>
-                        {approvalAction === 'approve' ? 'Approve' : 'Reject'} {requestType === 'void' ? 'Void' : 'Quantity Change'} Request
+                        <i className={`bi ${requestType === "void" ? "bi-exclamation-triangle" : "bi-pencil-square"} me-2 ${requestType === "void" ? "text-warning" : "text-info"}`}></i>
+                        {approvalAction === "approve" ? "Approve" : "Reject"} {requestType === "void" ? "Void" : "Quantity Change"} Request
                     </Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
@@ -500,7 +500,7 @@ const VoidRequestsPage = () => {
                                     <span className="badge bg-primary fs-6">Bill #{selectedBill?.id}</span>
                                 </div>
 
-                                {requestType === 'quantity_change' && selectedItem.requested_quantity ? (
+                                {requestType === "quantity_change" && selectedItem.requested_quantity ? (
                                     <div className="row">
                                         <div className="col-6">
                                             <div className="border rounded p-3 bg-light">
@@ -514,7 +514,7 @@ const VoidRequestsPage = () => {
                                             <div className="border rounded p-3 bg-light">
                                                 <h6 className="text-muted mb-3">Requested</h6>
                                                 <p className="mb-2"><strong>Quantity:</strong> {selectedItem.requested_quantity}</p>
-                                                <p className="mb-2"><strong>Subtotal:</strong> ${(selectedItem.item.price * selectedItem.requested_quantity).toFixed(2)}</p>
+                                                <p className="mb-2"><strong>Subtotal:</strong> ${((Number(selectedItem.item.price) || 0) * (Number(selectedItem.requested_quantity) || 0)).toFixed(2)}</p>
                                                 <p className="mb-0"><strong>Unit Price:</strong> ${selectedItem.item.price}</p>
                                             </div>
                                         </div>
@@ -529,22 +529,22 @@ const VoidRequestsPage = () => {
                                     </div>
                                 )}
 
-                                {requestType === 'quantity_change' && selectedItem.requested_quantity && (
+                                {requestType === "quantity_change" && selectedItem.requested_quantity && (
                                     <div className="mt-3 p-3 bg-white border rounded">
                                         <h6 className="fw-bold mb-2">Change Summary</h6>
                                         <div className="row">
                                             <div className="col-6">
                                                 <p className="mb-1"><strong>Quantity Change:</strong></p>
-                                                <span className={`badge ${selectedItem.requested_quantity > selectedItem.quantity ? 'bg-success' : 'bg-danger'} fs-6`}>
-                                                    {selectedItem.requested_quantity > selectedItem.quantity ? '+' : ''}
+                                                <span className={`badge ${selectedItem.requested_quantity > selectedItem.quantity ? "bg-success" : "bg-danger"} fs-6`}>
+                                                    {selectedItem.requested_quantity > selectedItem.quantity ? "+" : ""}
                                                     {selectedItem.requested_quantity - selectedItem.quantity}
                                                 </span>
                                             </div>
                                             <div className="col-6">
                                                 <p className="mb-1"><strong>Subtotal Change:</strong></p>
-                                                <span className={`badge ${selectedItem.requested_quantity > selectedItem.quantity ? 'bg-success' : 'bg-danger'} fs-6`}>
-                                                    {selectedItem.requested_quantity > selectedItem.quantity ? '+' : ''}
-                                                    ${((selectedItem.item.price * selectedItem.requested_quantity) - selectedItem.subtotal).toFixed(2)}
+                                                <span className={`badge ${selectedItem.requested_quantity > selectedItem.quantity ? "bg-success" : "bg-danger"} fs-6`}>
+                                                    {selectedItem.requested_quantity > selectedItem.quantity ? "+" : ""}
+                                                    ${(((Number(selectedItem.item.price) || 0) * (Number(selectedItem.requested_quantity) || 0)) - (Number(selectedItem.subtotal) || 0)).toFixed(2)}
                                                 </span>
                                             </div>
                                         </div>
@@ -552,10 +552,10 @@ const VoidRequestsPage = () => {
                                 )}
 
                                 <div className="mt-3">
-                                    {requestType === 'void' && selectedItem.void_reason && (
+                                    {requestType === "void" && selectedItem.void_reason && (
                                         <p className="mb-0"><strong>Void Reason:</strong> {selectedItem.void_reason}</p>
                                     )}
-                                    {requestType === 'quantity_change' && selectedItem.quantity_change_reason && (
+                                    {requestType === "quantity_change" && selectedItem.quantity_change_reason && (
                                         <p className="mb-0"><strong>Change Reason:</strong> {selectedItem.quantity_change_reason}</p>
                                     )}
                                 </div>
@@ -564,7 +564,7 @@ const VoidRequestsPage = () => {
                             <Form.Group className="mb-3">
                                 <Form.Label>
                                     <strong>
-                                        {approvalAction === 'approve' ? 'Approval' : 'Rejection'} Notes
+                                        {approvalAction === "approve" ? "Approval" : "Rejection"} Notes
                                     </strong>
                                 </Form.Label>
                                 <Form.Control
@@ -572,11 +572,11 @@ const VoidRequestsPage = () => {
                                     rows={3}
                                     value={approvalNotes}
                                     onChange={(e) => setApprovalNotes(e.target.value)}
-                                    placeholder={`Enter ${approvalAction === 'approve' ? 'approval' : 'rejection'} notes...`}
+                                    placeholder={`Enter ${approvalAction === "approve" ? "approval" : "rejection"} notes...`}
                                 />
                             </Form.Group>
 
-                            {approvalAction === 'approve' && (
+                            {approvalAction === "approve" && (
                                 <Form.Group className="mb-3">
                                     <Form.Check
                                         type="checkbox"
@@ -609,9 +609,9 @@ const VoidRequestsPage = () => {
                         Cancel
                     </Button>
                     <Button
-                        variant={approvalAction === 'approve' ? 'success' : 'danger'}
+                        variant={approvalAction === "approve" ? "success" : "danger"}
                         onClick={handleConfirmApproval}
-                        disabled={approvalLoading || (approvalAction === 'approve' && !paperApprovalReceived)}
+                        disabled={approvalLoading || (approvalAction === "approve" && !paperApprovalReceived)}
                         className="d-flex align-items-center gap-2"
                     >
                         {approvalLoading ? (
@@ -621,8 +621,8 @@ const VoidRequestsPage = () => {
                             </>
                         ) : (
                             <>
-                                <i className={`bi ${approvalAction === 'approve' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}></i>
-                                {approvalAction === 'approve' ? 'Approve' : 'Reject'} {requestType === 'void' ? 'Void' : 'Quantity Change'} Request
+                                <i className={`bi ${approvalAction === "approve" ? "bi-check-circle-fill" : "bi-x-circle-fill"}`}></i>
+                                {approvalAction === "approve" ? "Approve" : "Reject"} {requestType === "void" ? "Void" : "Quantity Change"} Request
                             </>
                         )}
                     </Button>

@@ -109,7 +109,7 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
 
                 // Validate payment amount doesn't exceed remaining amount
                 if (paymentAmount > remainingAmount) {
-                    setError(`Amount cannot exceed outstanding balance of KES ${remainingAmount.toFixed(2)}`);
+                    setError(`Amount cannot exceed outstanding balance of KES ${(Number(remainingAmount) || 0).toFixed(2)}`);
                     setIsSubmitting(false);
                     return;
                 }
@@ -300,7 +300,7 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
                                                     const value = e.target.value;
                                                     const numValue = parseFloat(value);
                                                     if (numValue > remainingAmount) {
-                                                        setError(`Amount cannot exceed outstanding balance of KES ${remainingAmount.toFixed(2)}`);
+                                                        setError(`Amount cannot exceed outstanding balance of KES ${(Number(remainingAmount) || 0).toFixed(2)}`);
                                                     } else {
                                                         setError(null);
                                                     }
@@ -314,7 +314,7 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
                                             />
                                             {cashAmount && parseFloat(cashAmount) > remainingAmount && (
                                                 <div className="invalid-feedback">
-                                                    Amount cannot exceed outstanding balance of KES {remainingAmount.toFixed(2)}
+                                                    Amount cannot exceed outstanding balance of KES {(Number(remainingAmount) || 0).toFixed(2)}
                                                 </div>
                                             )}
                                         </Form.Group>
@@ -329,7 +329,7 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
                                                         const value = e.target.value;
                                                         const numValue = parseFloat(value);
                                                         if (numValue > remainingAmount) {
-                                                            setError(`Amount cannot exceed outstanding balance of KES ${remainingAmount.toFixed(2)}`);
+                                                            setError(`Amount cannot exceed outstanding balance of KES ${(Number(remainingAmount) || 0).toFixed(2)}`);
                                                         } else {
                                                             setError(null);
                                                         }
@@ -343,7 +343,7 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
                                                 />
                                                 {mpesaAmount && parseFloat(mpesaAmount) > remainingAmount && (
                                                     <div className="invalid-feedback">
-                                                        Amount cannot exceed outstanding balance of KES {remainingAmount.toFixed(2)}
+                                                        Amount cannot exceed outstanding balance of KES {(Number(remainingAmount) || 0).toFixed(2)}
                                                     </div>
                                                 )}
                                             </Form.Group>

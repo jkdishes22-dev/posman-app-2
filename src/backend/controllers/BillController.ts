@@ -48,6 +48,31 @@ export const fetchBills = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
+export const getVoidRequests = async (req: NextApiRequest, res: NextApiResponse) => {
+  const billService = new BillService(req.db);
+  const currentUserId = Number(req.user?.id);
+
+  try {
+    const voidRequests = await billService.getVoidRequests(currentUserId);
+    res.status(200).json({ voidRequests });
+  } catch (error: any) {
+    console.error("Error fetching void requests:", error);
+    res.status(500).json({ error: `Error fetching void requests: ${error.message}` });
+  }
+};
+
+export const getVoidRequestStats = async (req: NextApiRequest, res: NextApiResponse) => {
+  const billService = new BillService(req.db);
+
+  try {
+    const stats = await billService.getVoidRequestStats();
+    res.status(200).json({ stats });
+  } catch (error: any) {
+    console.error("Error fetching void request stats:", error);
+    res.status(500).json({ error: `Error fetching void request stats: ${error.message}` });
+  }
+};
+
 export const cancelBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const { billId } = req.query;
   const billService = new BillService(req.db);

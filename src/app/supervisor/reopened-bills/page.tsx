@@ -81,7 +81,7 @@ export default function SupervisorReopenedBillsPage() {
   };
 
   const calculatePaymentTotal = (bill: ReopenedBill) => {
-    return bill.billPayments?.reduce((sum, billPayment) => 
+    return bill.billPayments?.reduce((sum, billPayment) =>
       sum + billPayment.payment.creditAmount, 0
     ) || 0;
   };
@@ -89,7 +89,7 @@ export default function SupervisorReopenedBillsPage() {
   const getPaymentStatus = (bill: ReopenedBill) => {
     const totalPaid = calculatePaymentTotal(bill);
     const billTotal = bill.total;
-    
+
     if (totalPaid === 0) return { status: "No Payment", class: "text-danger" };
     if (totalPaid < billTotal) return { status: "Partial Payment", class: "text-warning" };
     if (totalPaid > billTotal) return { status: "Overpaid", class: "text-info" };
@@ -178,7 +178,7 @@ export default function SupervisorReopenedBillsPage() {
                                   #{bill.id}
                                 </a>
                               </td>
-                              <td>${bill.total.toFixed(2)}</td>
+                              <td>${(Number(bill.total) || 0).toFixed(2)}</td>
                               <td>{getStatusBadge(bill.status)}</td>
                               <td>
                                 <span className={paymentStatus.class}>
@@ -186,7 +186,7 @@ export default function SupervisorReopenedBillsPage() {
                                 </span>
                                 <br />
                                 <small className="text-muted">
-                                  ${calculatePaymentTotal(bill).toFixed(2)} / ${bill.total.toFixed(2)}
+                                  ${(Number(calculatePaymentTotal(bill)) || 0).toFixed(2)} / ${(Number(bill.total) || 0).toFixed(2)}
                                 </small>
                               </td>
                               <td>{bill.reopenReason}</td>

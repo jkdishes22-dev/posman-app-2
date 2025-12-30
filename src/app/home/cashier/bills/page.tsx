@@ -354,7 +354,7 @@ const CashierBillsPage = () => {
   };
 
   return (
-    <div className="container-fluid">
+    <div className="container-fluid" style={{ overflowX: "hidden" }}>
       {/* Error Display */}
       <ErrorDisplay
         error={error}
@@ -374,13 +374,13 @@ const CashierBillsPage = () => {
       </div>
 
       {/* Filtering Section */}
-      <div className="row mb-4">
+      <div className="row mb-4" style={{ margin: 0 }}>
         <div className="col-12">
           <div className="card shadow-sm">
 
             <div className="card-body">
               <div className="row g-3 align-items-end">
-                <div className="col-md-3">
+                <div className="col-12 col-md-6 col-lg-3">
                   <div className="form-group">
                     <label htmlFor="billingDate" className="form-label fw-semibold">
                       Billing Date
@@ -400,7 +400,7 @@ const CashierBillsPage = () => {
                     </div>
                   </div>
                 </div>
-                <div className="col-md-3">
+                <div className="col-12 col-md-6 col-lg-3">
                   <div className="form-group">
                     <label htmlFor="billId" className="form-label fw-semibold">
                       Bill ID
@@ -417,7 +417,7 @@ const CashierBillsPage = () => {
                     </div>
                   </div>
                 </div>
-                <div className="col-md-3">
+                <div className="col-12 col-md-6 col-lg-3">
                   <div className="form-group">
                     <label htmlFor="waitress" className="form-label fw-semibold">
                       Select Waitress
@@ -439,8 +439,8 @@ const CashierBillsPage = () => {
                     </div>
                   </div>
                 </div>
-                <div className="col-md-3 d-flex align-items-end">
-                  <div className="btn-group" role="group" aria-label="Filter actions">
+                <div className="col-12 col-md-6 col-lg-3 d-flex align-items-end">
+                  <div className="btn-group w-100 flex-wrap" role="group" aria-label="Filter actions">
                     <button
                       className="btn btn-outline-primary btn-sm"
                       onClick={() => handleFilterChange("status", "submitted")}
@@ -480,9 +480,9 @@ const CashierBillsPage = () => {
       </div>
 
       {/* Main Content Area - Three Column Layout (Wireframe Design) */}
-      <div className="row g-4">
+      <div className="row g-4" style={{ margin: 0 }}>
         {/* Bills Display - Left Column (Larger) */}
-        <div className="col-6">
+        <div className="col-12 col-lg-6">
           <div className="card shadow-sm h-100">
             <div className="card-header bg-light">
               <div className="d-flex justify-content-between align-items-center">
@@ -566,130 +566,144 @@ const CashierBillsPage = () => {
                   </div>
                 )}
               </div>
-              <div className="border p-3" style={{ maxHeight: "400px", overflowY: "auto" }}>
+              <div className="border p-3" style={{ maxHeight: "400px", overflowY: "auto", overflowX: "auto" }}>
                 {bills.length > 0 ? (
-                  <table className="table table-striped table-sm">
-                    <thead>
-                      <tr>
-                        <th>
-                          <input
-                            type="checkbox"
-                            checked={
-                              selectedBills.length === bills.length &&
-                              bills.length > 0
-                            }
-                            onChange={handleSelectAll}
-                          />
-                        </th>
-                        <th>ID</th>
-                        <th>Status</th>
-                        <th>Total</th>
-                        <th>Created By</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bills.map((bill) => (
-                        <tr
-                          key={bill.id}
-                          style={{
-                            backgroundColor:
-                              bill.id === selectedBill?.id
-                                ? "#d3d3d3"
-                                : "transparent",
-                            transition: "background-color 0.3s ease",
-                          }}
-                        >
-                          <td>
+                  <div className="table-responsive" style={{ maxHeight: "400px", overflowY: "auto" }}>
+                    <table className="table table-striped table-sm">
+                      <thead>
+                        <tr>
+                          <th>
                             <input
                               type="checkbox"
-                              checked={selectedBills.includes(bill.id)}
-                              onChange={() => handleCheckboxChange(bill.id)}
+                              checked={
+                                selectedBills.length === bills.length &&
+                                bills.length > 0
+                              }
+                              onChange={handleSelectAll}
                             />
-                          </td>
-                          <td>{bill.id}</td>
-                          <td>
-                            <span className={`badge ${bill.status === "submitted" ? "bg-warning" :
-                              bill.status === "closed" ? "bg-success" :
-                                bill.status === "voided" ? "bg-danger" : "bg-secondary"
-                              }`}>
-                              {bill.status}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <span>${bill.total}</span>
-                              {bill.status === "submitted" && (() => {
-                                const totalPaid = bill.bill_payments?.reduce(
-                                  (sum, billPayment) => sum + billPayment.payment.creditAmount,
-                                  0,
-                                ) || 0;
-                                const billTotal = bill.total;
-                                const isFullyPaid = billTotal === totalPaid;
-                                const amountDifference = totalPaid - billTotal;
-
-                                return !isFullyPaid ? (
-                                  <span
-                                    className={`badge ms-2 ${amountDifference > 0 ? 'bg-info' : 'bg-danger'}`}
-                                    title={`${amountDifference > 0 ? 'Overpayment' : 'Outstanding'}: $${Math.abs(amountDifference).toFixed(2)}`}
-                                  >
-                                    <i className={`bi me-1 ${amountDifference > 0 ? 'bi-info-circle' : 'bi-exclamation-triangle'}`}></i>
-                                    ${Math.abs(amountDifference).toFixed(2)}
-                                  </span>
-                                ) : null;
-                              })()}
-                            </div>
-                          </td>
-                          <td>
-                            {bill.user.firstName} {bill.user.lastName}
-                          </td>
-                          <td>
-                            {/* Role-based actions */}
-                            {userRole === "cashier" ? (
-                              bill.status === "submitted" ? (
-                                <button
-                                  className="btn btn-sm btn-primary"
-                                  onClick={() => handleProcessClick(bill)}
-                                >
-                                  Process
-                                </button>
-                              ) : (
-                                <button
-                                  className="btn btn-sm btn-secondary"
-                                  onClick={() => setSelectedBill(bill)}
-                                >
-                                  View
-                                </button>
-                              )
-                            ) : userRole === "user" || userRole === "waitress" ? (
-                              bill.status === "pending" ? (
-                                <button
-                                  className="btn btn-sm btn-success"
-                                  onClick={() => setSelectedBill(bill)}
-                                >
-                                  Submit
-                                </button>
-                              ) : (
-                                <button
-                                  className="btn btn-sm btn-secondary"
-                                  onClick={() => setSelectedBill(bill)}
-                                >
-                                  View
-                                </button>
-                              )
-                            ) : (
-                              <button
-                                className="btn btn-sm btn-secondary"
-                                onClick={() => setSelectedBill(bill)}
-                              >
-                                View
-                              </button>
-                            )}
-                          </td>
+                          </th>
+                          <th>ID</th>
+                          <th>Status</th>
+                          <th>Total</th>
+                          <th>Created By</th>
+                          <th>Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {bills.map((bill) => (
+                          <tr
+                            key={bill.id}
+                            style={{
+                              backgroundColor:
+                                bill.id === selectedBill?.id
+                                  ? "#d3d3d3"
+                                  : "transparent",
+                              transition: "background-color 0.3s ease",
+                            }}
+                          >
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={selectedBills.includes(bill.id)}
+                                onChange={() => handleCheckboxChange(bill.id)}
+                              />
+                            </td>
+                            <td>{bill.id}</td>
+                            <td>
+                              <span className={`badge ${bill.status === "submitted" ? "bg-warning" :
+                                bill.status === "closed" ? "bg-success" :
+                                  bill.status === "voided" ? "bg-danger" : "bg-secondary"
+                                }`}>
+                                {bill.status}
+                              </span>
+                            </td>
+                            <td>
+                              <div className="d-flex align-items-center">
+                                <span>${bill.total}</span>
+                                {bill.status === "submitted" && (() => {
+                                  const totalPaid = bill.bill_payments?.reduce(
+                                    (sum, billPayment) => sum + billPayment.payment.creditAmount,
+                                    0,
+                                  ) || 0;
+                                  const billTotal = bill.total;
+                                  const isFullyPaid = billTotal === totalPaid;
+                                  const amountDifference = totalPaid - billTotal;
+
+                                  return !isFullyPaid ? (
+                                    <span
+                                      className={`badge ms-2 ${amountDifference > 0 ? "bg-info" : "bg-danger"}`}
+                                      title={`${amountDifference > 0 ? "Overpayment" : "Outstanding"}: $${Math.abs(amountDifference).toFixed(2)}`}
+                                    >
+                                      <i className={`bi me-1 ${amountDifference > 0 ? "bi-info-circle" : "bi-exclamation-triangle"}`}></i>
+                                      ${Math.abs(amountDifference).toFixed(2)}
+                                    </span>
+                                  ) : null;
+                                })()}
+                              </div>
+                            </td>
+                            <td>
+                              {bill.user.firstName} {bill.user.lastName}
+                            </td>
+                            <td>
+                              {/* Role-based actions */}
+                              {userRole === "cashier" ? (
+                                bill.status === "submitted" ? (
+                                  <button
+                                    className="btn btn-sm btn-primary"
+                                    onClick={() => handleProcessClick(bill)}
+                                  >
+                                    Process
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="btn btn-sm btn-secondary"
+                                    onClick={() => {
+                                      setSelectedBill(bill);
+                                      setSelectedBills([bill.id]);
+                                    }}
+                                  >
+                                    View
+                                  </button>
+                                )
+                              ) : userRole === "user" || userRole === "waitress" ? (
+                                bill.status === "pending" ? (
+                                  <button
+                                    className="btn btn-sm btn-success"
+                                    onClick={() => {
+                                      setSelectedBill(bill);
+                                      setSelectedBills([bill.id]);
+                                    }}
+                                  >
+                                    Submit
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="btn btn-sm btn-secondary"
+                                    onClick={() => {
+                                      setSelectedBill(bill);
+                                      setSelectedBills([bill.id]);
+                                    }}
+                                  >
+                                    View
+                                  </button>
+                                )
+                              ) : (
+                                <button
+                                  className="btn btn-sm btn-secondary"
+                                  onClick={() => {
+                                    setSelectedBill(bill);
+                                    setSelectedBills([bill.id]);
+                                  }}
+                                >
+                                  View
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
                   <p className="text-center text-muted">No bills found.</p>
                 )}
@@ -707,7 +721,7 @@ const CashierBillsPage = () => {
         </div>
 
         {/* Bill Details - Middle Column */}
-        <div className="col-3">
+        <div className="col-12 col-lg-3">
           <div className="card shadow-sm h-100">
             <div className="card-header bg-light">
               <h5 className="mb-0 fw-bold">
@@ -715,10 +729,10 @@ const CashierBillsPage = () => {
                 Bill Details
               </h5>
             </div>
-            <div className="card-body">
+            <div className="card-body" style={{ overflowY: "auto", maxHeight: "calc(100vh - 300px)" }}>
               {closeBillError && <div className="alert alert-danger alert-sm">{closeBillError}</div>}
               {selectedBills.length === 1 && selectedBill ? (
-                <div>
+                <div style={{ wordWrap: "break-word" }}>
                   <h6 className="fw-bold text-primary">Bill Information</h6>
                   <div className="mb-3">
                     <p className="mb-1"><strong>Bill ID:</strong> {selectedBill.id}</p>
@@ -775,7 +789,7 @@ const CashierBillsPage = () => {
                   </div>
 
                   {/* Voided Items Count */}
-                  {selectedBill.bill_items && selectedBill.bill_items.some(item => item.status === 'voided') && (
+                  {selectedBill.bill_items && selectedBill.bill_items.some(item => item.status === "voided") && (
                     <div className="mb-3">
                       <div className="d-flex align-items-center mb-2">
                         <i className="bi bi-x-circle me-2 text-muted"></i>
@@ -783,7 +797,7 @@ const CashierBillsPage = () => {
                       </div>
                       <div className="ms-4">
                         <span className="badge bg-danger">
-                          {selectedBill.bill_items.filter(item => item.status === 'voided').length} voided
+                          {selectedBill.bill_items.filter(item => item.status === "voided").length} voided
                         </span>
                       </div>
                     </div>
@@ -888,7 +902,7 @@ const CashierBillsPage = () => {
         </div>
 
         {/* Payment Details - Right Column */}
-        <div className="col-3">
+        <div className="col-12 col-lg-3">
           <div className="card shadow-sm h-100">
             <div className="card-header bg-light">
               <h5 className="mb-0 fw-bold">
@@ -896,9 +910,9 @@ const CashierBillsPage = () => {
                 Payment Details
               </h5>
             </div>
-            <div className="card-body">
+            <div className="card-body" style={{ overflowY: "auto", maxHeight: "calc(100vh - 300px)" }}>
               {selectedBills.length === 1 && selectedBill ? (
-                <div>
+                <div style={{ wordWrap: "break-word" }}>
                   {(() => {
                     const totalPaid = selectedBill.bill_payments?.reduce(
                       (sum, billPayment) => sum + billPayment.payment.creditAmount,
@@ -910,10 +924,10 @@ const CashierBillsPage = () => {
 
                     // Calculate payment breakdown by type
                     const mpesaPayments = selectedBill.bill_payments?.filter(
-                      billPayment => billPayment.payment.paymentType === 'MPESA'
+                      billPayment => billPayment.payment.paymentType === "MPESA"
                     ) || [];
                     const cashPayments = selectedBill.bill_payments?.filter(
-                      billPayment => billPayment.payment.paymentType === 'CASH'
+                      billPayment => billPayment.payment.paymentType === "CASH"
                     ) || [];
 
                     const mpesaTotal = mpesaPayments.reduce(
@@ -933,18 +947,18 @@ const CashierBillsPage = () => {
                         <div className="mb-3">
                           <div className="d-flex justify-content-between align-items-center mb-2">
                             <span><strong>Bill Total:</strong></span>
-                            <span className="fw-bold">${billTotal.toFixed(2)}</span>
+                            <span className="fw-bold">${(Number(billTotal) || 0).toFixed(2)}</span>
                           </div>
                           <div className="d-flex justify-content-between align-items-center mb-2">
                             <span><strong>Total Paid:</strong></span>
-                            <span className="fw-bold">${totalPaid.toFixed(2)}</span>
+                            <span className="fw-bold">${(Number(totalPaid) || 0).toFixed(2)}</span>
                           </div>
                           <hr className="my-2" />
                           <div className="d-flex justify-content-between align-items-center">
-                            <span className={isFullyPaid ? 'text-success fw-bold' : amountDifference > 0 ? 'text-info fw-bold' : 'text-danger fw-bold'}>
-                              {isFullyPaid ? 'Balance:' : amountDifference > 0 ? 'Overpayment:' : 'Outstanding:'}
+                            <span className={isFullyPaid ? "text-success fw-bold" : amountDifference > 0 ? "text-info fw-bold" : "text-danger fw-bold"}>
+                              {isFullyPaid ? "Balance:" : amountDifference > 0 ? "Overpayment:" : "Outstanding:"}
                             </span>
-                            <span className={isFullyPaid ? 'text-success fw-bold' : amountDifference > 0 ? 'text-info fw-bold' : 'text-danger fw-bold'}>
+                            <span className={isFullyPaid ? "text-success fw-bold" : amountDifference > 0 ? "text-info fw-bold" : "text-danger fw-bold"}>
                               ${Math.abs(amountDifference).toFixed(2)}
                             </span>
                           </div>
@@ -995,11 +1009,11 @@ const CashierBillsPage = () => {
                             <div
                               className="d-flex justify-content-between align-items-center mb-2 p-2 rounded"
                               style={{
-                                cursor: 'pointer',
-                                transition: 'background-color 0.2s ease'
+                                cursor: "pointer",
+                                transition: "background-color 0.2s ease"
                               }}
-                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f8f9fa"}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                               onClick={() => setShowPaymentHistory(!showPaymentHistory)}
                             >
                               <h6 className="fw-bold text-secondary mb-0">
@@ -1008,10 +1022,10 @@ const CashierBillsPage = () => {
                                   {selectedBill.bill_payments?.length || 0}
                                 </span>
                               </h6>
-                              <i className={`bi ${showPaymentHistory ? 'bi-chevron-up' : 'bi-chevron-down'} text-muted`}></i>
+                              <i className={`bi ${showPaymentHistory ? "bi-chevron-up" : "bi-chevron-down"} text-muted`}></i>
                             </div>
                             <div
-                              className={`collapse ${showPaymentHistory ? 'show' : ''}`}
+                              className={`collapse ${showPaymentHistory ? "show" : ""}`}
                               style={{
                                 maxHeight: showPaymentHistory ? "200px" : "0px",
                                 overflow: "hidden",
@@ -1024,7 +1038,7 @@ const CashierBillsPage = () => {
                                     <div className="d-flex justify-content-between align-items-start">
                                       <div className="small">
                                         <div className="d-flex align-items-center mb-1">
-                                          <i className={`bi ${billPayment.payment.paymentType === 'MPESA' ? 'bi-phone text-success' : 'bi-cash text-primary'} me-1`}></i>
+                                          <i className={`bi ${billPayment.payment.paymentType === "MPESA" ? "bi-phone text-success" : "bi-cash text-primary"} me-1`}></i>
                                           <strong>{billPayment.payment.paymentType}</strong>
                                         </div>
                                         <div><strong>Amount:</strong> ${billPayment.payment.creditAmount}</div>

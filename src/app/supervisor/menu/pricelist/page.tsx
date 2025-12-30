@@ -267,7 +267,7 @@ export default function SupervisorPricelistPage() {
                           <td>{item.itemCode}</td>
                           <td>{item.category}</td>
                           <td>{item.pricelist}</td>
-                          <td>${item.itemPrice.toFixed(2)}</td>
+                          <td>${(Number(item.itemPrice) || 0).toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>

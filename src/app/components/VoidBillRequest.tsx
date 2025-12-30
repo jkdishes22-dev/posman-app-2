@@ -92,7 +92,7 @@ export default function VoidBillRequest({
           </p>
           {billTotal && (
             <p className="mb-0">
-              <strong>Total Amount:</strong> ${billTotal.toFixed(2)}
+              <strong>Total Amount:</strong> ${(Number(billTotal) || 0).toFixed(2)}
             </p>
           )}
         </div>

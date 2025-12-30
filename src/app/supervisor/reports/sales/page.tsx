@@ -58,7 +58,7 @@ export default function SupervisorSalesReportsPage() {
     const totalSales = reports.reduce((sum, report) => sum + report.totalSales, 0);
     const totalBills = reports.reduce((sum, report) => sum + report.billCount, 0);
     const averageBillValue = totalBills > 0 ? totalSales / totalBills : 0;
-    
+
     return { totalSales, totalBills, averageBillValue };
   };
 
@@ -135,7 +135,7 @@ export default function SupervisorSalesReportsPage() {
                 <div className="d-flex justify-content-between">
                   <div>
                     <h4 className="card-title">Total Sales</h4>
-                    <h2 className="mb-0">${totals.totalSales.toFixed(2)}</h2>
+                    <h2 className="mb-0">${(Number(totals.totalSales) || 0).toFixed(2)}</h2>
                   </div>
                   <div className="align-self-center">
                     <i className="bi bi-currency-dollar fs-1"></i>
@@ -165,7 +165,7 @@ export default function SupervisorSalesReportsPage() {
                 <div className="d-flex justify-content-between">
                   <div>
                     <h4 className="card-title">Avg Bill Value</h4>
-                    <h2 className="mb-0">${totals.averageBillValue.toFixed(2)}</h2>
+                    <h2 className="mb-0">${(Number(totals.averageBillValue) || 0).toFixed(2)}</h2>
                   </div>
                   <div className="align-self-center">
                     <i className="bi bi-graph-up fs-1"></i>
@@ -206,13 +206,13 @@ export default function SupervisorSalesReportsPage() {
                         {reports.map((report, index) => (
                           <tr key={index}>
                             <td>{new Date(report.date).toLocaleDateString()}</td>
-                            <td>${report.totalSales.toFixed(2)}</td>
+                            <td>${(Number(report.totalSales) || 0).toFixed(2)}</td>
                             <td>{report.billCount}</td>
-                            <td>${report.averageBillValue.toFixed(2)}</td>
+                            <td>${(Number(report.averageBillValue) || 0).toFixed(2)}</td>
                             <td>
                               {report.topItems.slice(0, 3).map((item, idx) => (
                                 <div key={idx} className="small">
-                                  {item.name}: {item.quantity} × ${item.revenue.toFixed(2)}
+                                  {item.name}: {item.quantity} × ${(Number(item.revenue) || 0).toFixed(2)}
                                 </div>
                               ))}
                             </td>

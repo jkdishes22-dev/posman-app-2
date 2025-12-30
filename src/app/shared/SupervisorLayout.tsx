@@ -7,6 +7,7 @@ import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import StationSwitcher from "../components/StationSwitcher";
 import { AuthError } from "../types/types";
+import { useTooltips } from "../hooks/useTooltips";
 
 interface SupervisorLayoutProps {
     children: React.ReactNode;
@@ -14,6 +15,7 @@ interface SupervisorLayoutProps {
 }
 
 const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError }) => {
+    useTooltips();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [activeItem, setActiveItem] = useState("");
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
@@ -31,24 +33,26 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             { path: "/supervisor", item: "dashboard" },
             { path: "/supervisor/", item: "dashboard" },
             { path: "/supervisor/bills", item: "bills-overview" },
-            { path: "/supervisor/billing", item: "billing-fallback" },
-            { path: "/supervisor/settings", item: "settings" },
-            { path: "/home/cashier/bills", item: "cashier-bills" },
-            { path: "/home/my-sales", item: "sales-bills" },
+            { path: "/home/billing", item: "bills-create" },
+            { path: "/home/cashier/bills", item: "bills-manage" },
             { path: "/supervisor/void-requests", item: "void-requests" },
             { path: "/supervisor/reopened-bills", item: "reopened-bills" },
             { path: "/supervisor/menu/category", item: "menu-category" },
             { path: "/supervisor/menu/pricelist", item: "menu-pricelist" },
-            { path: "/home/pricelist-catalog", item: "pricelist-catalog" },
-            { path: "/supervisor/production/items", item: "production-items" },
             { path: "/supervisor/menu/recipes", item: "menu-recipes" },
-            { path: "/supervisor/production/issue", item: "production-issue" },
-            { path: "/supervisor/production/history", item: "production-history" },
-            { path: "/supervisor/production", item: "production-daily" },
+            { path: "/supervisor/production/issue", item: "production-issuing" },
+            { path: "/supervisor/station", item: "stations-overview" },
+            { path: "/supervisor/station/user", item: "station-users" },
+            { path: "/storekeeper/suppliers", item: "suppliers-list" },
+            { path: "/storekeeper/purchase-orders", item: "suppliers-purchase-orders" },
+            { path: "/storekeeper", item: "inventory-dashboard" },
+            { path: "/storekeeper/stock", item: "inventory-list" },
+            { path: "/storekeeper/inventory/transactions", item: "inventory-transactions" },
             { path: "/supervisor/reports/sales", item: "sales-reports" },
             { path: "/supervisor/reports/bills", item: "bills-reports" },
             { path: "/supervisor/reports/production", item: "production-reports" },
             { path: "/supervisor/reports", item: "reports" },
+            { path: "/supervisor/settings", item: "settings" },
         ];
 
         // Set breadcrumbs and expanded menus based on path
@@ -76,18 +80,84 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 { label: "Dashboard", path: "/supervisor" },
                 { label: "Production", path: "/supervisor/production" }
             ];
+        } else if (path.includes("/supervisor/station")) {
+            expandedMenuIds.push("stations");
+            if (path.includes("/supervisor/station/user")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Stations", path: "/supervisor/station" },
+                    { label: "Station Users", path: "/supervisor/station/user" }
+                ];
+            } else {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Stations", path: "/supervisor/station" },
+                    { label: "Overview", path: "/supervisor/station" }
+                ];
+            }
+        } else if (path.includes("/storekeeper") && (path.includes("/storekeeper/suppliers") || path.includes("/storekeeper/purchase-orders"))) {
+            expandedMenuIds.push("suppliers");
+            if (path.includes("/storekeeper/suppliers")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Suppliers", path: "/storekeeper/suppliers" },
+                    { label: "Suppliers", path: "/storekeeper/suppliers" }
+                ];
+            } else if (path.includes("/storekeeper/purchase-orders")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Suppliers", path: "/storekeeper/suppliers" },
+                    { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }
+                ];
+            }
+        } else if (path.includes("/storekeeper")) {
+            expandedMenuIds.push("inventory");
+            if (path.includes("/storekeeper/inventory/transactions")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Inventory", path: "/storekeeper" },
+                    { label: "Transactions", path: "/storekeeper/inventory/transactions" }
+                ];
+            } else if (path.includes("/storekeeper/stock")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Inventory", path: "/storekeeper" },
+                    { label: "Inventory List", path: "/storekeeper/stock" }
+                ];
+            } else {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Inventory", path: "/storekeeper" },
+                    { label: "Dashboard", path: "/storekeeper" }
+                ];
+            }
         } else if (path.includes("/supervisor/reports")) {
             expandedMenuIds.push("reports");
             breadcrumbItems = [
                 { label: "Dashboard", path: "/supervisor" },
                 { label: "Reports", path: "/supervisor/reports" }
             ];
-        } else if (path.includes("/supervisor/bills")) {
+        } else if (path.includes("/supervisor/bills") || path.includes("/home/billing") || path.includes("/home/cashier/bills")) {
             expandedMenuIds.push("bills");
-            breadcrumbItems = [
-                { label: "Dashboard", path: "/supervisor" },
-                { label: "Bills", path: "/supervisor/bills" }
-            ];
+            if (path.includes("/supervisor/bills")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Bills Management", path: "/supervisor/bills" },
+                    { label: "Bills Overview", path: "/supervisor/bills" }
+                ];
+            } else if (path.includes("/home/billing")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Bills Management", path: "/supervisor/bills" },
+                    { label: "Create Bill", path: "/home/billing" }
+                ];
+            } else if (path.includes("/home/cashier/bills")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Bills Management", path: "/supervisor/bills" },
+                    { label: "Manage Bills", path: "/home/cashier/bills" }
+                ];
+            }
         } else {
             breadcrumbItems = [{ label: "Dashboard", path: "/supervisor" }];
         }
@@ -118,35 +188,22 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             icon: "bi-receipt",
             submenu: [
                 {
-                    id: "bills-overview",
-                    label: "Bills Overview",
-                    icon: "bi-receipt",
-                    path: "/supervisor/bills",
+                    id: "bills-create",
+                    label: "Create Bill",
+                    icon: "bi-plus-circle",
+                    path: "/home/billing",
                 },
                 {
-                    id: "billing-fallback",
-                    label: "Billing Fallback",
-                    icon: "bi-cash-stack",
-                    path: "/supervisor/billing",
-                },
-            ],
-        },
-        {
-            id: "operations",
-            label: "Operations",
-            icon: "bi-gear-fill",
-            submenu: [
-                {
-                    id: "cashier-bills",
-                    label: "Cashier Bills",
+                    id: "bills-manage",
+                    label: "Manage Bills",
                     icon: "bi-cash-stack",
                     path: "/home/cashier/bills",
                 },
                 {
-                    id: "sales-bills",
-                    label: "Sales Bills",
+                    id: "bills-overview",
+                    label: "Bills Overview",
                     icon: "bi-receipt",
-                    path: "/home/my-sales",
+                    path: "/supervisor/bills",
                 },
                 {
                     id: "void-requests",
@@ -185,12 +242,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     icon: "bi-tags",
                     path: "/supervisor/menu/pricelist",
                 },
-                {
-                    id: "pricelist-catalog",
-                    label: "Pricelist Catalog",
-                    icon: "bi-book",
-                    path: "/home/pricelist-catalog",
-                },
             ],
         },
         {
@@ -199,22 +250,73 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             icon: "bi-box-seam",
             submenu: [
                 {
-                    id: "production-daily",
-                    label: "Daily Production",
-                    icon: "bi-calendar-day",
-                    path: "/supervisor/production",
-                },
-                {
-                    id: "production-issue",
+                    id: "production-issuing",
                     label: "Issue Production",
-                    icon: "bi-plus-circle",
+                    icon: "bi-arrow-up-circle",
                     path: "/supervisor/production/issue",
                 },
+            ],
+        },
+        {
+            id: "stations",
+            label: "Stations",
+            icon: "bi-gear",
+            submenu: [
                 {
-                    id: "production-history",
-                    label: "Production History",
-                    icon: "bi-clock-history",
-                    path: "/supervisor/production/history",
+                    id: "stations-overview",
+                    label: "Overview",
+                    icon: "bi-building",
+                    path: "/supervisor/station",
+                },
+                {
+                    id: "station-users",
+                    label: "Station Users",
+                    icon: "bi-people-fill",
+                    path: "/supervisor/station/user",
+                },
+            ],
+        },
+        {
+            id: "suppliers",
+            label: "Suppliers",
+            icon: "bi-truck",
+            submenu: [
+                {
+                    id: "suppliers-list",
+                    label: "Suppliers",
+                    icon: "bi-building",
+                    path: "/storekeeper/suppliers",
+                },
+                {
+                    id: "suppliers-purchase-orders",
+                    label: "Purchase Orders",
+                    icon: "bi-cart-check",
+                    path: "/storekeeper/purchase-orders",
+                },
+            ],
+        },
+        {
+            id: "inventory",
+            label: "Inventory",
+            icon: "bi-boxes",
+            submenu: [
+                {
+                    id: "inventory-dashboard",
+                    label: "Dashboard",
+                    icon: "bi-speedometer2",
+                    path: "/storekeeper",
+                },
+                {
+                    id: "inventory-list",
+                    label: "Inventory List",
+                    icon: "bi-list-ul",
+                    path: "/storekeeper/stock",
+                },
+                {
+                    id: "inventory-transactions",
+                    label: "Transactions",
+                    icon: "bi-arrow-left-right",
+                    path: "/storekeeper/inventory/transactions",
                 },
             ],
         },
@@ -266,6 +368,39 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
 
     const handleBreadcrumbClick = (path: string) => {
         router.push(path);
+    };
+
+    const getMenuTooltip = (label: string): string => {
+        const tooltips: { [key: string]: string } = {
+            "Dashboard": "View supervisor dashboard and system overview",
+            "Bills Management": "Manage bills, payments, void requests, and reopened bills",
+            "Create Bill": "Simple billing interface for creating new bills",
+            "Manage Bills": "Full bill management interface with payments, closing, and bulk operations",
+            "Bills Overview": "Comprehensive bill management dashboard with analytics and oversight",
+            "Void Requests": "Approve or reject void requests from sales team",
+            "Reopened Bills": "View and manage bills that have been reopened",
+            "Menu & Pricing": "Manage menu items and pricing",
+            "Categories": "Manage menu categories and organize items",
+            "Recipes": "Manage composite items and their ingredients",
+            "Pricelists": "Configure pricing for different stations or customer groups",
+            "Production": "Manage production and inventory",
+            "Issue Production": "Create a new production issue record",
+            "Stations": "Manage POS stations and their configurations",
+            "Overview": "View and manage all POS stations",
+            "Station Users": "Assign users to stations and manage access",
+            "Suppliers": "Manage suppliers and purchase orders",
+            "Purchase Orders": "Create and manage purchase orders",
+            "Inventory": "Manage inventory levels and transactions",
+            "Inventory Dashboard": "Overview of inventory levels and alerts",
+            "Inventory List": "View all inventory items and their current levels",
+            "Transactions": "View all inventory movement transactions",
+            "Reports": "View reports and system analytics",
+            "Sales Reports": "View sales reports and analytics",
+            "Bills Reports": "View bills reports and analytics",
+            "Production Reports": "View production reports and analytics",
+            "Settings": "Manage supervisor settings and preferences",
+        };
+        return tooltips[label] || `Navigate to ${label}`;
     };
 
     return (
@@ -495,3 +630,4 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
 };
 
 export default SupervisorLayout;
+

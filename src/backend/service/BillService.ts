@@ -964,4 +964,77 @@ export class BillService {
       return savedItem;
     });
   }
+
+  // Get void requests (bills with items in void_pending status)
+  async getVoidRequests(userId?: number) {
+    // First, find all bill items with void_pending status
+    const voidPendingItems = await this.billItemRepository.find({
+      where: {
+        status: BillItemStatus.VOID_PENDING
+      },
+      relations: ["bill", "item", "bill.user"]
+    });
+
+    // Get unique bill IDs
+    const billIds = [...new Set(voidPendingItems.map(item => item.bill_id))];
+
+    if (billIds.length === 0) {
+      return [];
+    }
+
+    // Fetch bills with their items
+    const queryBuilder = this.billRepository
+      .createQueryBuilder("bill")
+      .leftJoinAndSelect("bill.bill_items", "bill_item")
+      .leftJoinAndSelect("bill_item.item", "item")
+      .leftJoinAndSelect("bill.user", "user")
+      .where("bill.id IN (:...billIds)", { billIds })
+      .andWhere("bill.status IN (:...statuses)", { statuses: [BillStatus.PENDING, BillStatus.REOPENED] });
+
+    if (userId) {
+      queryBuilder.andWhere("bill.user_id = :userId", { userId });
+    }
+
+    const bills = await queryBuilder.getMany();
+
+    // Transform to void request format
+    const voidRequests = [];
+    for (const bill of bills) {
+      const pendingItems = bill.bill_items?.filter(item => item.status === BillItemStatus.VOID_PENDING) || [];
+      for (const item of pendingItems) {
+        voidRequests.push({
+          id: item.id,
+          billId: bill.id,
+          itemId: item.id,
+          reason: item.void_reason,
+          requestedBy: item.void_requested_by,
+          requestedAt: item.void_requested_at,
+          status: "pending",
+          bill: {
+            id: bill.id,
+            billNumber: bill.bill_number,
+            total: bill.total,
+            status: bill.status,
+            user: bill.user
+          },
+          item: item.item
+        });
+      }
+    }
+
+    return voidRequests;
+  }
+
+  // Get void request statistics
+  async getVoidRequestStats() {
+    const pendingCount = await this.billItemRepository.count({
+      where: {
+        status: BillItemStatus.VOID_PENDING
+      }
+    });
+
+    return {
+      pending: pendingCount
+    };
+  }
 }

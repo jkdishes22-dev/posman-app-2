@@ -33,6 +33,7 @@ interface InventoryItem {
             id: number;
             name: string;
         };
+        created_at?: string;
     };
     quantity: number;
     reserved_quantity: number;
@@ -41,6 +42,7 @@ interface InventoryItem {
     max_stock_level: number | null;
     reorder_point: number | null;
     is_low_stock: boolean;
+    created_at?: string;
 }
 
 export default function StockManagementPage() {
@@ -148,6 +150,18 @@ export default function StockManagementPage() {
         if (outOfStockOnly) {
             filtered = filtered.filter((item) => item.available_quantity <= 0);
         }
+
+        // Sort by date created (newest first)
+        // Try item.created_at first, then inventory created_at, then item ID as fallback
+        filtered.sort((a, b) => {
+            const dateA = a.item.created_at
+                ? new Date(a.item.created_at).getTime()
+                : (a.created_at ? new Date(a.created_at).getTime() : a.item.id);
+            const dateB = b.item.created_at
+                ? new Date(b.item.created_at).getTime()
+                : (b.created_at ? new Date(b.created_at).getTime() : b.item.id);
+            return dateB - dateA; // Descending order (newest first)
+        });
 
         setFilteredItems(filtered);
     };

@@ -197,7 +197,7 @@ export default function SupervisorBillsReportsPage() {
                 <div className="d-flex justify-content-between">
                   <div>
                     <h4 className="card-title">Total Revenue</h4>
-                    <h2 className="mb-0">${totals.totalRevenue.toFixed(2)}</h2>
+                    <h2 className="mb-0">${(Number(totals.totalRevenue) || 0).toFixed(2)}</h2>
                   </div>
                   <div className="align-self-center">
                     <i className="bi bi-currency-dollar fs-1"></i>
@@ -234,7 +234,7 @@ export default function SupervisorBillsReportsPage() {
                     </div>
                     <div className="d-flex justify-content-between">
                       <span>Avg Value:</span>
-                      <span className="badge bg-primary">${totals.averageBillValue.toFixed(2)}</span>
+                      <span className="badge bg-primary">${(Number(totals.averageBillValue) || 0).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -318,8 +318,8 @@ export default function SupervisorBillsReportsPage() {
                             <td>
                               <span className="badge bg-secondary">{report.voidedBills}</span>
                             </td>
-                            <td>${report.totalRevenue.toFixed(2)}</td>
-                            <td>${report.averageBillValue.toFixed(2)}</td>
+                            <td>${(Number(report.totalRevenue) || 0).toFixed(2)}</td>
+                            <td>${(Number(report.averageBillValue) || 0).toFixed(2)}</td>
                           </tr>
                         ))}
                       </tbody>

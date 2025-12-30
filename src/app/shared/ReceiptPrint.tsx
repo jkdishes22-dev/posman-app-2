@@ -56,13 +56,13 @@ const ReceiptContent = ({ bill, label, showTotals = true }: { bill: any; label: 
             {showTotals && (
                 <>
                     <div style={{ textAlign: "right", fontWeight: "bold", fontSize: 16, margin: "8px 0" }}>
-                        Gross Total: {bill.currency} {grossTotal.toFixed(2)}
+                        Gross Total: {bill.currency} {(Number(grossTotal) || 0).toFixed(2)}
                     </div>
                     <div style={{ textAlign: "right", fontWeight: "bold", fontSize: 14, margin: "8px 0" }}>
-                        Tax (16%): {bill.currency} {tax.toFixed(2)}
+                        Tax (16%): {bill.currency} {(Number(tax) || 0).toFixed(2)}
                     </div>
                     <div style={{ textAlign: "right", fontWeight: "bold", fontSize: 18, margin: "8px 0" }}>
-                        Total: {bill.currency} {finalTotal.toFixed(2)}
+                        Total: {bill.currency} {(Number(finalTotal) || 0).toFixed(2)}
                     </div>
                 </>
             )}

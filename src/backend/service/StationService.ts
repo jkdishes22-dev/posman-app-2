@@ -88,16 +88,23 @@ export class StationService {
    * Get user's default station
    */
   async getUserDefaultStation(userId: number): Promise<Station | null> {
-    const userStation = await this.userStationRepository.findOne({
-      where: {
-        user: { id: userId },
-        isDefault: true,
-        status: UserStationStatus.ACTIVE
-      },
-      relations: ["station"]
-    });
+    try {
+      // Optimized query with explicit join and select
+      const userStation = await this.userStationRepository
+        .createQueryBuilder("userStation")
+        .innerJoinAndSelect("userStation.station", "station")
+        .where("userStation.user_id = :userId", { userId })
+        .andWhere("userStation.is_default = :isDefault", { isDefault: true })
+        .andWhere("userStation.status = :status", { status: UserStationStatus.ACTIVE })
+        .andWhere("station.status = :stationStatus", { stationStatus: StationStatus.ACTIVE })
+        .getOne();
 
-    return userStation?.station || null;
+      return userStation?.station || null;
+    } catch (error) {
+      console.error("Error fetching user default station:", error);
+      // Return null instead of throwing to prevent cascading failures
+      return null;
+    }
   }
 
   /**

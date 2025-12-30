@@ -14,6 +14,7 @@ import {
     Row,
     Col,
     Pagination,
+    Modal,
 } from "react-bootstrap";
 import { useApiCall } from "../../../utils/apiUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
@@ -54,6 +55,14 @@ export default function InventoryTransactionsPage() {
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [itemIdFilter, setItemIdFilter] = useState<string>("");
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
+
+    // Add quantity modal state
+    const [showAddQuantityModal, setShowAddQuantityModal] = useState(false);
+    const [selectedItem, setSelectedItem] = useState<{ id: number; name: string; code: string } | null>(null);
+    const [addQuantity, setAddQuantity] = useState<string>("");
+    const [addReason, setAddReason] = useState<string>("");
+    const [isAdding, setIsAdding] = useState(false);
+    const [addError, setAddError] = useState<string | null>(null);
 
     // Debounce search term
     useEffect(() => {
@@ -143,6 +152,70 @@ export default function InventoryTransactionsPage() {
             .split("_")
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
             .join(" ");
+    };
+
+    const handleAddQuantityClick = (item: { id: number; name: string; code: string }) => {
+        setSelectedItem(item);
+        setAddQuantity("");
+        setAddReason("");
+        setAddError(null);
+        setShowAddQuantityModal(true);
+    };
+
+    const handleAddQuantitySubmit = async () => {
+        if (!selectedItem) return;
+
+        setAddError(null);
+        const quantity = parseFloat(addQuantity);
+        if (isNaN(quantity) || quantity <= 0) {
+            setAddError("Please enter a valid quantity (greater than 0)");
+            return;
+        }
+
+        if (!addReason.trim()) {
+            setAddError("Please provide a reason for adding quantity");
+            return;
+        }
+
+        setIsAdding(true);
+
+        try {
+            // First, get current inventory level
+            const currentResult = await apiCall(`/api/inventory/${selectedItem.id}`);
+            if (currentResult.status !== 200) {
+                setAddError("Failed to fetch current inventory level");
+                setIsAdding(false);
+                return;
+            }
+
+            const currentQuantity = currentResult.data?.quantity || 0;
+            const newQuantity = currentQuantity + quantity;
+
+            // Adjust inventory with the new total
+            const result = await apiCall(`/api/inventory/${selectedItem.id}/adjust`, {
+                method: "POST",
+                body: JSON.stringify({
+                    new_quantity: newQuantity,
+                    reason: addReason.trim(),
+                }),
+            });
+
+            if (result.status >= 200 && result.status < 300) {
+                setShowAddQuantityModal(false);
+                await fetchTransactions();
+                setAddQuantity("");
+                setAddReason("");
+            } else {
+                if (result.status === 403) {
+                    setAuthError({ message: result.error || "Access denied" });
+                }
+                setAddError(result.error || "Failed to add quantity");
+            }
+        } catch (error: any) {
+            setAddError("Network error occurred");
+        } finally {
+            setIsAdding(false);
+        }
     };
 
     const totalPages = Math.ceil(total / DEFAULT_PAGE_SIZE);
@@ -266,12 +339,26 @@ export default function InventoryTransactionsPage() {
                                                         {new Date(transaction.created_at).toLocaleString()}
                                                     </td>
                                                     <td>
-                                                        <div>
-                                                            <strong>{transaction.item.name}</strong>
-                                                            <br />
-                                                            <small className="text-muted">
-                                                                {transaction.item.code}
-                                                            </small>
+                                                        <div className="d-flex justify-content-between align-items-center">
+                                                            <div>
+                                                                <strong>{transaction.item.name}</strong>
+                                                                <br />
+                                                                <small className="text-muted">
+                                                                    {transaction.item.code}
+                                                                </small>
+                                                            </div>
+                                                            <Button
+                                                                variant="outline-success"
+                                                                size="sm"
+                                                                onClick={() => handleAddQuantityClick({
+                                                                    id: transaction.item.id,
+                                                                    name: transaction.item.name,
+                                                                    code: transaction.item.code
+                                                                })}
+                                                                title="Add quantity to this item"
+                                                            >
+                                                                <i className="bi bi-plus-circle"></i>
+                                                            </Button>
                                                         </div>
                                                     </td>
                                                     <td>
@@ -355,6 +442,72 @@ export default function InventoryTransactionsPage() {
                         )}
                     </Card.Body>
                 </Card>
+
+                {/* Add Quantity Modal */}
+                <Modal show={showAddQuantityModal} onHide={() => setShowAddQuantityModal(false)}>
+                    <Modal.Header closeButton>
+                        <Modal.Title>Add Quantity</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        {selectedItem && (
+                            <>
+                                <p>
+                                    <strong>Item:</strong> {selectedItem.name} ({selectedItem.code})
+                                </p>
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Quantity to Add <span className="text-danger">*</span></Form.Label>
+                                    <Form.Control
+                                        type="number"
+                                        min="0.01"
+                                        step="0.01"
+                                        value={addQuantity}
+                                        onChange={(e) => setAddQuantity(e.target.value)}
+                                        placeholder="Enter quantity to add"
+                                        required
+                                    />
+                                </Form.Group>
+                                <Form.Group className="mb-3">
+                                    <Form.Label>Reason <span className="text-danger">*</span></Form.Label>
+                                    <Form.Control
+                                        as="textarea"
+                                        rows={3}
+                                        placeholder="Enter reason for adding quantity..."
+                                        value={addReason}
+                                        onChange={(e) => setAddReason(e.target.value)}
+                                        required
+                                    />
+                                </Form.Group>
+                                {addError && (
+                                    <Alert variant="danger" dismissible onClose={() => setAddError(null)}>
+                                        {addError}
+                                    </Alert>
+                                )}
+                            </>
+                        )}
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button variant="secondary" onClick={() => setShowAddQuantityModal(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="success"
+                            onClick={handleAddQuantitySubmit}
+                            disabled={isAdding}
+                        >
+                            {isAdding ? (
+                                <>
+                                    <Spinner animation="border" size="sm" className="me-2" />
+                                    Adding...
+                                </>
+                            ) : (
+                                <>
+                                    <i className="bi bi-plus-circle me-2"></i>
+                                    Add Quantity
+                                </>
+                            )}
+                        </Button>
+                    </Modal.Footer>
+                </Modal>
             </div>
         </RoleAwareLayout>
     );

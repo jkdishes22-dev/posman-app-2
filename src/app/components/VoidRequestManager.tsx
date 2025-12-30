@@ -186,7 +186,7 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
       {voidRequests.length === 0 ? (
         <Card>
           <Card.Body className="text-center py-4">
-            <i className="bi bi-check-circle text-success" style={{ fontSize: '3rem' }}></i>
+            <i className="bi bi-check-circle text-success" style={{ fontSize: "3rem" }}></i>
             <h6 className="mt-3 mb-1">No Pending Void Requests</h6>
             <p className="text-muted mb-0">All void requests have been processed</p>
           </Card.Body>
@@ -211,13 +211,13 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
                   <div className="mb-2">
                     <small className="text-muted">Bill Total:</small>
                     <div className="fw-semibold text-primary">
-                      ${request.bill.total?.toFixed(2) || '0.00'}
+                      ${(Number(request.bill.total) || 0).toFixed(2)}
                     </div>
                   </div>
 
                   <div className="mb-2">
                     <small className="text-muted">Station:</small>
-                    <div>{request.bill.station?.name || 'Unknown'}</div>
+                    <div>{request.bill.station?.name || "Unknown"}</div>
                   </div>
 
                   <div className="mb-3">
@@ -232,7 +232,7 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
                     <div>{formatDate(request.created_at)}</div>
                   </div>
 
-                  {request.status === 'pending' && (
+                  {request.status === "pending" && (
                     <div className="d-grid gap-2">
                       <Button
                         variant="success"
@@ -281,7 +281,7 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
                 <strong>Bill ID:</strong> #{selectedRequest.bill_id}
               </p>
               <p className="mb-1">
-                <strong>Amount:</strong> ${selectedRequest.bill.total?.toFixed(2) || '0.00'}
+                <strong>Amount:</strong> ${(Number(selectedRequest.bill.total) || 0).toFixed(2)}
               </p>
               <p className="mb-1">
                 <strong>Requested by:</strong> {selectedRequest.initiator.firstName} {selectedRequest.initiator.lastName}
@@ -367,7 +367,7 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
                 <strong>Bill ID:</strong> #{selectedRequest.bill_id}
               </p>
               <p className="mb-1">
-                <strong>Amount:</strong> ${selectedRequest.bill.total?.toFixed(2) || '0.00'}
+                <strong>Amount:</strong> ${(Number(selectedRequest.bill.total) || 0).toFixed(2)}
               </p>
               <p className="mb-1">
                 <strong>Requested by:</strong> {selectedRequest.initiator.firstName} {selectedRequest.initiator.lastName}

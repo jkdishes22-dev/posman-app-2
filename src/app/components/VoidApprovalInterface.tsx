@@ -226,7 +226,7 @@ export default function VoidApprovalInterface({
                                         <span className="ms-3 text-muted">- {bill.station.name}</span>
                                     </div>
                                     <div>
-                                        <Badge bg="primary">${bill.total.toFixed(2)}</Badge>
+                                        <Badge bg="primary">${(Number(bill.total) || 0).toFixed(2)}</Badge>
                                         <Badge bg="secondary" className="ms-2">{bill.status}</Badge>
                                     </div>
                                 </Card.Header>
@@ -252,8 +252,8 @@ export default function VoidApprovalInterface({
                                                     <tr key={item.id}>
                                                         <td>{item.item.name}</td>
                                                         <td>{item.quantity}</td>
-                                                        <td>${(item.subtotal / item.quantity).toFixed(2)}</td>
-                                                        <td>${item.subtotal.toFixed(2)}</td>
+                                                        <td>${((Number(item.subtotal) || 0) / (Number(item.quantity) || 1)).toFixed(2)}</td>
+                                                        <td>${(Number(item.subtotal) || 0).toFixed(2)}</td>
                                                         <td>{getStatusBadge(item.status)}</td>
                                                         <td>
                                                             <small className="text-muted">
@@ -319,7 +319,7 @@ export default function VoidApprovalInterface({
                                 <strong>Quantity:</strong> {selectedItem.quantity}
                             </p>
                             <p className="mb-1">
-                                <strong>Total:</strong> ${selectedItem.subtotal.toFixed(2)}
+                                <strong>Total:</strong> ${(Number(selectedItem.subtotal) || 0).toFixed(2)}
                             </p>
                             <p className="mb-1">
                                 <strong>Reason:</strong> {selectedItem.void_reason || 'No reason provided'}
@@ -414,7 +414,7 @@ export default function VoidApprovalInterface({
                                 <strong>Quantity:</strong> {selectedItem.quantity}
                             </p>
                             <p className="mb-1">
-                                <strong>Total:</strong> ${selectedItem.subtotal.toFixed(2)}
+                                <strong>Total:</strong> ${(Number(selectedItem.subtotal) || 0).toFixed(2)}
                             </p>
                             <p className="mb-1">
                                 <strong>Reason:</strong> {selectedItem.void_reason || 'No reason provided'}

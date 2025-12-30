@@ -135,7 +135,7 @@ const VoidRequestModal: React.FC<VoidRequestModalProps> = ({
                                         <strong>Quantity:</strong> {item.quantity}
                                     </div>
                                     <div className="col-md-3">
-                                        <strong>Amount:</strong> KES {item.subtotal.toFixed(2)}
+                                        <strong>Amount:</strong> KES {(Number(item.subtotal) || 0).toFixed(2)}
                                     </div>
                                 </div>
                             </div>

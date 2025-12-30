@@ -410,8 +410,24 @@ const BillingSection = () => {
   );
 
 
-  // Show loading state if station is loading
-  if (stationLoading) {
+  // Show loading state only for a short time, then allow user to proceed
+  const [showStationLoading, setShowStationLoading] = useState(true);
+
+  useEffect(() => {
+    // Timeout after 3 seconds - don't block the UI indefinitely
+    const timer = setTimeout(() => {
+      setShowStationLoading(false);
+    }, 3000);
+
+    // If station loads successfully, hide loading immediately
+    if (!stationLoading) {
+      setShowStationLoading(false);
+    }
+
+    return () => clearTimeout(timer);
+  }, [stationLoading, currentStation]);
+
+  if (stationLoading && showStationLoading) {
     return (
       <div className="container">
         <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
@@ -588,7 +604,7 @@ const BillingSection = () => {
                             <span className="badge bg-primary rounded-pill">{item.quantity}</span>
                           </td>
                           <td className="text-end fw-bold text-success">
-                            ${(item.subtotal || (item.price * item.quantity)).toFixed(2)}
+                            ${((Number(item.subtotal) || 0) || ((Number(item.price) || 0) * (Number(item.quantity) || 0))).toFixed(2)}
                           </td>
                           <td className="text-center">
                             {!createdBill && (
@@ -641,7 +657,7 @@ const BillingSection = () => {
                     <div className="h4 mb-0 fw-bold">
                       Total: ${createdBill && !isNaN(Number(createdBill.total))
                         ? Number(createdBill.total).toFixed(2)
-                        : totalAmount.toFixed(2)
+                        : (Number(totalAmount) || 0).toFixed(2)
                       }
                     </div>
                     <small className="text-white-50">
@@ -815,7 +831,7 @@ const BillingSection = () => {
               <>
                 <i className="bi bi-receipt fs-1 text-primary mb-3 d-block"></i>
                 <p className="fs-5">Create bill with total amount:</p>
-                <h3 className="text-success fw-bold">${totalAmount.toFixed(2)}</h3>
+                <h3 className="text-success fw-bold">${(Number(totalAmount) || 0).toFixed(2)}</h3>
                 <p className="text-muted">You can submit this bill for payment later in My Sales</p>
               </>
             )}

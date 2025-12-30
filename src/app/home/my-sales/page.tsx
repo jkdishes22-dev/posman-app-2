@@ -23,16 +23,16 @@ import QuantityChangeModal from "../../components/QuantityChangeModal";
 const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
   if (!bill) return null;
   return (
-    <div ref={ref} style={{ width: 300, padding: 16, fontFamily: 'monospace', background: '#fff', color: '#000' }}>
-      <h4 style={{ textAlign: 'center', marginBottom: 8 }}>POS RECEIPT</h4>
+    <div ref={ref} style={{ width: 300, padding: 16, fontFamily: "monospace", background: "#fff", color: "#000" }}>
+      <h4 style={{ textAlign: "center", marginBottom: 8 }}>POS RECEIPT</h4>
       <div>Bill ID: <b>{bill.id}</b></div>
       <div>Date: {new Date(bill.created_at).toLocaleString()}</div>
       <div>User: {bill.user?.firstName} {bill.user?.lastName}</div>
       <hr />
-      <table style={{ width: '100%', fontSize: 12 }}>
+      <table style={{ width: "100%", fontSize: 12 }}>
         <thead>
           <tr>
-            <th style={{ textAlign: 'left' }}>Item</th>
+            <th style={{ textAlign: "left" }}>Item</th>
             <th>Qty</th>
             <th>Price</th>
             <th>Subt</th>
@@ -42,16 +42,16 @@ const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) 
           {bill.bill_items?.map((item) => (
             <tr key={item.id}>
               <td>{item.item?.name}</td>
-              <td style={{ textAlign: 'center' }}>{item.quantity}</td>
-              <td style={{ textAlign: 'right' }}>{item.item?.price}</td>
-              <td style={{ textAlign: 'right' }}>{item.subtotal}</td>
+              <td style={{ textAlign: "center" }}>{item.quantity}</td>
+              <td style={{ textAlign: "right" }}>{item.item?.price}</td>
+              <td style={{ textAlign: "right" }}>{item.subtotal}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <hr />
-      <div style={{ textAlign: 'right', fontWeight: 'bold' }}>TOTAL: KES {bill.total}</div>
-      <div style={{ textAlign: 'center', marginTop: 12 }}>Thank you!</div>
+      <div style={{ textAlign: "right", fontWeight: "bold" }}>TOTAL: KES {bill.total}</div>
+      <div style={{ textAlign: "center", marginTop: 12 }}>Thank you!</div>
     </div>
   );
 });
@@ -118,8 +118,8 @@ const MySales = () => {
     // Only add date filter if date is provided and not today's default
     if (date && !isNaN(new Date(date).getTime())) {
       const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
       const formattedDate = `${year}-${month}-${day}`;
       params.push(`date=${formattedDate}`);
     }
@@ -250,11 +250,11 @@ const MySales = () => {
 
   const printReceipt = async (Component: any, bill: any, title: string) => {
     // Determine the type based on the component
-    let type: 'customer' | 'captain' | 'receipt' = 'receipt';
+    let type: "customer" | "captain" | "receipt" = "receipt";
     if (Component === CustomerCopyPrint) {
-      type = 'customer';
+      type = "customer";
     } else if (Component === CaptainOrderPrint) {
-      type = 'captain';
+      type = "captain";
     }
 
     return printReceiptWithTimestamp(Component, bill, title, type);
@@ -264,7 +264,7 @@ const MySales = () => {
     if (!selectedBill) return;
 
     // Download Customer Copy
-    await downloadReceiptAsFile(CustomerCopyPrint, selectedBill, 'customer');
+    await downloadReceiptAsFile(CustomerCopyPrint, selectedBill, "customer");
   };
 
   // Void request functions
@@ -521,7 +521,7 @@ const MySales = () => {
                           <td>{bill.id}</td>
                           <td>
                             {(() => {
-                              const hasPendingVoids = bill.bill_items?.some((item: BillItem) => item.status === 'void_pending');
+                              const hasPendingVoids = bill.bill_items?.some((item: BillItem) => item.status === "void_pending");
 
                               if (bill.status === "reopened") {
                                 return (
@@ -531,11 +531,11 @@ const MySales = () => {
                                   </span>
                                 );
                               } else if (hasPendingVoids) {
-                                const pendingVoidCount = bill.bill_items?.filter((item: BillItem) => item.status === 'void_pending').length || 0;
+                                const pendingVoidCount = bill.bill_items?.filter((item: BillItem) => item.status === "void_pending").length || 0;
                                 return (
                                   <span className="badge bg-warning text-dark">
                                     <i className="bi bi-exclamation-triangle me-1"></i>
-                                    {bill.status} ({pendingVoidCount} Void{pendingVoidCount > 1 ? 's' : ''} Pending)
+                                    {bill.status} ({pendingVoidCount} Void{pendingVoidCount > 1 ? "s" : ""} Pending)
                                   </span>
                                 );
                               } else {
@@ -608,7 +608,7 @@ const MySales = () => {
                     )}
                     <div className="card-body">
                       {/* Void Approval Interface for Cashiers */}
-                      {selectedBill && selectedBill.bill_items?.some((item: BillItem) => item.status === 'void_pending') && (
+                      {selectedBill && selectedBill.bill_items?.some((item: BillItem) => item.status === "void_pending") && (
                         <div className="alert alert-warning mb-3">
                           <div className="d-flex align-items-center">
                             <i className="bi bi-exclamation-triangle me-2"></i>
@@ -622,8 +622,8 @@ const MySales = () => {
                       <div className="d-flex justify-content-between align-items-center mb-1">
                         {selectedBill.status === "pending" ? (
                           (() => {
-                            const hasPendingVoids = selectedBill.bill_items?.some(item => item.status === 'void_pending');
-                            const pendingVoidCount = selectedBill.bill_items?.filter(item => item.status === 'void_pending').length || 0;
+                            const hasPendingVoids = selectedBill.bill_items?.some(item => item.status === "void_pending");
+                            const pendingVoidCount = selectedBill.bill_items?.filter(item => item.status === "void_pending").length || 0;
                             return (
                               <div>
                                 <Button
@@ -631,14 +631,14 @@ const MySales = () => {
                                   variant="success"
                                   onClick={openSubmitModal}
                                   disabled={hasPendingVoids}
-                                  title={hasPendingVoids ? `Cannot submit bill with ${pendingVoidCount} pending void request${pendingVoidCount > 1 ? 's' : ''}. Please wait for approval.` : "Submit this bill for payment"}
+                                  title={hasPendingVoids ? `Cannot submit bill with ${pendingVoidCount} pending void request${pendingVoidCount > 1 ? "s" : ""}. Please wait for approval.` : "Submit this bill for payment"}
                                 >
                                   Submit Bill (KES: {selectedBill.total})
                                 </Button>
                                 {hasPendingVoids && (
                                   <div className="text-warning small mt-1">
                                     <i className="bi bi-exclamation-triangle me-1"></i>
-                                    {pendingVoidCount} void request{pendingVoidCount > 1 ? 's' : ''} pending approval
+                                    {pendingVoidCount} void request{pendingVoidCount > 1 ? "s" : ""} pending approval
                                   </div>
                                 )}
                               </div>
@@ -657,11 +657,11 @@ const MySales = () => {
 
                               payments.forEach(billPayment => {
                                 const amount = billPayment.payment?.creditAmount || 0;
-                                const method = billPayment.payment?.paymentMethod?.toLowerCase() || 'unknown';
+                                const method = billPayment.payment?.paymentMethod?.toLowerCase() || "unknown";
 
-                                if (method.includes('cash')) {
+                                if (method.includes("cash")) {
                                   cashTotal += amount;
-                                } else if (method.includes('mpesa') || method.includes('mobile')) {
+                                } else if (method.includes("mpesa") || method.includes("mobile")) {
                                   mpesaTotal += amount;
                                 } else {
                                   otherTotal += amount;
@@ -676,7 +676,7 @@ const MySales = () => {
                               return (
                                 <div>
                                   <span className="text-warning">
-                                    Bill is reopened <strong> Total: KES {billTotal.toFixed(2)} </strong>
+                                    Bill is reopened <strong> Total: KES {(Number(billTotal) || 0).toFixed(2)} </strong>
                                   </span>
 
                                   {/* Payment Details */}
@@ -694,7 +694,7 @@ const MySales = () => {
                                             <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
                                               <div>
                                                 <span className="fw-medium">
-                                                  {billPayment.payment?.paymentType || 'Unknown Method'}
+                                                  {billPayment.payment?.paymentType || "Unknown Method"}
                                                 </span>
                                                 {billPayment.payment?.reference && (
                                                   <div className="small text-muted">
@@ -716,7 +716,7 @@ const MySales = () => {
                                           ))}
                                           <div className="d-flex justify-content-between align-items-center py-2 mt-2 bg-light rounded">
                                             <span className="fw-bold">Total Paid:</span>
-                                            <span className="fw-bold text-primary">KES {totalPaid.toFixed(2)}</span>
+                                            <span className="fw-bold text-primary">KES {(Number(totalPaid) || 0).toFixed(2)}</span>
                                           </div>
                                         </div>
                                       </div>
@@ -738,12 +738,12 @@ const MySales = () => {
                                     ) : isOverpaid ? (
                                       <div className="alert alert-warning py-2 mb-0">
                                         <i className="bi bi-exclamation-triangle me-2"></i>
-                                        <strong>Overpaid by KES {Math.abs(difference).toFixed(2)}</strong> - Review payments
+                                        <strong>Overpaid by KES {Math.abs(Number(difference) || 0).toFixed(2)}</strong> - Review payments
                                       </div>
                                     ) : (
                                       <div className="alert alert-danger py-2 mb-0">
                                         <i className="bi bi-exclamation-circle me-2"></i>
-                                        <strong>Outstanding: KES {difference.toFixed(2)}</strong> - Collect remaining amount
+                                        <strong>Outstanding: KES {(Number(difference) || 0).toFixed(2)}</strong> - Collect remaining amount
                                       </div>
                                     )}
                                   </div>
@@ -767,7 +767,7 @@ const MySales = () => {
                           </>
                         )}
                       </div>
-                      <div style={{ display: 'none' }}>
+                      <div style={{ display: "none" }}>
                         <Receipt ref={receiptRef} bill={selectedBill} />
                       </div>
                       <table className="table stripped">
@@ -794,16 +794,16 @@ const MySales = () => {
                                 <td>{item.quantity}</td>
                                 <td>KES {item.subtotal}</td>
                                 <td>
-                                  <span className={`badge ${item.status === 'pending' ? 'bg-success' :
-                                    item.status === 'void_pending' ? 'bg-warning' :
-                                      'bg-danger'
+                                  <span className={`badge ${item.status === "pending" ? "bg-success" :
+                                    item.status === "void_pending" ? "bg-warning" :
+                                      "bg-danger"
                                     }`}>
                                     {item.status}
                                   </span>
                                 </td>
                                 <td>
-                                  {(selectedBill.status === 'pending' || selectedBill.status === 'reopened') &&
-                                    item.status === 'pending' && (
+                                  {(selectedBill.status === "pending" || selectedBill.status === "reopened") &&
+                                    item.status === "pending" && (
                                       <div className="d-flex gap-1">
                                         <Button
                                           variant="outline-danger"
@@ -827,7 +827,7 @@ const MySales = () => {
                                         </Button>
                                       </div>
                                     )}
-                                  {item.status === 'void_pending' && (
+                                  {item.status === "void_pending" && (
                                     <div className="d-flex align-items-center gap-2">
                                       <span className="badge bg-warning text-dark">
                                         <i className="bi bi-clock me-1"></i>
@@ -838,7 +838,7 @@ const MySales = () => {
                                       </small>
                                     </div>
                                   )}
-                                  {item.status === 'quantity_change_request' && (
+                                  {item.status === "quantity_change_request" && (
                                     <div className="d-flex align-items-center gap-2">
                                       <span className="badge bg-info text-dark">
                                         <i className="bi bi-pencil-square me-1"></i>
@@ -929,7 +929,7 @@ const MySales = () => {
                                           <tr key={billPayment.id}>
                                             <td>
                                               <div className="d-flex align-items-center">
-                                                <i className={`bi ${billPayment.payment.paymentType === 'MPESA' ? 'bi-phone text-success' : 'bi-cash text-primary'} me-2`}></i>
+                                                <i className={`bi ${billPayment.payment.paymentType === "MPESA" ? "bi-phone text-success" : "bi-cash text-primary"} me-2`}></i>
                                                 <span className="fw-semibold">{billPayment.payment.paymentType}</span>
                                               </div>
                                             </td>
@@ -974,7 +974,7 @@ const MySales = () => {
 
           {/* Void Request Modal */}
           {showVoidModal && (
-            <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
               <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content">
                   <div className="modal-header">

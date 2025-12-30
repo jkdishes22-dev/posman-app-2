@@ -55,21 +55,21 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         ];
       }
     }
-    // Configuration section
+    // Stations section
     else if (path.includes("/admin/station")) {
-      expandedMenuIds.push("configuration");
+      expandedMenuIds.push("stations");
       if (path.includes("/admin/station") && !path.includes("/admin/station/user")) {
-        activeItemId = "stations";
+        activeItemId = "stations-overview";
         breadcrumbItems = [
           { label: "Dashboard", path: "/admin" },
-          { label: "Configuration", path: "/admin/configuration" },
-          { label: "Stations", path: "/admin/station" }
+          { label: "Stations", path: "/admin/station" },
+          { label: "Overview", path: "/admin/station" }
         ];
       } else if (path.includes("/admin/station/user")) {
         activeItemId = "station-users";
         breadcrumbItems = [
           { label: "Dashboard", path: "/admin" },
-          { label: "Configuration", path: "/admin/configuration" },
+          { label: "Stations", path: "/admin/station" },
           { label: "Station Users", path: "/admin/station/user" }
         ];
       }
@@ -120,21 +120,21 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         { label: "Bill", path: "/admin/bill" }
       ];
     }
-    // Supplies section
-    else if (path.includes("/admin/supplies") || (path.includes("/storekeeper") && (path.includes("/storekeeper/suppliers") || path.includes("/storekeeper/purchase-orders")))) {
-      expandedMenuIds.push("supplies");
+    // Suppliers section
+    else if (path.includes("/storekeeper") && (path.includes("/storekeeper/suppliers") || path.includes("/storekeeper/purchase-orders"))) {
+      expandedMenuIds.push("suppliers");
       if (path.includes("/storekeeper/suppliers")) {
-        activeItemId = "supplies-suppliers";
+        activeItemId = "suppliers-list";
         breadcrumbItems = [
           { label: "Dashboard", path: "/admin" },
-          { label: "Supplies", path: "/admin/supplies" },
+          { label: "Suppliers", path: "/storekeeper/suppliers" },
           { label: "Suppliers", path: "/storekeeper/suppliers" }
         ];
       } else if (path.includes("/storekeeper/purchase-orders")) {
-        activeItemId = "supplies-purchase-orders";
+        activeItemId = "suppliers-purchase-orders";
         breadcrumbItems = [
           { label: "Dashboard", path: "/admin" },
-          { label: "Supplies", path: "/admin/supplies" },
+          { label: "Suppliers", path: "/storekeeper/suppliers" },
           { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }
         ];
       }
@@ -198,13 +198,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       ],
     },
     {
-      id: "configuration",
-      label: "Configuration",
+      id: "stations",
+      label: "Stations",
       icon: "bi-gear",
       submenu: [
         {
-          id: "stations",
-          label: "Stations",
+          id: "stations-overview",
+          label: "Overview",
           icon: "bi-building",
           path: "/admin/station",
         },
@@ -261,18 +261,18 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       path: "/admin/bill",
     },
     {
-      id: "supplies",
-      label: "Supplies",
+      id: "suppliers",
+      label: "Suppliers",
       icon: "bi-truck",
       submenu: [
         {
-          id: "supplies-suppliers",
+          id: "suppliers-list",
           label: "Suppliers",
           icon: "bi-building",
           path: "/storekeeper/suppliers",
         },
         {
-          id: "supplies-purchase-orders",
+          id: "suppliers-purchase-orders",
           label: "Purchase Orders",
           icon: "bi-cart-check",
           path: "/storekeeper/purchase-orders",
@@ -318,8 +318,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       "Users": "Manage user accounts and access",
       "View Users": "View and manage system users",
       "Roles & Permissions": "Manage role-based permissions for users",
-      "Configuration": "Configure system settings",
       "Stations": "Manage POS stations and their configurations",
+      "Overview": "View and manage all POS stations",
       "Station Users": "Assign users to stations and manage access",
       "Menu & Pricing": "Manage menu items and pricing",
       "Categories": "Manage menu categories and organize items",
@@ -328,8 +328,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       "Production": "Manage production and inventory",
       "Issue Production": "Create a new production issue record",
       "Bill": "View and manage bills",
-      "Supplies": "Manage suppliers and purchase orders",
-      "Suppliers": "Manage supplier information",
+      "Suppliers": "Manage suppliers and purchase orders",
+      "Supplier": "Manage supplier information",
       "Purchase Orders": "Create and manage purchase orders",
       "Inventory": "Manage inventory levels and transactions",
       "Inventory Dashboard": "Overview of inventory levels and alerts",
@@ -429,9 +429,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
                         color: "rgba(255,255,255,0.8)",
                         cursor: "pointer",
                       }}
-                      data-bs-toggle="tooltip"
-                      data-bs-placement="right"
-                      title={getMenuTooltip(item.label)}
                     >
                       <i className={`bi ${item.icon} me-3`}></i>
                       {!isCollapsed && <span>{item.label}</span>}
@@ -453,9 +450,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
                                 fontSize: "0.9rem",
                                 padding: "0.5rem 0.75rem",
                               }}
-                              data-bs-toggle="tooltip"
-                              data-bs-placement="right"
-                              title={getMenuTooltip(subItem.label)}
                             >
                               <i className={`bi ${subItem.icon} me-2`}></i>
                               {subItem.label}
@@ -474,9 +468,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
                       border: "none",
                       color: activeItem === item.id ? "white" : "rgba(255,255,255,0.8)",
                     }}
-                    data-bs-toggle="tooltip"
-                    data-bs-placement="right"
-                    title={getMenuTooltip(item.label)}
                   >
                     <i className={`bi ${item.icon} me-3`}></i>
                     {!isCollapsed && <span>{item.label}</span>}
