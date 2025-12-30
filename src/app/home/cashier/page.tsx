@@ -6,6 +6,7 @@ import { useApiCall } from "../../utils/apiUtils";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import { useRouter } from "next/navigation";
+import { useTooltips } from "../../hooks/useTooltips";
 
 interface DashboardSummary {
   totalBills: number;
@@ -20,6 +21,7 @@ interface DashboardSummary {
 const CashierDashboard = () => {
   const apiCall = useApiCall();
   const router = useRouter();
+  useTooltips();
 
   const [summary, setSummary] = useState<DashboardSummary>({
     totalBills: 0,
@@ -143,7 +145,22 @@ const CashierDashboard = () => {
       {/* Summary Cards */}
       <Row className="mb-4">
         <Col md={3} className="mb-3">
-          <Card className="h-100 border-0 shadow-sm">
+          <Card
+            className="h-100 border-0 shadow-sm"
+            style={{ cursor: "pointer" }}
+            onClick={() => router.push("/home/cashier/bills")}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+            }}
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="View all bills for today"
+          >
             <Card.Body className="text-center">
               <div className="d-flex align-items-center justify-content-center mb-2">
                 <i className="bi bi-receipt text-primary fs-1"></i>
@@ -155,7 +172,22 @@ const CashierDashboard = () => {
         </Col>
 
         <Col md={3} className="mb-3">
-          <Card className="h-100 border-0 shadow-sm">
+          <Card
+            className="h-100 border-0 shadow-sm"
+            style={{ cursor: "pointer" }}
+            onClick={() => router.push("/home/cashier/bills?status=submitted,reopened")}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+            }}
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="View bills pending payment or processing"
+          >
             <Card.Body className="text-center">
               <div className="d-flex align-items-center justify-content-center mb-2">
                 <i className="bi bi-clock text-warning fs-1"></i>
@@ -167,7 +199,22 @@ const CashierDashboard = () => {
         </Col>
 
         <Col md={3} className="mb-3">
-          <Card className="h-100 border-0 shadow-sm">
+          <Card
+            className="h-100 border-0 shadow-sm"
+            style={{ cursor: "pointer" }}
+            onClick={() => router.push("/home/cashier/bills?status=closed")}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+            }}
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="View all closed bills"
+          >
             <Card.Body className="text-center">
               <div className="d-flex align-items-center justify-content-center mb-2">
                 <i className="bi bi-check-circle text-success fs-1"></i>
@@ -179,7 +226,22 @@ const CashierDashboard = () => {
         </Col>
 
         <Col md={3} className="mb-3">
-          <Card className="h-100 border-0 shadow-sm">
+          <Card
+            className="h-100 border-0 shadow-sm"
+            style={{ cursor: "pointer" }}
+            onClick={() => router.push("/home/cashier/bills?status=closed")}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+            }}
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="View closed bills and revenue details"
+          >
             <Card.Body className="text-center">
               <div className="d-flex align-items-center justify-content-center mb-2">
                 <i className="bi bi-currency-exchange text-info fs-1"></i>
@@ -194,7 +256,22 @@ const CashierDashboard = () => {
       {/* Additional Metrics */}
       <Row className="mb-4">
         <Col md={4} className="mb-3">
-          <Card className="h-100 border-0 shadow-sm">
+          <Card
+            className="h-100 border-0 shadow-sm"
+            style={{ cursor: "pointer" }}
+            onClick={() => router.push("/home/cashier/void-requests")}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+            }}
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="Review and process pending void requests"
+          >
             <Card.Body className="text-center">
               <div className="d-flex align-items-center justify-content-center mb-2">
                 <i className="bi bi-exclamation-triangle text-danger fs-1"></i>
@@ -206,7 +283,22 @@ const CashierDashboard = () => {
         </Col>
 
         <Col md={4} className="mb-3">
-          <Card className="h-100 border-0 shadow-sm">
+          <Card
+            className="h-100 border-0 shadow-sm"
+            style={{ cursor: "pointer" }}
+            onClick={() => router.push("/home/cashier/bills?status=closed")}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+            }}
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="View closed bills to see average bill value"
+          >
             <Card.Body className="text-center">
               <div className="d-flex align-items-center justify-content-center mb-2">
                 <i className="bi bi-graph-up text-success fs-1"></i>
@@ -218,7 +310,22 @@ const CashierDashboard = () => {
         </Col>
 
         <Col md={4} className="mb-3">
-          <Card className="h-100 border-0 shadow-sm">
+          <Card
+            className="h-100 border-0 shadow-sm"
+            style={{ cursor: "pointer" }}
+            onClick={() => router.push("/home/cashier/bills")}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+            }}
+            data-bs-toggle="tooltip"
+            data-bs-placement="top"
+            title="View all bills to see completion rate"
+          >
             <Card.Body className="text-center">
               <div className="d-flex align-items-center justify-content-center mb-2">
                 <i className="bi bi-percent text-primary fs-1"></i>

@@ -3,8 +3,13 @@
 import { withSecureRoute } from "../components/withSecureRoute";
 import RoleAwareLayout from "../shared/RoleAwareLayout";
 import { useState, useEffect } from "react";
+import { Card, Row, Col } from "react-bootstrap";
+import { useRouter } from "next/navigation";
+import { useTooltips } from "../hooks/useTooltips";
 
 const UserHomePage = () => {
+  const router = useRouter();
+  useTooltips();
   const [dashboardData, setDashboardData] = useState({
     todaySales: 0,
     todayBills: 0,
@@ -53,10 +58,25 @@ const UserHomePage = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="row mb-1">
-          <div className="col-md-3 mb-1">
-            <div className="card bg-primary text-white h-100">
-              <div className="card-body">
+        <Row className="mb-1">
+          <Col md={3} className="mb-1">
+            <Card
+              className="bg-primary text-white h-100 border-0"
+              style={{ cursor: "pointer" }}
+              onClick={() => router.push("/home/my-sales")}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+              }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="View your sales and performance"
+            >
+              <Card.Body>
                 <div className="d-flex justify-content-between">
                   <div>
                     <h6 className="card-title text-white-50">Today's Sales</h6>
@@ -66,13 +86,28 @@ const UserHomePage = () => {
                     <i className="bi bi-cart-check fs-1"></i>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
+              </Card.Body>
+            </Card>
+          </Col>
 
-          <div className="col-md-3 mb-1">
-            <div className="card bg-success text-white h-100">
-              <div className="card-body">
+          <Col md={3} className="mb-1">
+            <Card
+              className="bg-success text-white h-100 border-0"
+              style={{ cursor: "pointer" }}
+              onClick={() => router.push("/home/my-sales")}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+              }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="View all bills created today"
+            >
+              <Card.Body>
                 <div className="d-flex justify-content-between">
                   <div>
                     <h6 className="card-title text-white-50">Today's Bills</h6>
@@ -82,13 +117,28 @@ const UserHomePage = () => {
                     <i className="bi bi-receipt fs-1"></i>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
+              </Card.Body>
+            </Card>
+          </Col>
 
-          <div className="col-md-3 mb-1">
-            <div className="card bg-warning text-white h-100">
-              <div className="card-body">
+          <Col md={3} className="mb-1">
+            <Card
+              className="bg-warning text-white h-100 border-0"
+              style={{ cursor: "pointer" }}
+              onClick={() => router.push("/home/my-sales?status=pending")}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+              }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="View bills pending payment or processing"
+            >
+              <Card.Body>
                 <div className="d-flex justify-content-between">
                   <div>
                     <h6 className="card-title text-white-50">Pending Bills</h6>
@@ -98,13 +148,28 @@ const UserHomePage = () => {
                     <i className="bi bi-clock fs-1"></i>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
+              </Card.Body>
+            </Card>
+          </Col>
 
-          <div className="col-md-3 mb-1">
-            <div className="card bg-info text-white h-100">
-              <div className="card-body">
+          <Col md={3} className="mb-1">
+            <Card
+              className="bg-info text-white h-100 border-0"
+              style={{ cursor: "pointer" }}
+              onClick={() => router.push("/home/my-sales")}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+              }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="top"
+              title="View revenue details and sales reports"
+            >
+              <Card.Body>
                 <div className="d-flex justify-content-between">
                   <div>
                     <h6 className="card-title text-white-50">Total Revenue</h6>
@@ -114,10 +179,10 @@ const UserHomePage = () => {
                     <i className="bi bi-currency-dollar fs-1"></i>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
 
         {/* Recent Activity and Top Items */}
         <div className="row">

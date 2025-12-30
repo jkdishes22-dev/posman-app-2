@@ -6,10 +6,12 @@ import { Card, Row, Col, Badge, Button } from "react-bootstrap";
 import { useRouter } from "next/navigation";
 import { useApiCall } from "../utils/apiUtils";
 import ErrorDisplay from "../components/ErrorDisplay";
+import { useTooltips } from "../hooks/useTooltips";
 
 export default function SupervisorPage() {
     const router = useRouter();
     const apiCall = useApiCall();
+    useTooltips();
     const [stats, setStats] = useState({
         totalSales: 0,
         activeBills: 0,
@@ -114,7 +116,22 @@ export default function SupervisorPage() {
                 {/* Key Metrics */}
                 <Row className="mb-4">
                     <Col md={2}>
-                        <Card className="text-center h-100">
+                        <Card
+                            className="text-center h-100"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => router.push("/supervisor/bills")}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+                            }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="View all bills and sales reports"
+                        >
                             <Card.Body>
                                 <div className="text-primary mb-2">
                                     <i className="bi bi-currency-dollar fs-1"></i>
@@ -125,7 +142,22 @@ export default function SupervisorPage() {
                         </Card>
                     </Col>
                     <Col md={2}>
-                        <Card className="text-center h-100">
+                        <Card
+                            className="text-center h-100"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => router.push("/supervisor/bills?status=submitted,reopened")}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+                            }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="View active bills that need processing"
+                        >
                             <Card.Body>
                                 <div className="text-success mb-2">
                                     <i className="bi bi-receipt fs-1"></i>
@@ -136,7 +168,22 @@ export default function SupervisorPage() {
                         </Card>
                     </Col>
                     <Col md={2}>
-                        <Card className="text-center h-100">
+                        <Card
+                            className="text-center h-100"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => router.push("/storekeeper/stock?filter=lowStock")}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+                            }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="View items with low stock levels"
+                        >
                             <Card.Body>
                                 <div className="text-warning mb-2">
                                     <i className="bi bi-exclamation-triangle fs-1"></i>
@@ -147,7 +194,22 @@ export default function SupervisorPage() {
                         </Card>
                     </Col>
                     <Col md={2}>
-                        <Card className="text-center h-100">
+                        <Card
+                            className="text-center h-100"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => router.push("/supervisor/station/user")}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+                            }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Manage team members and station assignments"
+                        >
                             <Card.Body>
                                 <div className="text-info mb-2">
                                     <i className="bi bi-people fs-1"></i>
@@ -158,7 +220,22 @@ export default function SupervisorPage() {
                         </Card>
                     </Col>
                     <Col md={2}>
-                        <Card className="text-center h-100">
+                        <Card
+                            className="text-center h-100"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => router.push("/supervisor/void-requests")}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+                            }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Review and approve pending void requests"
+                        >
                             <Card.Body>
                                 <div className="text-danger mb-2">
                                     <i className="bi bi-exclamation-triangle fs-1"></i>
@@ -181,7 +258,11 @@ export default function SupervisorPage() {
                                         <i className="bi bi-graph-up me-2 text-primary"></i>
                                         Sales Management
                                     </h5>
-                                    <Button variant="primary" size="sm">
+                                    <Button
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={() => router.push("/supervisor/billing")}
+                                    >
                                         <i className="bi bi-plus-circle me-1"></i>
                                         New Bill
                                     </Button>
@@ -287,7 +368,11 @@ export default function SupervisorPage() {
                                         <i className="bi bi-people me-2 text-primary"></i>
                                         Team Management
                                     </h5>
-                                    <Button variant="outline-primary" size="sm">
+                                    <Button
+                                        variant="outline-primary"
+                                        size="sm"
+                                        onClick={() => router.push("/supervisor/station/user")}
+                                    >
                                         <i className="bi bi-gear me-1"></i>
                                         Manage
                                     </Button>
