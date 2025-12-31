@@ -3,6 +3,7 @@ import { Currency, PricelistItem } from "@entities/PricelistItem";
 import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { ItemGroup } from "@entities/ItemGroup";
 import logger from "../utils/logger";
+import { cache } from "@backend/utils/cache";
 
 export class ItemService {
   private itemRepository: Repository<Item>;
@@ -41,6 +42,10 @@ export class ItemService {
           this.pricelistItemRepository.create(newPriceListItem);
         await transactionalEntityManager.save(PricelistItem, pricelistItem);
 
+        // Invalidate cache after creating item (affects items and prices)
+        cache.invalidate("items");
+        cache.invalidate(`pricelist_items_${pricelistId}`);
+
         return savedItem;
       },
     );
@@ -51,6 +56,15 @@ export class ItemService {
     user_id: number,
     billing: boolean = false,
   ): Promise<any[]> {
+    // Cache key includes all parameters (prices can change, but cache for performance)
+    const cacheKey = `items_${categoryId}_${user_id}_${billing}`;
+
+    // Try cache first
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const query = this.itemRepository
       .createQueryBuilder("item")
       .leftJoinAndSelect("item.category", "category")
@@ -81,7 +95,7 @@ export class ItemService {
 
     const items = await query.getRawMany();
 
-    return items.map((item) => ({
+    const result = items.map((item) => ({
       id: item.item_id,
       name: item.item_name,
       code: item.item_code,
@@ -94,6 +108,10 @@ export class ItemService {
       pricelistId: item.pricelistId,
       pricelistName: item.pricelistName,
     }));
+
+    // Cache the result (prices can change, but cache for performance with 30s TTL)
+    cache.set(cacheKey, result);
+    return result;
   }
 
   /**
@@ -103,6 +121,13 @@ export class ItemService {
     pricelistId: number,
     categoryId?: number
   ): Promise<any[]> {
+    const cacheKey = `items_pricelist_${pricelistId}_${categoryId || "all"}`;
+
+    // Try cache first (prices can change, but cache for performance)
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
 
     // Get pricelist items for the specified pricelist
     const pricelistQuery = this.pricelistItemRepository
@@ -127,7 +152,7 @@ export class ItemService {
     logger.debug({ pricelistId, itemCount: pricelistItems.length }, "Found pricelist items for pricelist");
 
     // Map pricelist items to the expected format
-    return pricelistItems.map(pi => ({
+    const result = pricelistItems.map(pi => ({
       id: pi.item.id,
       name: pi.item.name,
       code: pi.item.code,
@@ -141,6 +166,10 @@ export class ItemService {
       pricelistId: pi.pricelist.id,
       pricelistName: pi.pricelist.name,
     }));
+
+    // Cache the result (prices can change, but cache for performance)
+    cache.set(cacheKey, result);
+    return result;
   }
 
   /**
@@ -151,6 +180,14 @@ export class ItemService {
     categoryId?: number,
     userId?: number
   ): Promise<any[]> {
+    const cacheKey = `items_station_${stationId}_${categoryId || "all"}_${userId || "all"}`;
+
+    // Try cache first (prices can change, but cache for performance)
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     // First, get the default pricelist for this station using junction table
     const stationPricelistRepository = this.itemRepository.manager.getRepository("StationPricelist");
     const defaultPricelist = await stationPricelistRepository
@@ -227,7 +264,7 @@ export class ItemService {
     }
 
     // Map items with their pricelist data
-    return items.map(item => {
+    const result = items.map(item => {
       const pricelistItem = pricelistItems.find(pi => pi.item.id === item.id);
       return {
         id: item.id,
@@ -251,13 +288,28 @@ export class ItemService {
         stationId: stationId
       };
     });
+
+    // Cache the result (prices can change, but cache for performance)
+    cache.set(cacheKey, result);
+    return result;
   }
 
   async findItemById(id: number): Promise<Item> {
+    const cacheKey = `item_${id}`;
+
+    // Try cache first
+    const cached = cache.get<Item | null>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const item = await this.itemRepository.findOne({ where: { id } });
     if (!item) {
       throw new Error("Item not found");
     }
+
+    // Cache the result
+    cache.set(cacheKey, item);
     return item;
   }
 
@@ -315,6 +367,14 @@ export class ItemService {
             transactionalEntityManager,
           );
         }
+
+        // Invalidate cache after updating item (affects items and prices)
+        cache.invalidate("items");
+        cache.invalidate(`item_${itemData.id}`);
+        cache.invalidate(`pricelist_items_${pricelistId}`);
+        cache.invalidate("items_pricelist");
+        cache.invalidate("items_station");
+
         return updatedItemData;
       },
     );

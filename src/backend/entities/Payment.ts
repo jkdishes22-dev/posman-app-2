@@ -31,8 +31,8 @@ export class Payment extends BaseEntity {
   })
   paidAt: Date;
 
-  @Column({ type: "varchar", length: 255 })
-  reference: string;
+  @Column({ type: "varchar", length: 255, nullable: true })
+  reference: string | null;
 
   @OneToMany(() => BillPayment, (billPayment) => billPayment.payment)
   bill_payments: Promise<BillPayment[]>;

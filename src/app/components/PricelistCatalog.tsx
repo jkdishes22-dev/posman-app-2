@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, Button, Form } from "react-bootstrap";
 import { useStation } from "../contexts/StationContext";
 import { Item, Pricelist, Station } from "../types/types";
@@ -28,7 +28,7 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
     const { currentStation, availableStations, setCurrentStation } = useStation();
     const apiCall = useApiCall();
     const [pricelists, setPricelists] = useState<PricelistWithItems[]>([]);
-    const [filteredPricelists, setFilteredPricelists] = useState<PricelistWithItems[]>([]);
+    // filteredPricelists is now computed via useMemo below
     const [selectedPricelist, setSelectedPricelist] = useState<PricelistWithItems | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -73,11 +73,7 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
                     // Store all station-pricelist relationships for filtering
                     setPricelists(pricelists);
 
-                    // Initially show distinct pricelists (no filter applied)
-                    const distinctPricelists = pricelists.filter((pricelist, index, self) =>
-                        index === self.findIndex(p => p.id === pricelist.id)
-                    );
-                    setFilteredPricelists(distinctPricelists);
+                    // Pricelists are set, filtering happens automatically via useMemo
                 } else if (result.status === 401) {
                     localStorage.removeItem("token");
                     localStorage.removeItem("user");
@@ -97,10 +93,10 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
         fetchPricelists();
     }, [currentStation]);
 
-    // Filter pricelists when station filter or status filter changes
-    useEffect(() => {
+    // Memoized filtered pricelists to prevent recalculation on every render
+    const filteredPricelists = useMemo(() => {
         if (pricelists.length === 0) {
-            return;
+            return [];
         }
 
         let filtered = pricelists;
@@ -122,8 +118,8 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
             filtered = filtered.filter(pricelist => pricelist.status === statusFilter);
         }
 
-        setFilteredPricelists(filtered);
-    }, [selectedStationId, pricelists, statusFilter]);
+        return filtered;
+    }, [pricelists, selectedStationId, statusFilter]);
 
 
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Image from "next/image";
 import EditItemModal from "./item-edit";
 import ItemDeleteModal from "./item-delete";
@@ -84,66 +84,72 @@ const ViewItems: React.FC<ViewItemsProps> = ({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Remove duplicates and filter items
+  // Remove duplicates and filter items - memoized to prevent recalculation on every render
   const allItems = pricelistItems || items;
-  const uniqueItems = allItems.reduce((acc: Item[], current: Item) => {
-    const existingItem = acc.find(item => item.id === current.id);
-    if (!existingItem) {
-      acc.push(current);
-    }
-    return acc;
-  }, []);
-
-  // Filter items based on search (either searchTerm or selectedSearchItem)
-  const filteredItems = uniqueItems.filter((item) => {
-    // If a specific item is selected from search dropdown, show only that item
-    if (selectedSearchItem) {
-      if (item.id !== selectedSearchItem.id) {
-        return false;
+  const uniqueItems = useMemo(() => {
+    return allItems.reduce((acc: Item[], current: Item) => {
+      const existingItem = acc.find(item => item.id === current.id);
+      if (!existingItem) {
+        acc.push(current);
       }
-    } else if (searchTerm) {
-      // Otherwise, use text search
-      const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.code.toLowerCase().includes(searchTerm.toLowerCase());
-      if (!matchesSearch) return false;
-    }
+      return acc;
+    }, []);
+  }, [allItems]);
 
-    if (activeTab === "grouped") {
-      return item.isGroup === true;
-    } else if (activeTab === "individual") {
-      return item.isGroup !== true;
-    }
+  // Filter items based on search (either searchTerm or selectedSearchItem) - memoized
+  const filteredItems = useMemo(() => {
+    return uniqueItems.filter((item) => {
+      // If a specific item is selected from search dropdown, show only that item
+      if (selectedSearchItem) {
+        if (item.id !== selectedSearchItem.id) {
+          return false;
+        }
+      } else if (searchTerm) {
+        // Otherwise, use text search
+        const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.code.toLowerCase().includes(searchTerm.toLowerCase());
+        if (!matchesSearch) return false;
+      }
 
-    return true;
-  });
+      if (activeTab === "grouped") {
+        return item.isGroup === true;
+      } else if (activeTab === "individual") {
+        return item.isGroup !== true;
+      }
 
-  // Filter items for search dropdown
-  const searchableItems = uniqueItems.filter((item) => {
-    if (!searchInputValue || searchInputValue.length < 1) {
-      return true; // Show all items when input is empty
-    }
-    const query = searchInputValue.toLowerCase();
-    return item.name.toLowerCase().includes(query) ||
-      item.code.toLowerCase().includes(query);
-  }).slice(0, 10); // Limit to 10 items in dropdown
+      return true;
+    });
+  }, [uniqueItems, selectedSearchItem, searchTerm, activeTab]);
 
-  const handleEditItem = (item: Item) => {
+  // Filter items for search dropdown - memoized
+  const searchableItems = useMemo(() => {
+    return uniqueItems.filter((item) => {
+      if (!searchInputValue || searchInputValue.length < 1) {
+        return true; // Show all items when input is empty
+      }
+      const query = searchInputValue.toLowerCase();
+      return item.name.toLowerCase().includes(query) ||
+        item.code.toLowerCase().includes(query);
+    }).slice(0, 10); // Limit to 10 items in dropdown
+  }, [uniqueItems, searchInputValue]);
+
+  const handleEditItem = useCallback((item: Item) => {
     setSelectedItem(item);
     setShowEditModal(true);
-  };
+  }, []);
 
-  const handleDeleteItemClick = (item: Item) => {
+  const handleDeleteItemClick = useCallback((item: Item) => {
     setItemToDelete(item);
     setShowDeleteModal(true);
-  };
+  }, []);
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = useCallback(() => {
     if (itemToDelete) {
       handleDeleteItem?.(itemToDelete.id);
       setShowDeleteModal(false);
       setItemToDelete(null);
     }
-  };
+  }, [itemToDelete, handleDeleteItem]);
 
   const fetchSubItems = async (itemId: number) => {
     if (subItemsData[itemId]) {
@@ -362,7 +368,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                   className={`nav-link ${activeTab === "individual" ? "active" : ""}`}
                   onClick={() => setActiveTab("individual")}
                 >
-                  Individual ({uniqueItems.filter(item => !Boolean(item.isGroup)).length})
+                  Individual ({uniqueItems.filter(item => !item.isGroup).length})
                 </button>
               </li>
             </ul>

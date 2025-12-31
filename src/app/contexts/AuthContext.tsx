@@ -1,7 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -32,7 +32,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (token && userData) {
             try {
                 // Basic token validation - check if it's not expired
-                const payload = JSON.parse(atob(token.split('.')[1]));
+                const payload = JSON.parse(atob(token.split(".")[1]));
                 const currentTime = Date.now() / 1000;
 
                 if (payload.exp && payload.exp > currentTime) {
@@ -56,6 +56,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const login = useCallback((token: string, userData: any) => {
         localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(userData));
+        // Store token set time to detect race conditions
+        localStorage.setItem("token_set_time", Date.now().toString());
         setIsAuthenticated(true);
         setUser(userData);
     }, []);
@@ -75,26 +77,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const checkAuth = useCallback((): boolean => {
         const token = localStorage.getItem("token");
-        if (!token) {
-            logout();
+        if (!token || token === "null" || token === "undefined" || token.trim() === "") {
+            // Don't logout here - let the component handle it
             return false;
         }
 
         try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
+            // Verify token format (should be a JWT with 3 parts)
+            const tokenParts = token.split(".");
+            if (tokenParts.length !== 3) {
+                // Invalid token format - don't logout, just return false
+                return false;
+            }
+
+            const payload = JSON.parse(atob(tokenParts[1]));
             const currentTime = Date.now() / 1000;
 
             if (payload.exp && payload.exp > currentTime) {
                 return true;
             } else {
-                logout();
+                // Token expired - don't logout here, let the component handle it
                 return false;
             }
         } catch (error) {
-            logout();
+            // Invalid token - don't logout here, just return false
+            console.warn("Token validation failed in checkAuth:", error);
             return false;
         }
-    }, [logout]);
+    }, []);
 
     const contextValue: AuthContextType = {
         isAuthenticated,

@@ -7,8 +7,33 @@ export const fetchInventoryHandler = async (
 ) => {
     const inventoryService = new InventoryService(req.db);
     try {
-        const inventoryItems = await inventoryService.getAllInventoryItems();
-        res.status(200).json(inventoryItems);
+        // Parse query parameters for pagination and search
+        const page = req.query.page ? parseInt(req.query.page as string, 10) : undefined;
+        const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string, 10) : undefined;
+        const search = req.query.search as string | undefined;
+
+        const limit = pageSize;
+        const offset = page && pageSize ? (page - 1) * pageSize : undefined;
+
+        const result = await inventoryService.getAllInventoryItems({
+            limit,
+            offset,
+            search,
+        });
+
+        // If pagination is requested, return paginated response
+        if (limit !== undefined) {
+            res.status(200).json({
+                items: result.items,
+                total: result.total,
+                page: page || 1,
+                pageSize: limit,
+                totalPages: Math.ceil(result.total / limit),
+            });
+        } else {
+            // Backward compatibility: return array if no pagination
+            res.status(200).json(result.items);
+        }
     } catch (error: any) {
         console.error("Error fetching inventory:", error);
         res.status(500).json({

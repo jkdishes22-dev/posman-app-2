@@ -1,6 +1,8 @@
 import { Bill, BillStatus } from "@entities/Bill";
 import { BillItem, BillItemStatus } from "@entities/BillItem";
 import { Item } from "@entities/Item";
+import { User } from "@entities/User";
+import { Station } from "@entities/Station";
 import { AppDataSource } from "@backend/config/data-source";
 import { UserService } from "./UserService";
 import { BillPaymentInterface } from "@backend/interfaces/BillPayment";
@@ -118,19 +120,33 @@ export class BillService {
           status: BillItemStatus.PENDING,
         }));
 
-        await transactionalEntityManager.save(BillItem, billItems);
+        const savedBillItems = await transactionalEntityManager.save(BillItem, billItems);
 
-        // Fetch the complete bill with relations for return
-        const bill = await transactionalEntityManager.findOne(Bill, {
-          where: { id: newBill.id },
-          relations: ["bill_items", "bill_items.item", "user", "station"]
-        });
+        // Load relations efficiently - fetch user and station in parallel
+        const [userEntity, stationEntity] = await Promise.all([
+          transactionalEntityManager.findOne(User, { where: { id: user_id } }),
+          station_id ? transactionalEntityManager.findOne(Station, { where: { id: station_id } }) : Promise.resolve(null)
+        ]);
 
-        if (!bill) {
-          throw new Error("Failed to fetch created bill");
-        }
+        // Load item entities for bill items
+        const itemIds = savedBillItems.map(bi => bi.item_id).filter(id => id != null);
+        const itemEntities = itemIds.length > 0
+          ? await transactionalEntityManager.find(Item, { where: itemIds.map(id => ({ id })) })
+          : [];
+        const itemsMap = new Map(itemEntities.map(item => [item.id, item]));
 
-        return bill;
+        // Construct bill object with relations instead of fetching
+        const bill = {
+          ...newBill,
+          bill_items: savedBillItems.map(bi => ({
+            ...bi,
+            item: itemsMap.get(bi.item_id) || null
+          })),
+          user: userEntity,
+          station: stationEntity
+        };
+
+        return bill as Bill;
       },
     );
 
@@ -166,12 +182,15 @@ export class BillService {
       endOfDayDate = endOfDay(localDate);
     }
 
-    const currentUser = await this.userService.getUserById(userId);
-
-    const roleNames = ["user", "waitress"];
-    const includeBills = currentUser.roles.some((role) =>
-      roleNames.includes(role.name),
-    );
+    // Optimize: Only fetch user if we need role check (not needed for single billId query)
+    let includeBills = false;
+    if (!billId) {
+      const currentUser = await this.userService.getUserById(userId);
+      const roleNames = ["user", "waitress"];
+      includeBills = currentUser.roles.some((role) =>
+        roleNames.includes(role.name),
+      );
+    }
 
     try {
       const query = this.billRepository
@@ -209,34 +228,66 @@ export class BillService {
       // Add consistent ordering for pagination
       query.orderBy("bill.created_at", "DESC");
 
-      // Get total count before pagination (clone the query for count)
-      const countQuery = query.clone();
-      const total = await countQuery.getCount();
+      // Optimize: Skip count query when fetching by billId (we know it's 1 or 0)
+      let total = 0;
+      if (billId) {
+        // For single bill fetch, we don't need count - just check if bill exists
+        total = 1; // Will be adjusted if no bill found
+      } else {
+        // Get total count before pagination (clone the query for count)
+        // Optimize: Use a simpler count query without joins
+        const countQuery = this.billRepository
+          .createQueryBuilder("bill")
+          .select("COUNT(DISTINCT bill.id)", "count");
+
+        if (targetDate) {
+          countQuery.where("bill.created_at BETWEEN :start AND :end", {
+            start: startOfDayDate,
+            end: endOfDayDate,
+          });
+        }
+
+        if (status) {
+          countQuery.andWhere("bill.status = :status", { status });
+        }
+
+        if (userId && includeBills) {
+          countQuery.andWhere("bill.user_id = :userId", { userId });
+        }
+
+        if (billingUserId) {
+          countQuery.andWhere("bill.user_id = :billingUserId", { billingUserId });
+        }
+
+        const countResult = await countQuery.getRawOne();
+        total = parseInt(countResult?.count || "0", 10);
+      }
 
       // Apply pagination to the original query
       query.skip((page - 1) * pageSize).take(pageSize);
 
       const bills = await query.getMany();
 
-      // Get item prices for all bill items
+      // Optimize: Only fetch prices if we have bills and items
       const billItemIds = bills.flatMap(bill =>
         bill.bill_items?.map(item => item.id) || []
       );
 
       let itemPrices = {};
       if (billItemIds.length > 0) {
+        // Optimize: Use IN clause with proper indexing
         const priceQuery = this.billItemRepository
           .createQueryBuilder("billItem")
-          .leftJoin("pricelist_item", "pi", "pi.item_id = billItem.item_id")
+          .leftJoin("pricelist_item", "pi", "pi.item_id = billItem.item_id AND pi.is_enabled = 1")
           .select([
             "billItem.id as billItemId",
-            "pi.price as price"
+            "COALESCE(pi.price, 0) as price"
           ])
           .where("billItem.id IN (:...billItemIds)", { billItemIds });
 
         const priceResults = await priceQuery.getRawMany();
         itemPrices = priceResults.reduce((acc, result) => {
-          acc[result.billItemId] = result.price || 0;
+          acc[result.billItemId] = parseFloat(result.price) || 0;
           return acc;
         }, {});
       }
@@ -244,14 +295,22 @@ export class BillService {
       // Transform bills to include item prices
       const transformedBills = bills.map(bill => ({
         ...bill,
-        bill_items: bill.bill_items?.map(item => ({
-          ...item,
-          item: {
-            ...item.item,
-            price: itemPrices[item.id] || 0
-          }
-        })) || []
+        bill_items: bill.bill_items?.map(item => {
+          const itemPrice = itemPrices[item.id] || 0;
+          return {
+            ...item,
+            item: {
+              ...item.item,
+              price: itemPrice
+            }
+          };
+        }) || []
       }));
+
+      // Adjust total if billId query returned no results
+      if (billId && transformedBills.length === 0) {
+        total = 0;
+      }
 
       return { bills: transformedBills, total };
     } catch (error) {
@@ -515,6 +574,11 @@ export class BillService {
       throw new Error(`Bill with ID ${billPayment.billId} not found`);
     }
 
+    // Validate that the user trying to submit is the bill creator
+    if (bill.user_id && billPayment.userId && bill.user_id !== billPayment.userId) {
+      throw new Error("You can only submit bills that you created. This bill was created by a different user.");
+    }
+
     // Note: Frontend handles disabling submit button for bills with pending void requests
     // Backend validation removed to allow graceful UI handling
 
@@ -524,7 +588,7 @@ export class BillService {
     }
 
     try {
-      return await AppDataSource.transaction(
+      const result = await AppDataSource.transaction(
         async (transactionalEntityManager) => {
           const payments = [];
           const billPayments = [];
@@ -562,16 +626,6 @@ export class BillService {
             { status: BillItemStatus.SUBMITTED }
           );
 
-          // Convert inventory reservation to actual deduction (Phase 2: Deduction)
-          // This happens outside the transaction to use InventoryService's own transaction
-          try {
-            await this.inventoryService.deductInventoryForSale(bill.id, billPayment.userId);
-          } catch (error: any) {
-            // Log error but don't fail bill submission
-            // Inventory deduction is important but shouldn't block payment processing
-            console.error(`Failed to deduct inventory for bill ${bill.id}:`, error);
-          }
-
           return {
             bill_payments: billPayments,
             payments,
@@ -579,8 +633,30 @@ export class BillService {
           };
         },
       );
+
+      // Convert inventory reservation to actual deduction (Phase 2: Deduction)
+      // This happens AFTER the transaction commits to ensure bill status is SUBMITTED
+      // This uses InventoryService's own transaction
+      try {
+        await this.inventoryService.deductInventoryForSale(bill.id, billPayment.userId);
+      } catch (error: any) {
+        // Log error but don't fail bill submission
+        // Inventory deduction is important but shouldn't block payment processing
+        console.error(`Failed to deduct inventory for bill ${bill.id}:`, error);
+      }
+
+      return result;
     } catch (error: any) {
-      throw new Error("Failed to submit bill. Please try again.");
+      console.error("Error in submitBill transaction:", error);
+      console.error("Error details:", {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+        billId: billPayment.billId
+      });
+      // Preserve original error message if available, otherwise use generic message
+      const errorMessage = error?.message || "Failed to submit bill. Please try again.";
+      throw new Error(errorMessage);
     }
   }
 
@@ -592,19 +668,19 @@ export class BillService {
 
     const paymentMap = {
       cash_mpesa: [
-        { creditAmount: cashAmount, paymentType: PaymentType.CASH },
+        { creditAmount: cashAmount, paymentType: PaymentType.CASH, reference: null },
         {
           creditAmount: mpesaAmount,
           paymentType: PaymentType.MPESA,
-          reference: mpesaCode,
+          reference: mpesaCode || null,
         },
       ],
-      cash: [{ creditAmount: cashAmount, paymentType: PaymentType.CASH }],
+      cash: [{ creditAmount: cashAmount, paymentType: PaymentType.CASH, reference: null }],
       mpesa: [
         {
           creditAmount: mpesaAmount,
           paymentType: PaymentType.MPESA,
-          reference: mpesaCode,
+          reference: mpesaCode || null,
         },
       ],
     };
@@ -629,17 +705,19 @@ export class BillService {
       );
     }
 
-    const billAmount = bill.total;
-    const paidAmount = bill.bill_payments.reduce(
+    const billAmount = bill.total || 0;
+    const paidAmount = bill.bill_payments?.reduce(
       (sum, billPayment) => sum + billPayment.payment.creditAmount,
       0,
-    );
+    ) || 0;
 
-    if (billAmount !== paidAmount) {
-      throw new Error("Cannot close bill. Please confirm payments");
+    // Use floating point comparison with tolerance (0.01) to account for precision issues
+    const amountDifference = Math.abs(paidAmount - billAmount);
+    if (amountDifference > 0.01) {
+      throw new Error(`Cannot close bill. Payment discrepancy: $${amountDifference.toFixed(2)}. Bill total: $${billAmount.toFixed(2)}, Paid: $${paidAmount.toFixed(2)}`);
     }
 
-    const updateBill = await AppDataSource.createQueryBuilder()
+    await AppDataSource.createQueryBuilder()
       .update(Bill)
       .set({ status: BillStatus.CLOSED })
       .where("id = :id", { id: bill.id })
@@ -652,7 +730,18 @@ export class BillService {
       .where("bill_id = :billId", { billId: bill.id })
       .execute();
 
-    return updateBill;
+    // Fetch and return the updated bill
+    const updatedBill = await AppDataSource.createQueryBuilder("bill", "bill")
+      .leftJoinAndSelect("bill.bill_items", "billItem")
+      .leftJoinAndSelect("billItem.item", "item")
+      .leftJoinAndSelect("bill.bill_payments", "billPayment")
+      .leftJoinAndSelect("billPayment.payment", "payment")
+      .leftJoinAndSelect("bill.user", "user")
+      .leftJoinAndSelect("bill.station", "station")
+      .where("bill.id = :id", { id: billId })
+      .getOne();
+
+    return updatedBill || bill;
   }
 
   async closeBillsBulk(billIds: number[]) {
@@ -966,13 +1055,15 @@ export class BillService {
   }
 
   // Get void requests (bills with items in void_pending status)
+  // Rule 4.3: Voiding is allowed in 'submitted' or 'reopened' states
+  // Supervisors should see all void requests, sales users see only their own
   async getVoidRequests(userId?: number) {
     // First, find all bill items with void_pending status
     const voidPendingItems = await this.billItemRepository.find({
       where: {
         status: BillItemStatus.VOID_PENDING
       },
-      relations: ["bill", "item", "bill.user"]
+      relations: ["bill", "item", "bill.user", "bill.station"]
     });
 
     // Get unique bill IDs
@@ -983,41 +1074,84 @@ export class BillService {
     }
 
     // Fetch bills with their items
+    // Note: Void requests can be created on PENDING, SUBMITTED, or REOPENED bills
+    // We need to show all void_pending items regardless of bill status for supervisor approval
     const queryBuilder = this.billRepository
       .createQueryBuilder("bill")
       .leftJoinAndSelect("bill.bill_items", "bill_item")
       .leftJoinAndSelect("bill_item.item", "item")
       .leftJoinAndSelect("bill.user", "user")
+      .leftJoinAndSelect("bill.station", "station")
       .where("bill.id IN (:...billIds)", { billIds })
-      .andWhere("bill.status IN (:...statuses)", { statuses: [BillStatus.PENDING, BillStatus.REOPENED] });
+      // Include all statuses where void requests can exist (PENDING, SUBMITTED, REOPENED)
+      // Exclude CLOSED and VOIDED as those are terminal states
+      .andWhere("bill.status IN (:...statuses)", {
+        statuses: [BillStatus.PENDING, BillStatus.SUBMITTED, BillStatus.REOPENED]
+      });
 
+    // Only filter by userId for sales users - supervisors see all requests
+    // If userId is provided, it means we want to filter by user (for sales role)
+    // If userId is not provided (undefined), show all requests (for supervisor role)
     if (userId) {
       queryBuilder.andWhere("bill.user_id = :userId", { userId });
     }
 
     const bills = await queryBuilder.getMany();
 
-    // Transform to void request format
+    // Transform to void request format expected by VoidRequestManager
     const voidRequests = [];
     for (const bill of bills) {
       const pendingItems = bill.bill_items?.filter(item => item.status === BillItemStatus.VOID_PENDING) || [];
       for (const item of pendingItems) {
+        // Get the user who requested the void
+        const requestedByUser = item.void_requested_by
+          ? await this.userService.getUserById(item.void_requested_by).catch(() => null)
+          : null;
+
         voidRequests.push({
-          id: item.id,
-          billId: bill.id,
-          itemId: item.id,
-          reason: item.void_reason,
-          requestedBy: item.void_requested_by,
-          requestedAt: item.void_requested_at,
+          id: item.id, // Use item.id as the void request ID (for compatibility)
+          bill_id: bill.id,
+          item_id: item.id, // Add item_id for approval endpoint
+          initiated_by: item.void_requested_by || 0,
+          reason: item.void_reason || "",
           status: "pending",
+          created_at: item.void_requested_at?.toISOString() || item.created_at?.toISOString() || new Date().toISOString(),
+          initiator: requestedByUser ? {
+            id: requestedByUser.id,
+            firstName: requestedByUser.firstName || "",
+            lastName: requestedByUser.lastName || "",
+            username: requestedByUser.username || ""
+          } : {
+            id: 0,
+            firstName: "Unknown",
+            lastName: "User",
+            username: ""
+          },
           bill: {
             id: bill.id,
-            billNumber: bill.bill_number,
-            total: bill.total,
+            total: bill.total || 0,
             status: bill.status,
-            user: bill.user
+            created_at: bill.created_at?.toISOString() || new Date().toISOString(),
+            user: bill.user ? {
+              firstName: bill.user.firstName || "",
+              lastName: bill.user.lastName || ""
+            } : {
+              firstName: "",
+              lastName: ""
+            },
+            station: bill.station ? {
+              name: bill.station.name || ""
+            } : {
+              name: ""
+            }
           },
-          item: item.item
+          item: item.item ? {
+            id: item.item.id,
+            name: item.item.name || ""
+          } : {
+            id: 0,
+            name: ""
+          }
         });
       }
     }
@@ -1026,10 +1160,147 @@ export class BillService {
   }
 
   // Get void request statistics
+  // Match the filtering logic in getVoidRequests() to ensure consistency
+  // Include PENDING, SUBMITTED, and REOPENED bills (exclude CLOSED and VOIDED)
   async getVoidRequestStats() {
+    // Use query builder to count void_pending items from bills with pending, submitted, or reopened status
+    const pendingCount = await this.billItemRepository
+      .createQueryBuilder("billItem")
+      .innerJoin("bill", "bill", "bill.id = billItem.bill_id")
+      .where("billItem.status = :status", { status: BillItemStatus.VOID_PENDING })
+      .andWhere("bill.status IN (:...statuses)", {
+        statuses: [BillStatus.PENDING, BillStatus.SUBMITTED, BillStatus.REOPENED]
+      })
+      .getCount();
+
+    return {
+      pending: pendingCount
+    };
+  }
+
+  // Get quantity change requests (bills with items in quantity_change_request status)
+  // Rule 4.3: Quantity changes are allowed in 'pending' or 'reopened' states
+  // Supervisors should see all quantity change requests, sales users see only their own
+  async getQuantityChangeRequests(userId?: number) {
+    // First, find all bill items with quantity_change_request status
+    const quantityChangeItems = await this.billItemRepository.find({
+      where: {
+        status: BillItemStatus.QUANTITY_CHANGE_REQUEST
+      },
+      relations: ["bill", "item", "bill.user", "bill.station"]
+    });
+
+    // Get unique bill IDs
+    const billIds = [...new Set(quantityChangeItems.map(item => item.bill_id))];
+
+    if (billIds.length === 0) {
+      return [];
+    }
+
+    // Fetch bills with their items
+    // Rule 4.3: Quantity changes allowed in 'pending' or 'reopened' states
+    const queryBuilder = this.billRepository
+      .createQueryBuilder("bill")
+      .leftJoinAndSelect("bill.bill_items", "bill_item")
+      .leftJoinAndSelect("bill_item.item", "item")
+      .leftJoinAndSelect("bill.user", "user")
+      .leftJoinAndSelect("bill.station", "station")
+      .where("bill.id IN (:...billIds)", { billIds })
+      .andWhere("bill.status IN (:...statuses)", {
+        statuses: [BillStatus.PENDING, BillStatus.REOPENED]
+      });
+
+    // Only filter by userId for sales users - supervisors see all requests
+    if (userId) {
+      queryBuilder.andWhere("bill.user_id = :userId", { userId });
+    }
+
+    const bills = await queryBuilder.getMany();
+
+    // Transform to quantity change request format
+    const quantityChangeRequests = [];
+    for (const bill of bills) {
+      const pendingItems = bill.bill_items?.filter(item => item.status === BillItemStatus.QUANTITY_CHANGE_REQUEST) || [];
+      for (const item of pendingItems) {
+        // Get the user who requested the quantity change
+        const requestedByUser = item.quantity_change_requested_by
+          ? await this.userService.getUserById(item.quantity_change_requested_by).catch(() => null)
+          : null;
+
+        // Calculate new bill total after quantity change
+        // Unit price = current subtotal / current quantity
+        const unitPrice = item.quantity > 0 ? (item.subtotal / item.quantity) : 0;
+        const requestedQuantity = item.requested_quantity || item.quantity;
+        const newSubtotal = unitPrice * requestedQuantity;
+
+        // Calculate new bill total:
+        // Sum all other items (excluding voided items and this item) + new subtotal for this item
+        const otherItems = bill.bill_items?.filter(billItem =>
+          billItem.id !== item.id && billItem.status !== BillItemStatus.VOIDED
+        ) || [];
+        const otherItemsTotal = otherItems.reduce((sum, billItem) => sum + (billItem.subtotal || 0), 0);
+        const newBillTotal = otherItemsTotal + newSubtotal;
+
+        quantityChangeRequests.push({
+          id: item.id, // Use item.id as the quantity change request ID
+          bill_id: bill.id,
+          item_id: item.id,
+          initiated_by: item.quantity_change_requested_by || 0,
+          current_quantity: item.quantity,
+          requested_quantity: requestedQuantity,
+          reason: item.quantity_change_reason || "",
+          status: "pending",
+          created_at: item.quantity_change_requested_at?.toISOString() || item.created_at?.toISOString() || new Date().toISOString(),
+          current_bill_total: bill.total || 0,
+          new_bill_total: newBillTotal,
+          initiator: requestedByUser ? {
+            id: requestedByUser.id,
+            firstName: requestedByUser.firstName || "",
+            lastName: requestedByUser.lastName || "",
+            username: requestedByUser.username || ""
+          } : {
+            id: 0,
+            firstName: "Unknown",
+            lastName: "User",
+            username: ""
+          },
+          bill: {
+            id: bill.id,
+            total: bill.total || 0,
+            status: bill.status,
+            created_at: bill.created_at?.toISOString() || new Date().toISOString(),
+            user: bill.user ? {
+              firstName: bill.user.firstName || "",
+              lastName: bill.user.lastName || ""
+            } : {
+              firstName: "",
+              lastName: ""
+            },
+            station: bill.station ? {
+              name: bill.station.name || ""
+            } : {
+              name: ""
+            }
+          },
+          item: item.item ? {
+            id: item.item.id,
+            name: item.item.name || ""
+          } : {
+            id: 0,
+            name: ""
+          }
+        });
+      }
+    }
+
+    return quantityChangeRequests;
+  }
+
+  // Get quantity change request statistics
+  async getQuantityChangeRequestStats() {
     const pendingCount = await this.billItemRepository.count({
       where: {
-        status: BillItemStatus.VOID_PENDING
+        status: BillItemStatus.QUANTITY_CHANGE_REQUEST
       }
     });
 

@@ -6,10 +6,12 @@ import { Card, Row, Col, Badge, Button } from "react-bootstrap";
 import { useRouter } from "next/navigation";
 import { useApiCall } from "../utils/apiUtils";
 import ErrorDisplay from "../components/ErrorDisplay";
+import { useTooltips } from "../hooks/useTooltips";
 
 export default function SupervisorPage() {
     const router = useRouter();
     const apiCall = useApiCall();
+    useTooltips();
     const [stats, setStats] = useState({
         totalSales: 0,
         activeBills: 0,
@@ -33,21 +35,47 @@ export default function SupervisorPage() {
             setError(null);
             setErrorDetails(null);
 
+            // Fetch today's date for filtering
+            const today = new Date();
+            const todayStr = today.toISOString().split("T")[0];
+
             // Load void request stats
-            const result = await apiCall("/api/bills/void-requests/stats");
+            const voidStatsResult = await apiCall("/api/bills/void-requests/stats");
             let pendingVoidRequests = 0;
 
-            if (result.status === 200) {
-                pendingVoidRequests = result.data.stats?.pending || 0;
+            if (voidStatsResult.status === 200) {
+                pendingVoidRequests = voidStatsResult.data.stats?.pending || 0;
             } else {
-                console.warn("Failed to load void request stats:", result.error);
+                console.warn("Failed to load void request stats:", voidStatsResult.error);
+            }
+
+            // Fetch today's bills to calculate sales
+            const billsResult = await apiCall(`/api/bills?date=${todayStr}&page=1&pageSize=1000`);
+
+            let totalSales = 0;
+            let activeBills = 0;
+
+            if (billsResult.status === 200) {
+                const bills = billsResult.data?.bills || [];
+                
+                // Calculate today's sales from closed bills only
+                totalSales = bills
+                    .filter(bill => bill.status === "closed")
+                    .reduce((sum, bill) => sum + (Number(bill.total) || 0), 0);
+
+                // Count active bills (submitted or reopened)
+                activeBills = bills.filter(bill => 
+                    bill.status === "submitted" || bill.status === "reopened"
+                ).length;
+            } else {
+                console.warn("Failed to load today's bills:", billsResult.error);
             }
 
             setStats({
-                totalSales: 15420,
-                activeBills: 8,
-                lowStockItems: 3,
-                teamMembers: 12,
+                totalSales,
+                activeBills,
+                lowStockItems: 3, // TODO: Fetch from inventory API when available
+                teamMembers: 12, // TODO: Fetch from users API when available
                 pendingVoidRequests
             });
             setRecentActivity([
@@ -114,7 +142,22 @@ export default function SupervisorPage() {
                 {/* Key Metrics */}
                 <Row className="mb-4">
                     <Col md={2}>
-                        <Card className="text-center h-100">
+                        <Card
+                            className="text-center h-100"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => router.push("/supervisor/bills")}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+                            }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="View all bills and sales reports"
+                        >
                             <Card.Body>
                                 <div className="text-primary mb-2">
                                     <i className="bi bi-currency-dollar fs-1"></i>
@@ -125,7 +168,22 @@ export default function SupervisorPage() {
                         </Card>
                     </Col>
                     <Col md={2}>
-                        <Card className="text-center h-100">
+                        <Card
+                            className="text-center h-100"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => router.push("/supervisor/bills?status=submitted,reopened")}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+                            }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="View active bills that need processing"
+                        >
                             <Card.Body>
                                 <div className="text-success mb-2">
                                     <i className="bi bi-receipt fs-1"></i>
@@ -136,7 +194,22 @@ export default function SupervisorPage() {
                         </Card>
                     </Col>
                     <Col md={2}>
-                        <Card className="text-center h-100">
+                        <Card
+                            className="text-center h-100"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => router.push("/storekeeper/stock?filter=lowStock")}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+                            }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="View items with low stock levels"
+                        >
                             <Card.Body>
                                 <div className="text-warning mb-2">
                                     <i className="bi bi-exclamation-triangle fs-1"></i>
@@ -147,7 +220,22 @@ export default function SupervisorPage() {
                         </Card>
                     </Col>
                     <Col md={2}>
-                        <Card className="text-center h-100">
+                        <Card
+                            className="text-center h-100"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => router.push("/supervisor/station/user")}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+                            }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Manage team members and station assignments"
+                        >
                             <Card.Body>
                                 <div className="text-info mb-2">
                                     <i className="bi bi-people fs-1"></i>
@@ -158,7 +246,22 @@ export default function SupervisorPage() {
                         </Card>
                     </Col>
                     <Col md={2}>
-                        <Card className="text-center h-100">
+                        <Card
+                            className="text-center h-100"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => router.push("/supervisor/void-requests")}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = "translateY(-2px)";
+                                e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = "translateY(0)";
+                                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+                            }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Review and approve pending void requests"
+                        >
                             <Card.Body>
                                 <div className="text-danger mb-2">
                                     <i className="bi bi-exclamation-triangle fs-1"></i>
@@ -181,7 +284,11 @@ export default function SupervisorPage() {
                                         <i className="bi bi-graph-up me-2 text-primary"></i>
                                         Sales Management
                                     </h5>
-                                    <Button variant="primary" size="sm">
+                                    <Button
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={() => router.push("/supervisor/billing")}
+                                    >
                                         <i className="bi bi-plus-circle me-1"></i>
                                         New Bill
                                     </Button>
@@ -267,7 +374,12 @@ export default function SupervisorPage() {
                                         <Button
                                             variant="outline-warning"
                                             size="sm"
-                                            onClick={() => router.push("/supervisor/void-requests")}
+                                            style={{ cursor: "pointer" }}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                router.push("/supervisor/void-requests");
+                                            }}
                                         >
                                             <i className="bi bi-eye me-1"></i>
                                             Review
@@ -287,7 +399,11 @@ export default function SupervisorPage() {
                                         <i className="bi bi-people me-2 text-primary"></i>
                                         Team Management
                                     </h5>
-                                    <Button variant="outline-primary" size="sm">
+                                    <Button
+                                        variant="outline-primary"
+                                        size="sm"
+                                        onClick={() => router.push("/supervisor/station/user")}
+                                    >
                                         <i className="bi bi-gear me-1"></i>
                                         Manage
                                     </Button>

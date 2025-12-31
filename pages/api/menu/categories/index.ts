@@ -8,29 +8,31 @@ import {
 } from "@backend/controllers/CategoryController";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
-
-// Simple in-memory cache for categories
-const categoriesCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 60000; // 60 seconds
+import { cache } from "@backend/utils/cache";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   // await ensureMetadata("Category");
   if (req.method === "GET") {
-    // Check cache first
-    const cacheKey = "categories-all";
-    const cached = categoriesCache.get(cacheKey);
-
-    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-      return res.status(200).json(cached.data);
+    // Check cache first (using shared cache utility)
+    const cacheKey = "api_categories_all";
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      // Set cache headers for browser caching
+      res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
+      res.setHeader("ETag", `"categories-${Date.now()}"`);
+      return res.status(200).json(cached);
     }
 
-    // If not cached, fetch and cache
+    // Cache miss, fetch from database
     const originalJson = res.json;
     res.json = function (data: any) {
-      categoriesCache.set(cacheKey, {
-        data: data,
-        timestamp: Date.now()
-      });
+      if (res.statusCode === 200) {
+        // Cache the result (using shared cache utility)
+        cache.set(cacheKey, data);
+        // Set cache headers
+        res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
+        res.setHeader("ETag", `"categories-${Date.now()}"`);
+      }
       return originalJson.call(this, data);
     };
 
@@ -39,7 +41,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     )(req, res);
   } else if (req.method === "POST") {
     // Invalidate cache when creating new category
-    categoriesCache.delete("categories-all");
+    cache.invalidate("categories");
+    cache.invalidate("api_categories");
 
     return authMiddleware(
       authorize([permissions.CAN_ADD_CATEGORY])(createCategoryHandler),

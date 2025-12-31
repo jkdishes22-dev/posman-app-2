@@ -4,10 +4,7 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { NextApiRequest, NextApiResponse } from "next";
-
-// Simple in-memory cache for default station
-const defaultStationCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 30000; // 30 seconds
+import { cache } from "@backend/utils/cache";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "GET") {
@@ -19,23 +16,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     return res.status(401).json({ message: "User not authenticated" });
                 }
 
-                // Check cache first
-                const cacheKey = `default-station-${userId}`;
-                const cached = defaultStationCache.get(cacheKey);
+                // Check cache first (using shared cache utility)
+                const cacheKey = `api_default_station_${userId}`;
+                const cached = cache.get<any>(cacheKey);
 
-                if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-                    return res.status(200).json(cached.data);
+                if (cached !== null) {
+                    return res.status(200).json(cached);
                 }
 
-                // Add timeout to prevent hanging
-                const timeoutPromise = new Promise((_, reject) => {
-                    setTimeout(() => reject(new Error("Request timeout")), 5000); // 5 second timeout
-                });
-
                 const stationService = new StationService(req.db);
-                const defaultStationPromise = stationService.getUserDefaultStation(Number(userId));
-
-                const defaultStation = await Promise.race([defaultStationPromise, timeoutPromise]) as any;
+                const defaultStation = await stationService.getUserDefaultStation(Number(userId));
 
                 let response;
                 if (!defaultStation) {
@@ -51,11 +41,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     };
                 }
 
-                // Cache the response (even if null, to prevent repeated queries)
-                defaultStationCache.set(cacheKey, {
-                    data: response,
-                    timestamp: Date.now()
-                });
+                // Cache the response (using shared cache utility)
+                cache.set(cacheKey, response);
 
                 res.status(200).json(response);
             } catch (error: any) {
@@ -64,10 +51,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 // Return a cached response if available, even if expired, to prevent complete failure
                 const userId = req.user?.id;
                 if (userId) {
-                    const cacheKey = `default-station-${userId}`;
-                    const cached = defaultStationCache.get(cacheKey);
-                    if (cached) {
-                        return res.status(200).json(cached.data);
+                    const cacheKey = `api_default_station_${userId}`;
+                    const cached = cache.get<any>(cacheKey);
+                    if (cached !== null) {
+                        return res.status(200).json(cached);
                     }
                 }
 
@@ -103,9 +90,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
                 await stationService.setUserDefaultStation(Number(userId), stationId);
 
-                // Invalidate cache for this user
-                const cacheKey = `default-station-${userId}`;
-                defaultStationCache.delete(cacheKey);
+                // Invalidate cache for this user (using shared cache utility)
+                cache.invalidate(`api_default_station_${userId}`);
+                cache.invalidate(`user_default_station_${userId}`);
 
                 res.status(200).json({
                     message: "Default station updated successfully"

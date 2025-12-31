@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import SecureRoute from "../../components/SecureRoute";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import "react-datepicker/dist/react-datepicker.css";
@@ -18,6 +18,7 @@ import { useApiCall } from "../../utils/apiUtils";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import QuantityChangeModal from "../../components/QuantityChangeModal";
+import { useAuth } from "../../contexts/AuthContext";
 
 // Receipt component for printing
 const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
@@ -65,6 +66,7 @@ const MySales = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const apiCall = useApiCall();
+  const { user } = useAuth();
   const [billIdFilter, setBillIdFilter] = useState("");
   const [error, setError] = useState<string>("");
   const [itemError, setItemError] = useState("");
@@ -74,6 +76,9 @@ const MySales = () => {
   const [selectedBills, setSelectedBills] = useState<number[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   const receiptRef = useRef<HTMLDivElement>(null);
+  const isLoadingBillsRef = useRef(false);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isLoadingBillDetails, setIsLoadingBillDetails] = useState(false);
 
   // Void request state
   const [showVoidModal, setShowVoidModal] = useState<boolean>(false);
@@ -91,27 +96,14 @@ const MySales = () => {
     setSelectedBill(null);
   };
 
-  const handleStatusFilterChange = (status: string) => {
-    setStatusFilter(status);
-    setSelectedBill(null); // Clear selected bill when changing status
-    fetchBills(selectedDate, status, billIdFilter);
-  };
+  // Memoized fetchBills to prevent unnecessary re-renders and optimize performance
+  const fetchBills = useCallback(async (date?: Date | null, status?: string, billId?: string, currentPage?: number) => {
+    // Prevent multiple simultaneous calls using ref (doesn't trigger re-renders)
+    if (isLoadingBillsRef.current) return;
 
-  const handleBillIdChange = async (e) => {
-    const filter = e.target.value;
-    setBillIdFilter(filter);
+    isLoadingBillsRef.current = true;
     setError("");
 
-    if (filter === "") {
-      // When clearing bill ID filter, fetch bills with current date and status
-      fetchBills(selectedDate, statusFilter);
-    } else {
-      // When searching by bill ID, don't use date filter unless explicitly set
-      fetchBills(null, statusFilter, filter);
-    }
-  };
-
-  const fetchBills = async (date?: Date, status?: string, billId?: string) => {
     let url = "/api/bills?";
     const params = [];
 
@@ -132,8 +124,12 @@ const MySales = () => {
       params.push(`billId=${billId.trim()}`);
     }
 
-    params.push(`page=${page}`);
+    // Use currentPage parameter or fallback to state
+    const pageToUse = currentPage !== undefined ? currentPage : page;
+    params.push(`page=${pageToUse}`);
     params.push(`pageSize=${pageSize}`);
+
+    // Note: billingUserId will be handled by backend based on user context
 
     if (params.length > 0) {
       url += params.join("&");
@@ -142,9 +138,16 @@ const MySales = () => {
     try {
       const result = await apiCall(url);
       if (result.status === 200) {
-        setBills(result.data?.bills || []);
-        setFilteredBills(result.data?.bills || []);
-        setTotal(result.data?.total || 0);
+        const allBills = result.data?.bills || [];
+        // Filter bills to only show those belonging to the current user
+        const userBills = user && user.id
+          ? allBills.filter((bill: Bill) => bill.user?.id === user.id)
+          : allBills;
+
+        setBills(userBills);
+        setFilteredBills(userBills);
+        // Update total to reflect filtered count
+        setTotal(userBills.length);
         setError("");
       } else {
         setError(result.error || "Failed to fetch bills");
@@ -153,20 +156,57 @@ const MySales = () => {
     } catch (error) {
       setError("Network error occurred");
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    } finally {
+      isLoadingBillsRef.current = false;
     }
-  };
+  }, [apiCall, page, pageSize, user]);
+
+  const handleStatusFilterChange = useCallback((status: string) => {
+    setStatusFilter(status);
+    setSelectedBill(null);
+    setPage(1); // Reset to first page when filter changes
+  }, []);
+
+  // Debounced bill ID change handler for better performance
+  const handleBillIdChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const filter = e.target.value;
+    setBillIdFilter(filter);
+    setError("");
+    setPage(1); // Reset to first page when filter changes
+
+    // Clear existing timeout
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+
+    // Debounce the API call by 300ms
+    fetchTimeoutRef.current = setTimeout(() => {
+      if (filter === "") {
+        fetchBills(selectedDate, statusFilter);
+      } else {
+        fetchBills(null, statusFilter, filter);
+      }
+    }, 300);
+  }, [selectedDate, statusFilter, fetchBills]);
 
   const fetchBillsByBillId = async (billId: number) => {
     try {
       const result = await apiCall(`/api/bills?billId=${billId}`);
       if (result.status === 200) {
-        if (!result.data?.bills || result.data.bills.length === 0) {
-          setError("No bill found with that ID");
+        const allBills = result.data?.bills || [];
+        // Filter bills to only show those belonging to the current user
+        const userBills = user && user.id
+          ? allBills.filter((bill: Bill) => bill.user?.id === user.id)
+          : allBills;
+
+        if (userBills.length === 0) {
+          setError("No bill found with that ID that belongs to you");
           setFilteredBills([]);
+          setBills([]);
           return;
         }
-        setBills(result.data.bills);
-        setFilteredBills(result.data.bills);
+        setBills(userBills);
+        setFilteredBills(userBills);
         setError("");
       } else {
         setError(result.error || "No bill found with that ID");
@@ -180,14 +220,63 @@ const MySales = () => {
     }
   };
 
-  const handleBillClick = (bill: number) => {
-    setSelectedBill(bill);
+  const handleBillClick = async (bill: Bill) => {
+    // Safety check: ensure bill belongs to current user (shouldn't happen if filtering works correctly)
+    if (user && user.id && bill.user?.id && bill.user.id !== user.id) {
+      // Silently ignore - this bill shouldn't be in the list
+      return;
+    }
+
+    // Always fetch full bill details to ensure we have complete data
+    setIsLoadingBillDetails(true);
+    setError("");
+    setErrorDetails(null);
+
+    try {
+      const result = await apiCall(`/api/bills?billId=${bill.id}`);
+      if (result.status === 200) {
+        const fetchedBills = result.data?.bills || [];
+        if (fetchedBills.length > 0) {
+          const fullBill = fetchedBills.find((b: Bill) => b.id === bill.id) || fetchedBills[0];
+          // Safety check: ensure fetched bill belongs to current user
+          if (user && user.id && fullBill.user?.id && fullBill.user.id !== user.id) {
+            // Silently ignore - this bill shouldn't be accessible
+            setSelectedBill(null);
+            return;
+          }
+          setSelectedBill(fullBill);
+          setError(""); // Clear any previous errors
+        } else {
+          setSelectedBill(null);
+          setError("Could not load full bill details. The bill may have been deleted.");
+          setErrorDetails(null);
+        }
+      } else {
+        setSelectedBill(null);
+        setError(result.error || "Failed to load bill details.");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (error: any) {
+      setSelectedBill(null);
+      setError("Network error occurred while loading bill details");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    } finally {
+      setIsLoadingBillDetails(false);
+    }
   };
 
   const openSubmitModal = () => {
     if (selectedBill && selectedBill.bill_items.length === 0) {
       setError("Cannot submit bill with no items.");
       return;
+    }
+    if (selectedBill) {
+      const hasPendingVoids = selectedBill.bill_items?.some(item => item.status === "void_pending");
+      const hasPendingQuantityChanges = selectedBill.bill_items?.some(item => item.status === "quantity_change_request");
+      if (hasPendingVoids || hasPendingQuantityChanges) {
+        setError("Cannot submit bill with pending void or quantity change requests. Please wait for supervisor approval.");
+        return;
+      }
     }
     setIsModalOpen(true);
   };
@@ -196,7 +285,8 @@ const MySales = () => {
     setIsModalOpen(false);
   };
 
-  const handleBillSubmitted = (updatedBill: Bill) => {
+  const handleBillSubmitted = async (updatedBill: Bill) => {
+    // Update bills list immediately with the updated bill
     setBills((prevBills) =>
       prevBills.map((bill) =>
         bill.id === updatedBill.id ? updatedBill : bill,
@@ -207,7 +297,39 @@ const MySales = () => {
         bill.id === updatedBill.id ? updatedBill : bill,
       ),
     );
-    setSelectedBill(updatedBill);
+
+    // Refetch full bill details to ensure we have complete data with all relations
+    try {
+      const result = await apiCall(`/api/bills?billId=${updatedBill.id}`);
+      if (result.status === 200) {
+        const fetchedBills = result.data?.bills || [];
+        if (fetchedBills.length > 0) {
+          const fullBill = fetchedBills.find((b: Bill) => b.id === updatedBill.id) || fetchedBills[0];
+          // Update selected bill with complete data
+          setSelectedBill(fullBill);
+          // Also update the bills list with complete data
+          setBills((prevBills) =>
+            prevBills.map((bill) =>
+              bill.id === fullBill.id ? fullBill : bill,
+            ),
+          );
+          setFilteredBills((prevFilteredBills) =>
+            prevFilteredBills.map((bill) =>
+              bill.id === fullBill.id ? fullBill : bill,
+            ),
+          );
+        } else {
+          // Fallback to updated bill if fetch fails
+          setSelectedBill(updatedBill);
+        }
+      } else {
+        // Fallback to updated bill if fetch fails
+        setSelectedBill(updatedBill);
+      }
+    } catch (error) {
+      // Fallback to updated bill if fetch fails
+      setSelectedBill(updatedBill);
+    }
   };
 
   // Checkbox handlers
@@ -335,23 +457,46 @@ const MySales = () => {
   };
 
   const handleQuantityChangeSuccess = async (): Promise<void> => {
-    // Refresh bill data with current filters and update the selected bill with fresh data
-    await fetchBills(selectedDate, statusFilter, billIdFilter);
-
-    // Update the selected bill with fresh data to reflect the quantity change request
+    // Optimize: Only fetch the updated bill, not all bills
     if (selectedBill) {
       const result = await apiCall(`/api/bills?billId=${selectedBill.id}`);
       if (result.status === 200 && result.data?.bills?.length > 0) {
-        setSelectedBill(result.data.bills[0]);
+        const updatedBill = result.data.bills[0];
+        setSelectedBill(updatedBill);
+
+        // Update the bill in the list without refetching all bills
+        setBills((prevBills) =>
+          prevBills.map((bill) => bill.id === updatedBill.id ? updatedBill : bill)
+        );
+        setFilteredBills((prevBills) =>
+          prevBills.map((bill) => bill.id === updatedBill.id ? updatedBill : bill)
+        );
       }
     }
   };
 
 
+  // Optimized useEffect: Only fetch when filters actually change, with proper dependencies
   useEffect(() => {
-    // Always fetch bills when date, status, billId, or page changes
-    fetchBills(selectedDate, statusFilter, billIdFilter);
-  }, [selectedDate, statusFilter, billIdFilter, page]);
+    // Clear timeout on unmount
+    return () => {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    // Only fetch bills when user is available
+    if (!user || !user.id) {
+      return;
+    }
+    // Fetch bills when date, status, or page changes (billId is handled by debounced handler)
+    // Note: fetchBills is stable (memoized with useCallback), so we can safely include it
+    // But we exclude billIdFilter from dependencies since it's handled by debounced handler
+    fetchBills(selectedDate, statusFilter, billIdFilter, page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, statusFilter, page, user?.id]); // Only depend on actual filter values, not fetchBills
 
   // Clear selectedBill when filters change
   useEffect(() => {
@@ -361,13 +506,13 @@ const MySales = () => {
   return (
     <RoleAwareLayout>
       <SecureRoute roleRequired="sales">
-        <div className="container-fluid p-0">
+        <div className="container-fluid px-3 py-2">
           {/* Filter row */}
-          <div className="row">
+          <div className="row mb-2">
             <div className="col-12">
-              <div className="card shadow-sm p-1 mb-1 bg-light border-primary filter-card">
-                <h5 className="card-title text-primary mb-1">Filter My Sales</h5>
-                <div className="row g-1 align-items-end">
+              <div className="card shadow-sm p-2 bg-light border-primary filter-card">
+                <h6 className="card-title text-primary mb-2 fw-bold">Filter My Sales</h6>
+                <div className="row g-2 align-items-end">
                   <div className="col-md-4">
                     <div className="form-group">
                       <label htmlFor="filterDate" className="form-label">Billing Date</label>
@@ -386,7 +531,6 @@ const MySales = () => {
                             type="button"
                             className="btn btn-outline-secondary btn-sm ms-2"
                             onClick={() => handleDateChange(null)}
-                            title="Clear date filter"
                           >
                             <i className="bi bi-x"></i>
                           </button>
@@ -410,34 +554,39 @@ const MySales = () => {
                     </div>
                   </div>
                   <div className="col-md-4 d-flex align-items-end">
-                    <div className="btn-group w-100" role="group" aria-label="Filter actions">
+                    <div className="btn-group btn-group-sm w-100 flex-wrap" role="group" aria-label="Filter actions">
                       <button
                         className={`btn btn-outline-primary${statusFilter === "pending" ? " active" : ""}`}
                         onClick={() => handleStatusFilterChange("pending")}
+                        style={{ fontSize: "0.8rem" }}
                       >
                         Pending
                       </button>
                       <button
                         className={`btn btn-outline-primary${statusFilter === "submitted" ? " active" : ""}`}
                         onClick={() => handleStatusFilterChange("submitted")}
+                        style={{ fontSize: "0.8rem" }}
                       >
                         Submitted
                       </button>
                       <button
                         className={`btn btn-outline-primary${statusFilter === "closed" ? " active" : ""}`}
                         onClick={() => handleStatusFilterChange("closed")}
+                        style={{ fontSize: "0.8rem" }}
                       >
                         Closed
                       </button>
                       <button
                         className={`btn btn-outline-primary${statusFilter === "voided" ? " active" : ""}`}
                         onClick={() => handleStatusFilterChange("voided")}
+                        style={{ fontSize: "0.8rem" }}
                       >
                         Voided
                       </button>
                       <button
                         className={`btn btn-outline-primary${statusFilter === "reopened" ? " active" : ""}`}
                         onClick={() => handleStatusFilterChange("reopened")}
+                        style={{ fontSize: "0.8rem" }}
                       >
                         Reopened
                       </button>
@@ -448,405 +597,505 @@ const MySales = () => {
             </div>
           </div>
           {/* Bills and details row */}
-          <div className="row">
-            <div className="col-5">
-              <div className="mb-1">
-                <Button
-                  variant="success"
-                  size="sm"
-                  disabled={true}
-                  onClick={handleBulkSubmit}
-                >
-                  Submit All
-                </Button>
-              </div>
-              <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
-                {error && (
-                  <div className="alert alert-danger alert-dismissible fade show" role="alert">
-                    {error}
-                    <button
-                      type="button"
-                      className="btn-close"
-                      aria-label="Close"
-                      onClick={() => setError("")}
-                      style={{ float: "right" }}
-                    ></button>
-                  </div>
-                )}
-                <ErrorDisplay
-                  error={errorDetails?.message || null}
-                  errorDetails={errorDetails}
-                  onDismiss={() => {
-                    setErrorDetails(null);
-                  }}
-                />
-                <table className="table stripped">
-                  <thead>
-                    <tr>
-                      <th>
-                        <input
-                          type="checkbox"
-                          checked={
-                            selectedBills.length > 0 &&
-                            filteredBills.filter((bill) => bill.status === "pending").length > 0 &&
-                            selectedBills.length === filteredBills.filter((bill) => bill.status === "pending").length
-                          }
-                          onChange={handleSelectAll}
-                        />
-                      </th>
-                      <th>Bill ID</th>
-                      <th>Status</th>
-                      <th>Amount</th>
-                      <th>Bill Date</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredBills.length > 0 ? (
-                      filteredBills.map((bill) => (
-                        <tr
-                          key={bill.id}
-                          className={
-                            selectedBill?.id === bill.id ? "table-active" : ""
-                          }
-                        >
-                          <td>
+          <div className="row g-2">
+            <div className="col-lg-5 col-md-12 mb-2">
+              <div className="card shadow-sm" style={{ height: "calc(100vh - 250px)", display: "flex", flexDirection: "column" }}>
+                <div className="card-header bg-light d-flex justify-content-between align-items-center py-2 flex-shrink-0">
+                  <h6 className="mb-0 fw-bold">Bills List</h6>
+                  <Button
+                    variant="success"
+                    size="sm"
+                    disabled={
+                      selectedBills.length === 0 ||
+                      !filteredBills.some((bill) =>
+                        selectedBills.includes(bill.id) && bill.status === "pending"
+                      )
+                    }
+                    onClick={handleBulkSubmit}
+                  >
+                    Submit All
+                  </Button>
+                </div>
+                <div className="card-body p-2 d-flex flex-column" style={{ overflow: "hidden", flex: "1 1 auto" }}>
+                  {error && (
+                    <div className="alert alert-danger alert-dismissible fade show mb-2" role="alert" style={{ fontSize: "0.875rem" }}>
+                      {error}
+                      <button
+                        type="button"
+                        className="btn-close"
+                        aria-label="Close"
+                        onClick={() => setError("")}
+                      ></button>
+                    </div>
+                  )}
+                  <ErrorDisplay
+                    error={errorDetails?.message || null}
+                    errorDetails={errorDetails}
+                    onDismiss={() => {
+                      setErrorDetails(null);
+                    }}
+                  />
+                  <div className="table-responsive flex-grow-1" style={{ overflowY: "auto", minHeight: 0 }}>
+                    <table className="table table-hover table-sm mb-0">
+                      <thead className="table-light sticky-top">
+                        <tr>
+                          <th style={{ width: "35px" }}>
                             <input
                               type="checkbox"
-                              checked={selectedBills.includes(bill.id)}
-                              disabled={bill.status !== "pending"}
-                              onChange={() => handleCheckboxChange(bill.id)}
-                            />
-                          </td>
-                          <td>{bill.id}</td>
-                          <td>
-                            {(() => {
-                              const hasPendingVoids = bill.bill_items?.some((item: BillItem) => item.status === "void_pending");
-
-                              if (bill.status === "reopened") {
-                                return (
-                                  <span className="badge bg-warning text-dark">
-                                    <i className="bi bi-exclamation-triangle me-1"></i>
-                                    {bill.status}
-                                  </span>
-                                );
-                              } else if (hasPendingVoids) {
-                                const pendingVoidCount = bill.bill_items?.filter((item: BillItem) => item.status === "void_pending").length || 0;
-                                return (
-                                  <span className="badge bg-warning text-dark">
-                                    <i className="bi bi-exclamation-triangle me-1"></i>
-                                    {bill.status} ({pendingVoidCount} Void{pendingVoidCount > 1 ? "s" : ""} Pending)
-                                  </span>
-                                );
-                              } else {
-                                return (
-                                  <span className={`badge ${bill.status === "pending" ? "bg-warning" :
-                                    bill.status === "submitted" ? "bg-info" :
-                                      bill.status === "closed" ? "bg-success" :
-                                        bill.status === "voided" ? "bg-secondary" :
-                                          "bg-light text-dark"
-                                    }`}>
-                                    {bill.status}
-                                  </span>
-                                );
+                              checked={
+                                selectedBills.length > 0 &&
+                                filteredBills.filter((bill) => bill.status === "pending").length > 0 &&
+                                selectedBills.length === filteredBills.filter((bill) => bill.status === "pending").length
                               }
-                            })()}
-                          </td>
-                          <td>KES {bill.total}</td>
-                          <td>{new Date(bill.created_at).toLocaleString()}</td>
-                          <td>
-                            {bill.status === "pending" ? (
+                              onChange={handleSelectAll}
+                            />
+                          </th>
+                          <th style={{ width: "70px" }}>ID</th>
+                          <th style={{ width: "90px" }}>Status</th>
+                          <th style={{ width: "100px" }}>Amount</th>
+                          <th className="d-none d-lg-table-cell" style={{ width: "140px" }}>Date</th>
+                          <th style={{ width: "80px" }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredBills.length > 0 ? (
+                          filteredBills.map((bill) => (
+                            <tr
+                              key={bill.id}
+                              className={
+                                selectedBill?.id === bill.id ? "table-active" : ""
+                              }
+                              style={{ cursor: "pointer" }}
+                              onClick={(e) => {
+                                // Don't trigger if clicking checkbox or button
+                                if (
+                                  (e.target as HTMLElement).tagName === "INPUT" ||
+                                  (e.target as HTMLElement).tagName === "BUTTON" ||
+                                  (e.target as HTMLElement).closest("button")
+                                ) {
+                                  return;
+                                }
+                                handleBillClick(bill);
+                              }}
+                            >
+                              <td>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedBills.includes(bill.id)}
+                                  disabled={bill.status !== "pending"}
+                                  onChange={() => handleCheckboxChange(bill.id)}
+                                />
+                              </td>
+                              <td><strong>#{bill.id}</strong></td>
+                              <td>
+                                {(() => {
+                                  const hasPendingVoids = bill.bill_items?.some((item: BillItem) => item.status === "void_pending");
+                                  const hasPendingQuantityChanges = bill.bill_items?.some((item: BillItem) => item.status === "quantity_change_request");
+
+                                  if (bill.status === "reopened") {
+                                    return (
+                                      <span className="badge bg-warning text-dark" style={{ fontSize: "0.75rem" }}>
+                                        <i className="bi bi-exclamation-triangle me-1"></i>
+                                        reopened
+                                      </span>
+                                    );
+                                  } else if (hasPendingVoids || hasPendingQuantityChanges) {
+                                    const pendingVoidCount = bill.bill_items?.filter((item: BillItem) => item.status === "void_pending").length || 0;
+                                    const pendingQuantityChangeCount = bill.bill_items?.filter((item: BillItem) => item.status === "quantity_change_request").length || 0;
+                                    const totalPending = pendingVoidCount + pendingQuantityChangeCount;
+
+                                    return (
+                                      <span
+                                        className="badge bg-warning text-dark"
+                                        style={{ fontSize: "0.75rem" }}
+                                      >
+                                        <i className="bi bi-exclamation-triangle me-1"></i>
+                                        {totalPending} pending
+                                      </span>
+                                    );
+                                  } else {
+                                    return (
+                                      <span className={`badge ${bill.status === "pending" ? "bg-warning" :
+                                        bill.status === "submitted" ? "bg-info" :
+                                          bill.status === "closed" ? "bg-success" :
+                                            bill.status === "voided" ? "bg-secondary" :
+                                              "bg-light text-dark"
+                                        }`} style={{ fontSize: "0.75rem" }}>
+                                        {bill.status}
+                                      </span>
+                                    );
+                                  }
+                                })()}
+                              </td>
+                              <td><strong style={{ fontSize: "0.875rem" }}>KES {(Number(bill.total) || 0).toFixed(2)}</strong></td>
+                              <td className="d-none d-lg-table-cell" style={{ fontSize: "0.8rem" }}>{new Date(bill.created_at).toLocaleString()}</td>
+                              <td>
+                                {bill.status === "pending" ? (
+                                  <Button
+                                    variant="success"
+                                    size="sm"
+                                    onClick={() => handleBillClick(bill)}
+                                  >
+                                    Submit
+                                  </Button>
+                                ) : bill.status === "reopened" ? (
+                                  <Button
+                                    variant="warning"
+                                    size="sm"
+                                    onClick={() => handleBillClick(bill)}
+                                  >
+                                    <i className="bi bi-arrow-clockwise me-1"></i>
+                                    Resubmit
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={() => handleBillClick(bill)}
+                                  >
+                                    View
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6}>No bills available</td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-auto pt-2 border-top">
+                    <Pagination
+                      page={page}
+                      pageSize={pageSize}
+                      total={total}
+                      onPageChange={setPage}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="col-lg-7 col-md-12 mb-2">
+              {isLoadingBillDetails ? (
+                <div className="card" style={{ height: "calc(100vh - 250px)" }}>
+                  <div className="card-body d-flex align-items-center justify-content-center">
+                    <div className="text-center">
+                      <div className="spinner-border text-primary mb-3" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                      <p className="text-muted mb-0">Loading bill details...</p>
+                    </div>
+                  </div>
+                </div>
+              ) : selectedBill ? (
+                <div className="card" style={{ height: "calc(100vh - 250px)", display: "flex", flexDirection: "column" }}>
+                  <div className="card-header bg-light flex-shrink-0">
+                    <h6 className="mb-0 fw-bold">
+                      <i className="bi bi-receipt me-2"></i>
+                      Bill #{selectedBill.id} Details
+                    </h6>
+                  </div>
+                  <div className="card-body flex-grow-1" style={{ overflowY: "auto", minHeight: 0 }}>
+                    {/* Void Approval Interface for Cashiers */}
+                    {selectedBill && selectedBill.bill_items?.some((item: BillItem) => item.status === "void_pending") && (
+                      <div className="alert alert-warning mb-3">
+                        <div className="d-flex align-items-center">
+                          <i className="bi bi-exclamation-triangle me-2"></i>
+                          <div className="flex-grow-1">
+                            <strong>Pending Void Requests</strong>
+                            <ul className="mb-0 small mt-2">
+                              {selectedBill.bill_items
+                                .filter((item: BillItem) => item.status === "void_pending")
+                                .map((item: BillItem) => (
+                                  <li key={item.id}>
+                                    <strong>{item.item.name}</strong>
+                                    {item.void_reason && ` - ${item.void_reason}`}
+                                  </li>
+                                ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {/* Quantity Change Request Warning */}
+                    {selectedBill && selectedBill.bill_items?.some((item: BillItem) => item.status === "quantity_change_request") && (
+                      <div className="alert alert-info mb-3">
+                        <div className="d-flex align-items-center">
+                          <i className="bi bi-pencil-square me-2"></i>
+                          <div className="flex-grow-1">
+                            <strong>Pending Quantity Change Requests</strong>
+                            <ul className="mb-0 small mt-2">
+                              {selectedBill.bill_items
+                                .filter((item: BillItem) => item.status === "quantity_change_request")
+                                .map((item: BillItem) => (
+                                  <li key={item.id}>
+                                    <strong>{item.item.name}</strong>: {item.quantity} → {item.requested_quantity || item.quantity}
+                                    {item.quantity_change_reason && ` (${item.quantity_change_reason})`}
+                                  </li>
+                                ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-3">
+                      {selectedBill.status === "pending" ? (
+                        (() => {
+                          const hasPendingVoids = selectedBill.bill_items?.some(item => item.status === "void_pending");
+                          const hasPendingQuantityChanges = selectedBill.bill_items?.some(item => item.status === "quantity_change_request");
+                          const pendingVoidCount = selectedBill.bill_items?.filter(item => item.status === "void_pending").length || 0;
+                          const pendingQuantityChangeCount = selectedBill.bill_items?.filter(item => item.status === "quantity_change_request").length || 0;
+                          const hasPendingApprovals = hasPendingVoids || hasPendingQuantityChanges;
+                          const totalPendingCount = pendingVoidCount + pendingQuantityChangeCount;
+
+                          return (
+                            <div className="w-100">
                               <Button
                                 variant="success"
                                 size="sm"
-                                onClick={() => handleBillClick(bill)}
+                                onClick={openSubmitModal}
+                                disabled={hasPendingApprovals}
+                                className="w-100 w-md-auto"
                               >
-                                Submit
+                                <i className="bi bi-check-circle me-1"></i>
+                                Submit (KES {(Number(selectedBill.total) || 0).toFixed(2)})
                               </Button>
-                            ) : bill.status === "reopened" ? (
-                              <Button
-                                variant="warning"
-                                size="sm"
-                                onClick={() => handleBillClick(bill)}
-                              >
-                                <i className="bi bi-arrow-clockwise me-1"></i>
-                                Resubmit
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => handleBillClick(bill)}
-                              >
-                                View
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={6}>No bills available</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-              <Pagination
-                page={page}
-                pageSize={pageSize}
-                total={total}
-                onPageChange={setPage}
-              />
-            </div>
-            <div className="col-7">
-              {selectedBill ? (
-                <div>
-                  <div className="card">
-                    {error && (
-                      <p className="text-danger">{error}</p>
-                    )}
-                    <div className="card-body">
-                      {/* Void Approval Interface for Cashiers */}
-                      {selectedBill && selectedBill.bill_items?.some((item: BillItem) => item.status === "void_pending") && (
-                        <div className="alert alert-warning mb-3">
-                          <div className="d-flex align-items-center">
-                            <i className="bi bi-exclamation-triangle me-2"></i>
-                            <div>
-                              <strong>Pending Void Requests</strong>
-                              <p className="mb-0 small">This bill has items with pending void requests that need approval.</p>
+                              {hasPendingVoids && (
+                                <div className="text-warning small mt-2">
+                                  <i className="bi bi-exclamation-triangle me-1"></i>
+                                  <strong>Void requests:</strong> {selectedBill.bill_items
+                                    .filter(item => item.status === "void_pending")
+                                    .map(item => item.item.name)
+                                    .join(", ")}
+                                </div>
+                              )}
+                              {hasPendingQuantityChanges && (
+                                <div className="text-info small mt-2">
+                                  <i className="bi bi-pencil-square me-1"></i>
+                                  <strong>Quantity changes:</strong> {selectedBill.bill_items
+                                    .filter(item => item.status === "quantity_change_request")
+                                    .map(item => `${item.item.name} (${item.quantity} → ${item.requested_quantity || item.quantity})`)
+                                    .join(", ")}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        </div>
-                      )}
-                      <div className="d-flex justify-content-between align-items-center mb-1">
-                        {selectedBill.status === "pending" ? (
-                          (() => {
-                            const hasPendingVoids = selectedBill.bill_items?.some(item => item.status === "void_pending");
-                            const pendingVoidCount = selectedBill.bill_items?.filter(item => item.status === "void_pending").length || 0;
+                          );
+                        })()
+                      ) : selectedBill.status === "reopened" ? (
+                        <div>
+                          {(() => {
+                            const billTotal = selectedBill.total;
+                            const payments = selectedBill.bill_payments || [];
+
+                            // Calculate payment breakdown
+                            let cashTotal = 0;
+                            let mpesaTotal = 0;
+                            let otherTotal = 0;
+
+                            payments.forEach(billPayment => {
+                              const amount = billPayment.payment?.creditAmount || 0;
+                              const method = billPayment.payment?.paymentMethod?.toLowerCase() || "unknown";
+
+                              if (method.includes("cash")) {
+                                cashTotal += amount;
+                              } else if (method.includes("mpesa") || method.includes("mobile")) {
+                                mpesaTotal += amount;
+                              } else {
+                                otherTotal += amount;
+                              }
+                            });
+
+                            const totalPaid = cashTotal + mpesaTotal + otherTotal;
+                            const difference = billTotal - totalPaid;
+                            const isOverpaid = difference < 0;
+                            const isFullyPaid = difference === 0;
+
                             return (
                               <div>
-                                <Button
-                                  className="m-2"
-                                  variant="success"
-                                  onClick={openSubmitModal}
-                                  disabled={hasPendingVoids}
-                                  title={hasPendingVoids ? `Cannot submit bill with ${pendingVoidCount} pending void request${pendingVoidCount > 1 ? "s" : ""}. Please wait for approval.` : "Submit this bill for payment"}
-                                >
-                                  Submit Bill (KES: {selectedBill.total})
-                                </Button>
-                                {hasPendingVoids && (
-                                  <div className="text-warning small mt-1">
-                                    <i className="bi bi-exclamation-triangle me-1"></i>
-                                    {pendingVoidCount} void request{pendingVoidCount > 1 ? "s" : ""} pending approval
-                                  </div>
-                                )}
+                                <span className="text-warning">
+                                  Bill is reopened <strong> Total: KES {(Number(billTotal) || 0).toFixed(2)} </strong>
+                                </span>
+
+                                {/* Payment Details */}
+                                <div className="mt-2">
+                                  {payments.length > 0 ? (
+                                    <div className="card">
+                                      <div className="card-header py-2">
+                                        <h6 className="mb-0">
+                                          <i className="bi bi-credit-card me-2"></i>
+                                          Payment Details
+                                        </h6>
+                                      </div>
+                                      <div className="card-body p-2">
+                                        {payments.map((billPayment, index) => (
+                                          <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
+                                            <div>
+                                              <span className="fw-medium">
+                                                {billPayment.payment?.paymentType || "Unknown Method"}
+                                              </span>
+                                              {billPayment.payment?.reference && (
+                                                <div className="small text-muted">
+                                                  Ref: {billPayment.payment.reference}
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div className="text-end">
+                                              <span className="fw-bold text-success">
+                                                KES {(billPayment.payment?.creditAmount || 0).toFixed(2)}
+                                              </span>
+                                              {billPayment.payment?.createdAt && (
+                                                <div className="small text-muted">
+                                                  {new Date(billPayment.payment.createdAt).toLocaleString()}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+                                        <div className="d-flex justify-content-between align-items-center py-2 mt-2 bg-light rounded">
+                                          <span className="fw-bold">Total Paid:</span>
+                                          <span className="fw-bold text-primary">KES {(Number(totalPaid) || 0).toFixed(2)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="alert alert-warning py-2 mb-0">
+                                      <i className="bi bi-exclamation-triangle me-2"></i>
+                                      <strong>No payments recorded</strong> - Collect full amount
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Payment Status */}
+                                <div className="mt-2">
+                                  {isFullyPaid ? (
+                                    <div className="alert alert-success py-2 mb-0">
+                                      <i className="bi bi-check-circle me-2"></i>
+                                      <strong>Payment Complete</strong> - Ready to resubmit
+                                    </div>
+                                  ) : isOverpaid ? (
+                                    <div className="alert alert-warning py-2 mb-0">
+                                      <i className="bi bi-exclamation-triangle me-2"></i>
+                                      <strong>Overpaid by KES {Math.abs(Number(difference) || 0).toFixed(2)}</strong> - Review payments
+                                    </div>
+                                  ) : (
+                                    <div className="alert alert-danger py-2 mb-0">
+                                      <i className="bi bi-exclamation-circle me-2"></i>
+                                      <strong>Outstanding: KES {(Number(difference) || 0).toFixed(2)}</strong> - Collect remaining amount
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             );
-                          })()
-                        ) : selectedBill.status === "reopened" ? (
-                          <div>
-                            {(() => {
-                              const billTotal = selectedBill.total;
-                              const payments = selectedBill.bill_payments || [];
-
-                              // Calculate payment breakdown
-                              let cashTotal = 0;
-                              let mpesaTotal = 0;
-                              let otherTotal = 0;
-
-                              payments.forEach(billPayment => {
-                                const amount = billPayment.payment?.creditAmount || 0;
-                                const method = billPayment.payment?.paymentMethod?.toLowerCase() || "unknown";
-
-                                if (method.includes("cash")) {
-                                  cashTotal += amount;
-                                } else if (method.includes("mpesa") || method.includes("mobile")) {
-                                  mpesaTotal += amount;
-                                } else {
-                                  otherTotal += amount;
-                                }
-                              });
-
-                              const totalPaid = cashTotal + mpesaTotal + otherTotal;
-                              const difference = billTotal - totalPaid;
-                              const isOverpaid = difference < 0;
-                              const isFullyPaid = difference === 0;
-
-                              return (
-                                <div>
-                                  <span className="text-warning">
-                                    Bill is reopened <strong> Total: KES {(Number(billTotal) || 0).toFixed(2)} </strong>
-                                  </span>
-
-                                  {/* Payment Details */}
-                                  <div className="mt-2">
-                                    {payments.length > 0 ? (
-                                      <div className="card">
-                                        <div className="card-header py-2">
-                                          <h6 className="mb-0">
-                                            <i className="bi bi-credit-card me-2"></i>
-                                            Payment Details
-                                          </h6>
-                                        </div>
-                                        <div className="card-body p-2">
-                                          {payments.map((billPayment, index) => (
-                                            <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
-                                              <div>
-                                                <span className="fw-medium">
-                                                  {billPayment.payment?.paymentType || "Unknown Method"}
-                                                </span>
-                                                {billPayment.payment?.reference && (
-                                                  <div className="small text-muted">
-                                                    Ref: {billPayment.payment.reference}
-                                                  </div>
-                                                )}
-                                              </div>
-                                              <div className="text-end">
-                                                <span className="fw-bold text-success">
-                                                  KES {(billPayment.payment?.creditAmount || 0).toFixed(2)}
-                                                </span>
-                                                {billPayment.payment?.createdAt && (
-                                                  <div className="small text-muted">
-                                                    {new Date(billPayment.payment.createdAt).toLocaleString()}
-                                                  </div>
-                                                )}
-                                              </div>
-                                            </div>
-                                          ))}
-                                          <div className="d-flex justify-content-between align-items-center py-2 mt-2 bg-light rounded">
-                                            <span className="fw-bold">Total Paid:</span>
-                                            <span className="fw-bold text-primary">KES {(Number(totalPaid) || 0).toFixed(2)}</span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="alert alert-warning py-2 mb-0">
-                                        <i className="bi bi-exclamation-triangle me-2"></i>
-                                        <strong>No payments recorded</strong> - Collect full amount
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Payment Status */}
-                                  <div className="mt-2">
-                                    {isFullyPaid ? (
-                                      <div className="alert alert-success py-2 mb-0">
-                                        <i className="bi bi-check-circle me-2"></i>
-                                        <strong>Payment Complete</strong> - Ready to resubmit
-                                      </div>
-                                    ) : isOverpaid ? (
-                                      <div className="alert alert-warning py-2 mb-0">
-                                        <i className="bi bi-exclamation-triangle me-2"></i>
-                                        <strong>Overpaid by KES {Math.abs(Number(difference) || 0).toFixed(2)}</strong> - Review payments
-                                      </div>
-                                    ) : (
-                                      <div className="alert alert-danger py-2 mb-0">
-                                        <i className="bi bi-exclamation-circle me-2"></i>
-                                        <strong>Outstanding: KES {(Number(difference) || 0).toFixed(2)}</strong> - Collect remaining amount
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        ) : (
-                          <span className="text-success">
-                            Bill is {selectedBill.status} <strong> Total: {selectedBill.total} </strong>
-                          </span>
-                        )}
-                        {(selectedBill.status === "submitted" || selectedBill.status === "closed") && (
-                          <>
-                            <Button variant="secondary" size="sm" onClick={handlePrint} className="me-2">
-                              Print Receipt
-                            </Button>
-                            <Button variant="outline-primary" size="sm" onClick={handleDownload}>
-                              Download Receipt
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                      <div style={{ display: "none" }}>
-                        <Receipt ref={receiptRef} bill={selectedBill} />
-                      </div>
-                      <table className="table stripped">
-                        <thead>
+                          })()}
+                        </div>
+                      ) : (
+                        <span className="text-success">
+                          Bill is {selectedBill.status} <strong> Total: {selectedBill.total} </strong>
+                        </span>
+                      )}
+                      {(selectedBill.status === "submitted" || selectedBill.status === "closed") && (
+                        <div className="d-flex gap-2 flex-wrap">
+                          <Button variant="secondary" size="sm" onClick={handlePrint}>
+                            <i className="bi bi-printer me-1"></i>
+                            Print
+                          </Button>
+                          <Button variant="outline-primary" size="sm" onClick={handleDownload}>
+                            <i className="bi bi-download me-1"></i>
+                            Download
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "none" }}>
+                      <Receipt ref={receiptRef} bill={selectedBill} />
+                    </div>
+                    <div className="table-responsive">
+                      <table className="table table-hover table-sm mb-0">
+                        <thead className="table-light sticky-top">
                           <tr>
-                            <th>Date Added</th>
-                            <th>Item Name</th>
-                            <th>Unit Price</th>
-                            <th>Quantity</th>
-                            <th>Subtotal</th>
-                            <th>Status</th>
-                            <th>Action</th>
+                            <th className="d-none d-xl-table-cell" style={{ width: "120px" }}>Date</th>
+                            <th style={{ width: "150px" }}>Item</th>
+                            <th style={{ width: "90px" }}>Price</th>
+                            <th style={{ width: "70px" }}>Qty</th>
+                            <th style={{ width: "90px" }}>Subtotal</th>
+                            <th style={{ width: "80px" }}>Status</th>
+                            <th style={{ width: "140px" }}>Action</th>
                           </tr>
                         </thead>
                         <tbody>
                           {selectedBill.bill_items.length > 0 ? (
                             selectedBill.bill_items.map((item) => (
                               <tr key={item.id}>
-                                <td>
-                                  {new Date(item.created_at).toLocaleString()}
+                                <td className="d-none d-xl-table-cell" style={{ fontSize: "0.8rem" }}>
+                                  {new Date(item.created_at).toLocaleDateString()}
                                 </td>
-                                <td>{item.item.name}</td>
-                                <td>KES {item.item.price}</td>
-                                <td>{item.quantity}</td>
-                                <td>KES {item.subtotal}</td>
+                                <td><strong style={{ fontSize: "0.875rem" }}>{item.item.name}</strong></td>
+                                <td style={{ fontSize: "0.875rem" }}>KES {(Number(item.item.price) || 0).toFixed(2)}</td>
+                                <td><span className="badge bg-primary" style={{ fontSize: "0.75rem" }}>{item.quantity}</span></td>
+                                <td><strong style={{ fontSize: "0.875rem" }}>KES {(Number(item.subtotal) || 0).toFixed(2)}</strong></td>
                                 <td>
                                   <span className={`badge ${item.status === "pending" ? "bg-success" :
                                     item.status === "void_pending" ? "bg-warning" :
-                                      "bg-danger"
-                                    }`}>
-                                    {item.status}
+                                      item.status === "quantity_change_request" ? "bg-info" :
+                                        "bg-danger"
+                                    }`} style={{ fontSize: "0.7rem" }}>
+                                    {item.status === "pending" ? "pending" :
+                                      item.status === "void_pending" ? "void pending" :
+                                        item.status === "quantity_change_request" ? "qty pending" :
+                                          item.status}
                                   </span>
                                 </td>
                                 <td>
                                   {(selectedBill.status === "pending" || selectedBill.status === "reopened") &&
                                     item.status === "pending" && (
-                                      <div className="d-flex gap-1">
+                                      <div className="d-flex gap-1 flex-wrap">
                                         <Button
                                           variant="outline-danger"
                                           size="sm"
                                           onClick={() => handleVoidRequest(item)}
-                                          className="d-flex align-items-center gap-1"
-                                          title="Request to void this item"
+                                          style={{ fontSize: "0.75rem", padding: "0.2rem 0.4rem" }}
                                         >
                                           <i className="bi bi-exclamation-triangle-fill"></i>
-                                          Request Void
+                                          <span className="d-none d-md-inline ms-1">Void</span>
                                         </Button>
                                         <Button
                                           variant="outline-warning"
                                           size="sm"
                                           onClick={() => handleQuantityChangeRequest(item)}
-                                          className="d-flex align-items-center gap-1"
-                                          title="Request to change quantity"
+                                          style={{ fontSize: "0.75rem", padding: "0.2rem 0.4rem" }}
                                         >
                                           <i className="bi bi-pencil-square"></i>
-                                          Change Qty
+                                          <span className="d-none d-md-inline ms-1">Qty</span>
                                         </Button>
                                       </div>
                                     )}
                                   {item.status === "void_pending" && (
-                                    <div className="d-flex align-items-center gap-2">
-                                      <span className="badge bg-warning text-dark">
+                                    <div className="small" style={{ fontSize: "0.75rem" }}>
+                                      <div className="text-warning">
                                         <i className="bi bi-clock me-1"></i>
-                                        Pending Approval
-                                      </span>
-                                      <small className="text-muted">
-                                        Awaiting cashier/supervisor approval
-                                      </small>
+                                        Void pending
+                                      </div>
+                                      {item.void_reason && (
+                                        <div className="text-muted" style={{ fontSize: "0.7rem" }}>
+                                          {item.void_reason}
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                   {item.status === "quantity_change_request" && (
-                                    <div className="d-flex align-items-center gap-2">
-                                      <span className="badge bg-info text-dark">
+                                    <div className="small" style={{ fontSize: "0.75rem" }}>
+                                      <div className="text-info">
                                         <i className="bi bi-pencil-square me-1"></i>
-                                        Quantity Change Pending
-                                      </span>
-                                      <small className="text-muted">
-                                        Awaiting cashier/supervisor approval
-                                      </small>
+                                        {item.quantity} → {item.requested_quantity || item.quantity}
+                                      </div>
+                                      {item.quantity_change_reason && (
+                                        <div className="text-muted" style={{ fontSize: "0.7rem" }}>
+                                          {item.quantity_change_reason}
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </td>
@@ -854,114 +1103,116 @@ const MySales = () => {
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={7}>No items for this bill</td>
+                              <td colSpan={7} className="text-center text-muted py-3">No items for this bill</td>
                             </tr>
                           )}
                         </tbody>
                       </table>
                     </div>
-                  </div>
 
-                  {/* Clear Separation Line */}
-                  <hr className="my-4" />
+                    {/* Clear Separation Line */}
+                    <hr className="my-4" />
 
-                  {/* Payment Details Section - Only show for submitted/closed bills */}
-                  {(selectedBill.status === "submitted" || selectedBill.status === "closed") && selectedBill.bill_payments && selectedBill.bill_payments.length > 0 && (
-                    <div className="mt-4">
-                      <h6 className="fw-bold text-secondary mb-3">
-                        <i className="bi bi-credit-card me-2"></i>
-                        Payment Details
-                      </h6>
-                      <div className="card bg-light">
-                        <div className="card-body p-3">
-                          {(() => {
-                            const totalPaid = selectedBill.bill_payments.reduce(
-                              (sum, billPayment) => sum + billPayment.payment.creditAmount,
-                              0
-                            );
-                            const billTotal = selectedBill.total;
-                            const amountDifference = totalPaid - billTotal;
-                            const isFullyPaid = billTotal === totalPaid;
+                    {/* Payment Details Section - Only show for submitted/closed bills */}
+                    {(selectedBill.status === "submitted" || selectedBill.status === "closed") && selectedBill.bill_payments && selectedBill.bill_payments.length > 0 && (
+                      <div className="mt-4">
+                        <h6 className="fw-bold text-secondary mb-3">
+                          <i className="bi bi-credit-card me-2"></i>
+                          Payment Details
+                        </h6>
+                        <div className="card bg-light">
+                          <div className="card-body p-3">
+                            {(() => {
+                              const totalPaid = selectedBill.bill_payments.reduce(
+                                (sum, billPayment) => sum + billPayment.payment.creditAmount,
+                                0
+                              );
+                              const billTotal = selectedBill.total;
+                              const amountDifference = totalPaid - billTotal;
+                              const isFullyPaid = billTotal === totalPaid;
 
-                            return (
-                              <div>
-                                {/* Payment Summary - Compact */}
-                                <div className="row mb-3">
-                                  <div className="col-md-4">
-                                    <div className="text-center p-2 bg-white rounded">
-                                      <div className="small text-muted">Bill Total</div>
-                                      <div className="fw-bold">KES {billTotal}</div>
+                              return (
+                                <div>
+                                  {/* Payment Summary - Compact */}
+                                  <div className="row mb-3">
+                                    <div className="col-md-4">
+                                      <div className="text-center p-2 bg-white rounded">
+                                        <div className="small text-muted">Bill Total</div>
+                                        <div className="fw-bold">KES {(Number(billTotal) || 0).toFixed(2)}</div>
+                                      </div>
                                     </div>
-                                  </div>
-                                  <div className="col-md-4">
-                                    <div className="text-center p-2 bg-white rounded">
-                                      <div className="small text-muted">Total Paid</div>
-                                      <div className={`fw-bold ${isFullyPaid ? "text-success" : "text-warning"}`}>
-                                        KES {totalPaid}
+                                    <div className="col-md-4">
+                                      <div className="text-center p-2 bg-white rounded">
+                                        <div className="small text-muted">Total Paid</div>
+                                        <div className={`fw-bold ${isFullyPaid ? "text-success" : "text-warning"}`}>
+                                          KES {(Number(totalPaid) || 0).toFixed(2)}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="col-md-4">
+                                      <div className="text-center p-2 bg-white rounded">
+                                        <div className="small text-muted">Balance</div>
+                                        <div className={`fw-bold ${amountDifference === 0 ? "text-success" : amountDifference > 0 ? "text-info" : "text-danger"}`}>
+                                          {amountDifference === 0 ? "Fully Paid" : `KES ${amountDifference > 0 ? "+" : ""}${(Number(amountDifference) || 0).toFixed(2)}`}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
-                                  <div className="col-md-4">
-                                    <div className="text-center p-2 bg-white rounded">
-                                      <div className="small text-muted">Balance</div>
-                                      <div className={`fw-bold ${amountDifference === 0 ? "text-success" : amountDifference > 0 ? "text-info" : "text-danger"}`}>
-                                        {amountDifference === 0 ? "Fully Paid" : `KES ${amountDifference > 0 ? "+" : ""}${amountDifference}`}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
 
-                                {/* Payment History Table */}
-                                <div className="mt-3">
-                                  <h6 className="small text-muted mb-2">Payment History</h6>
-                                  <div className="table-responsive">
-                                    <table className="table table-sm">
-                                      <thead className="table-light">
-                                        <tr>
-                                          <th>Payment Method</th>
-                                          <th>Amount</th>
-                                          <th>Reference</th>
-                                          <th>Date & Time</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {selectedBill.bill_payments.map((billPayment) => (
-                                          <tr key={billPayment.id}>
-                                            <td>
-                                              <div className="d-flex align-items-center">
-                                                <i className={`bi ${billPayment.payment.paymentType === "MPESA" ? "bi-phone text-success" : "bi-cash text-primary"} me-2`}></i>
-                                                <span className="fw-semibold">{billPayment.payment.paymentType}</span>
-                                              </div>
-                                            </td>
-                                            <td className="fw-semibold">KES {billPayment.payment.creditAmount}</td>
-                                            <td>
-                                              {billPayment.payment.reference ? (
-                                                <code className="small">{billPayment.payment.reference}</code>
-                                              ) : (
-                                                <span className="text-muted">-</span>
-                                              )}
-                                            </td>
-                                            <td className="text-muted small">
-                                              {new Date(billPayment.created_at).toLocaleString()}
-                                            </td>
+                                  {/* Payment History Table */}
+                                  <div className="mt-3">
+                                    <h6 className="small text-muted mb-2">Payment History</h6>
+                                    <div className="table-responsive">
+                                      <table className="table table-sm">
+                                        <thead className="table-light">
+                                          <tr>
+                                            <th>Payment Method</th>
+                                            <th>Amount</th>
+                                            <th>Reference</th>
+                                            <th>Date & Time</th>
                                           </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
+                                        </thead>
+                                        <tbody>
+                                          {selectedBill.bill_payments.map((billPayment) => (
+                                            <tr key={billPayment.id}>
+                                              <td>
+                                                <div className="d-flex align-items-center">
+                                                  <i className={`bi ${billPayment.payment.paymentType === "MPESA" ? "bi-phone text-success" : "bi-cash text-primary"} me-2`}></i>
+                                                  <span className="fw-semibold">{billPayment.payment.paymentType}</span>
+                                                </div>
+                                              </td>
+                                              <td className="fw-semibold">KES {(Number(billPayment.payment.creditAmount) || 0).toFixed(2)}</td>
+                                              <td>
+                                                {billPayment.payment.reference ? (
+                                                  <code className="small">{billPayment.payment.reference}</code>
+                                                ) : (
+                                                  <span className="text-muted">-</span>
+                                                )}
+                                              </td>
+                                              <td className="text-muted small">
+                                                {new Date(billPayment.created_at).toLocaleString()}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })()}
+                              );
+                            })()}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Voiding functionality is now integrated into the main bill items table above */}
+                    )}
+                  </div>
                 </div>
               ) : (
-                <p>Select a bill to see the items</p>
+                <div className="card h-100">
+                  <div className="card-body d-flex align-items-center justify-content-center">
+                    <p className="text-muted mb-0">Select a bill to see the items</p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -1041,7 +1292,7 @@ const MySales = () => {
           />
         </div>
       </SecureRoute>
-    </RoleAwareLayout >
+    </RoleAwareLayout>
   );
 };
 

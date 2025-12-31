@@ -99,14 +99,14 @@ function UsersPage() {
           setSessionError("Session expired. You will be redirected to login.");
           setTimeout(() => {
             localStorage.removeItem("token");
-            window.location.href = "/login";
+            window.location.href = "/";
           }, 3000);
         }
       } catch {
         setSessionError("Session expired. You will be redirected to login.");
         setTimeout(() => {
           localStorage.removeItem("token");
-          window.location.href = "/login";
+          window.location.href = "/";
         }, 3000);
       }
     }, intervalSeconds * 1000);

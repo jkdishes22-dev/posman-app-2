@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import { useTooltips } from "../../../../../hooks/useTooltips";
 
@@ -20,7 +20,7 @@ interface CategoriesProps {
   onErrorDismiss?: () => void;
 }
 
-const Categories: React.FC<CategoriesProps> = ({
+const CategoriesComponent: React.FC<CategoriesProps> = ({
   categories,
   onCategoryClick,
   fetchError,
@@ -51,10 +51,13 @@ const Categories: React.FC<CategoriesProps> = ({
   // Ensure categories is always an array
   const safeCategories = Array.isArray(categories) ? categories : [];
 
-  const filteredCategories = safeCategories.filter((category) => {
-    if (statusFilter === "all") return true;
-    return category.status === statusFilter;
-  });
+  // Memoized filtered categories to prevent recalculation on every render
+  const filteredCategories = useMemo(() => {
+    return safeCategories.filter((category) => {
+      if (statusFilter === "all") return true;
+      return category.status === statusFilter;
+    });
+  }, [safeCategories, statusFilter]);
 
   return (
     <div>
@@ -132,5 +135,8 @@ const Categories: React.FC<CategoriesProps> = ({
     </div>
   );
 };
+
+const Categories = React.memo(CategoriesComponent);
+Categories.displayName = "Categories";
 
 export default Categories;

@@ -16,25 +16,28 @@ const LoginForm = () => {
   const [error, setError] = useState("");
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [activeField, setActiveField] = useState("username");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
   const apiCall = useApiCall();
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated (but not if we're already redirecting from login)
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isRedirecting && !isLoading) {
       const token = localStorage.getItem("token");
       if (token) {
         try {
           const decodedToken = jwt.decode(token) as DecodedToken;
           if (decodedToken && decodedToken.roles && decodedToken.roles.length > 0) {
+            setIsRedirecting(true);
             const primaryRole = decodedToken.roles[0];
             if (primaryRole === "admin") {
               router.push("/admin");
             } else if (primaryRole === "supervisor") {
               router.push("/supervisor");
             } else if (primaryRole === "sales") {
-              router.push("/home");
+              router.push("/home/billing");
             } else if (primaryRole === "cashier") {
               router.push("/home/cashier");
             } else if (primaryRole === "storekeeper") {
@@ -48,7 +51,7 @@ const LoginForm = () => {
         }
       }
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, isRedirecting, isLoading]);
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
@@ -56,11 +59,16 @@ const LoginForm = () => {
       setError("Please fill in all fields");
       return;
     }
-    const formData = { username, password };
-    try {
-      setError("");
-      setErrorDetails(null);
+    if (isSubmitting) {
+      return; // Prevent double submission
+    }
 
+    const formData = { username, password };
+    setIsSubmitting(true);
+    setError("");
+    setErrorDetails(null);
+
+    try {
       const result = await apiCall("/api/auth/login", {
         method: "POST",
         body: JSON.stringify(formData),
@@ -69,10 +77,18 @@ const LoginForm = () => {
       if (result.status === 200) {
         const { token, role } = result.data;
         const decodedToken = jwt.decode(token) as DecodedToken;
-        const userData = decodedToken && decodedToken.user ? decodedToken.user : null;
+        // Include id from token root level, not just user object
+        const userData = decodedToken ? {
+          ...(decodedToken.user || {}),
+          id: decodedToken.id,
+          roles: decodedToken.roles || []
+        } : null;
 
         // Use the auth context to handle login
         login(token, userData);
+
+        // Set redirecting flag to prevent useEffect from also redirecting
+        setIsRedirecting(true);
 
         // Use the decoded token roles for consistent redirect logic
         if (decodedToken && decodedToken.roles && decodedToken.roles.length > 0) {
@@ -82,7 +98,7 @@ const LoginForm = () => {
           } else if (primaryRole === "supervisor") {
             router.push("/supervisor");
           } else if (primaryRole === "sales") {
-            router.push("/home");
+            router.push("/home/billing");
           } else if (primaryRole === "cashier") {
             router.push("/home/cashier");
           } else if (primaryRole === "storekeeper") {
@@ -92,12 +108,19 @@ const LoginForm = () => {
           }
         }
       } else {
-        setError(result.error || "Login Failed! Invalid credentials");
+        // Show specific error message for invalid credentials
+        if (result.status === 401) {
+          setError("Invalid username or password");
+        } else {
+          setError(result.error || "Login failed. Please try again.");
+        }
         setErrorDetails(result.errorDetails);
+        setIsSubmitting(false);
       }
     } catch (err) {
       setError("Network error occurred");
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+      setIsSubmitting(false);
     }
   };
 
@@ -126,7 +149,7 @@ const LoginForm = () => {
       <div className="container p-5">
         <div className="row px-5">
           <div className="col d-flex flex-column justify-content-center align-items-center">
-            <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+            <div className="spinner-border text-primary" role="status" style={{ width: "3rem", height: "3rem" }}>
               <span className="visually-hidden">Loading...</span>
             </div>
             <p className="mt-3 text-muted">Checking authentication...</p>
@@ -176,8 +199,19 @@ const LoginForm = () => {
                   onClick={() => handleInputClick("password")}
                 />
               </div>
-              <button type="submit" className="btn btn-primary btn-block">
-                Sign in
+              <button
+                type="submit"
+                className="btn btn-primary btn-block"
+                disabled={isSubmitting || isRedirecting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Logging in...
+                  </>
+                ) : (
+                  "Sign in"
+                )}
               </button>
             </form>
           </div>

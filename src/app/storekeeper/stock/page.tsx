@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -45,13 +45,13 @@ interface InventoryItem {
     created_at?: string;
 }
 
-export default function StockManagementPage() {
+function StockManagementContent() {
     const apiCall = useApiCall();
     const searchParams = useSearchParams();
     useTooltips();
 
     const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-    const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
+    // filteredItems is now computed via useMemo below
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
@@ -87,9 +87,7 @@ export default function StockManagementPage() {
         fetchInventory();
     }, [apiCall]);
 
-    useEffect(() => {
-        filterInventoryItems();
-    }, [inventoryItems, itemTypeFilter, searchTerm, lowStockOnly, outOfStockOnly]);
+    // Filtering is now done via useMemo below - no useEffect needed
 
     const fetchInventory = async () => {
         setIsLoading(true);
@@ -101,7 +99,7 @@ export default function StockManagementPage() {
             if (result.status >= 200 && result.status < 300) {
                 const items = Array.isArray(result.data) ? result.data : [];
                 setInventoryItems(items);
-                setFilteredItems(items);
+                // Items are set, filtering happens automatically via useMemo
             } else {
                 if (result.status === 403) {
                     setAuthError({ message: result.error || "Access denied" });
@@ -109,19 +107,19 @@ export default function StockManagementPage() {
                 setError(result.error || "Failed to fetch inventory");
                 setErrorDetails(result.errorDetails);
                 setInventoryItems([]);
-                setFilteredItems([]);
+                // Items are set, filtering happens automatically via useMemo
             }
         } catch (error: any) {
             setError("Network error occurred");
             setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
             setInventoryItems([]);
-            setFilteredItems([]);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const filterInventoryItems = () => {
+    // Memoized filter function to prevent recalculation on every render
+    const filteredItems = useMemo(() => {
         let filtered = [...inventoryItems];
 
         // Filter by item type
@@ -163,8 +161,8 @@ export default function StockManagementPage() {
             return dateB - dateA; // Descending order (newest first)
         });
 
-        setFilteredItems(filtered);
-    };
+        return filtered;
+    }, [inventoryItems, itemTypeFilter, searchTerm, lowStockOnly, outOfStockOnly]);
 
     const handleAdjustClick = (item: InventoryItem) => {
         setSelectedItem(item);
@@ -459,6 +457,23 @@ export default function StockManagementPage() {
                 </Modal>
             </div>
         </RoleAwareLayout>
+    );
+}
+
+export default function StockManagementPage() {
+    return (
+        <Suspense fallback={
+            <RoleAwareLayout>
+                <div className="container-fluid">
+                    <div className="text-center py-5">
+                        <Spinner animation="border" />
+                        <p className="mt-2">Loading...</p>
+                    </div>
+                </div>
+            </RoleAwareLayout>
+        }>
+            <StockManagementContent />
+        </Suspense>
     );
 }
 

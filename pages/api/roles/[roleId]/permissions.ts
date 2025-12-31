@@ -8,6 +8,7 @@ import {
 } from "@controllers/RoleController";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
+import { cache } from "@backend/utils/cache";
 // import { ensureMetadata } from "@backend/utils/metadata-hack";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -19,10 +20,24 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       ),
     )(req, res);
   } else if (req.method === "POST") {
+    // Invalidate cache when adding permission to role
+    const { roleId } = req.body;
+    if (roleId) {
+      cache.invalidate(`role_permissions_${roleId}`);
+      cache.invalidate("roles");
+      cache.invalidate("api_roles");
+    }
     await authMiddleware(
       authorize([permissions.CAN_ADD_PERMISSION])(addPermissionToRoleHandler),
     )(req, res);
   } else if (req.method === "DELETE") {
+    // Invalidate cache when removing permission from role
+    const { roleId } = req.body;
+    if (roleId) {
+      cache.invalidate(`role_permissions_${roleId}`);
+      cache.invalidate("roles");
+      cache.invalidate("api_roles");
+    }
     await authMiddleware(
       authorize([permissions.CAN_DELETE_PERMISSION])(removePermissionFromRoleHandler),
     )(req, res);

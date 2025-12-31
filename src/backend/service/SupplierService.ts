@@ -1,6 +1,7 @@
 import { Supplier, SupplierStatus } from "@backend/entities/Supplier";
 import { SupplierTransaction, SupplierTransactionType, SupplierReferenceType } from "@backend/entities/SupplierTransaction";
 import { DataSource, Repository } from "typeorm";
+import { cache } from "@backend/utils/cache";
 
 export interface SupplierBalance {
     debit_balance: number;
@@ -32,11 +33,16 @@ export class SupplierService {
         const supplier = this.supplierRepository.create({
             ...data,
             credit_limit: data.credit_limit || 0,
-            status: SupplierStatus.ACTIVE,
-            created_by: userId,
-        });
-        return await this.supplierRepository.save(supplier);
-    }
+        status: SupplierStatus.ACTIVE,
+        created_by: userId,
+    });
+    const saved = await this.supplierRepository.save(supplier);
+    
+    // Invalidate cache after creating supplier
+    cache.invalidate("suppliers");
+    
+    return saved;
+  }
 
     /**
      * Update supplier information
@@ -60,8 +66,14 @@ export class SupplierService {
         if (!supplier) {
             throw new Error(`Supplier with id ${id} not found`);
         }
+        
+        // Invalidate cache after updating supplier
+        cache.invalidate("suppliers");
+        cache.invalidate(`supplier_${id}`);
+        cache.invalidate(`supplier_balance_${id}`);
+        
         return supplier;
-    }
+  }
 
     /**
      * Soft delete supplier (set status to inactive)
@@ -72,13 +84,26 @@ export class SupplierService {
             updated_by: userId,
             updated_at: new Date(),
         });
+        
+        // Invalidate cache after deleting supplier
+        cache.invalidate("suppliers");
+        cache.invalidate(`supplier_${id}`);
+        cache.invalidate(`supplier_balance_${id}`);
     }
 
     /**
      * Fetch all active suppliers
      */
     public async fetchSuppliers(): Promise<Supplier[]> {
-        return await this.supplierRepository
+        const cacheKey = "suppliers_active";
+        
+        // Try cache first
+        const cached = cache.get<Supplier[]>(cacheKey);
+        if (cached !== null) {
+            return cached;
+        }
+
+        const result = await this.supplierRepository
             .createQueryBuilder("supplier")
             .where("supplier.status = :status", { status: SupplierStatus.ACTIVE })
             .select([
@@ -96,22 +121,46 @@ export class SupplierService {
             ])
             .orderBy("supplier.name", "ASC")
             .getMany();
+
+        // Cache the result
+        cache.set(cacheKey, result);
+        return result;
     }
 
     /**
      * Fetch supplier by ID with purchase history
      */
     public async fetchSupplierById(id: number): Promise<Supplier | null> {
-        return await this.supplierRepository.findOne({
+        const cacheKey = `supplier_${id}`;
+        
+        // Try cache first
+        const cached = cache.get<Supplier | null>(cacheKey);
+        if (cached !== null) {
+            return cached;
+        }
+
+        const result = await this.supplierRepository.findOne({
             where: { id },
             relations: [], // Can add relations if needed
         });
+
+        // Cache the result
+        cache.set(cacheKey, result);
+        return result;
     }
 
     /**
      * Calculate supplier balance from transactions
      */
     public async getSupplierBalance(supplierId: number): Promise<SupplierBalance> {
+        const cacheKey = `supplier_balance_${supplierId}`;
+        
+        // Try cache first (balance changes frequently, but cache for performance)
+        const cached = cache.get<SupplierBalance>(cacheKey);
+        if (cached !== null) {
+            return cached;
+        }
+
         const result = await this.supplierTransactionRepository
             .createQueryBuilder("transaction")
             .select("SUM(transaction.debit_amount)", "total_debit")
@@ -127,11 +176,15 @@ export class SupplierService {
         const credit_limit = supplier?.credit_limit || 0;
         const available_credit = Math.max(0, credit_limit - debit_balance);
 
-        return {
+        const balance = {
             debit_balance: Math.max(0, debit_balance),
             credit_balance: Math.max(0, credit_balance),
             available_credit,
         };
+
+        // Cache the result
+        cache.set(cacheKey, balance);
+        return balance;
     }
 
     /**
@@ -157,7 +210,12 @@ export class SupplierService {
             notes,
             created_by: userId,
         });
-        return await this.supplierTransactionRepository.save(transaction);
+        const saved = await this.supplierTransactionRepository.save(transaction);
+        
+        // Invalidate cache after creating transaction (affects balance)
+        cache.invalidate(`supplier_balance_${supplierId}`);
+        
+        return saved;
     }
 
     /**
@@ -167,12 +225,24 @@ export class SupplierService {
         supplierId: number,
         limit: number = 100
     ): Promise<SupplierTransaction[]> {
-        return await this.supplierTransactionRepository
+        const cacheKey = `supplier_transactions_${supplierId}_${limit}`;
+        
+        // Try cache first (transactions change frequently, but cache for performance)
+        const cached = cache.get<SupplierTransaction[]>(cacheKey);
+        if (cached !== null) {
+            return cached;
+        }
+
+        const result = await this.supplierTransactionRepository
             .createQueryBuilder("transaction")
             .where("transaction.supplier_id = :supplierId", { supplierId })
             .orderBy("transaction.created_at", "DESC")
             .limit(limit)
             .getMany();
+
+        // Cache the result
+        cache.set(cacheKey, result);
+        return result;
     }
 }
 

@@ -7,9 +7,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
-    return authMiddleware(
-      authorize([permissions.CAN_ADD_BILL_PAYMENT])(submitBill),
-    )(req, res);
+    return authorize([permissions.CAN_ADD_BILL_PAYMENT])(submitBill)(req, res);
   }
   res.setHeader("Allow", ["POST"]);
   return res.status(405).end(`Method ${req.method} Not Allowed`);

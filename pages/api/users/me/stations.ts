@@ -4,41 +4,39 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { NextApiRequest, NextApiResponse } from "next";
-
-// Simple in-memory cache for user stations
-const userStationsCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 30000; // 30 seconds
+import { cache } from "@backend/utils/cache";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "GET") {
         try {
             const userId = req.user?.id;
 
+            // If userId is undefined, auth middleware failed - this is a token issue
+            // The auth middleware should have caught this, but if we get here, return 401
             if (!userId) {
-                return res.status(401).json({ message: "User not authenticated" });
+                return res.status(401).json({ message: "Invalid token" });
             }
 
-            // Check cache first
-            const cacheKey = `user-stations-${userId}`;
-            const cached = userStationsCache.get(cacheKey);
+            // Check cache first (using shared cache utility)
+            const cacheKey = `api_user_stations_${userId}`;
+            const cached = cache.get<any>(cacheKey);
 
-            if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-                return res.status(200).json(cached.data);
+            if (cached !== null) {
+                return res.status(200).json(cached);
             }
 
             const stationService = new StationService(req.db);
             const stations = await stationService.getUserStations(Number(userId));
 
+            // Always return 200 with stations array (empty if user has no stations)
+            // This is not a permission issue - some users (e.g., admin) might not have stations
             const response = {
                 message: "User stations retrieved successfully",
-                stations
+                stations: stations || []
             };
 
-            // Cache the response
-            userStationsCache.set(cacheKey, {
-                data: response,
-                timestamp: Date.now()
-            });
+            // Cache the response (using shared cache utility)
+            cache.set(cacheKey, response);
 
             res.status(200).json(response);
         } catch (error: any) {

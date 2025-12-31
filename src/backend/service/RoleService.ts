@@ -3,6 +3,7 @@ import { Permission } from "@entities/Permission";
 import { UserRole } from "@entities/UserRole";
 import { DataSource, Repository } from "typeorm";
 import { User } from "@backend/entities/User";
+import { cache } from "@backend/utils/cache";
 
 export class RoleService {
   private roleRepository: Repository<Role>;
@@ -16,12 +17,31 @@ export class RoleService {
   }
 
   async fetchRoles() {
-    return await this.roleRepository.find();
+    const cacheKey = "roles_all";
+
+    // Try cache first
+    const cached = cache.get<Role[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
+    const result = await this.roleRepository.find({
+      select: ["id", "name", "created_at", "updated_at"]
+    });
+
+    // Cache the result
+    cache.set(cacheKey, result);
+    return result;
   }
 
   async createRole(newRole: Role) {
     const role = this.roleRepository.create(newRole);
-    return await this.roleRepository.save(role);
+    const saved = await this.roleRepository.save(role);
+
+    // Invalidate cache after creating role
+    cache.invalidate("roles");
+
+    return saved;
   }
 
   /**
@@ -51,6 +71,10 @@ export class RoleService {
           if (!hasPermission) {
             role.permissions.push(permission);
             await transactionalEntityManager.save(role);
+
+            // Invalidate cache after adding permission
+            cache.invalidate("roles");
+            cache.invalidate(`role_permissions_${roleId}`);
           }
         } else {
           throw new Error("Role or Permission not found");
@@ -66,8 +90,21 @@ export class RoleService {
       const userRole = new UserRole();
       userRole.user = { id: userId } as any;
       userRole.role = { id: roleId } as any;
-      return await this.userRoleRepository.save(userRole);
+      const saved = await this.userRoleRepository.save(userRole);
+
+      // Invalidate user-related caches after assigning role
+      cache.invalidate(`user_roles_permissions_${userId}`);
+      cache.invalidate(`user_roles_stations_${userId}`);
+      cache.invalidate(`user_${userId}`);
+
+      return saved;
     }
+
+    // Invalidate user-related caches even if role already exists
+    cache.invalidate(`user_roles_permissions_${userId}`);
+    cache.invalidate(`user_roles_stations_${userId}`);
+    cache.invalidate(`user_${userId}`);
+
     // If already exists, return existing
     return existing;
   }
@@ -98,6 +135,10 @@ export class RoleService {
             (perm) => perm.id !== permission.id,
           );
           await transactionalEntityManager.save(role);
+
+          // Invalidate cache after removing permission
+          cache.invalidate("roles");
+          cache.invalidate(`role_permissions_${roleId}`);
         } else {
           throw new Error("Role or Permission not found");
         }

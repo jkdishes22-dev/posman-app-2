@@ -36,13 +36,15 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
 
   const totalPaid =
     (paymentMethod === "cash" || paymentMethod === "cash_mpesa"
-      ? Number(cashAmount)
+      ? Number(cashAmount) || 0
       : 0) +
     (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa"
-      ? Number(mpesaAmount)
+      ? Number(mpesaAmount) || 0
       : 0);
 
-  const pendingAmount = totalAmount - totalPaid;
+  const normalizedTotalAmount = Number(totalAmount) || 0;
+  const normalizedTotalPaid = Number(totalPaid) || 0;
+  const pendingAmount = normalizedTotalAmount - normalizedTotalPaid;
 
   // Debounced M-Pesa reference validation
   useEffect(() => {
@@ -155,9 +157,9 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
       return;
     }
 
-    // Validation 3: Total paid must equal bill total
-    if (totalPaid !== totalAmount) {
-      setPaymentValidationError(`Total paid (KES ${totalPaid}) must equal bill total (KES ${totalAmount}).`);
+    // Validation 3: Total paid must equal bill total (with tolerance for floating point)
+    if (Math.abs(normalizedTotalPaid - normalizedTotalAmount) > 0.01) {
+      setPaymentValidationError(`Total paid (KES ${normalizedTotalPaid.toFixed(2)}) must equal bill total (KES ${normalizedTotalAmount.toFixed(2)}).`);
       return;
     }
 
@@ -336,10 +338,10 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
               <h6 className="card-title">Payment Summary</h6>
               <div className="row">
                 <div className="col-6">
-                  <strong>Total Paid:</strong> KES {totalPaid}
+                  <strong>Total Paid:</strong> KES {normalizedTotalPaid.toFixed(2)}
                 </div>
                 <div className="col-6">
-                  <strong>Bill Total:</strong> KES {totalAmount}
+                  <strong>Bill Total:</strong> KES {normalizedTotalAmount.toFixed(2)}
                 </div>
               </div>
               <div className="row mt-2">
@@ -351,7 +353,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                 </div>
                 <div className="col-6">
                   <strong>Validation Status:</strong>{" "}
-                  {totalPaid === totalAmount && !paymentValidationError && !isValidatingReference ? (
+                  {Math.abs(normalizedTotalPaid - normalizedTotalAmount) <= 0.01 && !paymentValidationError && !isValidatingReference ? (
                     <span className="text-success">✓ Valid</span>
                   ) : (
                     <span className="text-danger">✗ Invalid</span>
@@ -378,7 +380,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
           disabled={
             isSubmitting ||
             !selectedBill ||
-            totalPaid !== totalAmount ||
+            Math.abs(normalizedTotalPaid - normalizedTotalAmount) > 0.01 ||
             paymentValidationError !== "" ||
             isValidatingReference
           }
