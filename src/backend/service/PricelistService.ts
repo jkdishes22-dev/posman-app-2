@@ -4,6 +4,7 @@ import { Pricelist, PriceListStatus } from "@entities/Pricelist";
 import { PricelistItem } from "@entities/PricelistItem";
 import { DataSource, Repository } from "typeorm";
 import logger from "@backend/utils/logger";
+import { cache } from "@backend/utils/cache";
 
 export class PricelistService {
   private pricelistRepository: Repository<Pricelist>;
@@ -28,10 +29,23 @@ export class PricelistService {
       created_by: user_id,
     }
     const pricelist: Pricelist = this.pricelistRepository.create(newPricelist);
-    return await this.pricelistRepository.save(pricelist);
+    const saved = await this.pricelistRepository.save(pricelist);
+
+    // Invalidate cache after creating pricelist
+    cache.invalidate("pricelists");
+
+    return saved;
   }
 
   async fetchPricelists() {
+    const cacheKey = "pricelists_all";
+
+    // Try cache first
+    const cached = cache.get<Pricelist[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const startTime = Date.now();
 
     try {
@@ -55,26 +69,36 @@ export class PricelistService {
       logger.debug({
         pricelistCount: pricelists.length,
         duration: `${duration}ms`,
-        query: 'fetchPricelists'
-      }, 'Fetched all pricelists');
+        query: "fetchPricelists"
+      }, "Fetched all pricelists");
 
       if (duration > 1000) {
-        logger.warn({ duration: `${duration}ms` }, 'Slow pricelist query detected');
+        logger.warn({ duration: `${duration}ms` }, "Slow pricelist query detected");
       }
 
+      // Cache the result
+      cache.set(cacheKey, pricelists);
       return pricelists;
     } catch (error) {
       const duration = Date.now() - startTime;
       logger.error({
         error: error instanceof Error ? error.message : String(error),
         duration: `${duration}ms`,
-        query: 'fetchPricelists'
-      }, 'Error fetching pricelists');
+        query: "fetchPricelists"
+      }, "Error fetching pricelists");
       throw error;
     }
   }
 
   async fetchPricelistItems(pricelistId: string): Promise<any[]> {
+    const cacheKey = `pricelist_items_${pricelistId}`;
+
+    // Try cache first (prices can change, but cache for performance with 30s TTL)
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     try {
 
       const query = this.pricelistItemRepository
@@ -126,8 +150,7 @@ export class PricelistService {
           .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) });
 
         const simpleItems = await simpleQuery.getRawMany();
-        if (simpleItems.length > 0) {
-        }
+        // Items found but not processed (fallback query)
       }
 
       const mappedItems = rawItems.map((item) => ({
@@ -145,6 +168,8 @@ export class PricelistService {
         pricelistName: item.pricelist_name,
       }));
 
+      // Cache the result
+      cache.set(cacheKey, mappedItems);
       return mappedItems;
     } catch (error: any) {
       console.error(`Error fetching pricelist items for ${pricelistId}:`, error);
@@ -154,6 +179,14 @@ export class PricelistService {
 
   // Get all pricelists for a specific station (including global pricelists for admins only)
   async getPricelistsByStation(stationId: number, isAdmin: boolean = false): Promise<any[]> {
+    const cacheKey = `pricelists_by_station_${stationId}_${isAdmin}`;
+
+    // Try cache first
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     try {
 
       // Get pricelists linked to this specific station through junction table
@@ -205,6 +238,8 @@ export class PricelistService {
         allPricelists = [...allPricelists, ...unlinkedGlobalPricelists];
       }
 
+      // Cache the result
+      cache.set(cacheKey, allPricelists);
       return allPricelists;
     } catch (error: any) {
       console.error(`Error fetching pricelists for station ${stationId}:`, error);
@@ -214,6 +249,14 @@ export class PricelistService {
 
   // Get all pricelists that are active (for linking to stations)
   async getAvailablePricelists(): Promise<any[]> {
+    const cacheKey = "available_pricelists";
+
+    // Try cache first
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     try {
       const pricelists = await this.pricelistRepository.find({
         where: {
@@ -222,13 +265,17 @@ export class PricelistService {
         order: { is_default: "DESC", name: "ASC" }
       });
 
-      return pricelists.map(pricelist => ({
+      const result = pricelists.map(pricelist => ({
         id: pricelist.id,
         name: pricelist.name,
         status: pricelist.status,
         is_default: pricelist.is_default,
         description: pricelist.description
       }));
+
+      // Cache the result
+      cache.set(cacheKey, result);
+      return result;
     } catch (error: any) {
       console.error("Error fetching available pricelists:", error);
       throw new Error("Failed to fetch available pricelists: " + error);
@@ -237,6 +284,14 @@ export class PricelistService {
 
   // Get all stations using a specific pricelist
   async getStationsUsingPricelist(pricelistId: number): Promise<any[]> {
+    const cacheKey = `stations_using_pricelist_${pricelistId}`;
+
+    // Try cache first
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     try {
       const stationPricelists = await this.stationPricelistRepository.find({
         where: { pricelist: { id: pricelistId } },
@@ -244,7 +299,7 @@ export class PricelistService {
         order: { created_at: "ASC" }
       });
 
-      return stationPricelists.map(sp => ({
+      const result = stationPricelists.map(sp => ({
         id: sp.station.id,
         name: sp.station.name,
         status: sp.station.status,
@@ -253,6 +308,10 @@ export class PricelistService {
         notes: sp.notes,
         linked_at: sp.created_at
       }));
+
+      // Cache the result
+      cache.set(cacheKey, result);
+      return result;
     } catch (error: any) {
       console.error(`Error fetching stations using pricelist ${pricelistId}:`, error);
       throw new Error("Failed to fetch stations using pricelist: " + error);
@@ -270,6 +329,14 @@ export class PricelistService {
       if (result.affected === 0) {
         throw new Error("Pricelist not found");
       }
+
+      // Invalidate cache
+      cache.invalidate("pricelists");
+      cache.invalidate(`pricelist_${pricelistId}`);
+      cache.invalidate(`pricelist_items_${pricelistId}`);
+      cache.invalidate("pricelists_by_station");
+      cache.invalidate("available_pricelists");
+      cache.invalidate(`stations_using_pricelist_${pricelistId}`);
     } catch (error: any) {
       console.error(`Error updating pricelist ${pricelistId} status:`, error);
       throw new Error("Failed to update pricelist status: " + error);
@@ -277,9 +344,21 @@ export class PricelistService {
   }
 
   async getPricelistById(id: number): Promise<Pricelist | null> {
-    return await this.pricelistRepository.findOne({
+    const cacheKey = `pricelist_${id}`;
+
+    // Try cache first
+    const cached = cache.get<Pricelist | null>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
+    const result = await this.pricelistRepository.findOne({
       where: { id },
       relations: ["stationPricelists", "stationPricelists.station"],
     });
+
+    // Cache the result
+    cache.set(cacheKey, result);
+    return result;
   }
 }

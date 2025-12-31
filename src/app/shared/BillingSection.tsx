@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import ViewItems from "../admin/menu/category/components/items/items-view";
 import Categories from "../admin/menu/category/components/category/categories";
 import { Item } from "../types/types";
 import QuantityModal from "./QuantityModal";
 import { Button, Modal, Alert, Row, Col } from "react-bootstrap";
-import ReceiptPrint, { CaptainOrderPrint, CustomerCopyPrint } from './ReceiptPrint';
-import { printReceiptWithTimestamp, downloadReceiptAsFile } from './printUtils';
+import ReceiptPrint, { CaptainOrderPrint, CustomerCopyPrint } from "./ReceiptPrint";
+import { printReceiptWithTimestamp, downloadReceiptAsFile } from "./printUtils";
 import ReactDOM from "react-dom/client";
 import { useStation } from "../contexts/StationContext";
 import { usePricelist } from "../contexts/PricelistContext";
@@ -20,7 +20,7 @@ import { ApiErrorResponse } from "../utils/errorUtils";
 
 const BillingSection = () => {
   // Auth context
-  const { isAuthenticated, logout, user } = useAuth();
+  const { isAuthenticated, logout, user, isLoading: authLoading } = useAuth();
 
   // Station context
   const { currentStation, isLoading: stationLoading, error: stationError, loadStationsIfNeeded } = useStation();
@@ -52,6 +52,7 @@ const BillingSection = () => {
   const receiptRef = useRef<HTMLDivElement>(null);
   const [itemInventory, setItemInventory] = useState<Record<number, number>>({});
   const [hasExpandedItems, setHasExpandedItems] = useState<boolean>(false);
+  const [showAvailableItemsHeader, setShowAvailableItemsHeader] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -59,29 +60,19 @@ const BillingSection = () => {
       return;
     }
 
-    const initializeUser = async () => {
-      try {
-        // Use auth context user directly
-        if (user && user.id) {
-          setUserId(user.id.toString());
-          setWaitress(user.firstname || user.firstName || "");
-        }
-      } catch (error) {
-        console.error("Error initializing user:", error);
-      }
-    };
+    // Initialize user synchronously from context (no API call needed)
+    if (user && user.id) {
+      setUserId(user.id.toString());
+      setWaitress(user.firstname || user.firstName || "");
+    }
+    // Note: Stations and pricelists are already loaded by their respective contexts on mount
+    // No need to call loadStationsIfNeeded/loadPricelistsIfNeeded here as contexts handle it
+  }, [isAuthenticated, user]);
 
-    initializeUser();
-
-    // Load stations if needed
-    loadStationsIfNeeded();
-
-    // Load pricelists if needed
-    loadPricelistsIfNeeded();
-  }, [isAuthenticated]);
-
+  // Lazy load categories - only fetch when station is selected (non-blocking)
   useEffect(() => {
-    if (categoriesFetched) return;
+    // Only fetch categories if we have a station and haven't fetched yet
+    if (categoriesFetched || !currentStation) return;
 
     const fetchCategories = async () => {
       try {
@@ -100,18 +91,34 @@ const BillingSection = () => {
         setCategoriesFetched(false); // Reset on error to allow retry
       }
     };
-    fetchCategories();
-  }, []); // Empty dependency array - only run once
+    // Use setTimeout to make this non-blocking - allows UI to render first
+    const timeoutId = setTimeout(() => {
+      fetchCategories();
+    }, 0);
 
-  // Refetch items when pricelist or category changes
-  useEffect(() => {
-    if (currentPricelist && selectedCategory) {
-      fetchItems(selectedCategory.id);
+    return () => clearTimeout(timeoutId);
+  }, [currentStation, categoriesFetched, apiCall]);
+
+  const fetchItemInventory = useCallback(async (itemIds: number[]) => {
+    if (itemIds.length === 0) {
+      return;
     }
-  }, [currentPricelist, selectedCategory]);
 
+    try {
+      const itemIdsParam = itemIds.join(",");
+      const result = await apiCall(`/api/inventory/available?itemIds=${itemIdsParam}`);
 
-  const fetchItems = async (categoryId: string) => {
+      if (result.status === 200) {
+        setItemInventory(result.data.available || {});
+      }
+    } catch (error) {
+      // Silently fail - inventory display is optional
+      console.error("Error fetching item inventory:", error);
+    }
+  }, [apiCall]);
+
+  // Memoized fetchItems to prevent unnecessary re-renders
+  const fetchItems = useCallback(async (categoryId: string) => {
     if (!currentPricelist) {
       setItemError("No pricelist selected. Please select a pricelist first.");
       return;
@@ -140,27 +147,16 @@ const BillingSection = () => {
       setItemError(errorMessage);
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
-  };
+  }, [currentPricelist, apiCall, fetchItemInventory]);
 
-  const fetchItemInventory = async (itemIds: number[]) => {
-    if (itemIds.length === 0) {
-      return;
+  // Refetch items when pricelist or category changes
+  useEffect(() => {
+    if (currentPricelist && selectedCategory) {
+      fetchItems(selectedCategory.id);
     }
+  }, [currentPricelist?.id, selectedCategory?.id, fetchItems]); // Include fetchItems in dependencies
 
-    try {
-      const itemIdsParam = itemIds.join(",");
-      const result = await apiCall(`/api/inventory/available?itemIds=${itemIdsParam}`);
-
-      if (result.status === 200) {
-        setItemInventory(result.data.available || {});
-      }
-    } catch (error) {
-      // Silently fail - inventory display is optional
-      console.error("Error fetching item inventory:", error);
-    }
-  };
-
-  const handlePickItem = (item: Item) => {
+  const handlePickItem = useCallback((item: Item) => {
     if (!item.price) {
       return;
     }
@@ -179,9 +175,9 @@ const BillingSection = () => {
 
     setCurrentItem(item);
     setShowQuantityModal(true);
-  };
+  }, [itemInventory, selectedItems]);
 
-  const handleQuantityConfirm = (quantity: number) => {
+  const handleQuantityConfirm = useCallback((quantity: number) => {
     if (!currentItem) {
       return;
     }
@@ -231,20 +227,20 @@ const BillingSection = () => {
     if (items.length > 0) {
       fetchItemInventory(items.map((item: Item) => item.id));
     }
-  };
+  }, [currentItem, itemInventory, selectedItems, items, fetchItemInventory]);
 
-  const handleRemoveItem = (itemId: string) => {
+  const handleRemoveItem = useCallback((itemId: string) => {
     setSelectedItems((prev) => prev.filter((item) => item.id !== itemId));
-  };
+  }, []);
 
-  const handleShowSubmitModal = () => setShowSubmitModal(true);
-  const handleCloseSubmitModal = () => {
+  const handleShowSubmitModal = useCallback(() => setShowSubmitModal(true), []);
+  const handleCloseSubmitModal = useCallback(() => {
     setShowSubmitModal(false);
     setBillError(""); // Clear error when modal is closed
     setErrorDetails(null); // Clear error details when modal is closed
-  };
-  const handleShowCancelModal = () => setShowCancelModal(true);
-  const handleCloseCancelModal = () => setShowCancelModal(false);
+  }, []);
+  const handleShowCancelModal = useCallback(() => setShowCancelModal(true), []);
+  const handleCloseCancelModal = useCallback(() => setShowCancelModal(false), []);
 
   const handleConfirmSubmit = async () => {
     if (!currentStation) {
@@ -256,29 +252,30 @@ const BillingSection = () => {
     setBillError(""); // Clear any previous errors
 
     try {
-      // Ensure we have a valid user ID
+      // Ensure we have a valid user ID - prefer cached userId, then auth context, then API
       let currentUserId = userId;
       if (!currentUserId || currentUserId === "" || currentUserId === "NaN") {
-        // Try to get user ID from auth context as fallback
+        // Try to get user ID from auth context first (no API call needed)
         if (user && user.id) {
           currentUserId = user.id.toString();
           setUserId(currentUserId);
+          setWaitress(user.firstname || user.firstName || waitress);
         } else {
+          // Fallback: fetch user data from API
           try {
-            const result = await apiCall("/api/users/me");
-            if (result.status === 200) {
-              if (result.data.id) {
-                currentUserId = result.data.id.toString();
-                setUserId(currentUserId);
-                setWaitress(result.data.firstname || result.data.firstName || "");
-              } else {
-                throw new Error("No user ID in API response");
-              }
+            const userResult = await apiCall("/api/users/me");
+            if (userResult.status === 200 && userResult.data && userResult.data.id) {
+              currentUserId = userResult.data.id.toString();
+              setUserId(currentUserId);
+              setWaitress(userResult.data.firstName || userResult.data.firstname || waitress);
             } else {
-              throw new Error(result.error || "Failed to fetch user data");
+              setBillError("User information not available. Please refresh the page.");
+              setIsSubmitting(false);
+              return;
             }
-          } catch (error) {
-            setBillError("Unable to process bill. Please log out and log back in.");
+          } catch (error: any) {
+            setBillError("Failed to fetch user information. Please refresh the page.");
+            setIsSubmitting(false);
             return;
           }
         }
@@ -315,10 +312,13 @@ const BillingSection = () => {
             currency: "KES",
           });
 
-          // Refresh inventory after bill creation to show updated availability
+          // Refresh inventory after bill creation in the background (non-blocking)
           // Keep items visible but refresh their inventory
           if (items.length > 0) {
-            fetchItemInventory(items.map((item: Item) => item.id));
+            // Use setTimeout to make this non-blocking
+            setTimeout(() => {
+              fetchItemInventory(items.map((item: Item) => item.id));
+            }, 0);
           }
         } else {
           setBillError(result.error || "Failed to submit picked items");
@@ -352,11 +352,11 @@ const BillingSection = () => {
 
   const printReceipt = async (Component: any, bill: any, title: string) => {
     // Determine the type based on the component
-    let type: 'customer' | 'captain' | 'receipt' = 'receipt';
+    let type: "customer" | "captain" | "receipt" = "receipt";
     if (Component === CustomerCopyPrint) {
-      type = 'customer';
+      type = "customer";
     } else if (Component === CaptainOrderPrint) {
-      type = 'captain';
+      type = "captain";
     }
 
     return printReceiptWithTimestamp(Component, bill, title, type);
@@ -366,10 +366,10 @@ const BillingSection = () => {
     if (!createdBill) return;
 
     // Download Customer Copy
-    await downloadReceiptAsFile(CustomerCopyPrint, createdBill, 'customer');
+    await downloadReceiptAsFile(CustomerCopyPrint, createdBill, "customer");
   };
 
-  const handleConfirmCancel = () => {
+  const handleConfirmCancel = useCallback(() => {
     // Reset bill state without reloading the page
     setCreatedBill(null);
     setSelectedItems([]);
@@ -384,9 +384,9 @@ const BillingSection = () => {
     setItemError("");
     setFetchCategoryError("");
     setBillError(""); // Clear bill errors
-  };
+  }, []);
 
-  const handleNewBill = () => {
+  const handleNewBill = useCallback(() => {
     // Reset all bill-related state without reloading the page
     setCreatedBill(null);
     setSelectedItems([]);
@@ -402,12 +402,15 @@ const BillingSection = () => {
     if (items.length > 0) {
       fetchItemInventory(items.map((item: Item) => item.id));
     }
-  };
+  }, [items, fetchItemInventory]);
 
-  const totalAmount = selectedItems.reduce(
-    (sum, item) => sum + item.subtotal,
-    0,
-  );
+  // Memoized total amount calculation to prevent recalculation on every render
+  const totalAmount = useMemo(() => {
+    return selectedItems.reduce(
+      (sum, item) => sum + item.subtotal,
+      0,
+    );
+  }, [selectedItems]);
 
 
   // Show loading state only for a short time, then allow user to proceed
@@ -430,7 +433,7 @@ const BillingSection = () => {
   if (stationLoading && showStationLoading) {
     return (
       <div className="container">
-        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "400px" }}>
           <div className="text-center">
             <div className="spinner-border text-primary mb-3" role="status">
               <span className="visually-hidden">Loading...</span>
@@ -488,24 +491,24 @@ const BillingSection = () => {
         {/* Available Items Section */}
         <div className="col-lg-6">
           <div className="card border-0 shadow-sm h-100 items-section">
-            <div className="card-header bg-primary text-white py-0">
-              <div className="d-flex align-items-center justify-content-between">
-                <h6 className="mb-0 fw-bold">
-                  <i className="bi bi-box-seam me-2"></i>
-                  Available Items
-                </h6>
-                <div className="d-flex align-items-center gap-3">
-                  <small className="text-white-50">
-                    {items.length} items
-                  </small>
-                  <div className="d-flex align-items-center gap-2">
+            {showAvailableItemsHeader ? (
+              <div className="card-header bg-primary text-white py-2">
+                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                  <h6 className="mb-0 fw-bold">
+                    <i className="bi bi-box-seam me-2"></i>
+                    Available Items
+                  </h6>
+                  <div className="d-flex align-items-center gap-2 flex-wrap">
+                    <small className="text-white-50">
+                      {items.length} items
+                    </small>
                     <span className="badge bg-light text-dark px-2 py-1">
                       <i className="bi bi-building me-1"></i>
-                      Station: {currentStation?.name || 'Station'}
+                      Station: {currentStation?.name || "Station"}
                     </span>
                     <PricelistSwitcher
-                      size="md"
-                      showLabel={true}
+                      size="sm"
+                      showLabel={false}
                       onPricelistChange={() => {
                         // Refetch items when pricelist changes
                         if (selectedCategory) {
@@ -524,11 +527,30 @@ const BillingSection = () => {
                         New Bill
                       </button>
                     )}
+                    <button
+                      className="btn btn-sm btn-outline-light"
+                      type="button"
+                      onClick={() => setShowAvailableItemsHeader(false)}
+                      title="Hide header"
+                    >
+                      <i className="bi bi-chevron-up"></i>
+                    </button>
                   </div>
                 </div>
               </div>
-
-            </div>
+            ) : (
+              <div className="card-header bg-light border-bottom py-1 px-2">
+                <button
+                  className="btn btn-sm btn-link text-primary p-0"
+                  type="button"
+                  onClick={() => setShowAvailableItemsHeader(true)}
+                  title="Show header"
+                >
+                  <i className="bi bi-chevron-down me-1"></i>
+                  <small>Show Station & Pricelist</small>
+                </button>
+              </div>
+            )}
             <div className="card-body p-0">
               <ErrorDisplay
                 error={itemError}
@@ -559,39 +581,39 @@ const BillingSection = () => {
         {/* Billing Section - Improved */}
         <div className="col-lg-6">
           <div className="card border-0 shadow-sm h-100 bill-section">
-            <div className="card-header bg-success text-white border-0 py-0">
+            <div className="card-header bg-light border-bottom py-2">
               <div className="d-flex align-items-center justify-content-between">
-                <h6 className="mb-0 fw-bold">
-                  <i className="bi bi-receipt me-2"></i>
+                <h6 className="mb-0 fw-bold text-dark">
+                  <i className="bi bi-receipt me-2 text-success"></i>
                   Current Bill
                 </h6>
                 <div className="d-flex align-items-center gap-3">
-                  <small className="text-white-50">
+                  <small className="text-muted">
                     {(createdBill ? createdBill.bill_items : selectedItems).length} items
                   </small>
                   {createdBill && (
-                    <span className="badge bg-light text-success fw-bold">
+                    <span className="badge bg-success text-white fw-bold">
                       #{createdBill.id}
                     </span>
                   )}
                 </div>
               </div>
             </div>
-            <div className="card-body p-0">
+            <div className="card-body p-3" style={{ maxHeight: "400px", overflowY: "auto" }}>
               <div className="table-responsive">
                 <table className="table table-hover mb-0">
-                  <thead className="table-light">
+                  <thead className="table-light sticky-top">
                     <tr>
-                      <th className="border-0 fw-bold">Item</th>
-                      <th className="border-0 text-center fw-bold">Qty</th>
-                      <th className="border-0 text-end fw-bold">Price</th>
-                      <th className="border-0 text-center fw-bold">Action</th>
+                      <th className="fw-bold">Item</th>
+                      <th className="text-center fw-bold">Qty</th>
+                      <th className="text-end fw-bold">Price</th>
+                      <th className="text-center fw-bold">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(createdBill ? createdBill.bill_items : selectedItems).length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="text-center text-muted py-4">
+                        <td colSpan={4} className="text-center text-muted py-5">
                           <i className="bi bi-cart-x fs-1 d-block mb-2 text-muted"></i>
                           <span className="fw-medium">No items in bill</span>
                         </td>
@@ -601,7 +623,7 @@ const BillingSection = () => {
                         <tr key={item.id} className="align-middle">
                           <td className="fw-medium">{item.item?.name || item.name}</td>
                           <td className="text-center">
-                            <span className="badge bg-primary rounded-pill">{item.quantity}</span>
+                            <span className="badge bg-primary rounded-pill px-2 py-1">{item.quantity}</span>
                           </td>
                           <td className="text-end fw-bold text-success">
                             ${((Number(item.subtotal) || 0) || ((Number(item.price) || 0) * (Number(item.quantity) || 0))).toFixed(2)}
@@ -612,34 +634,8 @@ const BillingSection = () => {
                                 className="btn btn-outline-danger btn-sm"
                                 onClick={() => handleRemoveItem(item.id)}
                                 title="Remove item"
-                                style={{
-                                  minWidth: '32px',
-                                  minHeight: '32px',
-                                  padding: '0.375rem',
-                                  borderWidth: '2px',
-                                  backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                                  color: '#dc3545',
-                                  fontWeight: '600',
-                                  boxShadow: '0 2px 4px rgba(220, 53, 69, 0.2)',
-                                  transition: 'all 0.2s ease'
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.transform = 'scale(1.05)';
-                                  e.currentTarget.style.backgroundColor = '#dc3545';
-                                  e.currentTarget.style.color = 'white';
-                                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(220, 53, 69, 0.3)';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.transform = 'scale(1)';
-                                  e.currentTarget.style.backgroundColor = 'rgba(220, 53, 69, 0.1)';
-                                  e.currentTarget.style.color = '#dc3545';
-                                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(220, 53, 69, 0.2)';
-                                }}
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-x-circle" viewBox="0 0 16 16">
-                                  <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
-                                  <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708" />
-                                </svg>
+                                <i className="bi bi-x-circle"></i>
                               </button>
                             )}
                           </td>
@@ -650,33 +646,32 @@ const BillingSection = () => {
                 </table>
               </div>
             </div>
-            <div className="card-footer bg-success text-white border-0 py-0" style={{ boxShadow: '0 -2px 4px rgba(0,0,0,0.1)' }}>
-              <div className="row align-items-center">
+            <div className="card-footer bg-light border-top py-3" style={{ boxShadow: "0 -2px 4px rgba(0,0,0,0.05)" }}>
+              <div className="row align-items-center g-3">
                 <div className="col-md-6">
                   <div className="d-flex flex-column">
-                    <div className="h4 mb-0 fw-bold">
+                    <div className="h4 mb-1 fw-bold text-success">
                       Total: ${createdBill && !isNaN(Number(createdBill.total))
-                        ? Number(createdBill.total).toFixed(2)
+                        ? (Number(createdBill.total) || 0).toFixed(2)
                         : (Number(totalAmount) || 0).toFixed(2)
                       }
                     </div>
-                    <small className="text-white-50">
+                    <small className="text-muted">
                       <i className="bi bi-person me-1"></i>
                       Served by: {waitress}
                     </small>
                   </div>
                 </div>
                 <div className="col-md-6">
-                  <div className="d-grid gap-1 d-md-flex justify-content-md-end">
+                  <div className="d-flex flex-wrap gap-2 justify-content-md-end">
                     {!createdBill ? (
                       <>
                         <Button
-                          variant="light"
+                          variant="success"
                           size="sm"
                           onClick={handleShowSubmitModal}
                           disabled={selectedItems.length === 0 || !currentStation || isSubmitting}
-                          className="px-3 fw-bold text-success border-0"
-                          style={{ backgroundColor: 'rgba(255,255,255,0.9)' }}
+                          className="px-3 fw-bold"
                         >
                           {isSubmitting ? (
                             <>
@@ -691,11 +686,11 @@ const BillingSection = () => {
                           )}
                         </Button>
                         <Button
-                          variant="outline-light"
+                          variant="outline-secondary"
                           size="sm"
                           onClick={handleShowCancelModal}
                           disabled={selectedItems.length === 0 || isSubmitting}
-                          className="fw-bold px-2"
+                          className="fw-bold px-3"
                         >
                           <i className="bi bi-x-circle me-1"></i>
                           Clear
@@ -707,41 +702,25 @@ const BillingSection = () => {
                           variant="success"
                           size="sm"
                           onClick={handleNewBill}
-                          className="me-1 fw-bold px-2"
-                          style={{
-                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                            border: '2px solid rgba(255, 255, 255, 0.8)',
-                            color: 'white',
-                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                          }}
+                          className="fw-bold px-3"
                         >
                           <i className="bi bi-plus-circle me-1"></i>
                           New Bill
                         </Button>
                         <Button
-                          variant="light"
+                          variant="outline-primary"
                           size="sm"
                           onClick={handlePrint}
-                          className="me-1 fw-medium text-dark px-2"
-                          style={{
-                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                            border: '2px solid rgba(255, 255, 255, 0.8)',
-                            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
-                          }}
+                          className="fw-medium px-3"
                         >
                           <i className="bi bi-printer me-1"></i>
                           Print
                         </Button>
                         <Button
-                          variant="outline-light"
+                          variant="outline-secondary"
                           size="sm"
                           onClick={handleDownload}
-                          className="fw-medium px-2"
-                          style={{
-                            borderColor: 'rgba(255, 255, 255, 0.8)',
-                            color: 'white',
-                            backgroundColor: 'rgba(255, 255, 255, 0.1)'
-                          }}
+                          className="fw-medium px-3"
                         >
                           <i className="bi bi-download me-1"></i>
                           Download
@@ -756,17 +735,11 @@ const BillingSection = () => {
         </div>
       </div>
 
-      {/* Categories Section - Improved */}
+      {/* Categories Section - Compact */}
       <div className={`row mt-1 categories-section ${hasExpandedItems ? "categories-section-expanded" : ""}`}>
         <div className="col-12">
           <div className={`card border-0 shadow-sm categories-card ${hasExpandedItems ? "categories-card-expanded" : ""}`}>
-            <div className="card-body py-1">
-              <div className="mb-1">
-                <h5 className="mb-0 text-dark fw-bold d-flex align-items-center">
-                  <i className="bi bi-grid me-2 text-primary"></i>
-                  Item Categories
-                </h5>
-              </div>
+            <div className="card-body py-2 px-3">
               <Categories
                 categories={categories}
                 onCategoryClick={(category) => {
@@ -782,7 +755,7 @@ const BillingSection = () => {
       </div>
 
       {/* Hidden Receipt Component */}
-      <div style={{ display: 'none' }}>
+      <div style={{ display: "none" }}>
         {createdBill && <ReceiptPrint ref={receiptRef} bill={createdBill} />}
       </div>
 
@@ -821,7 +794,7 @@ const BillingSection = () => {
           <div className="text-center">
             {isSubmitting ? (
               <>
-                <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
+                <div className="spinner-border text-primary mb-3" role="status" style={{ width: "3rem", height: "3rem" }}>
                   <span className="visually-hidden">Loading...</span>
                 </div>
                 <p className="fs-5 text-primary">Creating bill...</p>

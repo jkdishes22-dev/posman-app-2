@@ -8,10 +8,10 @@ function BootstrapClient() {
       .then((bootstrap) => {
         // Initialize tooltips globally
         const tooltipTriggerList = [].slice.call(
-          document.querySelectorAll('[data-bs-toggle="tooltip"]')
+          document.querySelectorAll("[data-bs-toggle=\"tooltip\"]")
         );
         tooltipTriggerList.map(function (tooltipTriggerEl: any) {
-          return new bootstrap.Tooltip(tooltipTriggerEl);
+          return new (bootstrap as any).Tooltip(tooltipTriggerEl);
         });
       })
       .catch((error) => {

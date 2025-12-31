@@ -21,6 +21,8 @@ export interface LowStockItem extends InventoryLevel {
     item: Item;
 }
 
+import { cache } from "@backend/utils/cache";
+
 export class InventoryService {
     private inventoryRepository: Repository<Inventory>;
     private inventoryTransactionRepository: Repository<InventoryTransaction>;
@@ -64,18 +66,32 @@ export class InventoryService {
             created_by: userId,
         });
 
-        return await this.inventoryRepository.save(inventory);
+        const saved = await this.inventoryRepository.save(inventory);
+
+        // Invalidate cache after creating new inventory
+        InventoryService.invalidateInventoryCache(inventory.item_id);
+
+        return saved;
     }
 
     /**
-     * Get current inventory level for an item
+     * Get current inventory level for an item (cached)
      */
     public async getInventoryLevel(itemId: number): Promise<InventoryLevel | null> {
+        const cacheKey = `inventory_level_${itemId}`;
+
+        // Try cache first
+        const cached = cache.get<InventoryLevel | null>(cacheKey);
+        if (cached !== null) {
+            return cached;
+        }
+
         const inventory = await this.inventoryRepository.findOne({
             where: { item_id: itemId },
         });
 
         if (!inventory) {
+            cache.set(cacheKey, null);
             return null;
         }
 
@@ -84,7 +100,7 @@ export class InventoryService {
             ? available_quantity <= inventory.reorder_point
             : false;
 
-        return {
+        const result = {
             item_id: inventory.item_id,
             quantity: inventory.quantity,
             reserved_quantity: inventory.reserved_quantity,
@@ -94,54 +110,115 @@ export class InventoryService {
             reorder_point: inventory.reorder_point,
             is_low_stock,
         };
+
+        // Cache the result
+        cache.set(cacheKey, result);
+        return result;
     }
 
     /**
-     * Get available stock (quantity - reserved_quantity)
+     * Get available stock (quantity - reserved_quantity) (cached)
      */
     public async getAvailableStock(itemId: number): Promise<number> {
+        const cacheKey = `available_stock_${itemId}`;
+
+        // Try cache first
+        const cached = cache.get<number>(cacheKey);
+        if (cached !== null) {
+            return cached;
+        }
+
         const inventory = await this.inventoryRepository.findOne({
             where: { item_id: itemId },
         });
 
         if (!inventory) {
+            cache.set(cacheKey, 0);
             return 0;
         }
 
-        return Math.max(0, inventory.quantity - inventory.reserved_quantity);
+        const result = Math.max(0, inventory.quantity - inventory.reserved_quantity);
+
+        // Cache the result
+        cache.set(cacheKey, result);
+        return result;
     }
 
     /**
-     * Get all inventory items with item details
+     * Get all inventory items with item details (optimized with field selection, pagination, and caching)
      */
-    public async getAllInventoryItems(): Promise<Array<{
-        item_id: number;
-        item: {
-            id: number;
-            name: string;
-            code: string;
-            isStock: boolean;
-            category?: {
+    public async getAllInventoryItems(options?: {
+        limit?: number;
+        offset?: number;
+        search?: string;
+    }): Promise<{
+        items: Array<{
+            item_id: number;
+            item: {
                 id: number;
                 name: string;
+                code: string;
+                isStock: boolean;
+                category?: {
+                    id: number;
+                    name: string;
+                };
             };
-        };
-        quantity: number;
-        reserved_quantity: number;
-        available_quantity: number;
-        min_stock_level: number | null;
-        max_stock_level: number | null;
-        reorder_point: number | null;
-        is_low_stock: boolean;
-    }>> {
-        const inventories = await this.inventoryRepository
+            quantity: number;
+            reserved_quantity: number;
+            available_quantity: number;
+            min_stock_level: number | null;
+            max_stock_level: number | null;
+            reorder_point: number | null;
+            is_low_stock: boolean;
+        }>;
+        total: number;
+    }> {
+        // Create cache key based on options
+        const cacheKey = `inventory_items_${JSON.stringify(options || {})}`;
+
+        // Try to get from cache (only for non-paginated, non-search queries to avoid stale data)
+        if (!options?.limit && !options?.offset && !options?.search) {
+            const cached = cache.get<{
+                items: Array<any>;
+                total: number;
+            }>(cacheKey);
+            if (cached) {
+                return cached;
+            }
+        }
+
+        // Create base query with optimized field selection
+        const baseQuery = this.inventoryRepository
             .createQueryBuilder("inventory")
             .leftJoinAndSelect("inventory.item", "item")
             .leftJoinAndSelect("item.category", "category")
-            .orderBy("item.name", "ASC")
-            .getMany();
+            .orderBy("item.name", "ASC");
 
-        return inventories.map((inventory) => {
+        // Add search filter if provided
+        if (options?.search) {
+            const searchTerm = `%${options.search}%`;
+            baseQuery.where(
+                "(item.name LIKE :search OR item.code LIKE :search)",
+                { search: searchTerm }
+            );
+        }
+
+        // Get total count before pagination (clone query to avoid affecting main query)
+        const countQuery = baseQuery.clone();
+        const total = await countQuery.getCount();
+
+        // Add pagination if provided
+        if (options?.limit) {
+            baseQuery.limit(options.limit);
+        }
+        if (options?.offset) {
+            baseQuery.offset(options.offset);
+        }
+
+        const inventories = await baseQuery.getMany();
+
+        const items = inventories.map((inventory) => {
             const available_quantity = inventory.quantity - inventory.reserved_quantity;
             const is_low_stock = inventory.reorder_point !== null
                 ? available_quantity <= inventory.reorder_point
@@ -168,6 +245,40 @@ export class InventoryService {
                 is_low_stock,
             };
         });
+
+        const result = { items, total };
+
+        // Cache the result (only for non-paginated, non-search queries)
+        if (!options?.limit && !options?.offset && !options?.search) {
+            cache.set(cacheKey, result);
+        }
+
+        return result;
+    }
+
+    /**
+     * Invalidate inventory cache (call this when inventory is updated)
+     * Invalidates all inventory-related cache entries
+     */
+    public static invalidateInventoryCache(itemId?: number): void {
+        // Invalidate all inventory-related caches
+        cache.invalidate("inventory_items");
+        cache.invalidate("inventory_stats");
+        cache.invalidate("reorder_suggestions");
+        cache.invalidate("available_inventory");
+        cache.invalidate("inventory_transactions");
+
+        // If specific itemId provided, invalidate item-specific caches
+        if (itemId) {
+            cache.invalidate(`inventory_level_${itemId}`);
+            cache.invalidate(`available_stock_${itemId}`);
+            cache.invalidate(`inventory_history_${itemId}`);
+        } else {
+            // Invalidate all item-specific caches
+            cache.invalidate("inventory_level_");
+            cache.invalidate("available_stock_");
+            cache.invalidate("inventory_history_");
+        }
     }
 
     /**
@@ -177,6 +288,16 @@ export class InventoryService {
     public async getAvailableInventoryForItems(itemIds: number[]): Promise<Map<number, number>> {
         if (itemIds.length === 0) {
             return new Map();
+        }
+
+        // Create cache key from sorted itemIds to ensure consistent caching
+        const sortedIds = [...itemIds].sort((a, b) => a - b);
+        const cacheKey = `available_inventory_${sortedIds.join(",")}`;
+
+        // Try cache first
+        const cached = cache.get<Map<number, number>>(cacheKey);
+        if (cached !== null) {
+            return cached;
         }
 
         // Get all items to check which are composite
@@ -192,6 +313,8 @@ export class InventoryService {
             for (const itemId of itemIds) {
                 result.set(itemId, 0);
             }
+            // Cache empty result
+            cache.set(cacheKey, result);
             return result;
         }
 
@@ -356,6 +479,8 @@ export class InventoryService {
             }
         }
 
+        // Cache the result
+        cache.set(cacheKey, result);
         return result;
     }
 
@@ -374,16 +499,22 @@ export class InventoryService {
 
         let bill: Bill | null;
 
-        // If bill object is passed, use it directly; otherwise fetch it
+        // If bill object is passed, check if relations are already loaded
         if (typeof billOrId === "object" && billOrId !== null) {
             bill = billOrId;
-            console.log(`[InventoryService] Bill object passed, reloading with relations. Bill ID: ${bill.id}`);
-            // Always reload with relations to ensure item relations are loaded
-            // Even if bill_items exist, the item relation might not be loaded
-            bill = await this.billRepository.findOne({
-                where: { id: bill.id },
-                relations: ["bill_items", "bill_items.item"],
-            });
+            // Only reload if bill_items or item relations are missing
+            const hasBillItems = bill.bill_items && bill.bill_items.length > 0;
+            const hasItemRelations = hasBillItems && bill.bill_items.every((bi: any) => bi.item != null);
+
+            if (!hasItemRelations) {
+                console.log(`[InventoryService] Bill object passed, reloading with relations. Bill ID: ${bill.id}`);
+                bill = await this.billRepository.findOne({
+                    where: { id: bill.id },
+                    relations: ["bill_items", "bill_items.item"],
+                });
+            } else {
+                console.log(`[InventoryService] Bill object passed with relations already loaded. Bill ID: ${bill.id}`);
+            }
         } else {
             const billId = billOrId as number;
             console.log(`[InventoryService] Bill ID passed, fetching bill ${billId}`);
@@ -833,6 +964,9 @@ export class InventoryService {
             });
             await transactionalEntityManager.save(InventoryTransaction, transaction);
         }
+
+        // Invalidate cache after inventory reservation
+        InventoryService.invalidateInventoryCache();
     }
 
     /**
@@ -943,6 +1077,9 @@ export class InventoryService {
                 await transactionalEntityManager.save(InventoryTransaction, transaction);
             }
         });
+
+        // Invalidate cache after inventory deduction
+        InventoryService.invalidateInventoryCache();
     }
 
     /**
@@ -1054,6 +1191,9 @@ export class InventoryService {
                 }
             }
         });
+
+        // Invalidate cache after releasing inventory reservation
+        InventoryService.invalidateInventoryCache();
     }
 
     /**
@@ -1098,9 +1238,22 @@ export class InventoryService {
         reorder_point: number;
         suggested_quantity: number;
     }>> {
+        const cacheKey = "reorder_suggestions";
+
+        // Try cache first
+        const cached = cache.get<Array<{
+            item: Item;
+            current_stock: number;
+            reorder_point: number;
+            suggested_quantity: number;
+        }>>(cacheKey);
+        if (cached !== null) {
+            return cached;
+        }
+
         const lowStockItems = await this.checkLowStock();
 
-        return lowStockItems.map((item) => ({
+        const result = lowStockItems.map((item) => ({
             item: item.item,
             current_stock: item.available_quantity,
             reorder_point: item.reorder_point!,
@@ -1108,10 +1261,14 @@ export class InventoryService {
                 ? item.max_stock_level - item.available_quantity
                 : item.reorder_point! * 2, // Default: order 2x reorder point
         }));
+
+        // Cache the result
+        cache.set(cacheKey, result);
+        return result;
     }
 
     /**
-     * Get inventory statistics for dashboard
+     * Get inventory statistics for dashboard (cached)
      */
     public async getInventoryStats(): Promise<{
         totalItems: number;
@@ -1119,6 +1276,19 @@ export class InventoryService {
         outOfStockItems: number;
         recentMovements: number;
     }> {
+        const cacheKey = "inventory_stats";
+
+        // Try cache first
+        const cached = cache.get<{
+            totalItems: number;
+            lowStockItems: number;
+            outOfStockItems: number;
+            recentMovements: number;
+        }>(cacheKey);
+        if (cached !== null) {
+            return cached;
+        }
+
         // Get total inventory items count
         const totalItems = await this.inventoryRepository.count();
 
@@ -1141,32 +1311,48 @@ export class InventoryService {
             .where("transaction.created_at >= :sevenDaysAgo", { sevenDaysAgo })
             .getCount();
 
-        return {
+        const result = {
             totalItems,
             lowStockItems: lowStockCount,
             outOfStockItems: outOfStockCount,
             recentMovements,
         };
+
+        // Cache the result
+        cache.set(cacheKey, result);
+        return result;
     }
 
     /**
-     * Get inventory transaction history for an item
+     * Get inventory transaction history for an item (cached with shorter TTL)
      */
     public async getInventoryHistory(
         itemId: number,
         limit: number = 100
     ): Promise<InventoryTransaction[]> {
-        return await this.inventoryTransactionRepository
+        const cacheKey = `inventory_history_${itemId}_${limit}`;
+
+        // Try cache first (history changes frequently, but still cache for performance)
+        const cached = cache.get<InventoryTransaction[]>(cacheKey);
+        if (cached !== null) {
+            return cached;
+        }
+
+        const result = await this.inventoryTransactionRepository
             .createQueryBuilder("transaction")
             .leftJoinAndSelect("transaction.item", "item")
             .where("transaction.item_id = :itemId", { itemId })
             .orderBy("transaction.created_at", "DESC")
             .limit(limit)
             .getMany();
+
+        // Cache the result (shorter TTL handled by cache expiration)
+        cache.set(cacheKey, result);
+        return result;
     }
 
     /**
-     * Get all inventory transactions with pagination
+     * Get all inventory transactions with pagination (cached for non-search queries)
      */
     public async getAllInventoryTransactions(
         page: number = 1,
@@ -1174,6 +1360,19 @@ export class InventoryService {
         itemId?: number,
         search?: string
     ): Promise<{ transactions: InventoryTransaction[]; total: number }> {
+        // Only cache if no search (search results change frequently)
+        const cacheKey = search
+            ? null
+            : `inventory_transactions_${page}_${pageSize}_${itemId || "all"}`;
+
+        // Try cache first (only for non-search queries)
+        if (cacheKey) {
+            const cached = cache.get<{ transactions: InventoryTransaction[]; total: number }>(cacheKey);
+            if (cached !== null) {
+                return cached;
+            }
+        }
+
         const query = this.inventoryTransactionRepository
             .createQueryBuilder("transaction")
             .leftJoinAndSelect("transaction.item", "item")
@@ -1203,7 +1402,14 @@ export class InventoryService {
         query.skip((page - 1) * pageSize).take(pageSize);
         const transactions = await query.getMany();
 
-        return { transactions, total };
+        const result = { transactions, total };
+
+        // Cache the result (only for non-search queries)
+        if (cacheKey) {
+            cache.set(cacheKey, result);
+        }
+
+        return result;
     }
 
     /**
@@ -1242,6 +1448,9 @@ export class InventoryService {
             created_by: userId,
         });
         await this.inventoryTransactionRepository.save(transaction);
+
+        // Invalidate cache after inventory adjustment
+        InventoryService.invalidateInventoryCache();
 
         return inventory;
     }
@@ -1291,6 +1500,9 @@ export class InventoryService {
             created_by: userId,
         });
         await this.inventoryTransactionRepository.save(transaction);
+
+        // Invalidate cache after inventory disposal
+        InventoryService.invalidateInventoryCache();
 
         return inventory;
     }

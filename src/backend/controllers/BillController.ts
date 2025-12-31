@@ -53,7 +53,14 @@ export const getVoidRequests = async (req: NextApiRequest, res: NextApiResponse)
   const currentUserId = Number(req.user?.id);
 
   try {
-    const voidRequests = await billService.getVoidRequests(currentUserId);
+    // Check user roles - supervisors see all void requests, sales users see only their own
+    const userRoles = req.user?.roles?.map((role: any) => role.name || role) || [];
+    const isSupervisor = userRoles.includes("supervisor") || userRoles.includes("admin");
+
+    // Only pass userId for sales users - supervisors get all requests
+    const userId = isSupervisor ? undefined : currentUserId;
+
+    const voidRequests = await billService.getVoidRequests(userId);
     res.status(200).json({ voidRequests });
   } catch (error: any) {
     console.error("Error fetching void requests:", error);
@@ -70,6 +77,38 @@ export const getVoidRequestStats = async (req: NextApiRequest, res: NextApiRespo
   } catch (error: any) {
     console.error("Error fetching void request stats:", error);
     res.status(500).json({ error: `Error fetching void request stats: ${error.message}` });
+  }
+};
+
+export const getQuantityChangeRequests = async (req: NextApiRequest, res: NextApiResponse) => {
+  const billService = new BillService(req.db);
+  const currentUserId = Number(req.user?.id);
+
+  try {
+    // Check user roles - supervisors see all quantity change requests, sales users see only their own
+    const userRoles = req.user?.roles?.map((role: any) => role.name || role) || [];
+    const isSupervisor = userRoles.includes("supervisor") || userRoles.includes("admin");
+
+    // Only pass userId for sales users - supervisors get all requests
+    const userId = isSupervisor ? undefined : currentUserId;
+
+    const quantityChangeRequests = await billService.getQuantityChangeRequests(userId);
+    res.status(200).json({ quantityChangeRequests });
+  } catch (error: any) {
+    console.error("Error fetching quantity change requests:", error);
+    res.status(500).json({ error: `Error fetching quantity change requests: ${error.message}` });
+  }
+};
+
+export const getQuantityChangeRequestStats = async (req: NextApiRequest, res: NextApiResponse) => {
+  const billService = new BillService(req.db);
+
+  try {
+    const stats = await billService.getQuantityChangeRequestStats();
+    res.status(200).json({ stats });
+  } catch (error: any) {
+    console.error("Error fetching quantity change request stats:", error);
+    res.status(500).json({ error: `Error fetching quantity change request stats: ${error.message}` });
   }
 };
 
@@ -127,8 +166,22 @@ export const submitBill = async (req: NextApiRequest, res: NextApiResponse) => {
 
     const submittedBill = await billService.submitBill(billPayment);
     res.status(200).json(submittedBill);
-  } catch (error) {
-    res.status(500).json({ message: "Error submitting bill", error });
+  } catch (error: any) {
+    console.error("Error submitting bill:", error);
+    console.error("Error details:", {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+      billPayment: req.body
+    });
+    res.status(500).json({
+      message: "Error submitting bill",
+      error: error?.message || "Unknown error occurred",
+      details: process.env.NODE_ENV === "development" ? {
+        stack: error?.stack,
+        name: error?.name
+      } : undefined
+    });
   }
 };
 
@@ -138,8 +191,22 @@ export const closeBill = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     const closedBill = await billService.closeBill(Number(billId));
     res.status(200).json(closedBill);
-  } catch (error) {
-    res.status(500).json({ message: "Error closing bill", error });
+  } catch (error: any) {
+    console.error("Error closing bill:", error);
+    console.error("Error details:", {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+      billId: req.query.billId
+    });
+    res.status(500).json({
+      message: "Error closing bill",
+      error: error?.message || "Unknown error occurred",
+      details: process.env.NODE_ENV === "development" ? {
+        stack: error?.stack,
+        name: error?.name
+      } : undefined
+    });
   }
 };
 

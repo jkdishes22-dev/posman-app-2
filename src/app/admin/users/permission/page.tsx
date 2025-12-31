@@ -45,8 +45,11 @@ export default function UsersPage() {
   const [sessionError, setSessionError] = useState("");
 
   useEffect(() => {
-    fetchRoles();
-    fetchScopes();
+    // Fetch roles and scopes in parallel for faster page load
+    Promise.all([fetchRoles(), fetchScopes()]).catch((error) => {
+      setError({ message: "Failed to load initial data: " + error.message });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    });
   }, []);
 
   const fetchRoles = async () => {

@@ -1,9 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import Pagination from "../../components/Pagination";
 
 interface Bill {
     id: number;
@@ -20,17 +22,40 @@ interface Bill {
 }
 
 const SupervisorBillsPage: React.FC = () => {
+    const router = useRouter();
     const [bills, setBills] = useState<Bill[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [errorDetails, setErrorDetails] = useState<any>(null);
     const [statusFilter, setStatusFilter] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const pageSize = 10;
     const apiCall = useApiCall();
+
+    // For client-side pagination when searching
+    const [searchPage, setSearchPage] = useState(1);
+
+    const handleViewBill = (billId: number) => {
+        // Navigate to bill details in cashier bills page in the same window
+        router.push(`/home/cashier/bills?billId=${billId}`);
+    };
 
     useEffect(() => {
         fetchBills();
+    }, [statusFilter, page]);
+
+    // Reset to page 1 when status filter changes
+    useEffect(() => {
+        setPage(1);
+        setSearchPage(1);
     }, [statusFilter]);
+
+    // Reset search page when search term changes
+    useEffect(() => {
+        setSearchPage(1);
+    }, [searchTerm]);
 
     const fetchBills = async () => {
         try {
@@ -39,20 +64,25 @@ const SupervisorBillsPage: React.FC = () => {
             setErrorDetails(null);
 
             const url = statusFilter === "all"
-                ? "/api/bills?page=1&pageSize=50"
-                : `/api/bills?status=${statusFilter}&page=1&pageSize=50`;
+                ? `/api/bills?page=${page}&pageSize=${pageSize}`
+                : `/api/bills?status=${statusFilter}&page=${page}&pageSize=${pageSize}`;
 
             const result = await apiCall(url);
 
             if (result.status === 200) {
                 setBills(result.data.bills || []);
+                setTotal(result.data.total || 0);
             } else {
                 setError(result.error || "Failed to fetch bills");
                 setErrorDetails(result.errorDetails || null);
+                setBills([]);
+                setTotal(0);
             }
         } catch (error) {
             setError("Network error occurred");
             setErrorDetails({ networkError: true, status: 0 });
+            setBills([]);
+            setTotal(0);
         } finally {
             setLoading(false);
         }
@@ -67,6 +97,13 @@ const SupervisorBillsPage: React.FC = () => {
 
         return matchesSearch;
     });
+
+    // For client-side pagination when searching
+    const paginatedBills = searchTerm
+        ? filteredBills.slice((searchPage - 1) * pageSize, searchPage * pageSize)
+        : filteredBills;
+
+    const displayTotal = searchTerm ? filteredBills.length : total;
 
     const getStatusBadge = (status: string) => {
         const statusClasses = {
@@ -141,6 +178,7 @@ const SupervisorBillsPage: React.FC = () => {
                                             onClick={() => {
                                                 setSearchTerm("");
                                                 setStatusFilter("all");
+                                                setPage(1);
                                             }}
                                         >
                                             Clear Filters
@@ -154,7 +192,7 @@ const SupervisorBillsPage: React.FC = () => {
                         <div className="card">
                             <div className="card-header">
                                 <h5 className="card-title mb-0">
-                                    Bills ({filteredBills.length})
+                                    Bills ({displayTotal})
                                 </h5>
                             </div>
                             <div className="card-body">
@@ -165,65 +203,78 @@ const SupervisorBillsPage: React.FC = () => {
                                         </div>
                                         <p className="mt-3 text-muted">Loading bills...</p>
                                     </div>
-                                ) : filteredBills.length === 0 ? (
+                                ) : paginatedBills.length === 0 ? (
                                     <div className="text-center py-5 text-muted">
                                         <i className="bi bi-receipt fs-1 mb-3"></i>
                                         <p>No bills found</p>
                                     </div>
                                 ) : (
-                                    <div className="table-responsive" style={{ overflowX: "auto" }}>
-                                        <table className="table table-hover">
-                                            <thead>
-                                                <tr>
-                                                    <th>Bill ID</th>
-                                                    <th>User</th>
-                                                    <th className="d-none d-md-table-cell">Station</th>
-                                                    <th>Total</th>
-                                                    <th>Status</th>
-                                                    <th className="d-none d-lg-table-cell">Created</th>
-                                                    <th style={{ minWidth: "100px" }}>Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {filteredBills.map((bill) => (
-                                                    <tr key={bill.id}>
-                                                        <td>
-                                                            <strong>#{bill.id}</strong>
-                                                        </td>
-                                                        <td>
-                                                            {bill.user.firstName} {bill.user.lastName}
-                                                        </td>
-                                                        <td className="d-none d-md-table-cell">{bill.station?.name || "N/A"}</td>
-                                                        <td>
-                                                            <strong>${(Number(bill.total) || 0).toFixed(2)}</strong>
-                                                        </td>
-                                                        <td>{getStatusBadge(bill.status)}</td>
-                                                        <td className="d-none d-lg-table-cell">
-                                                            {new Date(bill.created_at).toLocaleDateString()}
-                                                        </td>
-                                                        <td>
-                                                            <div className="d-flex gap-1 flex-wrap">
-                                                                <button 
+                                    <>
+                                        <div className="table-responsive" style={{ overflowX: "auto" }}>
+                                            <table className="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Bill ID</th>
+                                                        <th>User</th>
+                                                        <th className="d-none d-md-table-cell">Station</th>
+                                                        <th>Total</th>
+                                                        <th>Status</th>
+                                                        <th className="d-none d-lg-table-cell">Created</th>
+                                                        <th style={{ minWidth: "100px" }}>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {paginatedBills.map((bill) => (
+                                                        <tr key={bill.id}>
+                                                            <td>
+                                                                <strong>#{bill.id}</strong>
+                                                            </td>
+                                                            <td>
+                                                                {bill.user.firstName} {bill.user.lastName}
+                                                            </td>
+                                                            <td className="d-none d-md-table-cell">{bill.station?.name || "N/A"}</td>
+                                                            <td>
+                                                                <strong>KES {(Number(bill.total) || 0).toFixed(2)}</strong>
+                                                            </td>
+                                                            <td>{getStatusBadge(bill.status)}</td>
+                                                            <td className="d-none d-lg-table-cell">
+                                                                {new Date(bill.created_at).toLocaleDateString()}
+                                                            </td>
+                                                            <td>
+                                                                <button
                                                                     className="btn btn-sm btn-outline-primary"
                                                                     title="View bill details"
+                                                                    onClick={() => handleViewBill(bill.id)}
                                                                 >
                                                                     <i className="bi bi-eye"></i>
                                                                     <span className="d-none d-sm-inline ms-1">View</span>
                                                                 </button>
-                                                                <button 
-                                                                    className="btn btn-sm btn-outline-warning"
-                                                                    title="Edit bill"
-                                                                >
-                                                                    <i className="bi bi-pencil"></i>
-                                                                    <span className="d-none d-sm-inline ms-1">Edit</span>
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="mt-4">
+                                            {searchTerm ? (
+                                                <Pagination
+                                                    page={searchPage}
+                                                    pageSize={pageSize}
+                                                    total={filteredBills.length}
+                                                    onPageChange={setSearchPage}
+                                                    showInfo={true}
+                                                />
+                                            ) : (
+                                                <Pagination
+                                                    page={page}
+                                                    pageSize={pageSize}
+                                                    total={total}
+                                                    onPageChange={setPage}
+                                                    showInfo={true}
+                                                />
+                                            )}
+                                        </div>
+                                    </>
                                 )}
                             </div>
                         </div>

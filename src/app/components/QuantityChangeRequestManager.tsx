@@ -4,13 +4,15 @@ import { Card, Button, Badge, Modal, Form, Alert, Row, Col } from "react-bootstr
 import { useApiCall } from "../utils/apiUtils";
 import ErrorDisplay from "./ErrorDisplay";
 
-interface VoidRequest {
+interface QuantityChangeRequest {
   id: number;
   bill_id: number;
   item_id: number;
   initiated_by: number;
   approved_by?: number;
   status: string;
+  current_quantity: number;
+  requested_quantity: number;
   reason: string;
   approval_notes?: string;
   created_at: string;
@@ -18,6 +20,8 @@ interface VoidRequest {
   paper_approval_received: boolean;
   paper_approval_date?: string;
   paper_approval_notes?: string;
+  current_bill_total: number;
+  new_bill_total: number;
   initiator: {
     id: number;
     firstName: string;
@@ -47,19 +51,23 @@ interface VoidRequest {
       name: string;
     };
   };
+  item: {
+    id: number;
+    name: string;
+  };
 }
 
-interface VoidRequestManagerProps {
+interface QuantityChangeRequestManagerProps {
   userRole: string;
 }
 
-export default function VoidRequestManager({ userRole }: VoidRequestManagerProps) {
+export default function QuantityChangeRequestManager({ userRole }: QuantityChangeRequestManagerProps) {
   const apiCall = useApiCall();
-  const [voidRequests, setVoidRequests] = useState<VoidRequest[]>([]);
+  const [quantityChangeRequests, setQuantityChangeRequests] = useState<QuantityChangeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [errorDetails, setErrorDetails] = useState<any>(null);
-  const [selectedRequest, setSelectedRequest] = useState<VoidRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<QuantityChangeRequest | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [approvalNotes, setApprovalNotes] = useState("");
@@ -69,16 +77,17 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    fetchVoidRequests();
+    fetchQuantityChangeRequests();
   }, []);
 
-  const fetchVoidRequests = async () => {
-    const result = await apiCall("/api/bills/void-requests");
+  const fetchQuantityChangeRequests = async () => {
+    setLoading(true);
+    const result = await apiCall("/api/bills/quantity-change-requests");
 
     if (result.status === 200) {
-      setVoidRequests(result.data.voidRequests);
+      setQuantityChangeRequests(result.data.quantityChangeRequests || []);
     } else {
-      setError(result.error || "Failed to fetch void requests");
+      setError(result.error || "Failed to fetch quantity change requests");
       setErrorDetails(result.errorDetails);
     }
 
@@ -89,8 +98,8 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
     if (!selectedRequest) return;
 
     setActionLoading(true);
-    // Use the correct endpoint format: /api/bills/[billId]/items/[itemId]/void-approve
-    const result = await apiCall(`/api/bills/${selectedRequest.bill_id}/items/${selectedRequest.item_id}/void-approve`, {
+    // Use the correct endpoint format: /api/bills/[billId]/items/[itemId]/quantity-change-approve
+    const result = await apiCall(`/api/bills/${selectedRequest.bill_id}/items/${selectedRequest.item_id}/quantity-change-approve`, {
       method: "POST",
       body: JSON.stringify({
         action: "approve",
@@ -101,14 +110,14 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
     });
 
     if (result.status === 200) {
-      await fetchVoidRequests();
+      await fetchQuantityChangeRequests();
       setShowApprovalModal(false);
       setSelectedRequest(null);
       setApprovalNotes("");
       setPaperApprovalReceived(false);
       setPaperApprovalNotes("");
     } else {
-      setError(result.error || "Failed to approve void request");
+      setError(result.error || "Failed to approve quantity change request");
       setErrorDetails(result.errorDetails);
     }
 
@@ -119,8 +128,8 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
     if (!selectedRequest) return;
 
     setActionLoading(true);
-    // Use the correct endpoint format: /api/bills/[billId]/items/[itemId]/void-approve with action=reject
-    const result = await apiCall(`/api/bills/${selectedRequest.bill_id}/items/${selectedRequest.item_id}/void-approve`, {
+    // Use the correct endpoint format: /api/bills/[billId]/items/[itemId]/quantity-change-approve with action=reject
+    const result = await apiCall(`/api/bills/${selectedRequest.bill_id}/items/${selectedRequest.item_id}/quantity-change-approve`, {
       method: "POST",
       body: JSON.stringify({
         action: "reject",
@@ -129,12 +138,12 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
     });
 
     if (result.status === 200) {
-      await fetchVoidRequests();
+      await fetchQuantityChangeRequests();
       setShowRejectionModal(false);
       setSelectedRequest(null);
       setRejectionNotes("");
     } else {
-      setError(result.error || "Failed to reject void request");
+      setError(result.error || "Failed to reject quantity change request");
       setErrorDetails(result.errorDetails);
     }
 
@@ -163,7 +172,7 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
-        <p className="mt-2 text-muted">Loading void requests...</p>
+        <p className="mt-2 text-muted">Loading quantity change requests...</p>
       </div>
     );
   }
@@ -181,26 +190,26 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
 
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h5 className="mb-0">
-          <i className="bi bi-exclamation-triangle me-2 text-warning"></i>
-          Void Bill Requests
+          <i className="bi bi-arrow-left-right me-2 text-warning"></i>
+          Quantity Change Requests
         </h5>
-        <Button variant="outline-primary" size="sm" onClick={fetchVoidRequests}>
+        <Button variant="outline-primary" size="sm" onClick={fetchQuantityChangeRequests}>
           <i className="bi bi-arrow-clockwise me-1"></i>
           Refresh
         </Button>
       </div>
 
-      {voidRequests.length === 0 ? (
+      {quantityChangeRequests.length === 0 ? (
         <Card>
           <Card.Body className="text-center py-4">
             <i className="bi bi-check-circle text-success" style={{ fontSize: "3rem" }}></i>
-            <h6 className="mt-3 mb-1">No Pending Void Requests</h6>
-            <p className="text-muted mb-0">All void requests have been processed</p>
+            <h6 className="mt-3 mb-1">No Pending Quantity Change Requests</h6>
+            <p className="text-muted mb-0">All quantity change requests have been processed</p>
           </Card.Body>
         </Card>
       ) : (
         <div className="row">
-          {voidRequests.map((request) => (
+          {quantityChangeRequests.map((request) => (
             <div key={request.id} className="col-md-6 col-lg-4 mb-3">
               <Card className="h-100">
                 <Card.Header className="d-flex justify-content-between align-items-center">
@@ -218,14 +227,27 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
                   <div className="mb-2">
                     <small className="text-muted">Item:</small>
                     <div className="fw-semibold">
-                      {request.bill.item?.name || "Unknown Item"}
+                      {request.item?.name || "Unknown Item"}
                     </div>
                   </div>
 
                   <div className="mb-2">
-                    <small className="text-muted">Bill Total:</small>
+                    <small className="text-muted">Quantity Change:</small>
                     <div className="fw-semibold text-primary">
-                      KES {(Number(request.bill.total) || 0).toFixed(2)}
+                      {request.current_quantity} → {request.requested_quantity}
+                    </div>
+                  </div>
+
+                  <div className="mb-2">
+                    <small className="text-muted">Current Bill Total:</small>
+                    <div className="fw-semibold text-muted">
+                      KES {(Number(request.current_bill_total || request.bill.total) || 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="mb-2">
+                    <small className="text-muted">New Bill Total:</small>
+                    <div className="fw-semibold text-success">
+                      KES {(Number(request.new_bill_total || request.bill.total) || 0).toFixed(2)}
                     </div>
                   </div>
 
@@ -284,7 +306,7 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
         <Modal.Header closeButton>
           <Modal.Title>
             <i className="bi bi-check-circle me-2 text-success"></i>
-            Approve Void Request
+            Approve Quantity Change Request
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -295,10 +317,16 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
                 <strong>Bill ID:</strong> #{selectedRequest.bill_id}
               </p>
               <p className="mb-1">
-                <strong>Item:</strong> {selectedRequest.bill.item?.name || "Unknown Item"}
+                <strong>Item:</strong> {selectedRequest.item?.name || "Unknown Item"}
               </p>
               <p className="mb-1">
-                <strong>Amount:</strong> KES {(Number(selectedRequest.bill.total) || 0).toFixed(2)}
+                <strong>Quantity Change:</strong> {selectedRequest.current_quantity} → {selectedRequest.requested_quantity}
+              </p>
+              <p className="mb-1">
+                <strong>Current Bill Total:</strong> KES {(Number(selectedRequest.current_bill_total || selectedRequest.bill.total) || 0).toFixed(2)}
+              </p>
+              <p className="mb-1">
+                <strong>New Bill Total:</strong> <span className="text-success fw-bold">KES {(Number(selectedRequest.new_bill_total || selectedRequest.bill.total) || 0).toFixed(2)}</span>
               </p>
               <p className="mb-1">
                 <strong>Requested by:</strong> {selectedRequest.initiator.firstName} {selectedRequest.initiator.lastName}
@@ -373,7 +401,7 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
         <Modal.Header closeButton>
           <Modal.Title>
             <i className="bi bi-x-circle me-2 text-danger"></i>
-            Reject Void Request
+            Reject Quantity Change Request
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -384,10 +412,16 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
                 <strong>Bill ID:</strong> #{selectedRequest.bill_id}
               </p>
               <p className="mb-1">
-                <strong>Item:</strong> {selectedRequest.bill.item?.name || "Unknown Item"}
+                <strong>Item:</strong> {selectedRequest.item?.name || "Unknown Item"}
               </p>
               <p className="mb-1">
-                <strong>Amount:</strong> KES {(Number(selectedRequest.bill.total) || 0).toFixed(2)}
+                <strong>Quantity Change:</strong> {selectedRequest.current_quantity} → {selectedRequest.requested_quantity}
+              </p>
+              <p className="mb-1">
+                <strong>Current Bill Total:</strong> KES {(Number(selectedRequest.current_bill_total || selectedRequest.bill.total) || 0).toFixed(2)}
+              </p>
+              <p className="mb-1">
+                <strong>New Bill Total:</strong> <span className="text-success fw-bold">KES {(Number(selectedRequest.new_bill_total || selectedRequest.bill.total) || 0).toFixed(2)}</span>
               </p>
               <p className="mb-1">
                 <strong>Requested by:</strong> {selectedRequest.initiator.firstName} {selectedRequest.initiator.lastName}
@@ -406,7 +440,7 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
                 rows={3}
                 value={rejectionNotes}
                 onChange={(e) => setRejectionNotes(e.target.value)}
-                placeholder="Please provide a reason for rejecting this void request..."
+                placeholder="Please provide a reason for rejecting this quantity change request..."
                 required
               />
             </Form.Group>
@@ -438,3 +472,4 @@ export default function VoidRequestManager({ userRole }: VoidRequestManagerProps
     </div>
   );
 }
+

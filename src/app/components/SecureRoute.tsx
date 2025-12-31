@@ -11,7 +11,14 @@ export interface DecodedToken {
   exp?: number;
 }
 
-const SecureRoute = ({ children, roleRequired, rolesRequired, allowAnyAuthenticated = false }) => {
+interface SecureRouteProps {
+  children: React.ReactNode;
+  roleRequired?: string;
+  rolesRequired?: string[];
+  allowAnyAuthenticated?: boolean;
+}
+
+const SecureRoute = ({ children, roleRequired, rolesRequired, allowAnyAuthenticated = false }: SecureRouteProps) => {
   const [isClient, setIsClient] = useState(false);
   const router = useRouter();
 
@@ -25,16 +32,16 @@ const SecureRoute = ({ children, roleRequired, rolesRequired, allowAnyAuthentica
     if (!isClient) return;
     const token = localStorage.getItem("token");
     if (!token) {
-      router.push("/login");
+      router.push("/");
     } else {
       const decodedToken = jwt.decode(token) as DecodedToken | null;
       if (!decodedToken) {
-        router.push("/login");
+        router.push("/");
       } else if (!allowAnyAuthenticated) {
         // Support both single role and array of roles
         const allowedRoles = rolesRequired || (roleRequired ? [roleRequired] : []);
         if (allowedRoles.length > 0) {
-          const hasRequiredRole = Array.isArray(decodedToken.roles) && 
+          const hasRequiredRole = Array.isArray(decodedToken.roles) &&
             allowedRoles.some(role => decodedToken.roles.includes(role));
           if (!hasRequiredRole) {
             router.push("/not-authorized");

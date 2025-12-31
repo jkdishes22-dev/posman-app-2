@@ -77,8 +77,9 @@ export default function RoleAwareLayout({ children }) {
                 }
             } catch (error) {
                 console.error("Error decoding token in RoleAwareLayout:", error);
-                // If token is completely invalid, logout properly
-                logout();
+                // Don't logout on decode errors - token might still be valid
+                // Let apiUtils handle token validation on next API call
+                // Only logout if token is actually expired (checked earlier) or missing
                 setRole(null);
                 setIsLoading(false);
                 return;

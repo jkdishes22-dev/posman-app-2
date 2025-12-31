@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
@@ -23,10 +23,11 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
   const { user, logout } = useAuth();
   const { currentStation } = useStation();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     // Set active item and breadcrumbs based on current path
-    const path = window.location.pathname;
+    const path = pathname;
     let activeItemId = "";
     let breadcrumbItems: Array<{ label: string, path: string }> = [];
     const expandedMenuIds: string[] = [];
@@ -85,7 +86,7 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
     setActiveItem(activeItemId);
     setBreadcrumbs(breadcrumbItems);
     setExpandedMenus(expandedMenuIds);
-  }, []);
+  }, [pathname]);
 
   const menuItems = [
     {
@@ -146,12 +147,31 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
     },
   ];
 
-  const handleItemClick = (itemId: string, path: string) => {
+  const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement>) => {
     setActiveItem(itemId);
     router.push(path);
+    // Focus the clicked menu item for better accessibility
+    if (event?.currentTarget) {
+      event.currentTarget.focus();
+    }
   };
 
   const toggleMenu = (menuId: string) => {
+    const menuItem = menuItems.find(item => item.id === menuId);
+
+    // Check if any sub-item is currently active
+    if (menuItem?.submenu) {
+      const hasActiveSubItem = menuItem.submenu.some(
+        subItem => activeItem === subItem.id
+      );
+
+      // Prevent collapse if a sub-item is active
+      if (hasActiveSubItem && expandedMenus.includes(menuId)) {
+        return; // Don't allow collapse
+      }
+    }
+
+    // Normal toggle behavior
     setExpandedMenus(prev =>
       prev.includes(menuId)
         ? prev.filter(id => id !== menuId)
@@ -261,7 +281,7 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
                           <li key={subItem.id} className="nav-item mb-1">
                             <button
                               className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === subItem.id ? "active" : ""}`}
-                              onClick={() => handleItemClick(subItem.id, subItem.path)}
+                              onClick={(e) => handleItemClick(subItem.id, subItem.path, e)}
                               style={{
                                 background: activeItem === subItem.id ? "var(--bs-primary)" : "transparent",
                                 border: "none",
@@ -281,7 +301,7 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
                 ) : (
                   <button
                     className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""}`}
-                    onClick={() => handleItemClick(item.id, item.path)}
+                    onClick={(e) => handleItemClick(item.id, item.path, e)}
                     style={{
                       background: activeItem === item.id ? "var(--bs-primary)" : "transparent",
                       border: "none",

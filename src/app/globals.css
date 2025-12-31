@@ -833,3 +833,12 @@
         border: 1px solid #000;
     }
 }
+
+/* Fix react-datepicker calendar overlay z-index */
+.react-datepicker-popper {
+    z-index: 9999 !important;
+}
+
+.react-datepicker__portal {
+    z-index: 9999 !important;
+}

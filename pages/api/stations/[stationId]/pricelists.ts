@@ -5,6 +5,7 @@ import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { StationService } from "@backend/service/StationService";
 import { PricelistService } from "@backend/service/PricelistService";
 import permissions from "@backend/config/permissions";
+import { cache } from "@backend/utils/cache";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { stationId } = req.query;
@@ -22,15 +23,24 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         // Get all pricelists for a station
         await authMiddleware(
           authorize([permissions.CAN_VIEW_PRICELIST])(async (req, res) => {
+            // Check cache first (using shared cache utility)
+            const cacheKey = `api_station_pricelists_${stationId}`;
+            const cached = cache.get<any>(cacheKey);
+            if (cached !== null) {
+              // Set cache headers for browser caching
+              res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+              res.setHeader("ETag", `"station-pricelists-${stationId}-${Date.now()}"`);
+              return res.status(200).json(cached);
+            }
+
             const pricelistService = new PricelistService(req.db);
             const stationService = new StationService(req.db);
 
-            const pricelists = await pricelistService.getPricelistsByStation(Number(stationId));
-            console.log("Station pricelists API - Raw pricelists:", pricelists);
-
-            // Get station information
-            const station = await stationService.getStationById(Number(stationId));
-            console.log("Station pricelists API - Station info:", station);
+            // Fetch pricelists and station name in parallel
+            const [pricelists, station] = await Promise.all([
+              pricelistService.getPricelistsByStation(Number(stationId)),
+              stationService.getStationById(Number(stationId))
+            ]);
 
             // Transform the data to match the expected format
             const transformedPricelists = pricelists.map(pricelist => ({
@@ -45,15 +55,19 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
               }
             }));
 
-            console.log("Station pricelists API - Final response:", {
+            const response = {
               message: "Pricelists fetched successfully",
               pricelists: transformedPricelists
-            });
+            };
 
-            res.status(200).json({
-              message: "Pricelists fetched successfully",
-              pricelists: transformedPricelists
-            });
+            // Cache the result (using shared cache utility)
+            cache.set(cacheKey, response);
+            
+            // Set cache headers
+            res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+            res.setHeader("ETag", `"station-pricelists-${stationId}-${Date.now()}"`);
+
+            res.status(200).json(response);
           })
         )(req, res);
         break;
@@ -69,6 +83,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             }
 
             await stationService.linkPricelistToStation(Number(stationId), Number(pricelistId));
+            
+            // Invalidate cache after linking pricelist
+            cache.invalidate(`api_station_pricelists_${stationId}`);
+            cache.invalidate(`station_pricelists_${stationId}`);
+            cache.invalidate(`station_${stationId}`);
+            
             res.status(200).json({
               message: "Pricelist linked to station successfully"
             });
@@ -87,6 +107,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             }
 
             await stationService.unlinkPricelistFromStation(Number(stationId), Number(pricelistId));
+            
+            // Invalidate cache after unlinking pricelist
+            cache.invalidate(`api_station_pricelists_${stationId}`);
+            cache.invalidate(`station_pricelists_${stationId}`);
+            cache.invalidate(`station_${stationId}`);
+            
             res.status(200).json({
               message: "Pricelist unlinked from station successfully"
             });

@@ -62,9 +62,13 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
     }, []);
 
 
-    const handleItemClick = (itemId: string, path: string) => {
+    const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement>) => {
         setActiveItem(itemId);
         router.push(path);
+        // Focus the clicked menu item for better accessibility
+        if (event?.currentTarget) {
+            event.currentTarget.focus();
+        }
     };
 
     const handleBreadcrumbClick = (path: string) => {
@@ -156,7 +160,7 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
                             <li key={item.id} className="nav-item mb-2">
                                 <button
                                     className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""}`}
-                                    onClick={() => handleItemClick(item.id, item.path)}
+                                    onClick={(e) => handleItemClick(item.id, item.path, e)}
                                     style={{
                                         background: activeItem === item.id ? "var(--bs-primary)" : "transparent",
                                         border: "none",

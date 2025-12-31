@@ -4,6 +4,7 @@ import { Pricelist, PriceListStatus } from "@backend/entities/Pricelist";
 import { StationPricelist, StationPricelistStatus } from "@backend/entities/StationPricelist";
 import { UserStation, UserStationStatus } from "@backend/entities/UserStation";
 import { DataSource, Repository } from "typeorm";
+import { cache } from "@backend/utils/cache";
 
 export class StationService {
   private stationRepository: Repository<Station>;
@@ -23,20 +24,37 @@ export class StationService {
       ...station,
     };
     const newStation = this.stationRepository.create(updatedRequest);
-    return await this.stationRepository.save(newStation);
+    const saved = await this.stationRepository.save(newStation);
+
+    // Invalidate cache after creating station
+    cache.invalidate("stations");
+
+    return saved;
   }
 
   async fetchStations(options: Record<string, any>) {
+    const cacheKey = `stations_${JSON.stringify(options)}`;
+
+    // Try cache first
+    const cached = cache.get<Station[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const queryBuilder = this.stationRepository.createQueryBuilder("station");
 
     if (options.status) {
       queryBuilder.where("station.status = :status", { status: options.status });
     }
 
-    return await queryBuilder
+    const result = await queryBuilder
       .select(["station.id", "station.name", "station.status"])
       .orderBy("station.name", "ASC")
       .getMany();
+
+    // Cache the result
+    cache.set(cacheKey, result);
+    return result;
   }
 
   async getEnabledStations() {
@@ -48,6 +66,14 @@ export class StationService {
   }
 
   async fetchStationPricelist(stationId: number) {
+    const cacheKey = `station_pricelist_${stationId}`;
+
+    // Try cache first
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const query = `
         SELECT 
             s.id,
@@ -59,10 +85,22 @@ export class StationService {
         WHERE 
           s.id = ?
       `;
-    return await AppDataSource.query(query, [stationId]);
+    const result = await AppDataSource.query(query, [stationId]);
+
+    // Cache the result
+    cache.set(cacheKey, result);
+    return result;
   }
 
   async fetchStationUsers(stationId: number) {
+    const cacheKey = `station_users_${stationId}`;
+
+    // Try cache first
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const query = `
         SELECT 
             u.id,
@@ -79,6 +117,9 @@ export class StationService {
           s.id = ?
       `;
     const result = await AppDataSource.query(query, [stationId]);
+
+    // Cache the result
+    cache.set(cacheKey, result);
     return result;
   }
 
@@ -88,8 +129,16 @@ export class StationService {
    * Get user's default station
    */
   async getUserDefaultStation(userId: number): Promise<Station | null> {
+    const cacheKey = `user_default_station_${userId}`;
+
+    // Try cache first
+    const cached = cache.get<Station | null>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     try {
-      // Optimized query with explicit join and select
+      // Optimized query with explicit join and select (only fetch needed fields)
       const userStation = await this.userStationRepository
         .createQueryBuilder("userStation")
         .innerJoinAndSelect("userStation.station", "station")
@@ -97,9 +146,19 @@ export class StationService {
         .andWhere("userStation.is_default = :isDefault", { isDefault: true })
         .andWhere("userStation.status = :status", { status: UserStationStatus.ACTIVE })
         .andWhere("station.status = :stationStatus", { stationStatus: StationStatus.ACTIVE })
+        .select([
+          "userStation.id",
+          "station.id",
+          "station.name",
+          "station.status"
+        ])
         .getOne();
 
-      return userStation?.station || null;
+      const result = userStation?.station || null;
+
+      // Cache the result
+      cache.set(cacheKey, result);
+      return result;
     } catch (error) {
       console.error("Error fetching user default station:", error);
       // Return null instead of throwing to prevent cascading failures
@@ -122,6 +181,10 @@ export class StationService {
       { user: { id: userId }, station: { id: stationId } },
       { isDefault: true }
     );
+
+    // Invalidate cache
+    cache.invalidate(`user_default_station_${userId}`);
+    cache.invalidate("user_stations");
   }
 
   /**
@@ -186,21 +249,41 @@ export class StationService {
   }
 
   /**
-   * Get user's available stations
+   * Get user's available stations (optimized query)
    */
   async getUserStations(userId: number): Promise<Station[]> {
-    // Get all user stations and filter by status
-    const allUserStations = await this.userStationRepository.find({
+    const cacheKey = `user_stations_${userId}`;
+
+    // Try cache first
+    const cached = cache.get<Station[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
+    // Optimized query: filter by status in database instead of JavaScript
+    const activeUserStations = await this.userStationRepository.find({
       where: {
-        user: { id: userId }
+        user: { id: userId },
+        status: UserStationStatus.ACTIVE
       },
-      relations: ["station"]
+      relations: ["station"],
+      select: {
+        id: true,
+        isDefault: true,
+        status: true,
+        station: {
+          id: true,
+          name: true,
+          status: true
+        }
+      }
     });
 
-    // Filter by status
-    const activeUserStations = allUserStations.filter(us => us.status === UserStationStatus.ACTIVE);
+    const result = activeUserStations.map(us => us.station);
 
-    return activeUserStations.map(us => us.station);
+    // Cache the result
+    cache.set(cacheKey, result);
+    return result;
   }
 
   // Link a pricelist to a station
@@ -241,6 +324,11 @@ export class StationService {
     });
 
     await this.stationPricelistRepository.save(stationPricelist);
+
+    // Invalidate cache
+    cache.invalidate(`station_pricelists_${stationId}`);
+    cache.invalidate(`station_default_pricelist_${stationId}`);
+    cache.invalidate(`pricelist_stations_${pricelistId}`);
   }
 
   // Unlink a pricelist from a station
@@ -253,6 +341,11 @@ export class StationService {
     if (result.affected === 0) {
       throw new Error("Pricelist not found or not linked to this station");
     }
+
+    // Invalidate cache
+    cache.invalidate(`station_pricelists_${stationId}`);
+    cache.invalidate(`station_default_pricelist_${stationId}`);
+    cache.invalidate(`pricelist_stations_${pricelistId}`);
   }
 
   // Set a pricelist as default for a station
@@ -272,6 +365,11 @@ export class StationService {
     if (result.affected === 0) {
       throw new Error("Pricelist not found or not linked to this station");
     }
+
+    // Invalidate cache
+    cache.invalidate(`station_pricelists_${stationId}`);
+    cache.invalidate(`station_default_pricelist_${stationId}`);
+    cache.invalidate(`pricelist_stations_${pricelistId}`);
   }
 
   // Remove default pricelist for a station
@@ -280,17 +378,29 @@ export class StationService {
       { station: { id: stationId }, is_default: true },
       { is_default: false }
     );
+
+    // Invalidate cache
+    cache.invalidate(`station_pricelists_${stationId}`);
+    cache.invalidate(`station_default_pricelist_${stationId}`);
   }
 
   // Get all pricelists for a station
   async getPricelistsForStation(stationId: number): Promise<any[]> {
+    const cacheKey = `station_pricelists_${stationId}`;
+
+    // Try cache first
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const stationPricelists = await this.stationPricelistRepository.find({
       where: { station: { id: stationId } },
       relations: ["pricelist"],
       order: { is_default: "DESC", created_at: "ASC" }
     });
 
-    return stationPricelists.map(sp => ({
+    const result = stationPricelists.map(sp => ({
       id: sp.pricelist.id,
       name: sp.pricelist.name,
       status: sp.pricelist.status,
@@ -300,10 +410,22 @@ export class StationService {
       created_at: sp.created_at,
       updated_at: sp.updated_at
     }));
+
+    // Cache the result
+    cache.set(cacheKey, result);
+    return result;
   }
 
   // Get default pricelist for a station
   async getDefaultPricelistForStation(stationId: number): Promise<any | null> {
+    const cacheKey = `station_default_pricelist_${stationId}`;
+
+    // Try cache first
+    const cached = cache.get<any | null>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const defaultPricelist = await this.stationPricelistRepository.findOne({
       where: {
         station: { id: stationId },
@@ -314,10 +436,11 @@ export class StationService {
     });
 
     if (!defaultPricelist) {
+      cache.set(cacheKey, null);
       return null;
     }
 
-    return {
+    const result = {
       id: defaultPricelist.pricelist.id,
       name: defaultPricelist.pricelist.name,
       status: defaultPricelist.pricelist.status,
@@ -325,6 +448,10 @@ export class StationService {
       station_pricelist_status: defaultPricelist.status,
       notes: defaultPricelist.notes
     };
+
+    // Cache the result
+    cache.set(cacheKey, result);
+    return result;
   }
 
   // Update pricelist status for a station
@@ -345,17 +472,30 @@ export class StationService {
     if (result.affected === 0) {
       throw new Error("Pricelist not found or not linked to this station");
     }
+
+    // Invalidate cache
+    cache.invalidate(`station_pricelists_${stationId}`);
+    cache.invalidate(`station_default_pricelist_${stationId}`);
+    cache.invalidate(`pricelist_stations_${pricelistId}`);
   }
 
   // Get all stations using a pricelist
   async getStationsUsingPricelist(pricelistId: number): Promise<any[]> {
+    const cacheKey = `pricelist_stations_${pricelistId}`;
+
+    // Try cache first
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const stationPricelists = await this.stationPricelistRepository.find({
       where: { pricelist: { id: pricelistId } },
       relations: ["station"],
       order: { created_at: "ASC" }
     });
 
-    return stationPricelists.map(sp => ({
+    const result = stationPricelists.map(sp => ({
       id: sp.station.id,
       name: sp.station.name,
       status: sp.station.status,
@@ -364,6 +504,10 @@ export class StationService {
       notes: sp.notes,
       linked_at: sp.created_at
     }));
+
+    // Cache the result
+    cache.set(cacheKey, result);
+    return result;
   }
 
   // User management methods
@@ -393,6 +537,11 @@ export class StationService {
     });
 
     await this.userStationRepository.save(userStation);
+
+    // Invalidate cache
+    cache.invalidate(`station_users_${stationId}`);
+    cache.invalidate("user_stations");
+    cache.invalidate("available_users_station");
   }
 
   /**
@@ -407,6 +556,11 @@ export class StationService {
     if (result.affected === 0) {
       throw new Error("User is not linked to this station");
     }
+
+    // Invalidate cache
+    cache.invalidate(`station_users_${stationId}`);
+    cache.invalidate("user_stations");
+    cache.invalidate("available_users_station");
   }
 
   /**
@@ -421,6 +575,11 @@ export class StationService {
     if (result.affected === 0) {
       throw new Error("User is not linked to this station");
     }
+
+    // Invalidate cache
+    cache.invalidate(`station_users_${stationId}`);
+    cache.invalidate("user_stations");
+    cache.invalidate("available_users_station");
   }
 
   /**
@@ -435,6 +594,11 @@ export class StationService {
     if (result.affected === 0) {
       throw new Error("User is not linked to this station");
     }
+
+    // Invalidate cache
+    cache.invalidate(`station_users_${stationId}`);
+    cache.invalidate("user_stations");
+    cache.invalidate("available_users_station");
   }
 
 
@@ -443,6 +607,14 @@ export class StationService {
    * Only returns users with 'sales' or 'admin' roles who are not locked
    */
   async getAvailableUsers(stationId: number): Promise<any[]> {
+    const cacheKey = `available_users_station_${stationId}`;
+
+    // Try cache first
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
     const query = `
       SELECT DISTINCT
         u.id,
@@ -463,17 +635,45 @@ export class StationService {
       ORDER BY u.firstName, u.lastName
     `;
 
-    return await AppDataSource.query(query, [stationId]);
+    const result = await AppDataSource.query(query, [stationId]);
+
+    // Cache the result
+    cache.set(cacheKey, result);
+    return result;
   }
 
   async getStationById(id: number): Promise<Station | null> {
-    return await this.stationRepository.findOne({
+    const cacheKey = `station_${id}`;
+
+    // Try cache first
+    const cached = cache.get<Station | null>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
+    // Optimized: Only select needed fields, avoid loading full relations
+    const result = await this.stationRepository.findOne({
       where: { id },
-      relations: ["stationPricelists", "stationPricelists.pricelist"],
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        description: true,
+        created_at: true,
+        updated_at: true
+      }
     });
+
+    // Cache the result
+    cache.set(cacheKey, result);
+    return result;
   }
 
   async updateStationStatus(id: number, status: string): Promise<void> {
     await this.stationRepository.update(id, { status: status as StationStatus });
+
+    // Invalidate cache
+    cache.invalidate("stations");
+    cache.invalidate(`station_${id}`);
   }
 }

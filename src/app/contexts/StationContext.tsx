@@ -1,10 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
-import { Station } from '../types/types';
-import { useAuth } from './AuthContext';
-import { useApiCall } from '../utils/apiUtils';
-import { ApiErrorResponse } from '../utils/errorUtils';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import { Station } from "../types/types";
+import { useAuth } from "./AuthContext";
+import { useApiCall } from "../utils/apiUtils";
+import { ApiErrorResponse } from "../utils/errorUtils";
 
 interface StationContextType {
     currentStation: Station | null;
@@ -24,7 +24,7 @@ interface StationProviderProps {
 }
 
 export const StationProvider: React.FC<StationProviderProps> = ({ children }) => {
-    const { isAuthenticated, logout, checkAuth } = useAuth();
+    const { isAuthenticated } = useAuth();
     const [currentStation, setCurrentStation] = useState<Station | null>(null);
     const [availableStations, setAvailableStations] = useState<Station[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -36,60 +36,80 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     const apiCall = useApiCall();
 
     // Fetch user's available stations
+    // Note: 401 (token expired) is handled by apiUtils - it will logout automatically
+    // 403 (permission denied) means user doesn't have access - return empty array, don't logout
     const fetchUserStations = useCallback(async (): Promise<Station[]> => {
-        if (!checkAuth()) {
-            throw new Error("Authentication expired");
-        }
-
         const result = await apiCall("/api/users/me/stations");
         if (result.status === 200) {
             return result.data.stations || [];
+        } else if (result.status === 403) {
+            // 403 Forbidden: User is authenticated but doesn't have permission
+            // This is fine - some users (e.g., admin) might not have stations assigned
+            console.warn("User does not have permission to access stations (non-critical):", result.error);
+            return [];
+        } else if (result.status === 401) {
+            // 401 Unauthorized: Token expired/invalid - apiUtils should handle logout
+            // If we get here, apiUtils didn't handle it, so set error and return empty array
+            console.warn("Authentication failed when fetching stations:", result.error);
+            setError(result.error || "Authentication failed");
+            setErrorDetails(result.errorDetails);
+            return [];
         } else {
-            if (result.status === 401) {
-                // Token is invalid, logout user
-                logout();
-                throw new Error("Authentication expired");
-            }
-            throw new Error(result.error || "Failed to fetch stations");
+            // Other errors (500, etc.)
+            console.warn("Failed to fetch stations:", result.error);
+            setError(result.error || "Failed to fetch stations");
+            setErrorDetails(result.errorDetails);
+            return [];
         }
-    }, [checkAuth, logout, apiCall]);
+    }, [apiCall]);
 
     // Get user's default station
+    // Note: 401 (token expired) is handled by apiUtils - it will logout automatically
+    // 403 (permission denied) means user doesn't have access - return null, show error, don't logout
     const fetchDefaultStation = useCallback(async (): Promise<Station | null> => {
-        if (!checkAuth()) {
-            throw new Error("Authentication expired");
-        }
-
         const result = await apiCall("/api/users/me/default-station");
         if (result.status === 200) {
             return result.data.station || null;
+        } else if (result.status === 403) {
+            // 403 Forbidden: User is authenticated but doesn't have permission
+            console.warn("User does not have permission to access default station (non-critical):", result.error);
+            setError(result.error || "You do not have permission to access default station");
+            setErrorDetails(result.errorDetails);
+            return null;
+        } else if (result.status === 401) {
+            // 401 Unauthorized: Token expired/invalid - apiUtils should handle logout
+            // If we get here, apiUtils didn't handle it, so set error and return null
+            console.warn("Authentication failed when fetching default station:", result.error);
+            setError(result.error || "Authentication failed");
+            setErrorDetails(result.errorDetails);
+            return null;
+        } else if (result.status === 404) {
+            return null; // No default station set
         } else {
-            if (result.status === 401) {
-                // Token is invalid, logout user
-                logout();
-                throw new Error("Authentication expired");
-            }
-            if (result.status === 404) {
-                return null; // No default station set
-            }
-            throw new Error(result.error || "Failed to fetch default station");
+            // Other errors (500, etc.)
+            console.warn("Failed to fetch default station:", result.error);
+            setError(result.error || "Failed to fetch default station");
+            setErrorDetails(result.errorDetails);
+            return null;
         }
-    }, [checkAuth, logout, apiCall]);
+    }, [apiCall]);
 
     // Validate user access to a station
     const validateStationAccess = async (stationId: number): Promise<boolean> => {
-        if (!checkAuth()) {
-            return false;
-        }
-
         try {
             const result = await apiCall(`/api/validation/user-station-access?stationId=${stationId}`);
             if (result.status === 200) {
                 return result.data.hasAccess || false;
+            } else if (result.status === 403) {
+                // 403 Forbidden: User is authenticated but doesn't have permission
+                // This is fine - just return false
+                return false;
+            } else if (result.status === 401) {
+                // 401 Unauthorized: Token expired/invalid - apiUtils should handle logout
+                // Just return false here
+                return false;
             } else {
-                if (result.status === 401) {
-                    logout();
-                }
+                // Other errors
                 return false;
             }
         } catch (error) {
@@ -108,24 +128,64 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
         setIsRefreshing(true);
         setIsLoading(true);
         setError(null);
+        setErrorDetails(null);
 
         try {
             // Fetch stations
+            // Note: 401 (token expired) is handled by apiUtils - it will logout automatically
+            // 403 (permission denied) means user doesn't have access - return empty array, show error, don't logout
             const stationsResult = await apiCall("/api/users/me/stations");
-            if (stationsResult.status === 401) {
-                localStorage.removeItem("token");
-                localStorage.removeItem("user");
-                window.location.href = "/";
-                return;
+            let stations: Station[] = [];
+
+            if (stationsResult.status === 200) {
+                stations = stationsResult.data.stations || [];
+            } else if (stationsResult.status === 403) {
+                // 403 Forbidden: User is authenticated but doesn't have permission
+                // This is fine - some users (e.g., admin) might not have stations assigned
+                console.warn("User does not have permission to access stations (non-critical):", stationsResult.error);
+                setError(stationsResult.error || "You do not have permission to access stations");
+                setErrorDetails(stationsResult.errorDetails);
+                stations = [];
+            } else if (stationsResult.status === 401) {
+                // 401 Unauthorized: Token expired/invalid - apiUtils should handle logout
+                // If we get here, apiUtils didn't handle it, so set error and let it propagate
+                setError(stationsResult.error || "Authentication failed");
+                setErrorDetails(stationsResult.errorDetails);
+                stations = [];
+            } else {
+                // Other errors (500, etc.) - log but don't block
+                console.warn("Failed to fetch stations (non-blocking):", stationsResult.error);
+                setError(stationsResult.error || "Failed to fetch stations");
+                setErrorDetails(stationsResult.errorDetails);
+                stations = [];
             }
 
-            const stations = stationsResult.status === 200 ? (stationsResult.data.stations || []) : [];
-
-            // Fetch default station
-            const defaultResult = await apiCall("/api/users/me/default-station");
-            let defaultStation = null;
-            if (defaultResult.status === 200) {
-                defaultStation = defaultResult.data.station || null;
+            // Fetch default station - handle errors gracefully
+            let defaultStation: Station | null = null;
+            try {
+                const defaultResult = await apiCall("/api/users/me/default-station");
+                if (defaultResult.status === 200) {
+                    defaultStation = defaultResult.data.station || null;
+                } else if (defaultResult.status === 403) {
+                    // 403 Forbidden: User is authenticated but doesn't have permission
+                    console.warn("User does not have permission to access default station (non-critical):", defaultResult.error);
+                    defaultStation = null;
+                } else if (defaultResult.status === 401) {
+                    // 401 Unauthorized: Token expired/invalid - apiUtils should handle logout
+                    // If we get here, just treat as no default station
+                    console.warn("Authentication failed when fetching default station:", defaultResult.error);
+                    defaultStation = null;
+                } else if (defaultResult.status === 404) {
+                    defaultStation = null;
+                } else {
+                    // Non-critical error
+                    console.warn("Failed to fetch default station (non-blocking):", defaultResult.error);
+                    defaultStation = null;
+                }
+            } catch (defaultErr) {
+                // Non-critical error
+                console.warn("Error fetching default station (non-blocking):", defaultErr);
+                defaultStation = null;
             }
 
             setAvailableStations(stations);
@@ -139,13 +199,15 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
                 setCurrentStation(null);
             }
         } catch (err: any) {
-            setError(err.message || "Failed to load stations");
+            // Only log error, don't logout - user might just not have stations
             console.error("Error refreshing stations:", err);
+            setError(err.message || "Failed to load stations");
+            setErrorDetails({ message: err.message, networkError: true, status: 0 });
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, [isRefreshing]);
+    }, [isRefreshing, apiCall]);
 
     // Set current station and validate access
     const handleSetCurrentStation = async (station: Station | null): Promise<void> => {
@@ -188,39 +250,77 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
             hasInitiallyLoaded.current = true;
 
             const loadStations = async () => {
+                // Token should already be available from auth context
+
+                // Double-check token exists before making API call
+                const token = localStorage.getItem("token");
+                if (!token || token === "null" || token === "undefined" || token.trim() === "") {
+                    console.warn("No valid token found when loading stations");
+                    setError("Authentication token not found");
+                    setIsLoading(false);
+                    return;
+                }
+
                 setIsRefreshing(true);
                 setIsLoading(true);
                 setError(null);
 
                 try {
                     // Fetch stations
+                    // Note: 401 (token expired) is handled by apiUtils - it will logout automatically
+                    // 403 (permission denied) means user doesn't have access - return empty array, show error, don't logout
                     const stationsResult = await apiCall("/api/users/me/stations");
-                    if (stationsResult.status === 401) {
-                        localStorage.removeItem("token");
-                        localStorage.removeItem("user");
-                        window.location.href = "/";
-                        return;
+                    let stations: Station[] = [];
+
+                    if (stationsResult.status === 200) {
+                        stations = stationsResult.data.stations || [];
+                    } else if (stationsResult.status === 403) {
+                        // 403 Forbidden: User is authenticated but doesn't have permission
+                        // This is fine - some users (e.g., admin) might not have stations assigned
+                        console.warn("User does not have permission to access stations (non-critical):", stationsResult.error);
+                        setError(stationsResult.error || "You do not have permission to access stations");
+                        setErrorDetails(stationsResult.errorDetails);
+                        stations = [];
+                    } else if (stationsResult.status === 401) {
+                        // 401 Unauthorized: Token expired/invalid - apiUtils should handle logout
+                        // If we get here, apiUtils didn't handle it, so set error
+                        console.warn("Authentication failed when fetching stations:", stationsResult.error);
+                        setError(stationsResult.error || "Authentication failed");
+                        setErrorDetails(stationsResult.errorDetails);
+                        stations = [];
+                    } else {
+                        // Other errors (500, etc.)
+                        console.warn("Failed to fetch stations (non-blocking):", stationsResult.error);
+                        setError(stationsResult.error || "Failed to fetch stations");
+                        setErrorDetails(stationsResult.errorDetails);
+                        stations = [];
                     }
 
-                    const stations = stationsResult.status === 200 ? (stationsResult.data.stations || []) : [];
-
-                    // Fetch default station with timeout handling
-                    let defaultStation = null;
+                    // Fetch default station - handle errors gracefully
+                    let defaultStation: Station | null = null;
                     try {
-                        // Add timeout to prevent hanging
-                        const timeoutPromise = new Promise((resolve) => {
-                            setTimeout(() => resolve({ status: 408, error: "Request timeout" }), 5000);
-                        });
-
-                        const defaultResultPromise = apiCall("/api/users/me/default-station");
-                        const defaultResult = await Promise.race([defaultResultPromise, timeoutPromise]) as any;
-
+                        const defaultResult = await apiCall("/api/users/me/default-station");
                         if (defaultResult.status === 200) {
                             defaultStation = defaultResult.data?.station || null;
+                        } else if (defaultResult.status === 403) {
+                            // 403 Forbidden: User is authenticated but doesn't have permission
+                            console.warn("User does not have permission to access default station (non-critical):", defaultResult.error);
+                            defaultStation = null;
+                        } else if (defaultResult.status === 401) {
+                            // 401 Unauthorized: Token expired/invalid - apiUtils should handle logout
+                            console.warn("Authentication failed when fetching default station:", defaultResult.error);
+                            defaultStation = null;
+                        } else if (defaultResult.status === 404) {
+                            defaultStation = null; // No default station set
+                        } else {
+                            // Other errors - log but don't block
+                            console.warn("Failed to fetch default station (non-blocking):", defaultResult.error);
+                            defaultStation = null;
                         }
                     } catch (err) {
-                        console.warn("Failed to fetch default station (non-blocking):", err);
-                        // Continue without default station - user can select manually
+                        // Network errors - log but don't block
+                        console.warn("Error fetching default station (non-blocking):", err);
+                        defaultStation = null;
                     }
 
                     setAvailableStations(stations);

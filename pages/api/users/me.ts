@@ -3,6 +3,7 @@ import { authMiddleware } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { UserService } from "@backend/service/UserService";
+import { cache } from "@backend/utils/cache";
 import bcrypt from "bcryptjs";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -11,16 +12,34 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         if (!userId) return res.status(401).json({ error: "Not authenticated" });
         const userService = new UserService(req.db);
         if (req.method === "GET") {
+            // Check cache first (using shared cache utility)
+            const cacheKey = `api_user_me_${userId}`;
+            const cached = cache.get<any>(cacheKey, 60000); // 60 second TTL for user data
+            
+            if (cached !== null) {
+                // Set cache headers for browser caching
+                res.setHeader("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
+                return res.status(200).json(cached);
+            }
+
             // Fetch user with roles and stations
             const user = await userService.getUserWithRolesAndStations(Number(userId));
             if (!user) return res.status(404).json({ error: "User not found" });
-            res.status(200).json({
+            
+            const response = {
                 ...user,
                 created_at: user.created_at,
                 updated_at: user.updated_at,
                 created_by: user.created_by,
                 updated_by: user.updated_by,
-            });
+            };
+
+            // Cache the response (using shared cache utility)
+            cache.set(cacheKey, response, 60000); // 60 second TTL
+            
+            // Set cache headers
+            res.setHeader("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
+            res.status(200).json(response);
         } else if (req.method === "PATCH") {
             const { currentPassword, newPassword } = req.body;
             if (!currentPassword || !newPassword) {
@@ -34,6 +53,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             user.password = await bcrypt.hash(newPassword, 10);
             user.updated_by = Number(userId);
             await req.db.getRepository("User").save(user);
+            
+            // Invalidate user cache after password update
+            const cacheKey = `api_user_me_${userId}`;
+            cache.delete(cacheKey);
+            
             res.status(200).json({ message: "Password updated successfully" });
         } else {
             res.setHeader("Allow", ["GET", "PATCH"]);

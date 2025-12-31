@@ -6,10 +6,16 @@ import { useState, useEffect } from "react";
 import { Card, Row, Col } from "react-bootstrap";
 import { useRouter } from "next/navigation";
 import { useTooltips } from "../hooks/useTooltips";
+import { useAuth } from "../contexts/AuthContext";
+import { useApiCall } from "../utils/apiUtils";
+import { ApiErrorResponse } from "../utils/errorUtils";
+import ErrorDisplay from "../components/ErrorDisplay";
 
 const UserHomePage = () => {
   const router = useRouter();
   useTooltips();
+  const { user } = useAuth();
+  const apiCall = useApiCall();
   const [dashboardData, setDashboardData] = useState({
     todaySales: 0,
     todayBills: 0,
@@ -18,30 +24,137 @@ const UserHomePage = () => {
     recentBills: [],
     topItems: []
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
 
   useEffect(() => {
-    // Simulate loading dashboard data
-    setDashboardData({
-      todaySales: 15,
-      todayBills: 23,
-      pendingBills: 7,
-      totalRevenue: 12500,
-      recentBills: [
-        { id: 1001, amount: 450, status: "completed", time: "2 min ago" },
-        { id: 1002, amount: 320, status: "pending", time: "5 min ago" },
-        { id: 1003, amount: 180, status: "completed", time: "8 min ago" }
-      ],
-      topItems: [
-        { name: "Chicken Burger", quantity: 12, revenue: 2400 },
-        { name: "French Fries", quantity: 8, revenue: 800 },
-        { name: "Coca Cola", quantity: 15, revenue: 750 }
-      ]
-    });
-  }, []);
+    if (user?.id) {
+      loadDashboardData();
+    }
+  }, [user?.id]);
+
+  const loadDashboardData = async () => {
+    if (!user?.id) return;
+
+    setIsLoading(true);
+    setError(null);
+    setErrorDetails(null);
+
+    try {
+      // Fetch today's date for filtering
+      const today = new Date();
+      const todayStr = today.toISOString().split("T")[0];
+
+      // Fetch bills created by the current user for today
+      const billsResult = await apiCall(
+        `/api/bills?date=${todayStr}&billingUserId=${user.id}&page=1&pageSize=1000`
+      );
+
+      if (billsResult.status === 200) {
+        const bills = billsResult.data?.bills || [];
+
+        // Filter bills to only include those created by the current user
+        const userBills = bills.filter(bill => bill.user?.id === user.id);
+
+        // Calculate metrics from user's bills only
+        const todaySales = userBills.length;
+        const todayBills = userBills.length;
+        const pendingBills = userBills.filter(
+          bill => bill.status === "pending" || bill.status === "submitted" || bill.status === "reopened"
+        ).length;
+        const totalRevenue = userBills
+          .filter(bill => bill.status === "closed")
+          .reduce((sum, bill) => sum + (Number(bill.total) || 0), 0);
+
+        // Get recent bills (last 3, sorted by creation date descending)
+        const recentBills = userBills
+          .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+          .slice(0, 3)
+          .map(bill => {
+            const createdDate = new Date(bill.created_at || 0);
+            const now = new Date();
+            const diffMinutes = Math.floor((now.getTime() - createdDate.getTime()) / 60000);
+            let timeAgo = "";
+            if (diffMinutes < 1) timeAgo = "Just now";
+            else if (diffMinutes < 60) timeAgo = `${diffMinutes} min ago`;
+            else if (diffMinutes < 1440) timeAgo = `${Math.floor(diffMinutes / 60)} hour${Math.floor(diffMinutes / 60) > 1 ? "s" : ""} ago`;
+            else timeAgo = `${Math.floor(diffMinutes / 1440)} day${Math.floor(diffMinutes / 1440) > 1 ? "s" : ""} ago`;
+
+            return {
+              id: bill.id,
+              amount: Number(bill.total) || 0,
+              status: bill.status === "closed" ? "completed" : bill.status === "pending" || bill.status === "submitted" || bill.status === "reopened" ? "pending" : "completed",
+              time: timeAgo
+            };
+          });
+
+        // Calculate top items from user's bills
+        const itemCounts: { [key: string]: { quantity: number; revenue: number } } = {};
+        userBills.forEach(bill => {
+          if (bill.bill_items) {
+            bill.bill_items.forEach((item: any) => {
+              const itemName = item.menu_item?.name || item.item_name || "Unknown Item";
+              if (!itemCounts[itemName]) {
+                itemCounts[itemName] = { quantity: 0, revenue: 0 };
+              }
+              itemCounts[itemName].quantity += Number(item.quantity) || 0;
+              itemCounts[itemName].revenue += (Number(item.quantity) || 0) * (Number(item.price) || 0);
+            });
+          }
+        });
+
+        const topItems = Object.entries(itemCounts)
+          .map(([name, data]) => ({ name, quantity: data.quantity, revenue: data.revenue }))
+          .sort((a, b) => b.quantity - a.quantity)
+          .slice(0, 3);
+
+        setDashboardData({
+          todaySales,
+          todayBills,
+          pendingBills,
+          totalRevenue,
+          recentBills,
+          topItems
+        });
+      } else {
+        setError(billsResult.error || "Failed to load dashboard data");
+        setErrorDetails(billsResult.errorDetails);
+      }
+    } catch (error: any) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <RoleAwareLayout>
+        <div className="container-fluid p-0">
+          <div className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
+            <div className="spinner-border text-primary" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </RoleAwareLayout>
+    );
+  }
 
   return (
     <RoleAwareLayout>
       <div className="container-fluid p-0">
+        <ErrorDisplay
+          error={error}
+          errorDetails={errorDetails}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
+          }}
+        />
+
         {/* Dashboard Header */}
         <div className="row mb-1">
           <div className="col-12">

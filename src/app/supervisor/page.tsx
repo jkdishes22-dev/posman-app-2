@@ -35,21 +35,47 @@ export default function SupervisorPage() {
             setError(null);
             setErrorDetails(null);
 
+            // Fetch today's date for filtering
+            const today = new Date();
+            const todayStr = today.toISOString().split("T")[0];
+
             // Load void request stats
-            const result = await apiCall("/api/bills/void-requests/stats");
+            const voidStatsResult = await apiCall("/api/bills/void-requests/stats");
             let pendingVoidRequests = 0;
 
-            if (result.status === 200) {
-                pendingVoidRequests = result.data.stats?.pending || 0;
+            if (voidStatsResult.status === 200) {
+                pendingVoidRequests = voidStatsResult.data.stats?.pending || 0;
             } else {
-                console.warn("Failed to load void request stats:", result.error);
+                console.warn("Failed to load void request stats:", voidStatsResult.error);
+            }
+
+            // Fetch today's bills to calculate sales
+            const billsResult = await apiCall(`/api/bills?date=${todayStr}&page=1&pageSize=1000`);
+
+            let totalSales = 0;
+            let activeBills = 0;
+
+            if (billsResult.status === 200) {
+                const bills = billsResult.data?.bills || [];
+                
+                // Calculate today's sales from closed bills only
+                totalSales = bills
+                    .filter(bill => bill.status === "closed")
+                    .reduce((sum, bill) => sum + (Number(bill.total) || 0), 0);
+
+                // Count active bills (submitted or reopened)
+                activeBills = bills.filter(bill => 
+                    bill.status === "submitted" || bill.status === "reopened"
+                ).length;
+            } else {
+                console.warn("Failed to load today's bills:", billsResult.error);
             }
 
             setStats({
-                totalSales: 15420,
-                activeBills: 8,
-                lowStockItems: 3,
-                teamMembers: 12,
+                totalSales,
+                activeBills,
+                lowStockItems: 3, // TODO: Fetch from inventory API when available
+                teamMembers: 12, // TODO: Fetch from users API when available
                 pendingVoidRequests
             });
             setRecentActivity([
@@ -348,7 +374,12 @@ export default function SupervisorPage() {
                                         <Button
                                             variant="outline-warning"
                                             size="sm"
-                                            onClick={() => router.push("/supervisor/void-requests")}
+                                            style={{ cursor: "pointer" }}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                router.push("/supervisor/void-requests");
+                                            }}
                                         >
                                             <i className="bi bi-eye me-1"></i>
                                             Review

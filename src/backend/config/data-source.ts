@@ -84,6 +84,8 @@ export const AppDataSource = new DataSource({
     connectionLimit: 20,
     idleTimeout: 30000,
     maxIdle: 10,
+    // Only connectTimeout is valid for MySQL2
+    connectTimeout: 60000, // 60 seconds
   },
 });
 

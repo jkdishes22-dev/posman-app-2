@@ -11,6 +11,7 @@ export type VoidRequestStatus = "pending" | "approved" | "rejected";
 export type PaymentType = "CASH" | "MPESA";
 
 export type Item = {
+  allowNegativeInventory?: boolean;
   id: number;
   name: string;
   code: string;
@@ -71,6 +72,7 @@ export type User = {
 };
 
 export type Bill = {
+  bill_number?: string | number;
   id: number;
   total: number;
   status: BillStatus;

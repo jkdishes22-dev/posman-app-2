@@ -16,7 +16,9 @@ declare module "next" {
   }
 }
 
-// const secret = process.env.JWT_SECRET;
+// Use same secret as login endpoint (with fallback)
+const secret = process.env.JWT_SECRET || "4d7f12a75ea5f8fb40e8540264d47610d8aef0af421fa8643e3fdb5eb92f69ba";
+
 interface CachedUserDetails {
   roles: any[];
   permissions: any[];
@@ -28,11 +30,21 @@ export const authMiddleware = (handler) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     try {
       const token = req.headers.authorization?.split(" ")[1];
-      if (!token) {
+      if (!token || token === "null" || token === "undefined") {
         return res.status(401).json({ message: "No token provided" });
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET) as { id: string };
+      // Verify token with better error handling
+      let decoded: { id: string };
+      try {
+        decoded = jwt.verify(token, secret) as { id: string };
+      } catch (verifyError: any) {
+        console.error("JWT verification failed:", verifyError.message);
+        console.error("Token (first 20 chars):", token?.substring(0, 20));
+        console.error("Secret configured:", secret ? "Yes" : "No");
+        throw verifyError;
+      }
+
       req.user = { id: decoded.id, roles: [], permissions: [] };
 
       const cacheKey = `user_${parseInt(req.user.id, 10)}`;
@@ -42,25 +54,35 @@ export const authMiddleware = (handler) => {
         req.user.roles = cachedUserDetails.roles;
         req.user.permissions = cachedUserDetails.permissions;
       } else {
-        const userService = new UserService(req.db);
-        const userDetails = await userService.getUserWithRolesAndPermissions(
-          parseInt(req.user.id, 10),
-        );
-        req.user.roles = userDetails.roles;
-        req.user.permissions = userDetails.permissions;
+        try {
+          const userService = new UserService(req.db);
+          const userDetails = await userService.getUserWithRolesAndPermissions(
+            parseInt(req.user.id, 10),
+          );
+          req.user.roles = userDetails.roles;
+          req.user.permissions = userDetails.permissions;
 
-        // Store user roles and permissions in cache
-        userCache.set(cacheKey, {
-          roles: userDetails.roles,
-          permissions: userDetails.permissions,
-        });
+          // Store user roles and permissions in cache
+          userCache.set(cacheKey, {
+            roles: userDetails.roles,
+            permissions: userDetails.permissions,
+          });
+        } catch (dbError: any) {
+          // Database error loading user details - log but don't fail auth
+          // Token is valid, so allow request to proceed with empty roles/permissions
+          // This prevents logout loops when database calls fail right after login
+          console.error("Error loading user details in auth middleware:", dbError);
+          console.error("User ID from token:", req.user.id);
+          // req.user already has id set, roles and permissions will be empty arrays
+          // This allows the request to proceed - individual endpoints can handle missing data
+        }
       }
       return handler(req, res);
     } catch (error: any) {
       // For invalid token, return 401 but try to include user info if available from token decode attempt
       let userRoles: string[] = [];
       let isAdmin = false;
-      
+
       try {
         // Try to decode token to get user info even if verification failed
         const token = req.headers.authorization?.split(" ")[1];
@@ -74,7 +96,7 @@ export const authMiddleware = (handler) => {
             } else {
               rolesArray = [decoded.roles];
             }
-            
+
             // Extract role names (handle both string roles and object roles with 'name' property)
             userRoles = rolesArray.map((role: any) => {
               if (typeof role === "string") {
@@ -85,16 +107,16 @@ export const authMiddleware = (handler) => {
                 return String(role);
               }
             });
-            
+
             isAdmin = userRoles.some((role: string) => role.toLowerCase() === "admin");
           }
         }
       } catch (decodeError) {
         // Ignore decode errors
       }
-      
-      return res.status(401).json({ 
-        message: "Invalid token", 
+
+      return res.status(401).json({
+        message: "Invalid token",
         object: error,
         userRoles: userRoles.length > 0 ? userRoles : undefined,
         isAdmin: isAdmin || undefined
