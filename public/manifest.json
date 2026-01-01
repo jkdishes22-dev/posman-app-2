@@ -1,24 +1,55 @@
 {
-    "short_name": "posman",
-    "name": "Posman retail",
-    "description": "Posman retail management system",
-    "start_url": "/",
-    "scope": "/",
-    "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#000000",
-    "icons": [
+  "name": "JK PosMan - Retail Management System",
+  "short_name": "JK PosMan",
+  "description": "Point of Sale and retail management system for sales, cashiers, supervisors, and administrators",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#000000",
+  "background_color": "#ffffff",
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icons/JKlogo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/JKlogo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "finance"],
+  "shortcuts": [
+    {
+      "name": "Billing",
+      "short_name": "Billing",
+      "description": "Create new bills",
+      "url": "/home/billing",
+      "icons": [
         {
-            "src": "/icons/JKlogo-512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "any maskable"
-        },
-        {
-            "src": "/icons/JKlogo-192.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "any"
+          "src": "/icons/JKlogo-192.png",
+          "sizes": "192x192"
         }
-    ]
+      ]
+    },
+    {
+      "name": "My Sales",
+      "short_name": "Sales",
+      "description": "View my sales",
+      "url": "/home/my-sales",
+      "icons": [
+        {
+          "src": "/icons/JKlogo-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false
 }
