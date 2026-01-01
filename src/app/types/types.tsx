@@ -19,6 +19,7 @@ export type Item = {
   category: Category;
   pricelistId: number;
   isGroup: boolean;
+  isStock?: boolean;
   pricelistName: number;
   pricelist_item_isEnabled: boolean;
   stationName: string;
@@ -68,7 +69,8 @@ export type User = {
   firstName: string;
   lastName: string;
   username: string;
-  role: Role;
+  role?: Role; // Legacy single role (deprecated)
+  roles?: Role[]; // Multiple roles (preferred)
 };
 
 export type Bill = {

@@ -1,29 +1,27 @@
 "use client";
-import React from "react";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
-import QuantityChangeRequestManager from "../../components/QuantityChangeRequestManager";
 
 export default function SupervisorQuantityChangeRequestsPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirect to unified change-requests page with quantity_change filter
+    router.replace("/supervisor/bills/change-requests?requestType=quantity_change");
+  }, [router]);
+
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="bg-primary text-white p-3 mb-4">
-          <div className="d-flex justify-content-between align-items-center">
-            <h1 className="h4 mb-0 fw-bold">
-              <i className="bi bi-arrow-left-right me-2"></i>
-              Quantity Change Requests
-            </h1>
-            <span className="badge bg-light text-dark fs-6">
-              Supervisor
-            </span>
+        <div className="text-center py-4">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
           </div>
+          <p className="mt-2 text-muted">Redirecting to Bill Change Requests...</p>
         </div>
-
-        {/* Quantity Change Request Manager */}
-        <QuantityChangeRequestManager userRole="supervisor" />
       </div>
     </RoleAwareLayout>
   );
 }
-

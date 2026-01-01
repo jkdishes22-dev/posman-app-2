@@ -2,6 +2,8 @@ import { useEffect } from "react";
 
 export function useTooltips() {
   useEffect(() => {
+    let tooltipInstances: any[] = [];
+    
     // Initialize tooltips after component mounts
     const initTooltips = async () => {
       try {
@@ -19,11 +21,14 @@ export function useTooltips() {
           if (existingTooltip) {
             existingTooltip.dispose();
           }
-          // Create new tooltip with HTML support
-          new (bootstrap as any).Tooltip(tooltipTriggerEl, {
+          // Create new tooltip with HTML support and auto-hide
+          const tooltipInstance = new (bootstrap as any).Tooltip(tooltipTriggerEl, {
             html: tooltipTriggerEl.getAttribute("data-bs-html") === "true",
-            placement: tooltipTriggerEl.getAttribute("data-bs-placement") || "top"
+            placement: tooltipTriggerEl.getAttribute("data-bs-placement") || "top",
+            trigger: "hover focus",
+            delay: { show: 200, hide: 100 }
           });
+          tooltipInstances.push(tooltipInstance);
         });
       } catch (error) {
         // Silently fail - Bootstrap might not be loaded yet
@@ -35,6 +40,13 @@ export function useTooltips() {
 
     return () => {
       clearTimeout(timeoutId);
+      // Dispose all tooltip instances on unmount
+      tooltipInstances.forEach(instance => {
+        if (instance && typeof instance.dispose === "function") {
+          instance.dispose();
+        }
+      });
+      tooltipInstances = [];
     };
   }, []);
 }

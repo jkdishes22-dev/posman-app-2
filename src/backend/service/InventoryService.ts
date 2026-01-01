@@ -268,6 +268,10 @@ export class InventoryService {
         cache.invalidate("available_inventory");
         cache.invalidate("inventory_transactions");
 
+        // Invalidate all availability cache entries (pattern matching)
+        // The cache key format is: available_inventory_1,2,3,4
+        cache.invalidate("available_inventory_");
+
         // If specific itemId provided, invalidate item-specific caches
         if (itemId) {
             cache.invalidate(`inventory_level_${itemId}`);
@@ -285,7 +289,19 @@ export class InventoryService {
      * Get available inventory for multiple items (batch operation)
      * Returns a map of item_id -> available_quantity
      */
-    public async getAvailableInventoryForItems(itemIds: number[]): Promise<Map<number, number>> {
+    public async getAvailableInventoryForItems(itemIds: number[]): Promise<Map<number, number>>;
+    public async getAvailableInventoryForItems(itemIds: number[], includeDetails: false): Promise<Map<number, number>>;
+    public async getAvailableInventoryForItems(itemIds: number[], includeDetails: true): Promise<{
+        availability: Map<number, number>;
+        missingConstituents: Map<number, Array<{ itemId: number; itemName: string; available: number; required: number }>>;
+    }>;
+    public async getAvailableInventoryForItems(
+        itemIds: number[],
+        includeDetails: boolean = false
+    ): Promise<Map<number, number> | {
+        availability: Map<number, number>;
+        missingConstituents: Map<number, Array<{ itemId: number; itemName: string; available: number; required: number }>>;
+    }> {
         if (itemIds.length === 0) {
             return new Map();
         }
@@ -412,6 +428,7 @@ export class InventoryService {
 
         // Calculate availability for each item (optimized single pass)
         const result = new Map<number, number>();
+        const missingConstituentsMap = new Map<number, Array<{ itemId: number; itemName: string; available: number; required: number }>>();
 
         for (const itemId of itemIds) {
             const item = itemsMap.get(itemId);
@@ -428,9 +445,10 @@ export class InventoryService {
             if (ratios && ratios.length > 0) {
                 // Composite item: Calculate based on constituent availability
                 // Availability = minimum of (constituent_available / portion_size) for all constituents
-                // ALL constituents are now checked (universal tracking)
+                // ALL constituents MUST be available for the composite item to be available
                 let minAvailable = Infinity;
                 let hasValidConstituents = false;
+                const missingConstituents: Array<{ itemId: number; itemName: string; available: number; required: number }> = [];
 
                 // Use pre-calculated constituent availability map (O(1) lookup)
                 for (const ratio of ratios) {
@@ -444,19 +462,39 @@ export class InventoryService {
 
                     hasValidConstituents = true;
 
-                    // IMPORTANT: ALL constituents with inventory records must be available
-                    // This prevents selling composite items when constituents are out of stock
-                    // If a constituent has an inventory record, it must be available (unless allowNegativeInventory is true)
-                    if (hasInventoryRecord) {
-                        // Constituent has inventory record - must be available (unless it allows negative)
-                        // Check if constituent allows negative inventory (use pre-loaded map)
-                        const constituentItem = constituentItemsMap.get(ratio.subItemId);
-                        const constituentAllowsNegative = Boolean(constituentItem?.allowNegativeInventory) || Number(constituentItem?.allowNegativeInventory) === 1;
+                    // Get constituent item to check allowNegativeInventory flag
+                    const constituentItem = constituentItemsMap.get(ratio.subItemId);
+                    const constituentAllowsNegative = Boolean(constituentItem?.allowNegativeInventory) || Number(constituentItem?.allowNegativeInventory) === 1;
 
+                    // CRITICAL: ALL constituents must be available for composite item to be available
+                    // If constituent has no inventory record, it's not available (0 stock)
+                    // If constituent has inventory record but is out of stock and doesn't allow negative, it's not available
+                    if (!hasInventoryRecord) {
+                        // Constituent has no inventory record - not available, composite item cannot be made
+                        if (includeDetails && constituentItem) {
+                            missingConstituents.push({
+                                itemId: ratio.subItemId,
+                                itemName: constituentItem.name || `Item ${ratio.subItemId}`,
+                                available: 0,
+                                required: ratio.portionSize, // Required per unit of composite item
+                            });
+                        }
+                        minAvailable = 0;
+                        // Don't break - collect all missing constituents for better UX
+                    } else {
+                        // Constituent has inventory record - check if it's available
                         if (!constituentAllowsNegative && constituentAvailable <= 0) {
                             // Constituent has inventory record but is out of stock - limit to 0
+                            if (includeDetails && constituentItem) {
+                                missingConstituents.push({
+                                    itemId: ratio.subItemId,
+                                    itemName: constituentItem.name || `Item ${ratio.subItemId}`,
+                                    available: constituentAvailable,
+                                    required: ratio.portionSize, // Required per unit of composite item
+                                });
+                            }
                             minAvailable = 0;
-                            break; // Can't make any composite items if a tracked constituent is out
+                            // Don't break - collect all missing constituents for better UX
                         } else {
                             // Constituent has inventory > 0, or allows negative - use it to calculate availability
                             // If allows negative, treat as having unlimited availability for this calculation
@@ -467,21 +505,33 @@ export class InventoryService {
                             }
                         }
                     }
-                    // If constituent has no inventory record, skip it (doesn't limit availability)
-                    // This allows composite items to be sold even if some constituents haven't been issued yet
                 }
 
                 // If no valid constituents found, set to 0
-                result.set(itemId, (!hasValidConstituents || minAvailable === Infinity) ? 0 : Math.floor(minAvailable));
+                const finalAvailable = (!hasValidConstituents || minAvailable === Infinity) ? 0 : Math.floor(minAvailable);
+                result.set(itemId, finalAvailable);
+
+                // Store missing constituents if details are requested and item is unavailable
+                if (includeDetails && finalAvailable === 0 && missingConstituents.length > 0) {
+                    missingConstituentsMap.set(itemId, missingConstituents);
+                }
             } else {
                 // Regular item: Use direct inventory (O(1) lookup)
                 result.set(itemId, inventoryMap.get(itemId) || 0);
             }
         }
 
-        // Cache the result
-        cache.set(cacheKey, result);
-        return result;
+        // Cache the result (only cache simple availability, not details)
+        if (!includeDetails) {
+            cache.set(cacheKey, result);
+            return result;
+        } else {
+            // Return detailed result with missing constituents
+            return {
+                availability: result,
+                missingConstituents: missingConstituentsMap,
+            };
+        }
     }
 
     /**
@@ -1376,6 +1426,7 @@ export class InventoryService {
         const query = this.inventoryTransactionRepository
             .createQueryBuilder("transaction")
             .leftJoinAndSelect("transaction.item", "item")
+            .leftJoinAndSelect("transaction.created_by_user", "created_by_user")
             .orderBy("transaction.created_at", "DESC");
 
         if (itemId) {

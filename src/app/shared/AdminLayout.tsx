@@ -166,6 +166,73 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         ];
       }
     }
+    // Reports section
+    else if (path.includes("/admin/reports")) {
+      expandedMenuIds.push("reports");
+      if (path === "/admin/reports" || path === "/admin/reports/") {
+        activeItemId = "reports-dashboard";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Reports", path: "/admin/reports" }
+        ];
+      } else if (path.includes("/admin/reports/sales-revenue")) {
+        activeItemId = "reports-sales-revenue";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Reports", path: "/admin/reports" },
+          { label: "Sales Revenue", path: "/admin/reports/sales-revenue" }
+        ];
+      } else if (path.includes("/admin/reports/production-stock-revenue")) {
+        activeItemId = "reports-production-stock-revenue";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Reports", path: "/admin/reports" },
+          { label: "Production/Stock Revenue", path: "/admin/reports/production-stock-revenue" }
+        ];
+      } else if (path.includes("/admin/reports/items-sold-count")) {
+        activeItemId = "reports-items-sold-count";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Reports", path: "/admin/reports" },
+          { label: "Items Sold Count", path: "/admin/reports/items-sold-count" }
+        ];
+      } else if (path.includes("/admin/reports/voided-items")) {
+        activeItemId = "reports-voided-items";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Reports", path: "/admin/reports" },
+          { label: "Voided Items", path: "/admin/reports/voided-items" }
+        ];
+      } else if (path.includes("/admin/reports/expenditure")) {
+        activeItemId = "reports-expenditure";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Reports", path: "/admin/reports" },
+          { label: "Expenditure", path: "/admin/reports/expenditure" }
+        ];
+      } else if (path.includes("/admin/reports/invoices-pending-bills")) {
+        activeItemId = "reports-invoices-pending-bills";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Reports", path: "/admin/reports" },
+          { label: "Invoices & Pending Bills", path: "/admin/reports/invoices-pending-bills" }
+        ];
+      } else if (path.includes("/admin/reports/purchase-orders")) {
+        activeItemId = "reports-purchase-orders";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Reports", path: "/admin/reports" },
+          { label: "Purchase Orders", path: "/admin/reports/purchase-orders" }
+        ];
+      } else if (path.includes("/admin/reports/pnl")) {
+        activeItemId = "reports-pnl";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Reports", path: "/admin/reports" },
+          { label: "Profit & Loss", path: "/admin/reports/pnl" }
+        ];
+      }
+    }
 
     setActiveItem(activeItemId);
     setBreadcrumbs(breadcrumbItems);
@@ -309,7 +376,62 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       id: "reports",
       label: "Reports",
       icon: "bi-bar-chart",
-      path: "/admin/reports",
+      submenu: [
+        {
+          id: "reports-dashboard",
+          label: "Dashboard",
+          icon: "bi-speedometer2",
+          path: "/admin/reports",
+        },
+        {
+          id: "reports-sales-revenue",
+          label: "Sales Revenue",
+          icon: "bi-currency-dollar",
+          path: "/admin/reports/sales-revenue",
+        },
+        {
+          id: "reports-production-stock-revenue",
+          label: "Production/Stock Revenue",
+          icon: "bi-box-seam",
+          path: "/admin/reports/production-stock-revenue",
+        },
+        {
+          id: "reports-items-sold-count",
+          label: "Items Sold Count",
+          icon: "bi-cart",
+          path: "/admin/reports/items-sold-count",
+        },
+        {
+          id: "reports-voided-items",
+          label: "Voided Items",
+          icon: "bi-exclamation-triangle",
+          path: "/admin/reports/voided-items",
+        },
+        {
+          id: "reports-expenditure",
+          label: "Expenditure",
+          icon: "bi-cash-stack",
+          path: "/admin/reports/expenditure",
+        },
+        {
+          id: "reports-invoices-pending-bills",
+          label: "Invoices & Pending Bills",
+          icon: "bi-file-earmark-text",
+          path: "/admin/reports/invoices-pending-bills",
+        },
+        {
+          id: "reports-purchase-orders",
+          label: "Purchase Orders",
+          icon: "bi-cart-check",
+          path: "/admin/reports/purchase-orders",
+        },
+        {
+          id: "reports-pnl",
+          label: "Profit & Loss",
+          icon: "bi-graph-up-arrow",
+          path: "/admin/reports/pnl",
+        },
+      ],
     },
   ];
 

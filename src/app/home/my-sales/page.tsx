@@ -91,6 +91,44 @@ const MySales = () => {
   const [showQuantityChangeModal, setShowQuantityChangeModal] = useState<boolean>(false);
   const [selectedQuantityChangeItem, setSelectedQuantityChangeItem] = useState<BillItem | null>(null);
 
+  // Reopen reason state
+  const [reopenReasons, setReopenReasons] = useState<Array<{ id: string; name: string; description?: string }>>([]);
+
+  // Fetch reopen reasons on component mount
+  useEffect(() => {
+    const fetchReopenReasons = async () => {
+      try {
+        const result = await apiCall("/api/bills/reopen-reasons");
+        if (result.status === 200) {
+          // Transform the response to match our expected format
+          const reasons = result.data.reasons || [];
+          setReopenReasons(reasons.map((reason: any) => ({
+            id: reason.reason_key || reason.id,
+            name: reason.name,
+            description: reason.description
+          })));
+        }
+      } catch (error) {
+        console.error("Failed to fetch reopen reasons:", error);
+      }
+    };
+    fetchReopenReasons();
+  }, [apiCall]);
+
+  // Helper function to get reopen reason name from reason_key
+  const getReopenReasonName = (reasonKey: string | undefined): string => {
+    if (!reasonKey) return "Unknown reason";
+    const reason = reopenReasons.find(r => r.id === reasonKey);
+    return reason ? reason.name : reasonKey;
+  };
+
+  // Helper function to get reopen reason description
+  const getReopenReasonDescription = (reasonKey: string | undefined): string | null => {
+    if (!reasonKey) return null;
+    const reason = reopenReasons.find(r => r.id === reasonKey);
+    return reason?.description || null;
+  };
+
   const handleDateChange = (date) => {
     setSelectedDate(date);
     setSelectedBill(null);
@@ -651,7 +689,7 @@ const MySales = () => {
                             />
                           </th>
                           <th style={{ width: "70px" }}>ID</th>
-                          <th style={{ width: "90px" }}>Status</th>
+                          <th style={{ width: "90px" }}>Status <small className="text-muted">(Bill)</small></th>
                           <th style={{ width: "100px" }}>Amount</th>
                           <th className="d-none d-lg-table-cell" style={{ width: "140px" }}>Date</th>
                           <th style={{ width: "80px" }}>Action</th>
@@ -915,9 +953,36 @@ const MySales = () => {
 
                             return (
                               <div>
-                                <span className="text-warning">
-                                  Bill is reopened <strong> Total: KES {(Number(billTotal) || 0).toFixed(2)} </strong>
-                                </span>
+                                <div className="alert alert-warning mb-3">
+                                  <div className="d-flex align-items-start">
+                                    <i className="bi bi-arrow-clockwise me-2 mt-1"></i>
+                                    <div className="flex-grow-1">
+                                      <strong>Bill is Reopened</strong>
+                                      {selectedBill.reopen_reason && (
+                                        <div className="mt-2">
+                                          <div className="fw-semibold">
+                                            <i className="bi bi-info-circle me-1"></i>
+                                            Reason: {getReopenReasonName(selectedBill.reopen_reason)}
+                                          </div>
+                                          {getReopenReasonDescription(selectedBill.reopen_reason) && (
+                                            <div className="small text-muted mt-1">
+                                              {getReopenReasonDescription(selectedBill.reopen_reason)}
+                                            </div>
+                                          )}
+                                          {selectedBill.reopened_at && (
+                                            <div className="small text-muted mt-1">
+                                              Reopened on: {new Date(selectedBill.reopened_at).toLocaleString()}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="mb-2">
+                                  <span className="text-muted">Total: </span>
+                                  <strong>KES {(Number(billTotal) || 0).toFixed(2)}</strong>
+                                </div>
 
                                 {/* Payment Details */}
                                 <div className="mt-2">
@@ -974,6 +1039,9 @@ const MySales = () => {
                                     <div className="alert alert-success py-2 mb-0">
                                       <i className="bi bi-check-circle me-2"></i>
                                       <strong>Payment Complete</strong> - Ready to resubmit
+                                      <div className="small mt-1">
+                                        <em>Resubmit condition: Bill status must be "reopened" (no payment requirement)</em>
+                                      </div>
                                     </div>
                                   ) : isOverpaid ? (
                                     <div className="alert alert-warning py-2 mb-0">
@@ -986,6 +1054,19 @@ const MySales = () => {
                                       <strong>Outstanding: KES {(Number(difference) || 0).toFixed(2)}</strong> - Collect remaining amount
                                     </div>
                                   )}
+                                </div>
+
+                                {/* Resubmit Button for Reopened Bills */}
+                                <div className="mt-3">
+                                  <Button
+                                    variant="warning"
+                                    size="sm"
+                                    onClick={openSubmitModal}
+                                    className="w-100 w-md-auto"
+                                  >
+                                    <i className="bi bi-arrow-clockwise me-1"></i>
+                                    Resubmit Bill
+                                  </Button>
                                 </div>
                               </div>
                             );
@@ -1021,7 +1102,7 @@ const MySales = () => {
                             <th style={{ width: "90px" }}>Price</th>
                             <th style={{ width: "70px" }}>Qty</th>
                             <th style={{ width: "90px" }}>Subtotal</th>
-                            <th style={{ width: "80px" }}>Status</th>
+                            <th style={{ width: "80px" }}>Status <small className="text-muted">(Item)</small></th>
                             <th style={{ width: "140px" }}>Action</th>
                           </tr>
                         </thead>
@@ -1040,12 +1121,14 @@ const MySales = () => {
                                   <span className={`badge ${item.status === "pending" ? "bg-success" :
                                     item.status === "void_pending" ? "bg-warning" :
                                       item.status === "quantity_change_request" ? "bg-info" :
-                                        "bg-danger"
-                                    }`} style={{ fontSize: "0.7rem" }}>
+                                        item.status === "submitted" ? "bg-secondary" :
+                                          "bg-danger"
+                                    }`} style={{ fontSize: "0.7rem" }} title={`Item status: ${item.status} (Bill status: ${selectedBill.status})`}>
                                     {item.status === "pending" ? "pending" :
                                       item.status === "void_pending" ? "void pending" :
                                         item.status === "quantity_change_request" ? "qty pending" :
-                                          item.status}
+                                          item.status === "submitted" ? "submitted" :
+                                            item.status}
                                   </span>
                                 </td>
                                 <td>

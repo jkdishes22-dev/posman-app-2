@@ -146,10 +146,31 @@ export default function SupervisorSettingsPage() {
                               </Button>
                               <Button
                                 variant="outline-success"
-                                onClick={() => window.location.href = '/supervisor/void-requests'}
+                                onClick={() => window.location.href = '/supervisor/bills/change-requests'}
                               >
-                                <i className="bi bi-x-circle me-1"></i>
-                                Void Requests
+                                <i className="bi bi-exclamation-triangle me-1"></i>
+                                Change Requests
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="row mt-4">
+                      <div className="col-md-6">
+                        <div className="card">
+                          <div className="card-header">
+                            <h5 className="card-title mb-0">Bill Settings</h5>
+                          </div>
+                          <div className="card-body">
+                            <p className="text-muted">Manage bill-related settings and configurations</p>
+                            <div className="d-grid gap-2">
+                              <Button
+                                variant="outline-warning"
+                                onClick={() => window.location.href = '/supervisor/bills/settings'}
+                              >
+                                <i className="bi bi-gear me-1"></i>
+                                Manage Reopen Reasons
                               </Button>
                             </div>
                           </div>

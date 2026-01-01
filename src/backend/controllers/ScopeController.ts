@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { ScopeService } from "@services/ScopeService";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const fetchScopesHandler = async (
   req: NextApiRequest,
@@ -10,7 +11,11 @@ export const fetchScopesHandler = async (
     const scopes = await scopeService.fetchScopes();
     res.status(200).json(scopes);
   } catch (error: any) {
-    res.status(500).json({ message: "Error fetching scopes", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "scopes"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -26,8 +31,10 @@ export const fetchScopePermisionsHandler = async (
     );
     res.status(200).json(scopePermisions);
   } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: "Error fetching scope permissions", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "scope permissions"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };

@@ -1,5 +1,6 @@
 import { StationService } from "@backend/service/StationService";
 import { NextApiRequest, NextApiResponse } from "next";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const addStationHandler = async (
   req: NextApiRequest,
@@ -11,7 +12,11 @@ export const addStationHandler = async (
     const newStation = await stationService.createStation(request);
     res.status(201).json(newStation);
   } catch (error: any) {
-    res.status(500).json({ message: "Error fetching scopes", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "creating",
+      resource: "station"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -27,7 +32,11 @@ export const fetchStationsHandler = async (
     const stations = await stationService.fetchStations(criteria);
     res.status(200).json(stations);
   } catch (error: any) {
-    res.status(500).json({ message: "Error fetching stations", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "stations"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -43,10 +52,11 @@ export const fetchStationPricelistHandler = async (
     );
     res.status(200).json(stationPricelist);
   } catch (error: any) {
-    res.status(500).json({
-      message: "Error fetching station pricelist",
-      error,
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "station pricelist"
     });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -62,10 +72,10 @@ export const fetchStationUsersHandler = async (
     );
     res.status(200).json(stationUsers);
   } catch (error: any) {
-    console.error("Error in fetchStationUsersHandler:", error);
-    res.status(500).json({
-      message: "Error fetching station users",
-      error: error.message,
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "station users"
     });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };

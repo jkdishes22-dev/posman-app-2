@@ -33,7 +33,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 
     if (!user.password) {
-      console.error("User found but password field is missing:", user.id);
       return res.status(500).json({ message: "User account configuration error" });
     }
 
@@ -44,7 +43,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     // Ensure roles are loaded
     if (!user.roles || !Array.isArray(user.roles)) {
-      console.error("User roles not loaded properly for user:", user.id);
       return res.status(500).json({ message: "User roles configuration error" });
     }
 
@@ -58,7 +56,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         roles: user.roles.map((role) => role.name),
       },
       secret,
-      { expiresIn: "15m" },
+      { expiresIn: process.env.JWT_EXPIRES_IN || "15m" },
     );
 
     // Issue refresh token (long-lived)
@@ -79,8 +77,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     res.status(200).json({ token, role: user.roles[0]?.name || "user" });
   } catch (error: any) {
-    console.error("Login error:", error);
-    console.error("Error stack:", error.stack);
     res.status(500).json({
       message: "Internal Server Error: " + (error.message || "Unknown error"),
       error: process.env.NODE_ENV === "development" ? error.stack : undefined

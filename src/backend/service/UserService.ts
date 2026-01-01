@@ -82,7 +82,7 @@ export class UserService {
     // Optimized query: select only needed fields and use efficient joins
     const query = this.userRepository
       .createQueryBuilder("user")
-      .leftJoin("user.roles", "role")
+      .leftJoinAndSelect("user.roles", "role")
       .select([
         "user.id",
         "user.username",

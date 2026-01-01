@@ -6,6 +6,7 @@ import * as process from "process";
 import { v4 as uuidv4 } from "uuid";
 import { User } from "@entities/User";
 import { DataSource } from "typeorm";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 /**
  * @swagger
@@ -32,7 +33,11 @@ export const createUserHandler = async (
     );
     res.status(201).json(newUser);
   } catch (error: any) {
-    res.status(500).json({ error: "Error creating user " + error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "creating",
+      resource: "user"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -49,7 +54,11 @@ export const getUsersHandler = async (
     const { users, total } = await userService.getUsers(role, page, pageSize, search);
     res.status(200).json({ users, total });
   } catch (error: any) {
-    res.status(500).json({ error: "Error fetching users" + error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "users"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -93,7 +102,11 @@ export const loginUserHandler = async (
 
     return res.status(200).json({ token });
   } catch (error: any) {
-    res.status(500).json({ message: "Internal server error" + error.message });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "logging in",
+      resource: "user"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -107,7 +120,11 @@ export const fetchUserStations = async (
     const users = await userService.fetchUserStations(Number(userId));
     res.status(200).json(users);
   } catch (error: any) {
-    res.status(500).json({ error: "Error fetching user stations" + error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "user stations"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -128,8 +145,11 @@ export const addUserStation = async (
     const newUserStation = await userService.addUserStation(userStationRequest);
     res.status(201).json(newUserStation);
   } catch (error: any) {
-    console.error("Error creating user station:", error);
-    res.status(500).json({ error: "Error creating user station" + error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "creating",
+      resource: "user station"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -154,7 +174,11 @@ export const setDefaultUserStation = async (
     );
     res.status(200).json(updatedUserStation);
   } catch (error: any) {
-    res.status(500).json({ error: "Error updating user station" + error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "updating",
+      resource: "user station"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -179,7 +203,11 @@ export const disableUserStation = async (
     );
     res.status(200).json(updatedUserStation);
   } catch (error: any) {
-    res.status(500).json({ error: "Error updating user station status" + error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "updating",
+      resource: "user station status"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -197,7 +225,11 @@ export const deleteUserHandler = async (
     if (error.message === "User not found") {
       res.status(404).json({ error: error.message });
     } else {
-      res.status(500).json({ error: "Error deleting user: " + error.message });
+      const { userMessage, errorCode } = handleApiError(error, {
+        operation: "deleting",
+        resource: "user"
+      });
+      res.status(500).json({ error: userMessage, code: errorCode });
     }
   }
 };
@@ -216,7 +248,11 @@ export const reactivateUserHandler = async (
     if (error.message === "User not found") {
       res.status(404).json({ error: error.message });
     } else {
-      res.status(500).json({ error: "Error reactivating user: " + error.message });
+      const { userMessage, errorCode } = handleApiError(error, {
+        operation: "reactivating",
+        resource: "user"
+      });
+      res.status(500).json({ error: userMessage, code: errorCode });
     }
   }
 };
@@ -244,6 +280,10 @@ export const updateOrLockUserHandler = async (
       return res.status(400).json({ error: "Invalid action" });
     }
   } catch (error: any) {
-    res.status(500).json({ error: "Error updating/locking user: " + error.message });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "updating",
+      resource: "user"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };

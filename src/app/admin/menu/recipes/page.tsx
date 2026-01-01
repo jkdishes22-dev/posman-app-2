@@ -24,6 +24,9 @@ function RecipesPage() {
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const apiCall = useApiCall();
   const [addSubItemError, setAddSubItemError] = useState<string | null>(null);
+  const [editingPortionSize, setEditingPortionSize] = useState<number | null>(null);
+  const [editingValue, setEditingValue] = useState<string>("");
+  const [updatingPortionSize, setUpdatingPortionSize] = useState(false);
   useTooltips();
 
   useEffect(() => {
@@ -207,6 +210,47 @@ function RecipesPage() {
     setIsModalOpen(false);
   };
 
+  const startEditingPortionSize = (subItemId: number, currentPortionSize: number) => {
+    setEditingPortionSize(subItemId);
+    setEditingValue(currentPortionSize.toString());
+  };
+
+  const cancelEditingPortionSize = () => {
+    setEditingPortionSize(null);
+    setEditingValue("");
+  };
+
+  const updatePortionSize = async (subItemId: number) => {
+    if (!selectedItem || !editingValue || isNaN(Number(editingValue)) || Number(editingValue) <= 0) {
+      setErrorDetails({ message: "Please enter a valid portion size greater than 0", status: 400 });
+      return;
+    }
+
+    setUpdatingPortionSize(true);
+    try {
+      const result = await apiCall(`/api/production/${selectedItem}/sub-items/${subItemId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          portionSize: Number(editingValue),
+        }),
+      });
+
+      if (result.status === 200) {
+        await fetchSubItemsFromBackend(selectedItem);
+        setEditingPortionSize(null);
+        setEditingValue("");
+        setErrorDetails(null);
+      } else {
+        setErrorDetails(result.errorDetails || { message: result.error || "Failed to update portion size", status: result.status || 500 });
+      }
+    } catch (error: any) {
+      console.error("Error updating portion size:", error);
+      setErrorDetails({ message: "Network error occurred while updating portion size", networkError: true, status: 0 });
+    } finally {
+      setUpdatingPortionSize(false);
+    }
+  };
+
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
@@ -215,10 +259,10 @@ function RecipesPage() {
           <h1 className="h4 mb-0 fw-bold">
             <i className="bi bi-journal-text me-2"></i>
             Recipes
-            <i 
-              className="bi bi-question-circle ms-2" 
+            <i
+              className="bi bi-question-circle ms-2"
               style={{ cursor: "help", fontSize: "0.9rem" }}
-              data-bs-toggle="tooltip" 
+              data-bs-toggle="tooltip"
               data-bs-placement="bottom"
               data-bs-html="true"
               title="<strong>Recipes:</strong> Define how much stock items (ingredients) are deducted when composite items are sold.<br/><br/><strong>Composite Items:</strong> Items with recipes that define ingredient ratios (left panel).<br/><strong>Stock Items:</strong> Purchased/supplied items used as ingredients.<br/><strong>Portion Size:</strong> Amount deducted per unit sold.<br/><br/><strong>Example:</strong> 'Breakfast Combo' with Eggs (portion 2) → selling 5 combos deducts 10 eggs.<br/><br/><strong>Note:</strong> Simple items without recipes default to 1:1 deduction."
@@ -305,17 +349,17 @@ function RecipesPage() {
           <div className="col-md-4">
             <div className="card shadow-sm">
               <div className="card-header bg-light">
-                    <h5 className="mb-0 fw-bold">
-                    <i className="bi bi-box-seam me-2 text-primary"></i>
-                    Composite Items
-                    <i 
-                      className="bi bi-question-circle ms-2 text-muted" 
-                      style={{ cursor: "help" }}
-                      data-bs-toggle="tooltip" 
-                      data-bs-placement="right"
-                      title="Items with recipes that define ingredient ratios. Select an item to view or edit its recipe."
-                    ></i>
-                  </h5>
+                <h5 className="mb-0 fw-bold">
+                  <i className="bi bi-box-seam me-2 text-primary"></i>
+                  Composite Items
+                  <i
+                    className="bi bi-question-circle ms-2 text-muted"
+                    style={{ cursor: "help" }}
+                    data-bs-toggle="tooltip"
+                    data-bs-placement="right"
+                    title="Items with recipes that define ingredient ratios. Select an item to view or edit its recipe."
+                  ></i>
+                </h5>
               </div>
               <div className="card-body">
                 <div className="mb-3">
@@ -357,10 +401,10 @@ function RecipesPage() {
                   <h5 className="mb-0 fw-bold">
                     <i className="bi bi-list-ul me-2 text-primary"></i>
                     Ingredients for {selectedItem ? selectedItemName : "Selected Item"}
-                    <i 
-                      className="bi bi-question-circle ms-2 text-muted" 
+                    <i
+                      className="bi bi-question-circle ms-2 text-muted"
                       style={{ cursor: "help" }}
-                      data-bs-toggle="tooltip" 
+                      data-bs-toggle="tooltip"
                       data-bs-placement="right"
                       title="Stock items that will be deducted from inventory when this item is sold. Only stock items (isStock: true) can be added as ingredients."
                     ></i>
@@ -389,15 +433,70 @@ function RecipesPage() {
                           subItems.map((subItem) => (
                             <tr key={subItem.id}>
                               <td>{subItem.name}</td>
-                              <td>{subItem.portionSize}</td>
+                              <td>
+                                {editingPortionSize === subItem.id ? (
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    className="form-control form-control-sm"
+                                    style={{ width: "100px" }}
+                                    value={editingValue}
+                                    onChange={(e) => setEditingValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        updatePortionSize(subItem.id);
+                                      } else if (e.key === "Escape") {
+                                        cancelEditingPortionSize();
+                                      }
+                                    }}
+                                    autoFocus
+                                    disabled={updatingPortionSize}
+                                  />
+                                ) : (
+                                  <span>{subItem.portionSize}</span>
+                                )}
+                              </td>
                               <td className="text-center">
-                                <button
-                                  className="btn btn-danger btn-sm"
-                                  onClick={() => confirmRemoveItem(subItem.id)}
-                                >
-                                  <i className="bi bi-trash me-1"></i>
-                                  Remove
-                                </button>
+                                <div className="d-flex gap-1 justify-content-center">
+                                  {editingPortionSize === subItem.id ? (
+                                    <>
+                                      <button
+                                        className="btn btn-success btn-sm"
+                                        onClick={() => updatePortionSize(subItem.id)}
+                                        disabled={updatingPortionSize}
+                                        title="Save"
+                                      >
+                                        <i className="bi bi-check"></i>
+                                      </button>
+                                      <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={cancelEditingPortionSize}
+                                        disabled={updatingPortionSize}
+                                        title="Cancel"
+                                      >
+                                        <i className="bi bi-x"></i>
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        className="btn btn-outline-primary btn-sm"
+                                        onClick={() => startEditingPortionSize(subItem.id, subItem.portionSize)}
+                                        title="Edit portion size"
+                                      >
+                                        <i className="bi bi-pencil"></i>
+                                      </button>
+                                      <button
+                                        className="btn btn-danger btn-sm"
+                                        onClick={() => confirmRemoveItem(subItem.id)}
+                                        title="Remove ingredient"
+                                      >
+                                        <i className="bi bi-trash"></i>
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           ))

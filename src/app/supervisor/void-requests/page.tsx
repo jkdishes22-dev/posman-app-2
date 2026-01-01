@@ -1,28 +1,32 @@
 "use client";
-import React from "react";
-import RoleAwareLayout from "../../shared/RoleAwareLayout";
-import VoidRequestManager from "../../components/VoidRequestManager";
 
-export default function SupervisorVoidRequestsPage() {
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
+
+const SupervisorVoidRequestsPage = () => {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirect to unified change-requests page
+    // Preserve requestType query param if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestType = urlParams.get("requestType") || "void";
+    router.replace(`/supervisor/bills/change-requests?requestType=${requestType}`);
+  }, [router]);
+
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="bg-primary text-white p-3 mb-4">
-          <div className="d-flex justify-content-between align-items-center">
-            <h1 className="h4 mb-0 fw-bold">
-              <i className="bi bi-exclamation-triangle me-2"></i>
-              Void Bill Requests
-            </h1>
-            <span className="badge bg-light text-dark fs-6">
-              Supervisor
-            </span>
+        <div className="text-center py-4">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
           </div>
+          <p className="mt-2 text-muted">Redirecting to Bill Change Requests...</p>
         </div>
-
-        {/* Void Request Manager */}
-        <VoidRequestManager userRole="supervisor" />
       </div>
     </RoleAwareLayout>
   );
-}
+};
+
+export default SupervisorVoidRequestsPage;

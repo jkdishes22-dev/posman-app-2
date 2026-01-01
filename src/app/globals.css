@@ -1,3 +1,6 @@
+/* Touch-Friendly Optimizations - Load first for proper cascade */
+@import './styles/touch-optimization.css';
+
 /* Material Design Theme - Clean & Consistent */
 
 /* Hamburger Menu Icon Styles */
@@ -841,4 +844,24 @@
 
 .react-datepicker__portal {
     z-index: 9999 !important;
+}
+
+/* Fix modal overlay z-index and backdrop */
+.modal {
+    z-index: 1050 !important;
+}
+
+.modal-backdrop {
+    z-index: 1040 !important;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* Ensure modals appear above other content */
+.modal.show {
+    display: block !important;
+}
+
+/* Fix for nested modals */
+.modal-backdrop.show {
+    opacity: 0.5;
 }

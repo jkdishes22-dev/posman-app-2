@@ -37,6 +37,12 @@ interface InventoryTransaction {
     notes: string | null;
     created_at: string;
     created_by: number | null;
+    created_by_user: {
+        id: number;
+        firstName: string;
+        lastName: string;
+        username: string;
+    } | null;
 }
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -329,6 +335,7 @@ export default function InventoryTransactionsPage() {
                                                 <th>Type</th>
                                                 <th>Quantity</th>
                                                 <th>Reference</th>
+                                                <th>User</th>
                                                 <th>Notes</th>
                                             </tr>
                                         </thead>
@@ -373,6 +380,17 @@ export default function InventoryTransactionsPage() {
                                                                 {formatReferenceType(transaction.reference_type)}
                                                                 {transaction.reference_id ? ` #${transaction.reference_id}` : ""}
                                                             </Badge>
+                                                        ) : (
+                                                            <span className="text-muted">-</span>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        {transaction.created_by_user ? (
+                                                            <div>
+                                                                <strong>{transaction.created_by_user.firstName} {transaction.created_by_user.lastName}</strong>
+                                                                <br />
+                                                                <small className="text-muted">@{transaction.created_by_user.username}</small>
+                                                            </div>
                                                         ) : (
                                                             <span className="text-muted">-</span>
                                                         )}

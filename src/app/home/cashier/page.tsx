@@ -356,7 +356,7 @@ const CashierDashboard = () => {
                     onClick={() => handleQuickAction("bills")}
                   >
                     <i className="bi bi-receipt"></i>
-                    Manage Bills
+                    Process Bills
                     <Badge bg="light" text="dark" className="ms-2">
                       {summary.pendingBills}
                     </Badge>

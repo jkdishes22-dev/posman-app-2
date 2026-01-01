@@ -221,21 +221,23 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         />
         <form onSubmit={handleItemSubmit} className="row g-3">
           <div className="form-group">
-            <label>Item Name</label>
+            <label>Item Name <span className="text-danger">*</span></label>
             <input
               type="text"
               className="form-control"
               value={itemName}
               onChange={(e) => setItemName(e.target.value)}
+              required
             />
           </div>
           <div className="form-group">
-            <label>Item Code</label>
+            <label>Item Code <span className="text-danger">*</span></label>
             <input
               type="text"
               className="form-control"
               value={itemCode}
               onChange={(e) => setItemCode(e.target.value)}
+              required
             />
           </div>
 
@@ -261,11 +263,12 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
 
           {!selectedPricelistId && (
             <div className="form-group">
-              <label>Pricelist</label>
+              <label>Pricelist <span className="text-danger">*</span></label>
               <select
                 className="form-control"
                 value={pricelistId}
                 onChange={(e) => setPricelistId(e.target.value)}
+                required
               >
                 <option value="">Select Pricelist</option>
                 {Array.isArray(pricelists) && pricelists.map((pricelist: any) => (
@@ -278,7 +281,7 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           )}
           {selectedPricelistId && (
             <div className="form-group">
-              <label>Pricelist</label>
+              <label>Pricelist <span className="text-danger">*</span></label>
               <input
                 type="text"
                 className="form-control"
@@ -290,12 +293,15 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           )}
 
           <div className="form-group">
-            <label>Item Price</label>
+            <label>Item Price <span className="text-danger">*</span></label>
             <input
-              type="text"
+              type="number"
+              step="0.01"
+              min="0"
               className="form-control"
               value={itemPrice}
-              onChange={(e) => setItemPrice(parseFloat(e.target.value))}
+              onChange={(e) => setItemPrice(parseFloat(e.target.value) || "")}
+              required
             />
           </div>
 
@@ -310,10 +316,10 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           <div className="form-group">
             <label>
               Is Stock Item (Suppliable)
-              <i 
-                className="bi bi-question-circle ms-1 text-muted" 
+              <i
+                className="bi bi-question-circle ms-1 text-muted"
                 style={{ cursor: "help" }}
-                data-bs-toggle="tooltip" 
+                data-bs-toggle="tooltip"
                 data-bs-placement="right"
                 data-bs-html="true"
                 title="<strong>Stock Items (isStock: true):</strong> Items purchased/supplied (e.g., Eggs, Milk, Flour). Can be used as ingredients in recipes and are received via purchase orders.<br/><br/><strong>Sellable Items (isStock: false):</strong> Items produced and sold (e.g., Tortilla, Coffee, Omelette). Composite items (isGroup: true) can have recipes that specify how much stock items are deducted when sold.<br/><br/><strong>Note:</strong> Items can be both stock and sellable (e.g., Milk can be purchased AND produced). The system handles both inventory pools separately."

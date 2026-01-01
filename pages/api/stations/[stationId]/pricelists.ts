@@ -27,9 +27,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             const cacheKey = `api_station_pricelists_${stationId}`;
             const cached = cache.get<any>(cacheKey);
             if (cached !== null) {
-              // Set cache headers for browser caching
-              res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
-              res.setHeader("ETag", `"station-pricelists-${stationId}-${Date.now()}"`);
+              // Set cache headers for browser caching (longer TTL for better performance)
+              res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+              res.setHeader("ETag", `"station-pricelists-${stationId}"`);
               return res.status(200).json(cached);
             }
 
@@ -62,10 +62,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
             // Cache the result (using shared cache utility)
             cache.set(cacheKey, response);
-            
-            // Set cache headers
-            res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
-            res.setHeader("ETag", `"station-pricelists-${stationId}-${Date.now()}"`);
+
+            // Set cache headers (longer TTL for better performance)
+            res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+            res.setHeader("ETag", `"station-pricelists-${stationId}"`);
 
             res.status(200).json(response);
           })
@@ -83,12 +83,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             }
 
             await stationService.linkPricelistToStation(Number(stationId), Number(pricelistId));
-            
+
             // Invalidate cache after linking pricelist
             cache.invalidate(`api_station_pricelists_${stationId}`);
             cache.invalidate(`station_pricelists_${stationId}`);
             cache.invalidate(`station_${stationId}`);
-            
+
             res.status(200).json({
               message: "Pricelist linked to station successfully"
             });
@@ -107,12 +107,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             }
 
             await stationService.unlinkPricelistFromStation(Number(stationId), Number(pricelistId));
-            
+
             // Invalidate cache after unlinking pricelist
             cache.invalidate(`api_station_pricelists_${stationId}`);
             cache.invalidate(`station_pricelists_${stationId}`);
             cache.invalidate(`station_${stationId}`);
-            
+
             res.status(200).json({
               message: "Pricelist unlinked from station successfully"
             });

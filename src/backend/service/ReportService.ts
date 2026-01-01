@@ -1,0 +1,792 @@
+import { DataSource, Repository, Between, In, Not } from "typeorm";
+import { Bill, BillStatus } from "@backend/entities/Bill";
+import { BillItem, BillItemStatus } from "@backend/entities/BillItem";
+import { PurchaseOrder, PurchaseOrderStatus } from "@backend/entities/PurchaseOrder";
+import { PurchaseOrderItem } from "@backend/entities/PurchaseOrderItem";
+import { Item } from "@backend/entities/Item";
+import { User } from "@backend/entities/User";
+import { Supplier } from "@backend/entities/Supplier";
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
+
+export interface ReportFilters {
+  startDate?: Date;
+  endDate?: Date;
+  itemId?: number;
+  userId?: number;
+  supplierId?: number;
+  period?: "day" | "week" | "month" | "year";
+}
+
+export interface SalesRevenueReportItem {
+  date: string;
+  actualRevenue: number;
+  projectedRevenue: number;
+  totalRevenue: number;
+  billCount: number;
+  itemBreakdown?: Array<{
+    itemId: number;
+    itemName: string;
+    actualRevenue: number;
+    projectedRevenue: number;
+  }>;
+  userBreakdown?: Array<{
+    userId: number;
+    userName: string;
+    actualRevenue: number;
+    projectedRevenue: number;
+  }>;
+}
+
+export interface ProductionStockRevenueReportItem {
+  date: string;
+  productionRevenue: number;
+  stockRevenue: number;
+  totalRevenue: number;
+  itemBreakdown?: Array<{
+    itemId: number;
+    itemName: string;
+    itemType: "production" | "stock";
+    revenue: number;
+  }>;
+}
+
+export interface ItemsSoldCountReportItem {
+  date: string;
+  itemId: number;
+  itemName: string;
+  quantity: number;
+  userId?: number;
+  userName?: string;
+}
+
+export interface VoidedItemsReportItem {
+  date: string;
+  itemId: number;
+  itemName: string;
+  quantity: number;
+  subtotal: number;
+  voidReason: string;
+  requestedBy: number;
+  requestedByName: string;
+  approvedBy?: number;
+  approvedByName?: string;
+  voidRequestedAt: Date;
+  voidApprovedAt?: Date;
+  billId: number;
+}
+
+export interface ExpenditureReportItem {
+  date: string;
+  supplierId: number;
+  supplierName: string;
+  itemId: number;
+  itemName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  totalAmount: number;
+}
+
+export interface InvoicesPendingBillsReportItem {
+  date: string;
+  type: "invoice" | "pending_bill";
+  referenceId: number;
+  referenceNumber: string;
+  total: number;
+  itemBreakdown?: Array<{
+    itemId: number;
+    itemName: string;
+    quantity: number;
+    subtotal: number;
+  }>;
+}
+
+export interface PurchaseOrdersReportItem {
+  date: string;
+  orderNumber: string;
+  supplierId: number;
+  supplierName: string;
+  status: string;
+  totalAmount: number;
+  itemBreakdown?: Array<{
+    itemId: number;
+    itemName: string;
+    quantityOrdered: number;
+    quantityReceived: number;
+    unitPrice: number;
+    subtotal: number;
+  }>;
+}
+
+export interface PnLReportItem {
+  date: string;
+  actualRevenue: number;
+  projectedRevenue: number;
+  totalRevenue: number;
+  expenses: number;
+  voids: number;
+  actualPnL: number;
+  projectedPnL: number;
+}
+
+export class ReportService {
+  private billRepository: Repository<Bill>;
+  private billItemRepository: Repository<BillItem>;
+  private purchaseOrderRepository: Repository<PurchaseOrder>;
+  private purchaseOrderItemRepository: Repository<PurchaseOrderItem>;
+  private itemRepository: Repository<Item>;
+  private userRepository: Repository<User>;
+  private supplierRepository: Repository<Supplier>;
+
+  constructor(dataSource: DataSource) {
+    this.billRepository = dataSource.getRepository(Bill);
+    this.billItemRepository = dataSource.getRepository(BillItem);
+    this.purchaseOrderRepository = dataSource.getRepository(PurchaseOrder);
+    this.purchaseOrderItemRepository = dataSource.getRepository(PurchaseOrderItem);
+    this.itemRepository = dataSource.getRepository(Item);
+    this.userRepository = dataSource.getRepository(User);
+    this.supplierRepository = dataSource.getRepository(Supplier);
+  }
+
+  private getDateRange(startDate: Date, endDate: Date, period?: "day" | "week" | "month" | "year"): { start: Date; end: Date } {
+    const start = startOfDay(startDate);
+    let end = endOfDay(endDate);
+
+    if (period === "week") {
+      return { start: startOfWeek(start), end: endOfWeek(end) };
+    } else if (period === "month") {
+      return { start: startOfMonth(start), end: endOfMonth(end) };
+    } else if (period === "year") {
+      return { start: startOfYear(start), end: endOfYear(end) };
+    }
+
+    return { start, end };
+  }
+
+  async getSalesRevenueReport(filters: ReportFilters): Promise<SalesRevenueReportItem[]> {
+    const { startDate, endDate, itemId, userId, period } = filters;
+    
+    if (!startDate || !endDate) {
+      throw new Error("Start date and end date are required");
+    }
+
+    const { start, end } = this.getDateRange(startDate, endDate, period);
+
+    // Build query for actual revenue (closed bills)
+    let actualQuery = this.billRepository
+      .createQueryBuilder("bill")
+      .leftJoinAndSelect("bill.bill_items", "billItem")
+      .leftJoinAndSelect("billItem.item", "item")
+      .leftJoinAndSelect("bill.user", "user")
+      .where("bill.status = :closedStatus", { closedStatus: BillStatus.CLOSED })
+      .andWhere("billItem.status != :voidedStatus", { voidedStatus: BillItemStatus.VOIDED })
+      .andWhere("bill.created_at >= :start", { start })
+      .andWhere("bill.created_at <= :end", { end });
+
+    // Build query for projected revenue (active bills)
+    let projectedQuery = this.billRepository
+      .createQueryBuilder("bill")
+      .leftJoinAndSelect("bill.bill_items", "billItem")
+      .leftJoinAndSelect("billItem.item", "item")
+      .leftJoinAndSelect("bill.user", "user")
+      .where("bill.status IN (:...activeStatuses)", { 
+        activeStatuses: [BillStatus.PENDING, BillStatus.SUBMITTED, BillStatus.REOPENED] 
+      })
+      .andWhere("billItem.status != :voidedStatus", { voidedStatus: BillItemStatus.VOIDED })
+      .andWhere("bill.created_at >= :start", { start })
+      .andWhere("bill.created_at <= :end", { end });
+
+    if (itemId) {
+      actualQuery = actualQuery.andWhere("item.id = :itemId", { itemId });
+      projectedQuery = projectedQuery.andWhere("item.id = :itemId", { itemId });
+    }
+
+    if (userId) {
+      actualQuery = actualQuery.andWhere("bill.user_id = :userId", { userId });
+      projectedQuery = projectedQuery.andWhere("bill.user_id = :userId", { userId });
+    }
+
+    const actualBills = await actualQuery.getMany();
+    const projectedBills = await projectedQuery.getMany();
+
+    // Group by date period
+    const reportMap = new Map<string, SalesRevenueReportItem>();
+
+    // Process actual revenue
+    actualBills.forEach(bill => {
+      const billDate = new Date(bill.created_at).toISOString().split('T')[0];
+      if (!reportMap.has(billDate)) {
+        reportMap.set(billDate, {
+          date: billDate,
+          actualRevenue: 0,
+          projectedRevenue: 0,
+          totalRevenue: 0,
+          billCount: 0,
+          itemBreakdown: [],
+          userBreakdown: []
+        });
+      }
+
+      const report = reportMap.get(billDate)!;
+      const billRevenue = bill.bill_items
+        ?.filter(item => item.status !== BillItemStatus.VOIDED)
+        .reduce((sum, item) => sum + (item.subtotal || 0), 0) || 0;
+
+      report.actualRevenue += billRevenue;
+      report.totalRevenue += billRevenue;
+      report.billCount += 1;
+    });
+
+    // Process projected revenue
+    projectedBills.forEach(bill => {
+      const billDate = new Date(bill.created_at).toISOString().split('T')[0];
+      if (!reportMap.has(billDate)) {
+        reportMap.set(billDate, {
+          date: billDate,
+          actualRevenue: 0,
+          projectedRevenue: 0,
+          totalRevenue: 0,
+          billCount: 0,
+          itemBreakdown: [],
+          userBreakdown: []
+        });
+      }
+
+      const report = reportMap.get(billDate)!;
+      const billRevenue = bill.bill_items
+        ?.filter(item => item.status !== BillItemStatus.VOIDED)
+        .reduce((sum, item) => sum + (item.subtotal || 0), 0) || 0;
+
+      report.projectedRevenue += billRevenue;
+      report.totalRevenue += billRevenue;
+    });
+
+    return Array.from(reportMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  async getProductionStockRevenueReport(filters: ReportFilters): Promise<ProductionStockRevenueReportItem[]> {
+    const { startDate, endDate, itemId } = filters;
+    
+    if (!startDate || !endDate) {
+      throw new Error("Start date and end date are required");
+    }
+
+    const { start, end } = this.getDateRange(startDate, endDate);
+
+    let query = this.billRepository
+      .createQueryBuilder("bill")
+      .leftJoinAndSelect("bill.bill_items", "billItem")
+      .leftJoinAndSelect("billItem.item", "item")
+      .where("bill.status = :closedStatus", { closedStatus: BillStatus.CLOSED })
+      .andWhere("billItem.status != :voidedStatus", { voidedStatus: BillItemStatus.VOIDED })
+      .andWhere("bill.created_at >= :start", { start })
+      .andWhere("bill.created_at <= :end", { end });
+
+    if (itemId) {
+      query = query.andWhere("item.id = :itemId", { itemId });
+    }
+
+    const bills = await query.getMany();
+
+    const reportMap = new Map<string, ProductionStockRevenueReportItem>();
+
+    bills.forEach(bill => {
+      const billDate = new Date(bill.created_at).toISOString().split('T')[0];
+      
+      bill.bill_items?.forEach(billItem => {
+        if (billItem.status === BillItemStatus.VOIDED || !billItem.item) return;
+
+        if (!reportMap.has(billDate)) {
+          reportMap.set(billDate, {
+            date: billDate,
+            productionRevenue: 0,
+            stockRevenue: 0,
+            totalRevenue: 0,
+            itemBreakdown: []
+          });
+        }
+
+        const report = reportMap.get(billDate)!;
+        const revenue = billItem.subtotal || 0;
+        const isStock = billItem.item.isStock;
+
+        if (isStock) {
+          report.stockRevenue += revenue;
+        } else {
+          report.productionRevenue += revenue;
+        }
+        report.totalRevenue += revenue;
+      });
+    });
+
+    return Array.from(reportMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  async getItemsSoldCountReport(filters: ReportFilters): Promise<ItemsSoldCountReportItem[]> {
+    const { startDate, endDate, itemId, userId } = filters;
+    
+    if (!startDate || !endDate) {
+      throw new Error("Start date and end date are required");
+    }
+
+    const { start, end } = this.getDateRange(startDate, endDate);
+
+    let query = this.billItemRepository
+      .createQueryBuilder("billItem")
+      .leftJoinAndSelect("billItem.bill", "bill")
+      .leftJoinAndSelect("billItem.item", "item")
+      .leftJoinAndSelect("bill.user", "user")
+      .where("bill.status = :closedStatus", { closedStatus: BillStatus.CLOSED })
+      .andWhere("billItem.status != :voidedStatus", { voidedStatus: BillItemStatus.VOIDED })
+      .andWhere("bill.created_at >= :start", { start })
+      .andWhere("bill.created_at <= :end", { end });
+
+    if (itemId) {
+      query = query.andWhere("item.id = :itemId", { itemId });
+    }
+
+    if (userId) {
+      query = query.andWhere("bill.user_id = :userId", { userId });
+    }
+
+    const billItems = await query.getMany();
+
+    const reportMap = new Map<string, ItemsSoldCountReportItem>();
+
+    billItems.forEach(billItem => {
+      if (!billItem.item) return;
+
+      const date = new Date(billItem.bill.created_at).toISOString().split('T')[0];
+      const key = `${date}_${billItem.item.id}${userId ? `_${billItem.bill.user_id}` : ''}`;
+
+      if (!reportMap.has(key)) {
+        reportMap.set(key, {
+          date,
+          itemId: billItem.item.id,
+          itemName: billItem.item.name,
+          quantity: 0,
+          userId: userId ? billItem.bill.user_id : undefined,
+          userName: userId && billItem.bill.user ? `${billItem.bill.user.firstName || ''} ${billItem.bill.user.lastName || ''}`.trim() : undefined
+        });
+      }
+
+      const report = reportMap.get(key)!;
+      report.quantity += billItem.quantity || 0;
+    });
+
+    return Array.from(reportMap.values()).sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      if (a.itemId !== b.itemId) return a.itemId - b.itemId;
+      return 0;
+    });
+  }
+
+  async getVoidedItemsReport(filters: ReportFilters): Promise<VoidedItemsReportItem[]> {
+    const { startDate, endDate, itemId, userId } = filters;
+    
+    if (!startDate || !endDate) {
+      throw new Error("Start date and end date are required");
+    }
+
+    const { start, end } = this.getDateRange(startDate, endDate);
+
+    let query = this.billItemRepository
+      .createQueryBuilder("billItem")
+      .leftJoinAndSelect("billItem.bill", "bill")
+      .leftJoinAndSelect("billItem.item", "item")
+      .where("billItem.status = :voidedStatus", { voidedStatus: BillItemStatus.VOIDED })
+      .andWhere("billItem.void_requested_at >= :start", { start })
+      .andWhere("billItem.void_requested_at <= :end", { end });
+
+    if (itemId) {
+      query = query.andWhere("item.id = :itemId", { itemId });
+    }
+
+    if (userId) {
+      query = query.andWhere("billItem.void_requested_by = :userId", { userId });
+    }
+
+    const billItems = await query.getMany();
+
+    // Fetch user details separately
+    const userIds = new Set<number>();
+    billItems.forEach(item => {
+      if (item.void_requested_by) userIds.add(item.void_requested_by);
+      if (item.void_approved_by) userIds.add(item.void_approved_by);
+    });
+
+    const users = userIds.size > 0 ? await this.userRepository.find({
+      where: { id: In(Array.from(userIds)) }
+    }) : [];
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    return billItems.map(billItem => {
+      const requestedBy = userMap.get(billItem.void_requested_by || 0);
+      const approvedBy = billItem.void_approved_by ? userMap.get(billItem.void_approved_by) : undefined;
+
+      return {
+        date: new Date(billItem.void_requested_at || billItem.created_at).toISOString().split('T')[0],
+        itemId: billItem.item?.id || 0,
+        itemName: billItem.item?.name || "Unknown",
+        quantity: billItem.quantity || 0,
+        subtotal: billItem.subtotal || 0,
+        voidReason: billItem.void_reason || "",
+        requestedBy: billItem.void_requested_by || 0,
+        requestedByName: requestedBy ? `${requestedBy.firstName || ''} ${requestedBy.lastName || ''}`.trim() || "Unknown" : "Unknown",
+        approvedBy: billItem.void_approved_by,
+        approvedByName: approvedBy ? `${approvedBy.firstName || ''} ${approvedBy.lastName || ''}`.trim() || undefined : undefined,
+        voidRequestedAt: billItem.void_requested_at || billItem.created_at,
+        voidApprovedAt: billItem.void_approved_at,
+        billId: billItem.bill_id || 0
+      };
+    }).sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return (b.voidRequestedAt?.getTime() || 0) - (a.voidRequestedAt?.getTime() || 0);
+    });
+  }
+
+  async getExpenditureReport(filters: ReportFilters): Promise<ExpenditureReportItem[]> {
+    const { startDate, endDate, itemId, supplierId } = filters;
+    
+    if (!startDate || !endDate) {
+      throw new Error("Start date and end date are required");
+    }
+
+    const { start, end } = this.getDateRange(startDate, endDate);
+
+    let query = this.purchaseOrderRepository
+      .createQueryBuilder("po")
+      .leftJoinAndSelect("po.items", "poItem")
+      .leftJoinAndSelect("poItem.item", "item")
+      .leftJoinAndSelect("po.supplier", "supplier")
+      .where("po.status = :receivedStatus", { receivedStatus: PurchaseOrderStatus.RECEIVED })
+      .andWhere("po.created_at >= :start", { start })
+      .andWhere("po.created_at <= :end", { end })
+      .andWhere("item.isStock = :isStock", { isStock: true });
+
+    if (itemId) {
+      query = query.andWhere("item.id = :itemId", { itemId });
+    }
+
+    if (supplierId) {
+      query = query.andWhere("po.supplier_id = :supplierId", { supplierId });
+    }
+
+    const purchaseOrders = await query.getMany();
+
+    const results: ExpenditureReportItem[] = [];
+
+    purchaseOrders.forEach(po => {
+      const poDate = new Date(po.created_at).toISOString().split('T')[0];
+      
+      po.items?.forEach(poItem => {
+        if (!poItem.item || !poItem.item.isStock) return;
+
+        results.push({
+          date: poDate,
+          supplierId: po.supplier_id || 0,
+          supplierName: po.supplier?.name || "Unknown",
+          itemId: poItem.item.id,
+          itemName: poItem.item.name,
+          quantity: poItem.quantity_received || 0,
+          unitPrice: Number(poItem.unit_price) || 0,
+          subtotal: Number(poItem.subtotal) || 0,
+          totalAmount: Number(po.total_amount) || 0
+        });
+      });
+    });
+
+    return results.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      if (a.supplierId !== b.supplierId) return a.supplierId - b.supplierId;
+      return a.itemId - b.itemId;
+    });
+  }
+
+  async getInvoicesPendingBillsReport(filters: ReportFilters): Promise<InvoicesPendingBillsReportItem[]> {
+    const { startDate, endDate, itemId } = filters;
+    
+    if (!startDate || !endDate) {
+      throw new Error("Start date and end date are required");
+    }
+
+    const { start, end } = this.getDateRange(startDate, endDate);
+
+    const results: InvoicesPendingBillsReportItem[] = [];
+
+    // Get invoices (received purchase orders)
+    let invoiceQuery = this.purchaseOrderRepository
+      .createQueryBuilder("po")
+      .leftJoinAndSelect("po.items", "poItem")
+      .leftJoinAndSelect("poItem.item", "item")
+      .where("po.status = :receivedStatus", { receivedStatus: PurchaseOrderStatus.RECEIVED })
+      .andWhere("po.created_at >= :start", { start })
+      .andWhere("po.created_at <= :end", { end });
+
+    if (itemId) {
+      invoiceQuery = invoiceQuery.andWhere("item.id = :itemId", { itemId });
+    }
+
+    const invoices = await invoiceQuery.getMany();
+
+    invoices.forEach(po => {
+      const poDate = new Date(po.created_at).toISOString().split('T')[0];
+      const itemBreakdown = po.items?.map(item => ({
+        itemId: item.item?.id || 0,
+        itemName: item.item?.name || "Unknown",
+        quantity: item.quantity_received || 0,
+        subtotal: Number(item.subtotal) || 0
+      })) || [];
+
+      results.push({
+        date: poDate,
+        type: "invoice",
+        referenceId: po.id,
+        referenceNumber: po.order_number,
+        total: Number(po.total_amount) || 0,
+        itemBreakdown
+      });
+    });
+
+    // Get pending bills
+    let pendingBillsQuery = this.billRepository
+      .createQueryBuilder("bill")
+      .leftJoinAndSelect("bill.bill_items", "billItem")
+      .leftJoinAndSelect("billItem.item", "item")
+      .where("bill.status IN (:...pendingStatuses)", { 
+        pendingStatuses: [BillStatus.SUBMITTED, BillStatus.REOPENED] 
+      })
+      .andWhere("bill.created_at >= :start", { start })
+      .andWhere("bill.created_at <= :end", { end });
+
+    if (itemId) {
+      pendingBillsQuery = pendingBillsQuery.andWhere("item.id = :itemId", { itemId });
+    }
+
+    const pendingBills = await pendingBillsQuery.getMany();
+
+    pendingBills.forEach(bill => {
+      const billDate = new Date(bill.created_at).toISOString().split('T')[0];
+      const itemBreakdown = bill.bill_items
+        ?.filter(item => item.status !== BillItemStatus.VOIDED)
+        .map(item => ({
+          itemId: item.item?.id || 0,
+          itemName: item.item?.name || "Unknown",
+          quantity: item.quantity || 0,
+          subtotal: item.subtotal || 0
+        })) || [];
+
+      results.push({
+        date: billDate,
+        type: "pending_bill",
+        referenceId: bill.id,
+        referenceNumber: bill.request_id || `BILL-${bill.id}`,
+        total: bill.total || 0,
+        itemBreakdown
+      });
+    });
+
+    return results.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.referenceId - b.referenceId;
+    });
+  }
+
+  async getPurchaseOrdersReport(filters: ReportFilters): Promise<PurchaseOrdersReportItem[]> {
+    const { startDate, endDate, itemId, supplierId } = filters;
+    
+    if (!startDate || !endDate) {
+      throw new Error("Start date and end date are required");
+    }
+
+    const { start, end } = this.getDateRange(startDate, endDate);
+
+    let query = this.purchaseOrderRepository
+      .createQueryBuilder("po")
+      .leftJoinAndSelect("po.items", "poItem")
+      .leftJoinAndSelect("poItem.item", "item")
+      .leftJoinAndSelect("po.supplier", "supplier")
+      .where("po.created_at >= :start", { start })
+      .andWhere("po.created_at <= :end", { end });
+
+    if (itemId) {
+      query = query.andWhere("item.id = :itemId", { itemId });
+    }
+
+    if (supplierId) {
+      query = query.andWhere("po.supplier_id = :supplierId", { supplierId });
+    }
+
+    const purchaseOrders = await query.getMany();
+
+    return purchaseOrders.map(po => {
+      const poDate = new Date(po.created_at).toISOString().split('T')[0];
+      const itemBreakdown = po.items?.map(item => ({
+        itemId: item.item?.id || 0,
+        itemName: item.item?.name || "Unknown",
+        quantityOrdered: item.quantity_ordered || 0,
+        quantityReceived: item.quantity_received || 0,
+        unitPrice: Number(item.unit_price) || 0,
+        subtotal: Number(item.subtotal) || 0
+      })) || [];
+
+      return {
+        date: poDate,
+        orderNumber: po.order_number,
+        supplierId: po.supplier_id || 0,
+        supplierName: po.supplier?.name || "Unknown",
+        status: po.status,
+        totalAmount: Number(po.total_amount) || 0,
+        itemBreakdown
+      };
+    }).sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.orderNumber.localeCompare(b.orderNumber);
+    });
+  }
+
+  async getPnLReport(filters: ReportFilters): Promise<PnLReportItem[]> {
+    const { startDate, endDate, period } = filters;
+    
+    if (!startDate || !endDate) {
+      throw new Error("Start date and end date are required");
+    }
+
+    const { start, end } = this.getDateRange(startDate, endDate, period);
+
+    // Get actual revenue (closed bills, non-voided items)
+    const actualRevenueQuery = this.billItemRepository
+      .createQueryBuilder("billItem")
+      .leftJoin("billItem.bill", "bill")
+      .where("bill.status = :closedStatus", { closedStatus: BillStatus.CLOSED })
+      .andWhere("billItem.status != :voidedStatus", { voidedStatus: BillItemStatus.VOIDED })
+      .andWhere("bill.created_at >= :start", { start })
+      .andWhere("bill.created_at <= :end", { end })
+      .select("DATE(bill.created_at)", "date")
+      .addSelect("SUM(billItem.subtotal)", "revenue")
+      .groupBy("DATE(bill.created_at)");
+
+    const actualRevenueResults = await actualRevenueQuery.getRawMany();
+
+    // Get projected revenue (active bills, non-voided items)
+    const projectedRevenueQuery = this.billItemRepository
+      .createQueryBuilder("billItem")
+      .leftJoin("billItem.bill", "bill")
+      .where("bill.status IN (:...activeStatuses)", { 
+        activeStatuses: [BillStatus.PENDING, BillStatus.SUBMITTED, BillStatus.REOPENED] 
+      })
+      .andWhere("billItem.status != :voidedStatus", { voidedStatus: BillItemStatus.VOIDED })
+      .andWhere("bill.created_at >= :start", { start })
+      .andWhere("bill.created_at <= :end", { end })
+      .select("DATE(bill.created_at)", "date")
+      .addSelect("SUM(billItem.subtotal)", "revenue")
+      .groupBy("DATE(bill.created_at)");
+
+    const projectedRevenueResults = await projectedRevenueQuery.getRawMany();
+
+    // Get expenses (received purchase orders)
+    const expensesQuery = this.purchaseOrderRepository
+      .createQueryBuilder("po")
+      .where("po.status = :receivedStatus", { receivedStatus: PurchaseOrderStatus.RECEIVED })
+      .andWhere("po.created_at >= :start", { start })
+      .andWhere("po.created_at <= :end", { end })
+      .select("DATE(po.created_at)", "date")
+      .addSelect("SUM(po.total_amount)", "expenses")
+      .groupBy("DATE(po.created_at)");
+
+    const expensesResults = await expensesQuery.getRawMany();
+
+    // Get voids (for reference)
+    const voidsQuery = this.billItemRepository
+      .createQueryBuilder("billItem")
+      .leftJoin("billItem.bill", "bill")
+      .where("billItem.status = :voidedStatus", { voidedStatus: BillItemStatus.VOIDED })
+      .andWhere("billItem.void_requested_at >= :start", { start })
+      .andWhere("billItem.void_requested_at <= :end", { end })
+      .select("DATE(billItem.void_requested_at)", "date")
+      .addSelect("SUM(billItem.subtotal)", "voids")
+      .groupBy("DATE(billItem.void_requested_at)");
+
+    const voidsResults = await voidsQuery.getRawMany();
+
+    // Combine results by date
+    const reportMap = new Map<string, PnLReportItem>();
+
+    actualRevenueResults.forEach(row => {
+      const date = new Date(row.date).toISOString().split('T')[0];
+      if (!reportMap.has(date)) {
+        reportMap.set(date, {
+          date,
+          actualRevenue: 0,
+          projectedRevenue: 0,
+          totalRevenue: 0,
+          expenses: 0,
+          voids: 0,
+          actualPnL: 0,
+          projectedPnL: 0
+        });
+      }
+      reportMap.get(date)!.actualRevenue = Number(row.revenue) || 0;
+    });
+
+    projectedRevenueResults.forEach(row => {
+      const date = new Date(row.date).toISOString().split('T')[0];
+      if (!reportMap.has(date)) {
+        reportMap.set(date, {
+          date,
+          actualRevenue: 0,
+          projectedRevenue: 0,
+          totalRevenue: 0,
+          expenses: 0,
+          voids: 0,
+          actualPnL: 0,
+          projectedPnL: 0
+        });
+      }
+      reportMap.get(date)!.projectedRevenue = Number(row.revenue) || 0;
+    });
+
+    expensesResults.forEach(row => {
+      const date = new Date(row.date).toISOString().split('T')[0];
+      if (!reportMap.has(date)) {
+        reportMap.set(date, {
+          date,
+          actualRevenue: 0,
+          projectedRevenue: 0,
+          totalRevenue: 0,
+          expenses: 0,
+          voids: 0,
+          actualPnL: 0,
+          projectedPnL: 0
+        });
+      }
+      reportMap.get(date)!.expenses = Number(row.expenses) || 0;
+    });
+
+    voidsResults.forEach(row => {
+      const date = new Date(row.date).toISOString().split('T')[0];
+      if (!reportMap.has(date)) {
+        reportMap.set(date, {
+          date,
+          actualRevenue: 0,
+          projectedRevenue: 0,
+          totalRevenue: 0,
+          expenses: 0,
+          voids: 0,
+          actualPnL: 0,
+          projectedPnL: 0
+        });
+      }
+      reportMap.get(date)!.voids = Number(row.voids) || 0;
+    });
+
+    // Calculate totals and PnL
+    return Array.from(reportMap.values()).map(report => {
+      report.totalRevenue = report.actualRevenue + report.projectedRevenue;
+      report.actualPnL = report.actualRevenue - report.expenses;
+      report.projectedPnL = report.totalRevenue - report.expenses;
+      return report;
+    }).sort((a, b) => a.date.localeCompare(b.date));
+  }
+}
+

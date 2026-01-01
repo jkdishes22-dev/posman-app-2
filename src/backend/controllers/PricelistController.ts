@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PricelistService } from "@services/PricelistService";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const createPricelistHandler = async (
   req: NextApiRequest,
@@ -15,8 +16,11 @@ export const createPricelistHandler = async (
     );
     res.status(201).json(pricelist);
   } catch (error: any) {
-    console.error("Error creating pricelist:", error);
-    res.status(500).json({ error: "Error creating pricelist" + error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "creating",
+      resource: "pricelist"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -29,8 +33,11 @@ export const fetchPricelistsHandler = async (
     const pricelists = await pricelistService.fetchPricelists();
     res.status(200).json(pricelists);
   } catch (error: any) {
-    console.error("Error fetching pricelists:", error);
-    res.status(500).json({ error: "Error fetching pricelists" });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "pricelists"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -45,7 +52,10 @@ export const fetchPricelistItems = async (
       await pricelistService.fetchPricelistItems(pricelistId);
     res.status(200).json(pricelistItems);
   } catch (error: any) {
-    console.error("Error fetching pricelist items:", error);
-    return [];
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "pricelist items"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
