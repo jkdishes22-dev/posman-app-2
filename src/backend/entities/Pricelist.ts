@@ -1,4 +1,4 @@
-import { Column, Entity, OneToMany } from "typeorm";
+import { Column, Entity, OneToMany, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { StationPricelist } from "./StationPricelist";
 
@@ -9,9 +9,13 @@ export enum PriceListStatus {
 }
 
 @Entity("pricelist")
+@Index(["code"], { unique: true, where: "code IS NOT NULL" })
 export class Pricelist extends BaseEntity {
   @Column({ type: "varchar", length: 255 })
   name: string;
+
+  @Column({ type: "varchar", length: 255, nullable: true, unique: true })
+  code: string;
 
   @Column({
     type: "enum",

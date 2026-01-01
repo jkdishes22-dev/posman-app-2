@@ -1,6 +1,7 @@
 import { Item, ItemStatus } from "@backend/entities/Item";
 import { Service } from "typedi";
 import { DataSource, Repository } from "typeorm";
+import { cache } from "@backend/utils/cache";
 
 @Service()
 export class ProductionService {
@@ -18,27 +19,45 @@ export class ProductionService {
     });
 
     const savedItem = await this.itemRepository.save(createdItem);
+
+    // Invalidate cache after creating item
+    cache.invalidate("production_items_composite");
+    cache.invalidate("production_items_sellable");
+    cache.invalidate("items");
+
     return savedItem;
   }
 
   async fetchProductionItems(compositeOnly: boolean = false) {
+    const cacheKey = compositeOnly ? "production_items_composite" : "production_items_sellable";
+
+    // Try cache first
+    const cached = cache.get<Item[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+
+    let items: Item[];
+
     if (compositeOnly) {
       // Return only composite items (isGroup: true) for recipes
-      const items = await this.itemRepository.find({
+      items = await this.itemRepository.find({
         where: {
           isGroup: true,
         },
       });
-      return items;
+    } else {
+      // Return sellable items (isStock: false) for production issuing
+      // These are the items that can be produced and sold
+      items = await this.itemRepository.find({
+        where: {
+          isStock: false,
+        },
+      });
     }
-    
-    // Return sellable items (isStock: false) for production issuing
-    // These are the items that can be produced and sold
-    const items = await this.itemRepository.find({
-      where: {
-        isStock: false,
-      },
-    });
+
+    // Cache the result
+    cache.set(cacheKey, items);
     return items;
   }
 }

@@ -6,6 +6,9 @@ import { Button } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
+import ViewItems from "../../../admin/menu/category/components/items/items-view";
+import ItemAdd from "../../../admin/menu/category/components/items/items-new";
+import { Item } from "../../../types/types";
 
 interface Pricelist {
   id: number;
@@ -30,6 +33,7 @@ export default function SupervisorPricelistPage() {
   const apiCall = useApiCall();
   const [pricelists, setPricelists] = useState<Pricelist[]>([]);
   const [pricelistItems, setPricelistItems] = useState<PricelistItem[]>([]);
+  const [transformedItems, setTransformedItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
@@ -42,8 +46,15 @@ export default function SupervisorPricelistPage() {
 
   useEffect(() => {
     fetchPricelists();
-    fetchPricelistItems();
   }, []);
+
+  useEffect(() => {
+    if (selectedPricelist) {
+      fetchPricelistItems(selectedPricelist.id);
+    } else {
+      setPricelistItems([]);
+    }
+  }, [selectedPricelist]);
 
   const fetchPricelists = async () => {
     try {
@@ -53,7 +64,8 @@ export default function SupervisorPricelistPage() {
 
       const result = await apiCall("/api/menu/pricelists");
       if (result.status === 200) {
-        setPricelists(result.data.pricelists || []);
+        // API returns array directly, not wrapped in {pricelists: [...]}
+        setPricelists(Array.isArray(result.data) ? result.data : []);
       } else {
         setError(result.error || "Failed to fetch pricelists");
         setErrorDetails(result.errorDetails);
@@ -67,19 +79,57 @@ export default function SupervisorPricelistPage() {
     }
   };
 
-  const fetchPricelistItems = async () => {
+  const fetchPricelistItems = async (pricelistId: number) => {
+    if (!pricelistId) {
+      setPricelistItems([]);
+      setTransformedItems([]);
+      return;
+    }
+
     try {
-      const result = await apiCall("/api/menu/items");
+      const result = await apiCall(`/api/menu/pricelists/${pricelistId}/items`);
       if (result.status === 200) {
-        setPricelistItems(result.data.items || []);
+        // API returns array directly
+        const items = Array.isArray(result.data) ? result.data : [];
+        setPricelistItems(items);
+
+        // Transform items to match ViewItems expected format
+        // API returns items with properties directly: name, code, id, category, etc.
+        const transformed = items.map((item: any) => ({
+          id: item.id,
+          name: item.name || "Unknown",
+          code: item.code || "N/A",
+          price: item.price || 0,
+          pricelistId: pricelistId,
+          pricelistName: (item.pricelistName || selectedPricelist?.name || "") as any, // Type expects number but should be string
+          pricelist_item_isEnabled: item.is_enabled !== undefined ? item.is_enabled : (item.isEnabled !== undefined ? item.isEnabled : true),
+          stationName: selectedPricelist?.station?.name || "",
+          category: item.category ? {
+            id: String(item.category.id),
+            name: item.category.name
+          } : {
+            id: "0",
+            name: "N/A"
+          },
+          isGroup: item.isGroup || false,
+          allowNegativeInventory: false, // Default value
+          pricelistItemId: item.pricelistItemId, // Store pricelistItemId for price updates
+        } as any)); // Use 'as any' to allow pricelistItemId property
+        setTransformedItems(transformed);
+        setItemError(null);
+        setItemErrorDetails(null);
       } else {
         setItemError(result.error || "Failed to fetch pricelist items");
         setItemErrorDetails(result.errorDetails);
+        setPricelistItems([]);
+        setTransformedItems([]);
       }
     } catch (error: any) {
       console.error("Error fetching pricelist items:", error);
       setItemError("Network error occurred");
-      setItemErrorDetails(null);
+      setItemErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+      setPricelistItems([]);
+      setTransformedItems([]);
     }
   };
 
@@ -103,17 +153,34 @@ export default function SupervisorPricelistPage() {
     }
   };
 
-  const handleAddItem = async (itemData) => {
+  const handleAddItem = async (itemData: any) => {
     try {
       setItemError(null);
       setItemErrorDetails(null);
+
+      // Transform itemData to match API expectations
+      // ItemAdd component passes: name, code, price, category, pricelistId, isGroup, isStock, allowNegativeInventory
+      const transformedData = {
+        name: itemData.name || itemData.itemName,
+        code: itemData.code || itemData.itemCode,
+        price: itemData.price || itemData.itemPrice,
+        category: itemData.category,
+        pricelistId: itemData.pricelistId || selectedPricelist?.id,
+        isGroup: itemData.isGroup || false,
+        isStock: itemData.isStock || false,
+        allowNegativeInventory: itemData.allowNegativeInventory || false,
+      };
+
       const result = await apiCall("/api/menu/items", {
         method: "POST",
-        body: JSON.stringify(itemData),
+        body: JSON.stringify(transformedData),
       });
 
       if (result.status === 200 || result.status === 201) {
-        await fetchPricelistItems();
+        // Refresh items if a pricelist is selected
+        if (selectedPricelist) {
+          await fetchPricelistItems(selectedPricelist.id);
+        }
         setShowItemModal(false);
       } else {
         setItemError(result.error || "Failed to add item");
@@ -122,7 +189,39 @@ export default function SupervisorPricelistPage() {
     } catch (error: any) {
       console.error("Error adding item:", error);
       setItemError("Network error occurred");
+      setItemErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    }
+  };
+
+  const handleDeleteItem = async (itemId: number) => {
+    if (!selectedPricelist) {
+      setItemError("No pricelist selected");
       setItemErrorDetails(null);
+      return;
+    }
+
+    try {
+      setItemError(null);
+      setItemErrorDetails(null);
+      // Delete item from pricelist by disabling the pricelist_item relationship
+      const result = await apiCall(`/api/menu/pricelists/${selectedPricelist.id}/items/${itemId}`, {
+        method: "DELETE",
+      });
+
+      if (result.status === 200 || result.status === 204) {
+        // Success - refresh pricelist items
+        await fetchPricelistItems(selectedPricelist.id);
+        setItemError(null);
+        setItemErrorDetails(null);
+      } else {
+        // Error - apiCall already standardizes all non-2XX errors
+        setItemError(result.error || "Failed to delete item from pricelist");
+        setItemErrorDetails(result.errorDetails);
+      }
+    } catch (error: any) {
+      console.error("Error deleting item from pricelist:", error);
+      setItemError("Network error occurred");
+      setItemErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -147,71 +246,91 @@ export default function SupervisorPricelistPage() {
           }}
         />
 
-        <div className="row">
+        {/* Main Content */}
+        <div className="row g-4">
           {/* Pricelists Section */}
-          <div className="col-md-6">
-            <div className="card">
-              <div className="card-header d-flex justify-content-between align-items-center">
-                <h5 className="card-title mb-0">Pricelists</h5>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setShowPricelistModal(true)}
-                >
-                  <i className="bi bi-plus me-1"></i>
-                  Add Pricelist
-                </Button>
+          <div className="col-5">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <div className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0 fw-bold">
+                    <i className="bi bi-list-ul me-2 text-primary"></i>
+                    Pricelists
+                  </h5>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setShowPricelistModal(true)}
+                  >
+                    <i className="bi bi-plus-circle me-1"></i>
+                    Add Pricelist
+                  </Button>
+                </div>
               </div>
-              <div className="card-body">
+              <div className="card-body p-0">
                 {formError && (
-                  <div className="alert alert-danger" role="alert">
+                  <div className="alert alert-danger m-3 mb-0" role="alert">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
                     {formError}
                     <button
                       type="button"
                       className="btn-close"
                       onClick={() => setFormError(null)}
+                      aria-label="Close"
                     ></button>
                   </div>
                 )}
 
                 {loading ? (
-                  <div className="text-center">
-                    <div className="spinner-border" role="status">
+                  <div className="text-center py-5">
+                    <div className="spinner-border text-primary" role="status">
                       <span className="visually-hidden">Loading...</span>
                     </div>
                   </div>
                 ) : (
-                  <div className="table-responsive">
-                    <table className="table table-striped">
-                      <thead>
+                  <div className="table-responsive" style={{ maxHeight: "500px", overflowY: "auto" }}>
+                    <table className="table table-hover mb-0">
+                      <thead className="table-light sticky-top">
                         <tr>
-                          <th>#</th>
-                          <th>Name</th>
-                          <th>Description</th>
-                          <th>Status</th>
-                          <th>Actions</th>
+                          <th className="fw-semibold">#</th>
+                          <th className="fw-semibold">Name</th>
+                          <th className="fw-semibold">Description</th>
+                          <th className="fw-semibold text-center">Status</th>
+                          <th className="fw-semibold text-center">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {pricelists.map((pricelist) => (
-                          <tr key={pricelist.id}>
-                            <td>{pricelist.id}</td>
+                        {pricelists.map((pricelist, index) => (
+                          <tr
+                            key={pricelist.id}
+                            onClick={() => setSelectedPricelist(pricelist)}
+                            style={{ cursor: "pointer" }}
+                            className={selectedPricelist?.id === pricelist.id ? "table-primary" : ""}
+                          >
+                            <td className="fw-medium">{index + 1}</td>
                             <td>{pricelist.name}</td>
-                            <td>{pricelist.description}</td>
                             <td>
-                              <span
-                                className={`badge ${pricelist.status === "active" ? "bg-success" : "bg-secondary"
-                                  }`}
-                              >
-                                {pricelist.status}
+                              {pricelist.description ? (
+                                <span className="text-muted">{pricelist.description}</span>
+                              ) : (
+                                <span className="text-muted">No description</span>
+                              )}
+                            </td>
+                            <td className="text-center">
+                              <span className={`badge ${pricelist.status === "active" ? "bg-success" : "bg-secondary"}`}>
+                                {pricelist.status === "active" ? "Active" : "Inactive"}
                               </span>
                             </td>
-                            <td>
+                            <td className="text-center">
                               <Button
                                 variant="outline-primary"
                                 size="sm"
-                                onClick={() => setSelectedPricelist(pricelist)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedPricelist(pricelist);
+                                }}
                               >
+                                <i className="bi bi-eye me-1"></i>
                                 View Items
                               </Button>
                             </td>
@@ -226,20 +345,53 @@ export default function SupervisorPricelistPage() {
           </div>
 
           {/* Pricelist Items Section */}
-          <div className="col-md-6">
-            <div className="card">
-              <div className="card-header d-flex justify-content-between align-items-center">
-                <h5 className="card-title mb-0">Pricelist Items</h5>
-                <Button
-                  variant="success"
-                  size="sm"
-                  onClick={() => setShowItemModal(true)}
-                >
-                  <i className="bi bi-plus me-1"></i>
-                  Add Item
-                </Button>
+          <div className="col-7">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <div className="d-flex justify-content-between align-items-center">
+                  <h5 className="mb-0 fw-bold">
+                    <i className="bi bi-box-seam me-2 text-primary"></i>
+                    {selectedPricelist
+                      ? `Items - ${selectedPricelist.name}`
+                      : "Items"
+                    }
+                  </h5>
+                  {selectedPricelist && (
+                    <div className="d-flex gap-2">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => setShowItemModal(true)}
+                        disabled={selectedPricelist.status === "inactive"}
+                        title={selectedPricelist.status === "inactive" ? "Cannot add items to inactive pricelist" : ""}
+                      >
+                        <i className="bi bi-plus-circle me-1"></i>
+                        Add Item
+                      </Button>
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={() => {
+                          if (selectedPricelist) {
+                            fetchPricelistItems(selectedPricelist.id);
+                          }
+                        }}
+                        title="Refresh items"
+                      >
+                        <i className="bi bi-arrow-clockwise me-1"></i>
+                        Refresh
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="card-body">
+                {selectedPricelist && selectedPricelist.status === "inactive" && (
+                  <div className="alert alert-warning alert-sm mb-3" role="alert">
+                    <i className="bi bi-exclamation-triangle me-1"></i>
+                    <strong>Pricelist Inactive:</strong> Cannot add or manage items on inactive pricelists.
+                  </div>
+                )}
                 <ErrorDisplay
                   error={itemError}
                   errorDetails={itemErrorDetails}
@@ -249,30 +401,39 @@ export default function SupervisorPricelistPage() {
                   }}
                 />
 
-                <div className="table-responsive">
-                  <table className="table table-striped">
-                    <thead>
-                      <tr>
-                        <th>Item Name</th>
-                        <th>Item Code</th>
-                        <th>Category</th>
-                        <th>Pricelist</th>
-                        <th>Price</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pricelistItems.map((item) => (
-                        <tr key={item.id}>
-                          <td>{item.itemName}</td>
-                          <td>{item.itemCode}</td>
-                          <td>{item.category}</td>
-                          <td>{item.pricelist}</td>
-                          <td>${(Number(item.itemPrice) || 0).toFixed(2)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {selectedPricelist ? (
+                  <div>
+                    {transformedItems.length === 0 ? (
+                      <div className="text-center py-5">
+                        <i className="bi bi-inbox display-4 text-muted"></i>
+                        <p className="text-muted mt-3">No items in this pricelist. Click "Add Item" to add items.</p>
+                      </div>
+                    ) : (
+                      <ViewItems
+                        selectedCategory={null}
+                        items={[]}
+                        pricelistItems={transformedItems}
+                        itemError={itemError}
+                        setItems={setTransformedItems}
+                        onItemPick={() => { }}
+                        isBillingSection={false}
+                        isPricelistSection={true}
+                        isCategoryItemsSection={false}
+                        handleDeleteItem={handleDeleteItem}
+                        onItemUpdated={() => {
+                          if (selectedPricelist) {
+                            fetchPricelistItems(selectedPricelist.id);
+                          }
+                        }}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-5">
+                    <i className="bi bi-list-check display-4 text-muted"></i>
+                    <p className="text-muted mt-3">Select a pricelist from the left to view its items.</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -345,113 +506,16 @@ export default function SupervisorPricelistPage() {
           </div>
         )}
 
-        {/* Add Item Modal */}
-        {showItemModal && (
-          <div className="modal show d-block" tabIndex={-1}>
-            <div className="modal-dialog">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Add Item to Pricelist</h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setShowItemModal(false)}
-                  ></button>
-                </div>
-                <div className="modal-body">
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const formData = new FormData(e.target as HTMLFormElement);
-                      handleAddItem({
-                        itemName: formData.get("itemName"),
-                        itemCode: formData.get("itemCode"),
-                        category: formData.get("category"),
-                        pricelistId: formData.get("pricelistId"),
-                        itemPrice: parseFloat(formData.get("itemPrice") as string),
-                      });
-                    }}
-                  >
-                    <div className="mb-3">
-                      <label htmlFor="itemName" className="form-label">
-                        Item Name
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="itemName"
-                        name="itemName"
-                        required
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label htmlFor="itemCode" className="form-label">
-                        Item Code
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="itemCode"
-                        name="itemCode"
-                        required
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label htmlFor="category" className="form-label">
-                        Category
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="category"
-                        name="category"
-                        required
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label htmlFor="pricelistId" className="form-label">
-                        Pricelist
-                      </label>
-                      <select className="form-select" id="pricelistId" name="pricelistId" required>
-                        <option value="">Select Pricelist</option>
-                        {pricelists.map((pricelist) => (
-                          <option key={pricelist.id} value={pricelist.id}>
-                            {pricelist.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="mb-3">
-                      <label htmlFor="itemPrice" className="form-label">
-                        Price
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="form-control"
-                        id="itemPrice"
-                        name="itemPrice"
-                        required
-                      />
-                    </div>
-                    <div className="d-flex justify-content-end gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => setShowItemModal(false)}
-                      >
-                        Cancel
-                      </button>
-                      <button type="submit" className="btn btn-primary">
-                        Add Item
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Add Item Modal - Using shared ItemAdd component */}
+        <ItemAdd
+          selectedCategory={null}
+          showModal={showItemModal}
+          handleModalClose={() => setShowItemModal(false)}
+          handleAddItem={handleAddItem}
+          itemError={itemError || ""}
+          setItemError={(error: string) => setItemError(error || null)}
+          selectedPricelistId={selectedPricelist?.id || null}
+        />
       </div>
     </RoleAwareLayout>
   );

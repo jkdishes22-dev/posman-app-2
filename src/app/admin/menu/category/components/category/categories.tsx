@@ -18,9 +18,10 @@ interface CategoriesProps {
   onAddCategory?: () => void;
   error?: string;
   onErrorDismiss?: () => void;
+  billingMode?: boolean;
 }
 
-const CategoriesComponent: React.FC<CategoriesProps> = ({
+const CategoriesComponent = ({
   categories,
   onCategoryClick,
   fetchError,
@@ -30,7 +31,8 @@ const CategoriesComponent: React.FC<CategoriesProps> = ({
   onAddCategory,
   error,
   onErrorDismiss,
-}) => {
+  billingMode = false,
+}: CategoriesProps) => {
   useTooltips();
   const [showAll, setShowAll] = useState(false);
   const [visibleCount, setVisibleCount] = useState(8);
@@ -46,7 +48,7 @@ const CategoriesComponent: React.FC<CategoriesProps> = ({
   };
 
   // Debug: Log what we're receiving
-  console.log('Categories component received:', { categories, type: typeof categories, isArray: Array.isArray(categories) });
+  console.log("Categories component received:", { categories, type: typeof categories, isArray: Array.isArray(categories) });
 
   // Ensure categories is always an array
   const safeCategories = Array.isArray(categories) ? categories : [];
@@ -97,7 +99,14 @@ const CategoriesComponent: React.FC<CategoriesProps> = ({
               onClick={() => onCategoryClick(category)}
               style={{ cursor: "pointer" }}
             >
-              <div className="card">
+              <div
+                className="card"
+                style={billingMode ? {
+                  backgroundColor: "#1976d2", // Material Design primary blue
+                  borderColor: "#1565c0", // Material Design primary dark
+                  color: "#ffffff"
+                } : {}}
+              >
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-start border-bottom border-light pb-1">
                     <div className="col-auto"></div>
@@ -124,7 +133,12 @@ const CategoriesComponent: React.FC<CategoriesProps> = ({
                     </div>
                   </div>
                   <div className="text-center pt-2">
-                    <h5 className="card-title">{category.name}</h5>
+                    <h5
+                      className="card-title"
+                      style={billingMode ? { color: "#ffffff" } : {}}
+                    >
+                      {category.name}
+                    </h5>
                   </div>
                 </div>
               </div>

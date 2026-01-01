@@ -1,6 +1,7 @@
 import { ProductionIssueService } from "@backend/service/ProductionIssueService";
 import { ProductionIssueStatus } from "@backend/entities/ProductionIssue";
 import { NextApiRequest, NextApiResponse } from "next";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const createProductionIssueHandler = async (
     req: NextApiRequest,
@@ -19,11 +20,11 @@ export const createProductionIssueHandler = async (
         );
         res.status(201).json(productionIssue);
     } catch (error: any) {
-        console.error("Error creating production issue:", error);
-        res.status(500).json({
-            message: "Failed to create production issue",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "creating",
+            resource: "production issue"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -57,11 +58,11 @@ export const fetchProductionIssuesHandler = async (
         const result = await productionIssueService.fetchProductionIssues(filters, limit, offset);
         res.status(200).json(result);
     } catch (error: any) {
-        console.error("Error fetching production issues:", error);
-        res.status(500).json({
-            message: "Failed to fetch production issues",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "production issues"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -80,11 +81,11 @@ export const fetchProductionIssueHandler = async (
 
         res.status(200).json(productionIssue);
     } catch (error: any) {
-        console.error("Error fetching production issue:", error);
-        res.status(500).json({
-            message: "Failed to fetch production issue",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "production issue"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 

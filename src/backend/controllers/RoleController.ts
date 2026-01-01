@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { RoleService } from "@services/RoleService";
 import { PermissionService } from "@services/PermissionService";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const fetchRolesHandler = async (
   req: NextApiRequest,
@@ -11,7 +12,11 @@ export const fetchRolesHandler = async (
     const roles = await roleService.fetchRoles();
     res.status(200).json(roles);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to fetch roles", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "roles"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -25,7 +30,11 @@ export const createRoleHandler = async (
     const role = await roleService.createRole(newRole);
     res.status(201).json(role);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to create role", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "creating",
+      resource: "role"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -39,9 +48,11 @@ export const addPermissionToRoleHandler = async (
     await roleService.addPermissionToRole(roleId, permissionId);
     res.status(200).json({ message: "Permission added to role" });
   } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: "Failed to add permission to role", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "adding permission to",
+      resource: "role"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -55,7 +66,11 @@ export const assignRoleToUserHandler = async (
     await roleService.assignRoleToUser(userId, roleId);
     res.status(200).json({ message: "Role assigned to user" });
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to assign role to user", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "assigning role to",
+      resource: "user"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -69,7 +84,11 @@ export const fetchPermissionsByRoleHandler = async (
     const permissions = await permissionService.fetchPermissionsByRole(roleId);
     res.status(200).json(permissions);
   } catch (error: any) {
-    res.status(500).json({ message: "Error fetching permissions", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "permissions"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -83,8 +102,10 @@ export const removePermissionFromRoleHandler = async (
     await roleService.removePermissionFromRole(roleId, permissionId);
     res.status(200).json({ message: "Permission removed from role" });
   } catch (error: any) {
-    res
-      .status(500)
-      .json({ message: "Failed to remove permission from role", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "removing permission from",
+      resource: "role"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };

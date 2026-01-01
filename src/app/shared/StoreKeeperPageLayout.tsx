@@ -38,7 +38,7 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
       breadcrumbItems = [{ label: "Dashboard", path: "/storekeeper" }];
     }
     // Inventory section
-    else if (path.includes("/storekeeper") && !path.includes("/storekeeper/suppliers") && !path.includes("/storekeeper/purchase-orders")) {
+    else if (path.includes("/storekeeper") && !path.includes("/storekeeper/suppliers") && !path.includes("/storekeeper/purchase-orders") && !path.includes("/storekeeper/production") && !path.includes("/storekeeper/reports")) {
       expandedMenuIds.push("inventory");
       if (path.includes("/storekeeper/inventory/transactions")) {
         activeItemId = "inventory-transactions";
@@ -82,6 +82,31 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
         { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }
       ];
     }
+    // Production section
+    else if (path.includes("/storekeeper/production")) {
+      expandedMenuIds.push("production");
+      if (path.includes("/storekeeper/production/issue")) {
+        activeItemId = "production-issuing";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/storekeeper" },
+          { label: "Production", path: "/storekeeper/production" },
+          { label: "Issue Production", path: "/storekeeper/production/issue" }
+        ];
+      } else if (path.includes("/storekeeper/production/history")) {
+        activeItemId = "production-history";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/storekeeper" },
+          { label: "Production", path: "/storekeeper/production" },
+          { label: "Production History", path: "/storekeeper/production/history" }
+        ];
+      } else {
+        activeItemId = "production-issuing";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/storekeeper" },
+          { label: "Production", path: "/storekeeper/production" }
+        ];
+      }
+    }
 
     setActiveItem(activeItemId);
     setBreadcrumbs(breadcrumbItems);
@@ -94,6 +119,25 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
       label: "Dashboard",
       icon: "bi-house",
       path: "/storekeeper",
+    },
+    {
+      id: "production",
+      label: "Production",
+      icon: "bi-box-seam",
+      submenu: [
+        {
+          id: "production-issuing",
+          label: "Issue Production",
+          icon: "bi-arrow-up-circle",
+          path: "/storekeeper/production/issue",
+        },
+        {
+          id: "production-history",
+          label: "Production History",
+          icon: "bi-clock-history",
+          path: "/storekeeper/production/history",
+        },
+      ],
     },
     {
       id: "inventory",
@@ -192,6 +236,9 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
       "Transactions": "View all inventory movement transactions",
       "Suppliers": "Manage suppliers and purchase orders",
       "Purchase Orders": "Create and manage purchase orders",
+      "Production": "Manage production and inventory",
+      "Issue Production": "Create a new production issue record",
+      "Production History": "View production history and records",
       "Reports": "View reports and system analytics",
     };
     return tooltips[label] || `Navigate to ${label}`;
@@ -396,7 +443,19 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
                   <li>
                     <button
                       className="dropdown-item text-danger"
-                      onClick={() => logout()}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        try {
+                          logout();
+                        } catch (error) {
+                          console.error("Error in logout handler:", error);
+                          // Force redirect even if there's an error
+                          if (typeof window !== "undefined") {
+                            window.location.replace("/");
+                          }
+                        }
+                      }}
                     >
                       <i className="bi bi-box-arrow-right me-2"></i>
                       Logout

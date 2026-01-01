@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
 import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
@@ -36,24 +37,35 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             { path: "/supervisor/bills", item: "bills-overview" },
             { path: "/home/billing", item: "bills-create" },
             { path: "/home/cashier/bills", item: "bills-manage" },
-            { path: "/supervisor/void-requests", item: "void-requests" },
-            { path: "/supervisor/quantity-change-requests", item: "quantity-change-requests" },
+            { path: "/supervisor/bills/change-requests", item: "change-requests" },
+            { path: "/supervisor/void-requests", item: "change-requests" }, // Redirect target
+            { path: "/supervisor/quantity-change-requests", item: "change-requests" }, // Redirect target
             { path: "/supervisor/reopened-bills", item: "reopened-bills" },
+            { path: "/supervisor/bills/settings", item: "bill-settings" },
             { path: "/supervisor/menu/category", item: "menu-category" },
             { path: "/supervisor/menu/pricelist", item: "menu-pricelist" },
             { path: "/supervisor/menu/recipes", item: "menu-recipes" },
             { path: "/supervisor/production/issue", item: "production-issuing" },
             { path: "/supervisor/station", item: "stations-overview" },
             { path: "/supervisor/station/user", item: "station-users" },
+            // Also handle admin paths when accessed by supervisor
+            { path: "/admin/station", item: "stations-overview" },
+            { path: "/admin/station/user", item: "station-users" },
             { path: "/storekeeper/suppliers", item: "suppliers-list" },
             { path: "/storekeeper/purchase-orders", item: "suppliers-purchase-orders" },
             { path: "/storekeeper", item: "inventory-dashboard" },
             { path: "/storekeeper/stock", item: "inventory-list" },
             { path: "/storekeeper/inventory/transactions", item: "inventory-transactions" },
-            { path: "/supervisor/reports/sales", item: "sales-reports" },
-            { path: "/supervisor/reports/bills", item: "bills-reports" },
-            { path: "/supervisor/reports/production", item: "production-reports" },
-            { path: "/supervisor/reports", item: "reports" },
+            { path: "/admin/reports", item: "reports-dashboard" },
+            { path: "/admin/reports/", item: "reports-dashboard" },
+            { path: "/admin/reports/sales-revenue", item: "reports-sales-revenue" },
+            { path: "/admin/reports/production-stock-revenue", item: "reports-production-stock-revenue" },
+            { path: "/admin/reports/items-sold-count", item: "reports-items-sold-count" },
+            { path: "/admin/reports/voided-items", item: "reports-voided-items" },
+            { path: "/admin/reports/expenditure", item: "reports-expenditure" },
+            { path: "/admin/reports/invoices-pending-bills", item: "reports-invoices-pending-bills" },
+            { path: "/admin/reports/purchase-orders", item: "reports-purchase-orders" },
+            { path: "/admin/reports/pnl", item: "reports-pnl" },
             { path: "/supervisor/settings", item: "settings" },
         ];
 
@@ -82,19 +94,19 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 { label: "Dashboard", path: "/supervisor" },
                 { label: "Production", path: "/supervisor/production" }
             ];
-        } else if (path.includes("/supervisor/station")) {
+        } else if (path.includes("/supervisor/station") || path.includes("/admin/station")) {
             expandedMenuIds.push("stations");
-            if (path.includes("/supervisor/station/user")) {
+            if (path.includes("/supervisor/station/user") || path.includes("/admin/station/user")) {
                 breadcrumbItems = [
                     { label: "Dashboard", path: "/supervisor" },
-                    { label: "Stations", path: "/supervisor/station" },
-                    { label: "Station Users", path: "/supervisor/station/user" }
+                    { label: "Stations", path: "/admin/station" },
+                    { label: "Station Users", path: "/admin/station/user" }
                 ];
             } else {
                 breadcrumbItems = [
                     { label: "Dashboard", path: "/supervisor" },
-                    { label: "Stations", path: "/supervisor/station" },
-                    { label: "Overview", path: "/supervisor/station" }
+                    { label: "Stations", path: "/admin/station" },
+                    { label: "Overview", path: "/admin/station" }
                 ];
             }
         } else if (path.includes("/storekeeper") && (path.includes("/storekeeper/suppliers") || path.includes("/storekeeper/purchase-orders"))) {
@@ -133,12 +145,67 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     { label: "Dashboard", path: "/storekeeper" }
                 ];
             }
-        } else if (path.includes("/supervisor/reports")) {
+        } else if (path.includes("/admin/reports") || path.includes("/supervisor/reports")) {
             expandedMenuIds.push("reports");
-            breadcrumbItems = [
-                { label: "Dashboard", path: "/supervisor" },
-                { label: "Reports", path: "/supervisor/reports" }
-            ];
+            if (path === "/admin/reports" || path === "/admin/reports/") {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Reports", path: "/admin/reports" }
+                ];
+            } else if (path.includes("/admin/reports/sales-revenue")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Reports", path: "/admin/reports" },
+                    { label: "Sales Revenue", path: "/admin/reports/sales-revenue" }
+                ];
+            } else if (path.includes("/admin/reports/production-stock-revenue")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Reports", path: "/admin/reports" },
+                    { label: "Production/Stock Revenue", path: "/admin/reports/production-stock-revenue" }
+                ];
+            } else if (path.includes("/admin/reports/items-sold-count")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Reports", path: "/admin/reports" },
+                    { label: "Items Sold Count", path: "/admin/reports/items-sold-count" }
+                ];
+            } else if (path.includes("/admin/reports/voided-items")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Reports", path: "/admin/reports" },
+                    { label: "Voided Items", path: "/admin/reports/voided-items" }
+                ];
+            } else if (path.includes("/admin/reports/expenditure")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Reports", path: "/admin/reports" },
+                    { label: "Expenditure", path: "/admin/reports/expenditure" }
+                ];
+            } else if (path.includes("/admin/reports/invoices-pending-bills")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Reports", path: "/admin/reports" },
+                    { label: "Invoices & Pending Bills", path: "/admin/reports/invoices-pending-bills" }
+                ];
+            } else if (path.includes("/admin/reports/purchase-orders")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Reports", path: "/admin/reports" },
+                    { label: "Purchase Orders", path: "/admin/reports/purchase-orders" }
+                ];
+            } else if (path.includes("/admin/reports/pnl")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Reports", path: "/admin/reports" },
+                    { label: "Profit & Loss", path: "/admin/reports/pnl" }
+                ];
+            } else {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Reports", path: "/admin/reports" }
+                ];
+            }
         } else if (path.includes("/supervisor/bills") || path.includes("/home/billing") || path.includes("/home/cashier/bills")) {
             expandedMenuIds.push("bills");
             if (path.includes("/supervisor/bills")) {
@@ -157,7 +224,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 breadcrumbItems = [
                     { label: "Dashboard", path: "/supervisor" },
                     { label: "Bills Management", path: "/supervisor/bills" },
-                    { label: "Manage Bills", path: "/home/cashier/bills" }
+                    { label: "Process Bills", path: "/home/cashier/bills" }
                 ];
             }
         } else {
@@ -203,27 +270,27 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 },
                 {
                     id: "bills-manage",
-                    label: "Manage Bills",
+                    label: "Process Bills",
                     icon: "bi-cash-stack",
                     path: "/home/cashier/bills",
                 },
                 {
-                    id: "void-requests",
-                    label: "Void Requests",
-                    icon: "bi-x-circle",
-                    path: "/supervisor/void-requests",
-                },
-                {
-                    id: "quantity-change-requests",
-                    label: "Quantity Change Requests",
-                    icon: "bi-arrow-left-right",
-                    path: "/supervisor/quantity-change-requests",
+                    id: "change-requests",
+                    label: "Change Requests",
+                    icon: "bi-exclamation-triangle",
+                    path: "/supervisor/bills/change-requests",
                 },
                 {
                     id: "reopened-bills",
                     label: "Reopened Bills",
                     icon: "bi-arrow-clockwise",
                     path: "/supervisor/reopened-bills",
+                },
+                {
+                    id: "bill-settings",
+                    label: "Bill Settings",
+                    icon: "bi-gear",
+                    path: "/supervisor/bills/settings",
                 },
             ],
         },
@@ -274,13 +341,13 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     id: "stations-overview",
                     label: "Overview",
                     icon: "bi-building",
-                    path: "/supervisor/station",
+                    path: "/admin/station", // Direct to admin page to avoid redirect
                 },
                 {
                     id: "station-users",
                     label: "Station Users",
                     icon: "bi-people-fill",
-                    path: "/supervisor/station/user",
+                    path: "/admin/station/user", // Direct to admin page to avoid redirect
                 },
             ],
         },
@@ -334,22 +401,58 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             icon: "bi-bar-chart",
             submenu: [
                 {
-                    id: "sales-reports",
-                    label: "Sales Reports",
-                    icon: "bi-graph-up",
-                    path: "/supervisor/reports/sales",
+                    id: "reports-dashboard",
+                    label: "Dashboard",
+                    icon: "bi-speedometer2",
+                    path: "/admin/reports",
                 },
                 {
-                    id: "bills-reports",
-                    label: "Bills Reports",
-                    icon: "bi-receipt",
-                    path: "/supervisor/reports/bills",
+                    id: "reports-sales-revenue",
+                    label: "Sales Revenue",
+                    icon: "bi-currency-dollar",
+                    path: "/admin/reports/sales-revenue",
                 },
                 {
-                    id: "production-reports",
-                    label: "Production Reports",
+                    id: "reports-production-stock-revenue",
+                    label: "Production/Stock Revenue",
                     icon: "bi-box-seam",
-                    path: "/supervisor/reports/production",
+                    path: "/admin/reports/production-stock-revenue",
+                },
+                {
+                    id: "reports-items-sold-count",
+                    label: "Items Sold Count",
+                    icon: "bi-cart",
+                    path: "/admin/reports/items-sold-count",
+                },
+                {
+                    id: "reports-voided-items",
+                    label: "Voided Items",
+                    icon: "bi-exclamation-triangle",
+                    path: "/admin/reports/voided-items",
+                },
+                {
+                    id: "reports-expenditure",
+                    label: "Expenditure",
+                    icon: "bi-cash-stack",
+                    path: "/admin/reports/expenditure",
+                },
+                {
+                    id: "reports-invoices-pending-bills",
+                    label: "Invoices & Pending Bills",
+                    icon: "bi-file-earmark-text",
+                    path: "/admin/reports/invoices-pending-bills",
+                },
+                {
+                    id: "reports-purchase-orders",
+                    label: "Purchase Orders",
+                    icon: "bi-cart-check",
+                    path: "/admin/reports/purchase-orders",
+                },
+                {
+                    id: "reports-pnl",
+                    label: "Profit & Loss",
+                    icon: "bi-graph-up-arrow",
+                    path: "/admin/reports/pnl",
                 },
             ],
         },
@@ -361,8 +464,13 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         },
     ];
 
-    const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement>) => {
+    const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
         setActiveItem(itemId);
+        // Use router.push with scroll: false to prevent full page reload
         router.push(path);
         // Focus the clicked menu item for better accessibility
         if (event?.currentTarget) {
@@ -402,7 +510,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             "Dashboard": "View supervisor dashboard and system overview",
             "Bills Management": "Manage bills, payments, void requests, and reopened bills",
             "Create Bill": "Simple billing interface for creating new bills",
-            "Manage Bills": "Full bill management interface with payments, closing, and bulk operations",
+            "Process Bills": "Full bill management interface with payments, closing, and bulk operations",
             "Bills Overview": "Comprehensive bill management dashboard with analytics and oversight",
             "Void Requests": "Approve or reject void requests from sales team",
             "Reopened Bills": "View and manage bills that have been reopened",
@@ -509,39 +617,49 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                                             <ul className="nav nav-pills flex-column ms-3 mt-2">
                                                 {item.submenu.map((subItem) => (
                                                     <li key={subItem.id} className="nav-item mb-1">
-                                                        <button
+                                                        <Link
+                                                            href={subItem.path}
                                                             className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === subItem.id ? "active" : ""}`}
-                                                            onClick={(e) => handleItemClick(subItem.id, subItem.path, e)}
+                                                            onClick={(e) => {
+                                                                setActiveItem(subItem.id);
+                                                                // Let Link handle navigation naturally
+                                                            }}
                                                             style={{
                                                                 background: activeItem === subItem.id ? "var(--bs-primary)" : "transparent",
                                                                 border: "none",
                                                                 color: activeItem === subItem.id ? "white" : "rgba(255,255,255,0.8)",
                                                                 fontSize: "0.9rem",
                                                                 padding: "0.5rem 0.75rem",
+                                                                textDecoration: "none",
                                                             }}
                                                         >
                                                             <i className={`bi ${subItem.icon} me-2`}></i>
                                                             {subItem.label}
-                                                        </button>
+                                                        </Link>
                                                     </li>
                                                 ))}
                                             </ul>
                                         )}
                                     </div>
                                 ) : (
-                                    <button
+                                    <Link
+                                        href={item.path}
                                         className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""
                                             }`}
-                                        onClick={(e) => handleItemClick(item.id, item.path, e)}
+                                        onClick={(e) => {
+                                            setActiveItem(item.id);
+                                            // Let Link handle navigation naturally
+                                        }}
                                         style={{
                                             background: activeItem === item.id ? "var(--bs-primary)" : "transparent",
                                             border: "none",
                                             color: activeItem === item.id ? "white" : "rgba(255,255,255,0.8)",
+                                            textDecoration: "none",
                                         }}
                                     >
                                         <i className={`bi ${item.icon} me-3`}></i>
                                         {!isCollapsed && <span>{item.label}</span>}
-                                    </button>
+                                    </Link>
                                 )}
                             </li>
                         ))}

@@ -63,15 +63,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, []);
 
     const logout = useCallback(() => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setIsAuthenticated(false);
-        setUser(null);
-        // Use window.location for immediate redirect to ensure it happens
-        if (typeof window !== "undefined") {
-            window.location.href = "/";
-        } else {
-            router.push("/");
+        try {
+            // Clear all localStorage items related to auth
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            localStorage.removeItem("token_set_time");
+            
+            // Clear state
+            setIsAuthenticated(false);
+            setUser(null);
+            
+            // Use window.location.replace for immediate redirect (doesn't add to history)
+            if (typeof window !== "undefined") {
+                // Clear any pending API calls or timers
+                window.location.replace("/");
+            } else {
+                router.push("/");
+            }
+        } catch (error) {
+            console.error("Error during logout:", error);
+            // Force redirect even if there's an error
+            if (typeof window !== "undefined") {
+                window.location.replace("/");
+            }
         }
     }, [router]);
 

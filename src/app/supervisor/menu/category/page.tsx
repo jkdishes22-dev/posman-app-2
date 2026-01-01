@@ -13,7 +13,7 @@ import { ApiErrorResponse } from "../../../utils/errorUtils";
 
 export default function SupervisorCategoryPage() {
   const apiCall = useApiCall();
-  const [showModal, setShowModal] = useState(false);
+  const [name, setName] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -37,7 +37,8 @@ export default function SupervisorCategoryPage() {
 
       const result = await apiCall("/api/menu/categories");
       if (result.status === 200) {
-        setCategories(result.data.categories || []);
+        // API returns array directly, not wrapped in {categories: [...]}
+        setCategories(Array.isArray(result.data) ? result.data : []);
       } else {
         setError(result.error || "Failed to fetch categories");
         setErrorDetails(result.errorDetails);
@@ -51,31 +52,55 @@ export default function SupervisorCategoryPage() {
     }
   };
 
-  const handleAddCategory = async (categoryData) => {
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name) {
+      setFormError("Please fill in the category name");
+      return;
+    }
+
     try {
       setFormError(null);
       const result = await apiCall("/api/menu/categories", {
         method: "POST",
-        body: JSON.stringify(categoryData),
+        body: JSON.stringify({ name }),
       });
 
       if (result.status === 200 || result.status === 201) {
-        await fetchCategories();
-        setShowModal(false);
+        // Success - apiCall handles all 2XX codes
+        setFormError(null);
+        // Ensure categories is always an array before spreading
+        setCategories((prevCategories) => {
+          const safePrev = Array.isArray(prevCategories) ? prevCategories : [];
+          return [...safePrev, result.data];
+        });
+        setName("");
       } else {
-        setFormError(result.error || "Failed to add category");
+        // Error - apiCall already standardizes all non-2XX errors
+        setFormError(result.error || "Failed to create category");
+        setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
       console.error("Error adding category:", error);
       setFormError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
-  const fetchItems = async (categoryId) => {
+  const handleCategoryClick = (category: any) => {
+    setSelectedCategory(category);
+    fetchItems(category.id);
+  };
+
+  const fetchItems = async (categoryId: string | number) => {
     try {
-      const result = await apiCall(`/api/menu/items?categoryId=${categoryId}`);
+      setItemError(null);
+      setItemErrorDetails(null);
+      // Use 'category' parameter to match admin page and API endpoint
+      const result = await apiCall(`/api/menu/items?category=${categoryId}`);
       if (result.status === 200) {
-        setItems(result.data || []);
+        // API returns array directly
+        setItems(Array.isArray(result.data) ? result.data : []);
       } else {
         setItemError(result.error || "Failed to fetch items");
         setItemErrorDetails(result.errorDetails);
@@ -115,7 +140,10 @@ export default function SupervisorCategoryPage() {
       });
 
       if (result.status === 200 || result.status === 201) {
-        await fetchCategories();
+        // Refresh items for the selected category
+        if (selectedCategory) {
+          await fetchItems(selectedCategory.id);
+        }
       } else {
         setItemError(result.error || "Failed to add item");
         setItemErrorDetails(result.errorDetails);
@@ -123,7 +151,7 @@ export default function SupervisorCategoryPage() {
     } catch (error: any) {
       console.error("Error adding item:", error);
       setItemError("Network error occurred");
-      setItemErrorDetails(null);
+      setItemErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
@@ -148,24 +176,86 @@ export default function SupervisorCategoryPage() {
           }}
         />
 
-        <div className="row">
-          {/* Categories Section */}
-          <div className="col-md-6">
-            <Categories
-              categories={categories}
-              loading={loading}
-              onAddCategory={() => setShowModal(true)}
-              onDeleteCategory={(category) => {
-                setSelectedCategory(category);
-                setShowDeleteModal(true);
-              }}
-              error={formError}
-              onErrorDismiss={() => setFormError(null)}
-            />
+        {/* Main Content */}
+        <div className="row g-4">
+          {/* Add Category Section */}
+          <div className="col-12 col-lg-4">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <h5 className="mb-0 fw-bold">
+                  <i className="bi bi-plus-circle me-2 text-primary"></i>
+                  Add Category
+                </h5>
+              </div>
+              <div className="card-body">
+                {formError && (
+                  <div className="alert alert-danger mb-3" role="alert">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    {formError}
+                    <button
+                      type="button"
+                      className="btn-close float-end"
+                      onClick={() => setFormError(null)}
+                      aria-label="Close"
+                    ></button>
+                  </div>
+                )}
+                <form onSubmit={handleAddCategory}>
+                  <div className="mb-3">
+                    <label htmlFor="categoryName" className="form-label fw-semibold">
+                      Category Name
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      id="categoryName"
+                      value={name}
+                      onChange={(e) => {
+                        setName(e.target.value);
+                        if (formError) setFormError(null); // Clear error when user starts typing
+                      }}
+                      placeholder="Enter category name"
+                      required
+                    />
+                  </div>
+                  <button type="submit" className="btn btn-primary w-100">
+                    <i className="bi bi-plus-circle me-2"></i>
+                    Add Category
+                  </button>
+                </form>
+              </div>
+            </div>
           </div>
 
-          {/* Category Items Section */}
-          <div className="col-md-6">
+          {/* Categories Section */}
+          <div className="col-12 col-lg-8">
+            <div className="card shadow-sm">
+              <div className="card-header bg-light">
+                <h5 className="mb-0 fw-bold">
+                  <i className="bi bi-grid me-2 text-primary"></i>
+                  Categories
+                </h5>
+              </div>
+              <div className="card-body">
+                <Categories
+                  categories={categories}
+                  loading={loading}
+                  onCategoryClick={handleCategoryClick}
+                  onDeleteCategory={(category) => {
+                    setSelectedCategory(category);
+                    setShowDeleteModal(true);
+                  }}
+                  error={formError}
+                  onErrorDismiss={() => setFormError(null)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Category Items Section */}
+        <div className="row mt-3">
+          <div className="col-12">
             <CategoryItems
               selectedCategory={selectedCategory}
               items={items}
@@ -175,71 +265,6 @@ export default function SupervisorCategoryPage() {
           </div>
         </div>
 
-        {/* Add Category Modal */}
-        {showModal && (
-          <div className="modal show d-block" tabIndex={-1}>
-            <div className="modal-dialog">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Add New Category</h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setShowModal(false)}
-                  ></button>
-                </div>
-                <div className="modal-body">
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const formData = new FormData(e.target as HTMLFormElement);
-                      handleAddCategory({
-                        name: formData.get("name"),
-                        description: formData.get("description"),
-                      });
-                    }}
-                  >
-                    <div className="mb-3">
-                      <label htmlFor="categoryName" className="form-label">
-                        Category Name
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="categoryName"
-                        name="name"
-                        required
-                      />
-                    </div>
-                    <div className="mb-3">
-                      <label htmlFor="categoryDescription" className="form-label">
-                        Description
-                      </label>
-                      <textarea
-                        className="form-control"
-                        id="categoryDescription"
-                        name="description"
-                        rows={3}
-                      ></textarea>
-                    </div>
-                    <div className="d-flex justify-content-end gap-2">
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => setShowModal(false)}
-                      >
-                        Cancel
-                      </button>
-                      <button type="submit" className="btn btn-primary">
-                        Add Category
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Delete Category Modal */}
         {showDeleteModal && selectedCategory && (

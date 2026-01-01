@@ -1,0 +1,485 @@
+/* Touch-Friendly App Optimization Stylesheet */
+
+/* ============================================
+   Global Touch Improvements
+   ============================================ */
+
+/* Prevent 300ms tap delay on all devices */
+* {
+  touch-action: manipulation;
+}
+
+/* Improve touch target visibility with subtle tap highlight */
+button, .btn, a.btn, .nav-link, .page-link, 
+input[type="checkbox"], input[type="radio"],
+.table tbody tr[style*="cursor: pointer"],
+.table tbody tr[class*="cursor-pointer"] {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   Touch Device Detection & Optimizations
+   ============================================ */
+
+@media (hover: none) and (pointer: coarse) {
+  /* ============================================
+     Button Optimizations
+     ============================================ */
+  
+  /* Small buttons - ensure minimum touch target */
+  .btn-sm {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    line-height: 1.2;
+  }
+  
+  /* Standard buttons */
+  .btn {
+    min-height: 44px;
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+  }
+  
+  /* Large buttons */
+  .btn-lg {
+    min-height: 48px;
+    padding: 0.875rem 1.5rem;
+    font-size: 1.1rem;
+  }
+  
+  /* Button groups - increase spacing */
+  .btn-group .btn,
+  .btn-group-vertical .btn {
+    margin: 0.25rem;
+  }
+  
+  .btn + .btn {
+    margin-left: 0.75rem;
+  }
+  
+  /* Outline buttons */
+  .btn-outline-primary,
+  .btn-outline-secondary,
+  .btn-outline-success,
+  .btn-outline-danger,
+  .btn-outline-warning,
+  .btn-outline-info,
+  .btn-outline-light,
+  .btn-outline-dark {
+    min-height: 44px;
+    padding: 0.75rem 1.25rem;
+  }
+  
+  /* Link buttons */
+  .btn-link {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+  
+  /* ============================================
+     Table Row Optimizations
+     ============================================ */
+  
+  /* Clickable table rows - increase touch target */
+  .table tbody tr {
+    min-height: 48px;
+  }
+  
+  .table tbody tr[style*="cursor: pointer"],
+  .table tbody tr[class*="cursor-pointer"],
+  .table tbody tr[onclick] {
+    min-height: 52px;
+    padding: 0.75rem 0;
+  }
+  
+  /* Table cells - ensure adequate padding */
+  .table tbody td {
+    padding: 0.875rem 0.75rem;
+    vertical-align: middle;
+  }
+  
+  /* Table hover states - make more visible on touch */
+  .table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+  
+  /* ============================================
+     Pagination Optimizations
+     ============================================ */
+  
+  .pagination {
+    gap: 0.5rem;
+  }
+  
+  .pagination .page-link {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+  }
+  
+  .pagination-sm .page-link {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.95rem;
+  }
+  
+  .pagination-lg .page-link {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0.875rem 1rem;
+    font-size: 1.1rem;
+  }
+  
+  /* ============================================
+     Form Control Optimizations
+     ============================================ */
+  
+  /* Text inputs and selects */
+  .form-control,
+  .form-select {
+    min-height: 44px;
+    padding: 0.75rem;
+    font-size: 1rem;
+  }
+  
+  /* Small form controls */
+  .form-control-sm,
+  .form-select-sm {
+    min-height: 44px;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.95rem;
+  }
+  
+  /* Large form controls */
+  .form-control-lg,
+  .form-select-lg {
+    min-height: 48px;
+    padding: 0.875rem 1rem;
+    font-size: 1.1rem;
+  }
+  
+  /* Checkboxes and radio buttons */
+  .form-check-input {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-top: 0.125rem;
+  }
+  
+  .form-check-label {
+    padding-left: 0.5rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* ============================================
+     Navigation Menu Optimizations
+     ============================================ */
+  
+  /* Nav links */
+  .nav-link {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Sidebar menu items */
+  .sidebar-menu-item,
+  button[class*="menu-item"],
+  .menu-item {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* Dropdown items */
+  .dropdown-item {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* ============================================
+     Modal Optimizations
+     ============================================ */
+  
+  /* Modal footer buttons */
+  .modal-footer .btn {
+    min-height: 44px;
+    padding: 0.75rem 1.25rem;
+    margin: 0.25rem;
+  }
+  
+  .modal-footer .btn-sm {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+  
+  /* Modal close button */
+  .btn-close {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.75rem;
+  }
+  
+  /* ============================================
+     Quantity Modal Number Pad
+     ============================================ */
+  
+  /* Number pad buttons in quantity modal */
+  .modal-body .btn[class*="outline-primary"] {
+    min-height: 48px;
+    padding: 0.875rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+  
+  /* ============================================
+     Item Cards & Grid Layouts
+     ============================================ */
+  
+  /* Item cards in billing section */
+  .items-grid .card,
+  .items-grid [class*="item-card"],
+  [class*="item-card"] {
+    min-height: 120px;
+  }
+  
+  /* Card buttons */
+  .card .btn,
+  .card-footer .btn {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+  
+  /* ============================================
+     Badge & Chip Optimizations
+     ============================================ */
+  
+  /* Clickable badges */
+  .badge[onclick],
+  .badge[style*="cursor: pointer"] {
+    min-height: 32px;
+    min-width: 32px;
+    padding: 0.5rem 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* ============================================
+     Spacing Improvements
+     ============================================ */
+  
+  /* Increase spacing between interactive elements */
+  .btn-group > .btn:not(:first-child) {
+    margin-left: 0.5rem;
+  }
+  
+  .btn-toolbar > .btn-group,
+  .btn-toolbar > .btn {
+    margin-right: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* List items with actions */
+  .list-group-item {
+    min-height: 48px;
+    padding: 0.875rem 1rem;
+  }
+  
+  .list-group-item-action {
+    min-height: 52px;
+    padding: 1rem;
+  }
+  
+  /* ============================================
+     Icon Button Optimizations
+     ============================================ */
+  
+  /* Icon-only buttons */
+  .btn i[class*="bi-"],
+  button i[class*="bi-"] {
+    font-size: 1.1rem;
+  }
+  
+  .btn-sm i[class*="bi-"] {
+    font-size: 1rem;
+  }
+  
+  /* ============================================
+     Special Component Optimizations
+     ============================================ */
+  
+  /* Station switcher */
+  .station-switcher .btn,
+  [class*="station-switcher"] .btn {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+  
+  /* Pricelist switcher */
+  .pricelist-switcher .btn,
+  [class*="pricelist-switcher"] .btn {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+  
+  /* Toolbar buttons */
+  .toolbar .btn,
+  [class*="toolbar"] .btn {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+  
+  /* Action buttons in tables */
+  .table .btn-sm {
+    min-height: 40px;
+    min-width: 40px;
+    padding: 0.625rem 0.75rem;
+  }
+  
+  /* ============================================
+     Input Group Optimizations
+     ============================================ */
+  
+  .input-group .form-control,
+  .input-group .form-select,
+  .input-group .btn {
+    min-height: 44px;
+  }
+  
+  .input-group-text {
+    min-height: 44px;
+    padding: 0.75rem;
+    display: flex;
+    align-items: center;
+  }
+  
+  /* ============================================
+     Alert & Notification Optimizations
+     ============================================ */
+  
+  /* Dismissible alerts */
+  .alert-dismissible .btn-close {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.75rem;
+  }
+  
+  /* ============================================
+     Tabs & Pills Optimizations
+     ============================================ */
+  
+  .nav-tabs .nav-link,
+  .nav-pills .nav-link {
+    min-height: 44px;
+    padding: 0.75rem 1.25rem;
+  }
+  
+  /* ============================================
+     Breadcrumb Optimizations
+     ============================================ */
+  
+  .breadcrumb-item a,
+  .breadcrumb-item button {
+    min-height: 44px;
+    padding: 0.5rem 0.75rem;
+    display: inline-flex;
+    align-items: center;
+  }
+  
+  /* ============================================
+     Search & Filter Controls
+     ============================================ */
+  
+  .search-input,
+  [class*="search"] input,
+  [class*="filter"] input,
+  [class*="filter"] select {
+    min-height: 44px;
+    padding: 0.75rem;
+  }
+  
+  /* ============================================
+     Sidebar Navigation
+     ============================================ */
+  
+  /* Sidebar menu items */
+  .sidebar .nav-link,
+  [class*="sidebar"] .nav-link,
+  [class*="sidebar"] button {
+    min-height: 48px;
+    padding: 0.875rem 1.25rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  /* Collapsed sidebar items */
+  .sidebar-collapsed .nav-link,
+  [class*="sidebar-collapsed"] .nav-link {
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0.875rem;
+    justify-content: center;
+  }
+}
+
+/* ============================================
+   Additional Touch Enhancements
+   (Applied to all devices for consistency)
+   ============================================ */
+
+/* Improve focus states for touch navigation */
+button:focus,
+.btn:focus,
+.nav-link:focus,
+.page-link:focus,
+.form-control:focus,
+.form-select:focus {
+  outline: 2px solid rgba(13, 110, 253, 0.5);
+  outline-offset: 2px;
+}
+
+/* Improve active states for better touch feedback */
+button:active,
+.btn:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* Ensure disabled buttons are clearly visible */
+button:disabled,
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Improve checkbox and radio touch targets */
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: pointer;
+}
+
+label {
+  cursor: pointer;
+}
+
+/* Improve table row selection on touch */
+.table tbody tr[style*="cursor: pointer"]:active,
+.table tbody tr[class*="cursor-pointer"]:active {
+  background-color: rgba(13, 110, 253, 0.1);
+  transition: background-color 0.1s ease;
+}
+

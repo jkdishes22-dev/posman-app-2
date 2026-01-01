@@ -261,10 +261,33 @@ export default function ProductionIssuePage() {
                             <Form.Group className="mb-3">
                                 <Form.Label>Item <span className="text-danger">*</span></Form.Label>
                                 <div className="position-relative">
-                                    <InputGroup>
-                                        <Form.Control
+                                    <div
+                                        className="form-control"
+                                        style={{
+                                            cursor: "text",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            padding: "0.375rem 0.75rem",
+                                        }}
+                                        onClick={() => {
+                                            if (itemInputRef.current) {
+                                                itemInputRef.current.focus();
+                                            }
+                                            if (itemSearchResults.length > 0 || itemSearchQuery.trim().length > 0) {
+                                                setShowItemDropdown(true);
+                                            }
+                                        }}
+                                    >
+                                        <input
                                             ref={itemInputRef}
                                             type="text"
+                                            className="border-0"
+                                            style={{
+                                                flex: 1,
+                                                outline: "none",
+                                                backgroundColor: "transparent",
+                                            }}
                                             placeholder="Search for sellable item..."
                                             value={itemSearchQuery}
                                             onChange={(e) => {
@@ -272,21 +295,22 @@ export default function ProductionIssuePage() {
                                                 if (e.target.value.trim().length === 0) {
                                                     setSelectedItem(null);
                                                 }
+                                                setShowItemDropdown(true);
                                             }}
                                             onFocus={() => {
-                                                if (itemSearchResults.length > 0) {
+                                                if (itemSearchResults.length > 0 || itemSearchQuery.trim().length > 0) {
                                                     setShowItemDropdown(true);
                                                 }
                                             }}
+                                            autoComplete="off"
                                         />
                                         {itemSearchLoading && (
-                                            <InputGroup.Text>
-                                                <Spinner animation="border" size="sm" />
-                                            </InputGroup.Text>
+                                            <Spinner animation="border" size="sm" className="me-2" />
                                         )}
-                                    </InputGroup>
+                                        <i className={`bi bi-chevron-${showItemDropdown ? "up" : "down"} text-muted`}></i>
+                                    </div>
 
-                                    {showItemDropdown && itemSearchResults.length > 0 && (
+                                    {showItemDropdown && (itemSearchResults.length > 0 || itemSearchQuery.trim().length > 0) && (
                                         <div
                                             ref={dropdownRef}
                                             className="position-absolute w-100 bg-white border rounded shadow-lg"
@@ -298,28 +322,46 @@ export default function ProductionIssuePage() {
                                                 marginTop: "2px",
                                             }}
                                         >
-                                            {itemSearchResults.map((item) => (
-                                                <div
-                                                    key={item.id}
-                                                    className="p-2 cursor-pointer hover-bg-light"
-                                                    style={{ cursor: "pointer" }}
-                                                    onMouseDown={(e) => {
-                                                        e.preventDefault();
-                                                        selectItem(item);
-                                                    }}
-                                                    onMouseEnter={(e) => {
-                                                        e.currentTarget.style.backgroundColor = "#f8f9fa";
-                                                    }}
-                                                    onMouseLeave={(e) => {
-                                                        e.currentTarget.style.backgroundColor = "white";
-                                                    }}
-                                                >
-                                                    <div className="fw-semibold">{item.name}</div>
-                                                    <small className="text-muted">
-                                                        {item.code} • {item.category}
-                                                    </small>
+                                            {itemSearchLoading ? (
+                                                <div className="p-3 text-center">
+                                                    <Spinner animation="border" size="sm" />
+                                                    <span className="ms-2 text-muted">Searching...</span>
                                                 </div>
-                                            ))}
+                                            ) : itemSearchResults.length > 0 ? (
+                                                itemSearchResults.map((item) => (
+                                                    <div
+                                                        key={item.id}
+                                                        className="p-2"
+                                                        style={{
+                                                            cursor: "pointer",
+                                                            backgroundColor: selectedItem?.id === item.id ? "#e7f3ff" : "white",
+                                                        }}
+                                                        onMouseDown={(e) => {
+                                                            e.preventDefault();
+                                                            selectItem(item);
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                            if (selectedItem?.id !== item.id) {
+                                                                e.currentTarget.style.backgroundColor = "#f8f9fa";
+                                                            }
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                            if (selectedItem?.id !== item.id) {
+                                                                e.currentTarget.style.backgroundColor = "white";
+                                                            }
+                                                        }}
+                                                    >
+                                                        <div className="fw-semibold">{item.name}</div>
+                                                        <small className="text-muted">
+                                                            {item.code} • {item.category}
+                                                        </small>
+                                                    </div>
+                                                ))
+                                            ) : itemSearchQuery.trim().length > 0 ? (
+                                                <div className="p-3 text-center text-muted">
+                                                    No items found
+                                                </div>
+                                            ) : null}
                                         </div>
                                     )}
                                 </div>

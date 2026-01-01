@@ -11,7 +11,10 @@ function BootstrapClient() {
           document.querySelectorAll("[data-bs-toggle=\"tooltip\"]")
         );
         tooltipTriggerList.map(function (tooltipTriggerEl: any) {
-          return new (bootstrap as any).Tooltip(tooltipTriggerEl);
+          return new (bootstrap as any).Tooltip(tooltipTriggerEl, {
+            trigger: "hover focus",
+            delay: { show: 200, hide: 100 }
+          });
         });
       })
       .catch((error) => {

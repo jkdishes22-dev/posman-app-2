@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { NotificationService } from "../service/NotificationService";
 import { NotificationStatus } from "../entities/Notification";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export class NotificationController {
     private static notificationService = new NotificationService();
@@ -28,7 +29,11 @@ export class NotificationController {
 
             res.status(200).json({ notifications });
         } catch (error: any) {
-            res.status(500).json({ error: error.message });
+            const { userMessage, errorCode } = handleApiError(error, {
+                operation: "fetching",
+                resource: "notifications"
+            });
+            res.status(500).json({ error: userMessage, code: errorCode });
         }
     }
 
@@ -47,7 +52,11 @@ export class NotificationController {
 
             res.status(200).json({ count });
         } catch (error: any) {
-            res.status(500).json({ error: error.message });
+            const { userMessage, errorCode } = handleApiError(error, {
+                operation: "fetching",
+                resource: "notifications"
+            });
+            res.status(500).json({ error: userMessage, code: errorCode });
         }
     }
 
@@ -73,7 +82,11 @@ export class NotificationController {
 
             res.status(200).json({ notification });
         } catch (error: any) {
-            res.status(500).json({ error: error.message });
+            const { userMessage, errorCode } = handleApiError(error, {
+                operation: "fetching",
+                resource: "notifications"
+            });
+            res.status(500).json({ error: userMessage, code: errorCode });
         }
     }
 
@@ -92,7 +105,11 @@ export class NotificationController {
 
             res.status(200).json({ message: "All notifications marked as read" });
         } catch (error: any) {
-            res.status(500).json({ error: error.message });
+            const { userMessage, errorCode } = handleApiError(error, {
+                operation: "fetching",
+                resource: "notifications"
+            });
+            res.status(500).json({ error: userMessage, code: errorCode });
         }
     }
 
@@ -118,7 +135,11 @@ export class NotificationController {
 
             res.status(200).json({ notification });
         } catch (error: any) {
-            res.status(500).json({ error: error.message });
+            const { userMessage, errorCode } = handleApiError(error, {
+                operation: "fetching",
+                resource: "notifications"
+            });
+            res.status(500).json({ error: userMessage, code: errorCode });
         }
     }
 }

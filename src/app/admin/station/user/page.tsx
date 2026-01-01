@@ -198,13 +198,13 @@ function StationUsersPage() {
     <RoleAwareLayout>
       <div className="container-fluid">
         {/* Header */}
-        <div className="bg-primary text-white p-3 mb-4">
-          <h1 className="h4 mb-0 fw-bold">
+        <div className="bg-primary text-white py-2 px-3 mb-2">
+          <h1 className="h5 mb-0 fw-bold">
             <i className="bi bi-people-fill me-2"></i>
             Station Users
             <i
               className="bi bi-question-circle ms-2"
-              style={{ cursor: "help", fontSize: "0.9rem" }}
+              style={{ cursor: "help", fontSize: "0.85rem" }}
               data-bs-toggle="tooltip"
               data-bs-placement="bottom"
               title="Assign users to stations and manage access"
@@ -212,7 +212,7 @@ function StationUsersPage() {
           </h1>
         </div>
 
-        <div className="container my-5">
+        <div className="container-fluid px-3">
           <ErrorDisplay
             error={error}
             errorDetails={errorDetails}
@@ -221,89 +221,105 @@ function StationUsersPage() {
               setErrorDetails(null);
             }}
           />
-          <div className="row">
+          <div className="row g-2">
             {/* Sidebar: User List */}
             <div className="col-md-4">
-              <div className="mb-3">
-                <label className="form-label fw-semibold">
-                  Search Users
-                  <i
-                    className="bi bi-question-circle ms-2 text-muted"
-                    style={{ cursor: "help", fontSize: "0.85rem" }}
-                    data-bs-toggle="tooltip"
-                    data-bs-placement="right"
-                    title="Select a user to view their station assignments"
-                  ></i>
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Search Users"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <div
-                className="list-group"
-                style={{ maxHeight: "400px", overflowY: "auto" }} // Make sidebar scrollable
-              >
-                {loadingUsers ? (
-                  <li className="list-group-item text-center">
-                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    Loading users...
-                  </li>
-                ) : filteredUsers.length > 0 ? (
-                  filteredUsers.map((user: User) => (
-                    <li
-                      key={user.id}
-                      className="list-group-item list-group-item-action"
-                      onClick={() => handleUserSelect(user.id)}
-                      style={{ cursor: "pointer" }}
-                    >
-                      {user.firstName} {user.lastName}
-                    </li>
-                  ))
-                ) : (
-                  <li className="list-group-item">No users found</li>
-                )}
-              </div>
+              <Card className="mb-0">
+                <Card.Header className="py-1 px-2">
+                  <label className="form-label fw-semibold mb-0 small">
+                    Search Users
+                    <i
+                      className="bi bi-question-circle ms-2 text-muted"
+                      style={{ cursor: "help", fontSize: "0.75rem" }}
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="right"
+                      title="Select a user to view their station assignments"
+                    ></i>
+                  </label>
+                </Card.Header>
+                <Card.Body className="p-2">
+                  <input
+                    type="text"
+                    className="form-control form-control-sm mb-2"
+                    placeholder="Search Users"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <div
+                    className="list-group list-group-flush"
+                    style={{ maxHeight: "450px", overflowY: "auto" }}
+                  >
+                    {loadingUsers ? (
+                      <li className="list-group-item text-center">
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Loading users...
+                      </li>
+                    ) : filteredUsers.length > 0 ? (
+                      filteredUsers.map((user: User) => (
+                        <li
+                          key={user.id}
+                          className="list-group-item list-group-item-action"
+                          onClick={() => handleUserSelect(user.id)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          {user.firstName} {user.lastName}
+                        </li>
+                      ))
+                    ) : (
+                      <li className="list-group-item">No users found</li>
+                    )}
+                  </div>
+                </Card.Body>
+              </Card>
             </div>
 
             {/* Main Content: User Details */}
             <div className="col-md-8">
               {selectedUser ? (
-                <div className="row">
+                <div className="row g-2">
                   <div className="col-md-4">
-                    <Card>
-                      <Card.Header>User: {selectedUser.firstName}</Card.Header>
-                      <Card.Body>
-                        <Card.Text>
-                          <strong>First Name:</strong> {selectedUser.firstName}
-                          <br />
-                          <strong>Last Name:</strong> {selectedUser.lastName}
-                          <br />
-                          <strong>Role:</strong> {selectedUser?.role?.name}
-                        </Card.Text>
+                    <Card className="h-100 mb-0">
+                      <Card.Header className="py-1 px-2">
+                        <small className="fw-semibold">User: {selectedUser.firstName}</small>
+                      </Card.Header>
+                      <Card.Body className="p-2">
+                        <div className="small">
+                          <div className="mb-1">
+                            <strong>First Name:</strong> {selectedUser.firstName}
+                          </div>
+                          <div className="mb-1">
+                            <strong>Last Name:</strong> {selectedUser.lastName}
+                          </div>
+                          <div>
+                            <strong>Role{selectedUser?.roles && selectedUser.roles.length > 1 ? "s" : ""}:</strong>{" "}
+                            {selectedUser?.roles && selectedUser.roles.length > 0
+                              ? selectedUser.roles.map((role: any) => role.name).join(", ")
+                              : selectedUser?.role?.name || "N/A"}
+                          </div>
+                        </div>
                       </Card.Body>
                     </Card>
                   </div>
                   <div className="col-md-8">
-                    <Card>
-                      <Card.Header>
-                        Add {selectedUser.firstName} to a station
-                        <i
-                          className="bi bi-question-circle ms-2 text-muted"
-                          style={{ cursor: "help", fontSize: "0.85rem" }}
-                          data-bs-toggle="tooltip"
-                          data-bs-placement="right"
-                          title="Add or remove stations for the selected user"
-                        ></i>
+                    <Card className="h-100 mb-0">
+                      <Card.Header className="py-1 px-2">
+                        <small className="fw-semibold">
+                          Add {selectedUser.firstName} to a station
+                          <i
+                            className="bi bi-question-circle ms-2 text-muted"
+                            style={{ cursor: "help", fontSize: "0.75rem" }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="right"
+                            title="Add or remove stations for the selected user"
+                          ></i>
+                        </small>
                       </Card.Header>
-                      <Card.Body>
-                        <Form.Group>
-                          <Form.Label>Select Station</Form.Label>
+                      <Card.Body className="p-2">
+                        <Form.Group className="mb-2">
+                          <Form.Label className="small mb-1">Select Station</Form.Label>
                           <Form.Control
                             as="select"
+                            size="sm"
                             value={selectedStation}
                             onChange={(e) => setSelectedStation(e.target.value)}
                           >
@@ -317,7 +333,9 @@ function StationUsersPage() {
                         </Form.Group>
                         <Button
                           variant="primary"
-                          className="mt-2"
+                          size="sm"
+                          className="mb-2"
+                          style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
                           onClick={handleAddUserToStation}
                           disabled={!selectedStation}
                           data-bs-toggle="tooltip"
@@ -327,83 +345,94 @@ function StationUsersPage() {
                           Add Station
                         </Button>
 
-                        <Card.Text className="mt-3">
-                          <strong>Current Stations:</strong>
-                          <table className="table table-striped mt-3">
-                            <thead>
-                              <tr>
-                                <th>Name</th>
-                                <th>Default</th>
-                                <th>Action</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {userStations && userStations.length > 0 ? (
-                                userStations.map(
-                                  (station) =>
-                                    station && (
-                                      <tr key={station.id}>
-                                        <td>{station.station?.name || "N/A"}</td>
-                                        <td>
-                                          {station.isDefault ? (
-                                            <span
-                                              className="badge bg-primary"
-                                              data-bs-toggle="tooltip"
-                                              data-bs-placement="top"
-                                              title="This is the user's default station"
-                                            >
-                                              Yes
-                                            </span>
-                                          ) : (
-                                            <Button
-                                              variant="success"
-                                              className="w-12"
-                                              onClick={() =>
-                                                makeDefaultSation(
-                                                  station.station_id,
-                                                )
-                                              }
-                                              data-bs-toggle="tooltip"
-                                              data-bs-placement="top"
-                                              title="Set this station as the user's default station"
-                                            >
-                                              Make Default{" "}
-                                            </Button>
-                                          )}
-                                        </td>
-                                        <td>
-                                          {station.status === "active" && (
-                                            <Button
-                                              variant="danger"
-                                              className="w-12"
-                                              onClick={() =>
-                                                disableUserStation(station.id)
-                                              }
-                                              data-bs-toggle="tooltip"
-                                              data-bs-placement="left"
-                                              title="Disable this station assignment for the user"
-                                            >
-                                              Disable
-                                            </Button>
-                                          )}
-                                        </td>
-                                      </tr>
-                                    ),
-                                )
-                              ) : (
+                        <div>
+                          <div className="small fw-semibold mb-1">Current Stations:</div>
+                          <div className="table-responsive">
+                            <table className="table table-sm table-striped mb-0">
+                              <thead>
                                 <tr>
-                                  <td colSpan={3}>No stations assigned</td>
+                                  <th>Name</th>
+                                  <th>Default</th>
+                                  <th>Action</th>
                                 </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </Card.Text>
+                              </thead>
+                              <tbody>
+                                {userStations && userStations.length > 0 ? (
+                                  userStations.map(
+                                    (station) =>
+                                      station && (
+                                        <tr key={station.id}>
+                                          <td>{station.station?.name || "N/A"}</td>
+                                          <td>
+                                            {station.isDefault ? (
+                                              <span
+                                                className="badge bg-primary"
+                                                data-bs-toggle="tooltip"
+                                                data-bs-placement="top"
+                                                title="This is the user's default station"
+                                              >
+                                                Yes
+                                              </span>
+                                            ) : (
+                                              <Button
+                                                variant="success"
+                                                size="sm"
+                                                className="w-12"
+                                                style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+                                                onClick={() =>
+                                                  makeDefaultSation(
+                                                    station.station_id,
+                                                  )
+                                                }
+                                                data-bs-toggle="tooltip"
+                                                data-bs-placement="top"
+                                                title="Set this station as the user's default station"
+                                              >
+                                                Make Default
+                                              </Button>
+                                            )}
+                                          </td>
+                                          <td>
+                                            {station.status === "active" && (
+                                              <Button
+                                                variant="danger"
+                                                size="sm"
+                                                className="w-12"
+                                                style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+                                                onClick={() =>
+                                                  disableUserStation(station.id)
+                                                }
+                                                data-bs-toggle="tooltip"
+                                                data-bs-placement="left"
+                                                title="Disable this station assignment for the user"
+                                              >
+                                                Disable
+                                              </Button>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ),
+                                  )
+                                ) : (
+                                  <tr>
+                                    <td colSpan={3}>No stations assigned</td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
                       </Card.Body>
                     </Card>
                   </div>
                 </div>
               ) : (
-                <p>Select a user to view their details.</p>
+                <Card className="mb-0">
+                  <Card.Body className="text-center text-muted py-3">
+                    <i className="bi bi-person-circle fs-2 d-block mb-1"></i>
+                    <p className="mb-0 small">Select a user to view their details</p>
+                  </Card.Body>
+                </Card>
               )}
             </div>
           </div>

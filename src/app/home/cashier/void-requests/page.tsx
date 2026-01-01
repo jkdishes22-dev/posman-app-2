@@ -506,8 +506,8 @@ const VoidRequestsPage = () => {
                                             <div className="border rounded p-3 bg-light">
                                                 <h6 className="text-muted mb-3">Current</h6>
                                                 <p className="mb-2"><strong>Quantity:</strong> {selectedItem.quantity}</p>
-                                                <p className="mb-2"><strong>Subtotal:</strong> ${selectedItem.subtotal}</p>
-                                                <p className="mb-0"><strong>Unit Price:</strong> ${selectedItem.item.price}</p>
+                                                <p className="mb-2"><strong>Subtotal:</strong> ${((Number(selectedItem.item.price) || 0) * (Number(selectedItem.quantity) || 0)).toFixed(2)}</p>
+                                                <p className="mb-0"><strong>Unit Price:</strong> ${(Number(selectedItem.item.price) || 0).toFixed(2)}</p>
                                             </div>
                                         </div>
                                         <div className="col-6">
@@ -515,7 +515,7 @@ const VoidRequestsPage = () => {
                                                 <h6 className="text-muted mb-3">Requested</h6>
                                                 <p className="mb-2"><strong>Quantity:</strong> {selectedItem.requested_quantity}</p>
                                                 <p className="mb-2"><strong>Subtotal:</strong> ${((Number(selectedItem.item.price) || 0) * (Number(selectedItem.requested_quantity) || 0)).toFixed(2)}</p>
-                                                <p className="mb-0"><strong>Unit Price:</strong> ${selectedItem.item.price}</p>
+                                                <p className="mb-0"><strong>Unit Price:</strong> ${(Number(selectedItem.item.price) || 0).toFixed(2)}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -544,7 +544,7 @@ const VoidRequestsPage = () => {
                                                 <p className="mb-1"><strong>Subtotal Change:</strong></p>
                                                 <span className={`badge ${selectedItem.requested_quantity > selectedItem.quantity ? "bg-success" : "bg-danger"} fs-6`}>
                                                     {selectedItem.requested_quantity > selectedItem.quantity ? "+" : ""}
-                                                    ${(((Number(selectedItem.item.price) || 0) * (Number(selectedItem.requested_quantity) || 0)) - (Number(selectedItem.subtotal) || 0)).toFixed(2)}
+                                                    ${(((Number(selectedItem.item.price) || 0) * (Number(selectedItem.requested_quantity) || 0)) - ((Number(selectedItem.item.price) || 0) * (Number(selectedItem.quantity) || 0))).toFixed(2)}
                                                 </span>
                                             </div>
                                         </div>

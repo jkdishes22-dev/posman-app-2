@@ -254,13 +254,20 @@ export default function IssueProductionModal({ show, onHide, onSuccess }: IssueP
                             <div
                                 className="form-control"
                                 style={{
-                                    cursor: "pointer",
+                                    cursor: "text",
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "space-between",
-                                    padding: "0.5rem 0.75rem",
+                                    padding: "0.375rem 0.75rem",
                                 }}
-                                onClick={() => setShowItemDropdown(!showItemDropdown)}
+                                onClick={() => {
+                                    if (itemInputRef.current) {
+                                        itemInputRef.current.focus();
+                                    }
+                                    if (itemSearchResults.length > 0 || itemSearchQuery.trim().length > 0) {
+                                        setShowItemDropdown(true);
+                                    }
+                                }}
                             >
                                 <input
                                     ref={itemInputRef}
@@ -284,7 +291,9 @@ export default function IssueProductionModal({ show, onHide, onSuccess }: IssueP
                                     }}
                                     onFocus={(e) => {
                                         e.stopPropagation();
-                                        setShowItemDropdown(true);
+                                        if (itemSearchResults.length > 0 || itemSearchQuery.trim().length > 0) {
+                                            setShowItemDropdown(true);
+                                        }
                                     }}
                                     autoComplete="off"
                                 />
@@ -294,7 +303,7 @@ export default function IssueProductionModal({ show, onHide, onSuccess }: IssueP
                                 <i className={`bi bi-chevron-${showItemDropdown ? "up" : "down"} text-muted`}></i>
                             </div>
 
-                            {showItemDropdown && itemSearchResults.length > 0 && (
+                            {showItemDropdown && (itemSearchResults.length > 0 || itemSearchQuery.trim().length > 0) && (
                                 <div
                                     ref={dropdownRef}
                                     className="position-absolute w-100 bg-white border rounded shadow-lg"
@@ -305,30 +314,41 @@ export default function IssueProductionModal({ show, onHide, onSuccess }: IssueP
                                         marginTop: "0.25rem",
                                     }}
                                 >
-                                    {itemSearchResults.map((item) => (
-                                        <div
-                                            key={item.id}
-                                            className="p-2 border-bottom"
-                                            style={{
-                                                cursor: "pointer",
-                                                backgroundColor: selectedItem?.id === item.id ? "#e7f3ff" : "white",
-                                            }}
-                                            onClick={() => selectItem(item)}
-                                            onMouseEnter={(e) => {
-                                                if (selectedItem?.id !== item.id) {
-                                                    e.currentTarget.style.backgroundColor = "#f8f9fa";
-                                                }
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                if (selectedItem?.id !== item.id) {
-                                                    e.currentTarget.style.backgroundColor = "white";
-                                                }
-                                            }}
-                                        >
-                                            <div className="fw-semibold">{item.name}</div>
-                                            <div className="text-muted small">{item.code} • {item.category}</div>
+                                    {itemSearchLoading ? (
+                                        <div className="p-3 text-center">
+                                            <Spinner animation="border" size="sm" />
+                                            <span className="ms-2 text-muted">Searching...</span>
                                         </div>
-                                    ))}
+                                    ) : itemSearchResults.length > 0 ? (
+                                        itemSearchResults.map((item) => (
+                                            <div
+                                                key={item.id}
+                                                className="p-2 border-bottom"
+                                                style={{
+                                                    cursor: "pointer",
+                                                    backgroundColor: selectedItem?.id === item.id ? "#e7f3ff" : "white",
+                                                }}
+                                                onClick={() => selectItem(item)}
+                                                onMouseEnter={(e) => {
+                                                    if (selectedItem?.id !== item.id) {
+                                                        e.currentTarget.style.backgroundColor = "#f8f9fa";
+                                                    }
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    if (selectedItem?.id !== item.id) {
+                                                        e.currentTarget.style.backgroundColor = "white";
+                                                    }
+                                                }}
+                                            >
+                                                <div className="fw-semibold">{item.name}</div>
+                                                <div className="text-muted small">{item.code} • {item.category}</div>
+                                            </div>
+                                        ))
+                                    ) : itemSearchQuery.trim().length > 0 ? (
+                                        <div className="p-3 text-center text-muted">
+                                            No items found
+                                        </div>
+                                    ) : null}
                                 </div>
                             )}
                         </div>

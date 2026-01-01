@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import ViewItems from "../admin/menu/category/components/items/items-view";
-import Categories from "../admin/menu/category/components/category/categories";
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from "react";
 import { Item } from "../types/types";
 import QuantityModal from "./QuantityModal";
-import { Button, Modal, Alert, Row, Col } from "react-bootstrap";
+import { Button, Modal, Alert, Row, Col, Spinner } from "react-bootstrap";
+
+// Lazy load heavy components for code splitting (reduces initial bundle size)
+const ViewItems = lazy(() => import("../admin/menu/category/components/items/items-view"));
+const Categories = lazy(() => import("../admin/menu/category/components/category/categories"));
 import ReceiptPrint, { CaptainOrderPrint, CustomerCopyPrint } from "./ReceiptPrint";
 import { printReceiptWithTimestamp, downloadReceiptAsFile } from "./printUtils";
 import ReactDOM from "react-dom/client";
@@ -35,6 +37,9 @@ const BillingSection = () => {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [items, setItems] = useState([]);
+  const [allPricelistItems, setAllPricelistItems] = useState<Item[]>([]); // All items for current pricelist
+  const [itemsPreloaded, setItemsPreloaded] = useState(false); // Track if all items are preloaded
+  const [inventoryPreloaded, setInventoryPreloaded] = useState(false); // Track if inventory is preloaded
   const [fetchCategoryError, setFetchCategoryError] = useState("");
   const [itemError, setItemError] = useState("");
   const [selectedItems, setSelectedItems] = useState([]);
@@ -51,6 +56,7 @@ const BillingSection = () => {
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
   const [itemInventory, setItemInventory] = useState<Record<number, number>>({});
+  const [missingConstituents, setMissingConstituents] = useState<Record<number, Array<{ itemId: number; itemName: string; available: number; required: number }>>>({});
   const [hasExpandedItems, setHasExpandedItems] = useState<boolean>(false);
   const [showAvailableItemsHeader, setShowAvailableItemsHeader] = useState<boolean>(false);
 
@@ -63,13 +69,13 @@ const BillingSection = () => {
     // Initialize user synchronously from context (no API call needed)
     if (user && user.id) {
       setUserId(user.id.toString());
-      setWaitress(user.firstname || user.firstName || "");
+      setWaitress(user.firstName || user.firstname || "");
     }
     // Note: Stations and pricelists are already loaded by their respective contexts on mount
     // No need to call loadStationsIfNeeded/loadPricelistsIfNeeded here as contexts handle it
   }, [isAuthenticated, user]);
 
-  // Lazy load categories - only fetch when station is selected (non-blocking)
+  // Prefetch categories when station is available (optimized loading)
   useEffect(() => {
     // Only fetch categories if we have a station and haven't fetched yet
     if (categoriesFetched || !currentStation) return;
@@ -91,25 +97,28 @@ const BillingSection = () => {
         setCategoriesFetched(false); // Reset on error to allow retry
       }
     };
-    // Use setTimeout to make this non-blocking - allows UI to render first
-    const timeoutId = setTimeout(() => {
-      fetchCategories();
-    }, 0);
 
-    return () => clearTimeout(timeoutId);
+    // Fetch immediately when station is available (no delay)
+    fetchCategories();
   }, [currentStation, categoriesFetched, apiCall]);
 
-  const fetchItemInventory = useCallback(async (itemIds: number[]) => {
+  const fetchItemInventory = useCallback(async (itemIds: number[], includeDetails: boolean = true) => {
     if (itemIds.length === 0) {
       return;
     }
 
     try {
       const itemIdsParam = itemIds.join(",");
-      const result = await apiCall(`/api/inventory/available?itemIds=${itemIdsParam}`);
+      const url = includeDetails
+        ? `/api/inventory/available?itemIds=${itemIdsParam}&includeDetails=true`
+        : `/api/inventory/available?itemIds=${itemIdsParam}`;
+      const result = await apiCall(url);
 
       if (result.status === 200) {
         setItemInventory(result.data.available || {});
+        if (includeDetails && result.data.missingConstituents) {
+          setMissingConstituents(result.data.missingConstituents || {});
+        }
       }
     } catch (error) {
       // Silently fail - inventory display is optional
@@ -117,13 +126,58 @@ const BillingSection = () => {
     }
   }, [apiCall]);
 
-  // Memoized fetchItems to prevent unnecessary re-renders
+  // Preload all items and inventory for the pricelist when available
+  useEffect(() => {
+    if (!currentPricelist || itemsPreloaded) return;
+
+    const preloadAllItems = async () => {
+      try {
+        // Fetch all items for the pricelist (no category filter)
+        const result = await apiCall(
+          `/api/menu/items/pricelist?pricelistId=${currentPricelist.id}`
+        );
+
+        if (result.status === 200) {
+          const allItems = result.data.items || [];
+          setAllPricelistItems(allItems);
+          setItemsPreloaded(true);
+
+          // Preload inventory for all items
+          if (allItems.length > 0) {
+            const itemIds = allItems.map((item: Item) => item.id);
+            await fetchItemInventory(itemIds, true);
+            setInventoryPreloaded(true);
+          }
+        }
+      } catch (error) {
+        // Silently fail - will fall back to category-based loading
+        console.error("Error preloading items:", error);
+      }
+    };
+
+    // Preload in background (non-blocking)
+    preloadAllItems();
+  }, [currentPricelist, itemsPreloaded, apiCall, fetchItemInventory]);
+
+  // Memoized fetchItems - uses preloaded data if available, otherwise fetches from API
   const fetchItems = useCallback(async (categoryId: string) => {
     if (!currentPricelist) {
       setItemError("No pricelist selected. Please select a pricelist first.");
       return;
     }
 
+    // If items are preloaded, filter client-side for instant switching
+    if (itemsPreloaded && allPricelistItems.length > 0) {
+      const filteredItems = allPricelistItems.filter(
+        (item: Item) => item.category?.id === categoryId || String(item.category?.id) === String(categoryId)
+      );
+      setItems(filteredItems);
+      setItemError(""); // Clear any previous errors
+      // Inventory is already preloaded, no need to fetch again
+      return;
+    }
+
+    // Fallback: Fetch from API if preload hasn't completed
     try {
       const result = await apiCall(
         `/api/menu/items/pricelist?pricelistId=${currentPricelist.id}&categoryId=${categoryId}`
@@ -134,8 +188,8 @@ const BillingSection = () => {
         setItems(fetchedItems);
         setItemError(""); // Clear any previous errors
 
-        // Fetch available inventory for all items
-        if (fetchedItems.length > 0) {
+        // Fetch available inventory for all items (if not already preloaded)
+        if (fetchedItems.length > 0 && !inventoryPreloaded) {
           fetchItemInventory(fetchedItems.map((item: Item) => item.id));
         }
       } else {
@@ -147,14 +201,25 @@ const BillingSection = () => {
       setItemError(errorMessage);
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
-  }, [currentPricelist, apiCall, fetchItemInventory]);
+  }, [currentPricelist, apiCall, fetchItemInventory, itemsPreloaded, allPricelistItems, inventoryPreloaded]);
 
   // Refetch items when pricelist or category changes
   useEffect(() => {
     if (currentPricelist && selectedCategory) {
       fetchItems(selectedCategory.id);
+    } else if (!selectedCategory) {
+      // Clear items when no category is selected
+      setItems([]);
     }
   }, [currentPricelist?.id, selectedCategory?.id, fetchItems]); // Include fetchItems in dependencies
+
+  // Reset preload state when pricelist changes
+  useEffect(() => {
+    setItemsPreloaded(false);
+    setInventoryPreloaded(false);
+    setAllPricelistItems([]);
+    setItems([]);
+  }, [currentPricelist?.id]);
 
   const handlePickItem = useCallback((item: Item) => {
     if (!item.price) {
@@ -167,15 +232,24 @@ const BillingSection = () => {
     const alreadyReserved = alreadyInBill ? alreadyInBill.quantity : 0;
     const availableAfterReserved = available - alreadyReserved;
 
-    // If item has inventory tracking and no stock available, show error
-    if (available === 0 && itemInventory.hasOwnProperty(item.id)) {
-      setBillError(`Cannot add ${item.name}. No inventory available. Please issue more ${item.name} to inventory first.`);
+    // If item has inventory tracking and no stock available, show error with missing constituents
+    if (available === 0 && item.id in itemInventory) {
+      const missing = missingConstituents[item.id];
+      if (missing && missing.length > 0) {
+        const missingList = missing.map(c => `${c.itemName} (Available: ${c.available}, Required: ${c.required} per unit)`).join(", ");
+        setBillError(
+          `Cannot add ${item.name}. Missing ingredients: ${missingList}. ` +
+          "Please issue these items to inventory first."
+        );
+      } else {
+        setBillError(`Cannot add ${item.name}. No inventory available. Please issue more ${item.name} to inventory first.`);
+      }
       return;
     }
 
     setCurrentItem(item);
     setShowQuantityModal(true);
-  }, [itemInventory, selectedItems]);
+  }, [itemInventory, selectedItems, missingConstituents]);
 
   const handleQuantityConfirm = useCallback((quantity: number) => {
     if (!currentItem) {
@@ -189,7 +263,7 @@ const BillingSection = () => {
     const availableAfterReserved = available - alreadyReserved;
 
     // If item has inventory tracking, validate quantity
-    if (itemInventory.hasOwnProperty(currentItem.id)) {
+    if (currentItem.id in itemInventory) {
       if (availableAfterReserved < quantity) {
         setBillError(
           `Cannot add ${quantity} ${currentItem.name}. ` +
@@ -259,7 +333,6 @@ const BillingSection = () => {
         if (user && user.id) {
           currentUserId = user.id.toString();
           setUserId(currentUserId);
-          setWaitress(user.firstname || user.firstName || waitress);
         } else {
           // Fallback: fetch user data from API
           try {
@@ -267,7 +340,6 @@ const BillingSection = () => {
             if (userResult.status === 200 && userResult.data && userResult.data.id) {
               currentUserId = userResult.data.id.toString();
               setUserId(currentUserId);
-              setWaitress(userResult.data.firstName || userResult.data.firstname || waitress);
             } else {
               setBillError("User information not available. Please refresh the page.");
               setIsSubmitting(false);
@@ -323,12 +395,23 @@ const BillingSection = () => {
         } else {
           setBillError(result.error || "Failed to submit picked items");
           setErrorDetails(result.errorDetails);
+
+          // Refresh inventory after bill creation failure to show updated availability
+          // This ensures users see the correct stock levels after inventory reservation fails
+          if (items.length > 0) {
+            fetchItemInventory(items.map((item: Item) => item.id));
+          }
         }
       } catch (error: any) {
         // Show the actual error message from the API
         const errorMessage = error.message || "Failed to submit picked items";
         setBillError(errorMessage);
         setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+
+        // Refresh inventory after bill creation failure to show updated availability
+        if (items.length > 0) {
+          fetchItemInventory(items.map((item: Item) => item.id));
+        }
       }
     } catch (error: any) {
       console.error("Error in bill submission:", error);
@@ -413,38 +496,6 @@ const BillingSection = () => {
   }, [selectedItems]);
 
 
-  // Show loading state only for a short time, then allow user to proceed
-  const [showStationLoading, setShowStationLoading] = useState(true);
-
-  useEffect(() => {
-    // Timeout after 3 seconds - don't block the UI indefinitely
-    const timer = setTimeout(() => {
-      setShowStationLoading(false);
-    }, 3000);
-
-    // If station loads successfully, hide loading immediately
-    if (!stationLoading) {
-      setShowStationLoading(false);
-    }
-
-    return () => clearTimeout(timer);
-  }, [stationLoading, currentStation]);
-
-  if (stationLoading && showStationLoading) {
-    return (
-      <div className="container">
-        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "400px" }}>
-          <div className="text-center">
-            <div className="spinner-border text-primary mb-3" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <p className="text-muted">Loading station information...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Show error state if station has error
   if (stationError) {
     return (
@@ -460,8 +511,35 @@ const BillingSection = () => {
     );
   }
 
-  // Show warning if no station selected
-  if (!currentStation) {
+  // Show loading state if station is still loading
+  if (stationLoading || !currentStation) {
+    // If still loading, show progress indicator
+    if (stationLoading) {
+      return (
+        <div className="container">
+          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "400px" }}>
+            <div className="text-center w-100">
+              <div className="spinner-border text-primary mb-3" role="status" style={{ width: "3rem", height: "3rem" }}>
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p className="text-muted mb-2">Loading station information...</p>
+              <div className="progress" style={{ maxWidth: "400px", margin: "0 auto" }}>
+                <div
+                  className="progress-bar progress-bar-striped progress-bar-animated"
+                  role="progressbar"
+                  style={{ width: "100%" }}
+                  aria-valuenow={100}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    // If not loading but no station, show selection prompt
     return (
       <div className="container">
         <Alert variant="warning">
@@ -473,7 +551,35 @@ const BillingSection = () => {
     );
   }
 
-  if (!currentPricelist) {
+  // Show loading state if pricelist is still loading
+  if (pricelistLoading || !currentPricelist) {
+    // If still loading, show progress indicator
+    if (pricelistLoading) {
+      return (
+        <div className="container">
+          <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "400px" }}>
+            <div className="text-center w-100">
+              <div className="spinner-border text-primary mb-3" role="status" style={{ width: "3rem", height: "3rem" }}>
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p className="text-muted mb-2">Loading pricelist information...</p>
+              <div className="progress" style={{ maxWidth: "400px", margin: "0 auto" }}>
+                <div
+                  className="progress-bar progress-bar-striped progress-bar-animated"
+                  role="progressbar"
+                  style={{ width: "100%" }}
+                  aria-valuenow={100}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    // If not loading but no pricelist, show error message
     return (
       <div className="container">
         <Alert variant="warning">
@@ -561,19 +667,32 @@ const BillingSection = () => {
                 errorDetails={errorDetails}
                 onDismiss={() => setErrorDetails(null)}
               />
-              <ViewItems
-                selectedCategory={selectedCategory}
-                items={items}
-                itemError={itemError}
-                setItems={setItems}
-                isBillingSection={true}
-                isPricelistSection={false}
-                isCategoryItemsSection={false}
-                onItemPick={createdBill ? undefined : handlePickItem}
-                itemInventory={itemInventory}
-                selectedItems={selectedItems}
-                onExpandedChange={setHasExpandedItems}
-              />
+              <Suspense fallback={
+                <div className="text-center p-4">
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  <span>Loading items...</span>
+                </div>
+              }>
+                <ViewItems
+                  selectedCategory={selectedCategory}
+                  items={items}
+                  itemError={itemError}
+                  setItems={setItems}
+                  isBillingSection={true}
+                  isPricelistSection={false}
+                  isCategoryItemsSection={false}
+                  onItemPick={createdBill ? undefined : handlePickItem}
+                  itemInventory={itemInventory}
+                  selectedItems={selectedItems}
+                  onExpandedChange={setHasExpandedItems}
+                  missingConstituents={missingConstituents}
+                  onItemUpdated={() => {
+                    if (selectedCategory) {
+                      fetchItems(selectedCategory.id);
+                    }
+                  }}
+                />
+              </Suspense>
             </div>
           </div>
         </div>
@@ -656,10 +775,12 @@ const BillingSection = () => {
                         : (Number(totalAmount) || 0).toFixed(2)
                       }
                     </div>
-                    <small className="text-muted">
-                      <i className="bi bi-person me-1"></i>
-                      Served by: {waitress}
-                    </small>
+                    {waitress && (
+                      <small className="text-muted">
+                        <i className="bi bi-person me-1"></i>
+                        Served by: {waitress}
+                      </small>
+                    )}
                   </div>
                 </div>
                 <div className="col-md-6">
@@ -740,15 +861,23 @@ const BillingSection = () => {
         <div className="col-12">
           <div className={`card border-0 shadow-sm categories-card ${hasExpandedItems ? "categories-card-expanded" : ""}`}>
             <div className="card-body py-2 px-3">
-              <Categories
-                categories={categories}
-                onCategoryClick={(category) => {
-                  setSelectedCategory(category);
-                  fetchItems(category.id);
-                }}
-                fetchError={fetchCategoryError}
-                showHeader={false}
-              />
+              <Suspense fallback={
+                <div className="text-center p-2">
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  <span>Loading categories...</span>
+                </div>
+              }>
+                <Categories
+                  categories={categories}
+                  onCategoryClick={(category) => {
+                    setSelectedCategory(category);
+                    fetchItems(category.id);
+                  }}
+                  fetchError={fetchCategoryError}
+                  showHeader={false}
+                  billingMode={true}
+                />
+              </Suspense>
             </div>
           </div>
         </div>
@@ -760,25 +889,23 @@ const BillingSection = () => {
       </div>
 
       {/* Quantity Modal */}
-      {showQuantityModal && (
-        <QuantityModal
-          item={currentItem}
-          onClose={() => {
-            setShowQuantityModal(false);
-            setCurrentItem(null);
-          }}
-          onConfirm={handleQuantityConfirm}
-          availableQuantity={currentItem ? itemInventory[currentItem.id] : undefined}
-          alreadyInBill={
-            currentItem
-              ? selectedItems.find(i => i.id === currentItem.id)?.quantity || 0
-              : 0
-          }
-        />
-      )}
+      <QuantityModal
+        item={showQuantityModal ? currentItem : null}
+        onClose={() => {
+          setShowQuantityModal(false);
+          setCurrentItem(null);
+        }}
+        onConfirm={handleQuantityConfirm}
+        availableQuantity={currentItem ? itemInventory[currentItem.id] : undefined}
+        alreadyInBill={
+          currentItem
+            ? selectedItems.find(i => i.id === currentItem.id)?.quantity || 0
+            : 0
+        }
+      />
 
       {/* Submit Confirmation Modal - Simple Bill Creation */}
-      <Modal show={showSubmitModal} onHide={handleCloseSubmitModal} centered>
+      <Modal show={showSubmitModal} onHide={handleCloseSubmitModal} centered backdrop="static" keyboard={false}>
         <Modal.Header closeButton className="bg-primary text-white">
           <Modal.Title className="fw-bold">Confirm Billing</Modal.Title>
         </Modal.Header>
@@ -841,7 +968,7 @@ const BillingSection = () => {
       </Modal>
 
       {/* Cancel Confirmation Modal */}
-      <Modal show={showCancelModal} onHide={handleCloseCancelModal} centered>
+      <Modal show={showCancelModal} onHide={handleCloseCancelModal} centered backdrop="static" keyboard={false}>
         <Modal.Header closeButton className="bg-warning text-dark">
           <Modal.Title className="fw-bold">Cancel Billing</Modal.Title>
         </Modal.Header>

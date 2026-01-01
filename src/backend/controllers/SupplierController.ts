@@ -1,5 +1,6 @@
 import { SupplierService } from "@backend/service/SupplierService";
 import { NextApiRequest, NextApiResponse } from "next";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const createSupplierHandler = async (
     req: NextApiRequest,
@@ -15,11 +16,11 @@ export const createSupplierHandler = async (
         const supplier = await supplierService.createSupplier(req.body, userId);
         res.status(201).json(supplier);
     } catch (error: any) {
-        console.error("Error creating supplier:", error);
-        res.status(500).json({
-            message: "Failed to create supplier",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "creating",
+            resource: "supplier"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -32,11 +33,11 @@ export const fetchSuppliersHandler = async (
         const suppliers = await supplierService.fetchSuppliers();
         res.status(200).json(suppliers);
     } catch (error: any) {
-        console.error("Error fetching suppliers:", error);
-        res.status(500).json({
-            message: "Failed to fetch suppliers",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "suppliers"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -61,11 +62,11 @@ export const fetchSupplierHandler = async (
             balance,
         });
     } catch (error: any) {
-        console.error("Error fetching supplier:", error);
-        res.status(500).json({
-            message: "Failed to fetch supplier",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "supplier"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -88,11 +89,11 @@ export const updateSupplierHandler = async (
         );
         res.status(200).json(supplier);
     } catch (error: any) {
-        console.error("Error updating supplier:", error);
-        res.status(500).json({
-            message: "Failed to update supplier",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "updating",
+            resource: "supplier"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -111,11 +112,11 @@ export const deleteSupplierHandler = async (
         await supplierService.deleteSupplier(Number(id), userId);
         res.status(204).end();
     } catch (error: any) {
-        console.error("Error deleting supplier:", error);
-        res.status(500).json({
-            message: "Failed to delete supplier",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "deleting",
+            resource: "supplier"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -129,11 +130,11 @@ export const getSupplierBalanceHandler = async (
         const balance = await supplierService.getSupplierBalance(Number(id));
         res.status(200).json(balance);
     } catch (error: any) {
-        console.error("Error fetching supplier balance:", error);
-        res.status(500).json({
-            message: "Failed to fetch supplier balance",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "supplier balance"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -151,11 +152,11 @@ export const getSupplierTransactionsHandler = async (
         );
         res.status(200).json(transactions);
     } catch (error: any) {
-        console.error("Error fetching supplier transactions:", error);
-        res.status(500).json({
-            message: "Failed to fetch supplier transactions",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "supplier transactions"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 

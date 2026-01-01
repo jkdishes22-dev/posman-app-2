@@ -11,7 +11,11 @@ import StoreKeeperPageLayout from "./StoreKeeperPageLayout";
 import { useAuth } from "../contexts/AuthContext";
 import jwt from "jsonwebtoken";
 
-export default function RoleAwareLayout({ children }) {
+interface RoleAwareLayoutProps {
+    children: React.ReactNode;
+}
+
+export default function RoleAwareLayout({ children }: RoleAwareLayoutProps) {
     const [role, setRole] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const { logout, isAuthenticated } = useAuth();

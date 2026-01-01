@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { ItemService } from "@services/ItemService";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const filterItemsHandler = async (
   req: NextApiRequest,
@@ -19,7 +20,11 @@ export const filterItemsHandler = async (
     const items = await itemService.filterItems(criteria);
     return res.status(200).json(items);
   } catch (error: any) {
-    return res.status(500).json({ message: "Failed to filter items", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "filtering",
+      resource: "items"
+    });
+    return res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -41,7 +46,11 @@ export const fetchItemsHandler = async (
     );
     res.status(200).json(items);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to fetch items", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "items"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -68,7 +77,11 @@ export const createItemHandler = async (
     );
     res.status(201).json(item);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to create item", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "creating",
+      resource: "item"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -86,6 +99,8 @@ export const updateItemHandler = async (
       category,
       pricelistItemId,
       isGroup,
+      isStock,
+      allowNegativeInventory,
       pricelistId,
     } = req.body;
     const user_id = parseInt(req.user.id, 10);
@@ -96,6 +111,8 @@ export const updateItemHandler = async (
       code,
       category,
       isGroup,
+      isStock,
+      allowNegativeInventory,
     };
 
     const updatedItem = await itemService.updateItem(
@@ -107,7 +124,11 @@ export const updateItemHandler = async (
 
     res.status(200).json(updatedItem);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to update item", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "updating",
+      resource: "item"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -129,8 +150,11 @@ export const fetchGroupedItemsHandler = async (
     );
     res.status(200).json(items);
   } catch (error: any) {
-    console.error("Error fetching group items:", error);
-    res.status(500).json({ message: "Failed to fetch grouped items", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "grouped items"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -150,7 +174,11 @@ export const createGroupItemHandler = async (
     const newGroupItem = await itemService.createGroupedItem(groupItemRequest);
     res.status(201).json(newGroupItem);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to create group item", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "creating",
+      resource: "group item"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -165,7 +193,11 @@ export const fetchGroupItemsHandler = async (
     const groupItems = await itemService.fetchGroupedItems(parseInt(groupIdValue));
     res.status(201).json(groupItems);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to fetch group items", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "group items"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -187,11 +219,11 @@ export const removeItemFromGroupHandler = async (
     itemService.removeItemFromGroup(parseInt(groupIdValue), parseInt(itemIdValue));
     res.status(200).json({ message: "Item removed successfully" });
   } catch (error: any) {
-    console.error("Error removing item from group:", error);
-    res.status(500).json({
-      message: "Error removing item from group",
-      error: error.message,
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "removing",
+      resource: "item from group"
     });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -209,10 +241,10 @@ export const getSubItemsForPlatterHandler = async (
     const result = await itemService.getSubItemsForPlatter(parseInt(groupIdValue));
     res.status(200).json(result);
   } catch (error: any) {
-    console.error("Error fetching sub-items for platter:", error);
-    res.status(500).json({
-      message: "Error fetching sub-items for platter",
-      error: error.message,
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "sub-items for platter"
     });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };

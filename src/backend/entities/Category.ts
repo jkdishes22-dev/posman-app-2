@@ -9,9 +9,13 @@ export enum CategoryStatus {
 
 @Entity("category")
 @Index(["status"]) // Index for status filtering
+@Index(["code"], { unique: true, where: "code IS NOT NULL" })
 export class Category extends BaseEntity {
   @Column({ type: "varchar", length: 255 })
   name: string;
+
+  @Column({ type: "varchar", length: 255, nullable: true, unique: true })
+  code: string;
 
   @Column({
     type: "enum",

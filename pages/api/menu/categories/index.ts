@@ -17,9 +17,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     const cacheKey = "api_categories_all";
     const cached = cache.get<any[]>(cacheKey);
     if (cached !== null) {
-      // Set cache headers for browser caching
-      res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
-      res.setHeader("ETag", `"categories-${Date.now()}"`);
+      // Set cache headers for browser caching (longer TTL for better performance)
+      res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+      res.setHeader("ETag", `"categories"`);
       return res.status(200).json(cached);
     }
 
@@ -29,9 +29,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       if (res.statusCode === 200) {
         // Cache the result (using shared cache utility)
         cache.set(cacheKey, data);
-        // Set cache headers
-        res.setHeader("Cache-Control", "public, max-age=60, stale-while-revalidate=120");
-        res.setHeader("ETag", `"categories-${Date.now()}"`);
+        // Set cache headers (longer TTL for better performance)
+        res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+        res.setHeader("ETag", `"categories"`);
       }
       return originalJson.call(this, data);
     };

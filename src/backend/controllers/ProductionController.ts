@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { ProductionService } from "@backend/service/ProductionService";
 import { DataSource } from "typeorm";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const createProductionItemHandler = async (
   req: NextApiRequest,
@@ -15,8 +16,11 @@ export const createProductionItemHandler = async (
     );
     res.status(201).json(newItem);
   } catch (error: any) {
-    console.error("Error creating production item:", error);
-    res.status(500).json({ message: "Internal server error" });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "creating",
+      resource: "production item"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -31,8 +35,11 @@ export const fetchProdutionItemsHandler = async (
     const items = await productionService.fetchProductionItems(compositeOnly);
     res.status(200).json(items);
   } catch (error: any) {
-    console.error("Error fetching production items:", error);
-    res.status(500).json({ message: "Internal server error" });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "production items"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 

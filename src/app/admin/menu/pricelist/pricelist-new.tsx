@@ -14,6 +14,7 @@ export default function PricelistAdd({
   setAddPricelistErrorDetails,
 }) {
   const [name, setName] = useState("");
+  const [code, setCode] = useState("");
   const [station, setStation] = useState("");
   const [description, setDescription] = useState("");
   const [stations, setStations] = useState([]);
@@ -58,15 +59,16 @@ export default function PricelistAdd({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !description || !station) {
-      setAddPricelistError("Please fill in all fields");
+      setAddPricelistError("Please fill in all required fields");
       return;
     }
 
     try {
-      await handleAddPricelist({ name, description, station });
+      await handleAddPricelist({ name, code: code || undefined, description, station });
       // Only clear form if successful (handled in parent component)
       if (!addPricelistError) {
         setName("");
+        setCode("");
         setDescription("");
         setStation("");
       }
@@ -122,6 +124,19 @@ export default function PricelistAdd({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="code" className="form-label">
+                  Code <span className="text-muted small">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  id="code"
+                  className="form-control"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="Enter unique code"
                 />
               </div>
               <div className="form-group">

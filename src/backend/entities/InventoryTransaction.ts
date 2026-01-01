@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Item } from "./Item";
+import { User } from "./User";
 
 export enum InventoryTransactionType {
     SALE = "sale",
@@ -55,5 +56,9 @@ export class InventoryTransaction extends BaseEntity {
 
     @Column({ type: "text", nullable: true })
     notes: string;
+
+    @ManyToOne(() => User, { nullable: true })
+    @JoinColumn({ name: "created_by" })
+    created_by_user: User;
 }
 

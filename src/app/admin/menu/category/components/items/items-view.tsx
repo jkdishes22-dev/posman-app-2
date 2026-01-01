@@ -24,9 +24,11 @@ interface ViewItemsProps {
   itemInventory?: Record<number, number>;
   selectedItems?: Item[];
   onExpandedChange?: (hasExpanded: boolean) => void;
+  onItemUpdated?: () => void; // Callback to refresh items after edit
+  missingConstituents?: Record<number, Array<{ itemId: number; itemName: string; available: number; required: number }>>;
 }
 
-const ViewItems: React.FC<ViewItemsProps> = ({
+const ViewItemsComponent: React.FC<ViewItemsProps> = ({
   selectedCategory,
   items = [],
   pricelistItems,
@@ -43,6 +45,8 @@ const ViewItems: React.FC<ViewItemsProps> = ({
   itemInventory = {},
   selectedItems = [],
   onExpandedChange,
+  onItemUpdated,
+  missingConstituents = {},
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -388,6 +392,9 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                 )}
                 <th>Pricelist</th>
                 <th>Item price</th>
+                {!isBillingSection && (
+                  <th>Actions</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -439,6 +446,28 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                           )}
                         </div>
                       </td>
+                      {!isBillingSection && (
+                        <td>
+                          <div className="d-flex gap-1">
+                            <button
+                              className="btn btn-outline-primary btn-sm"
+                              onClick={() => handleEditItem(item)}
+                              title="Edit item"
+                            >
+                              <i className="bi bi-pencil"></i>
+                            </button>
+                            {handleDeleteItem && (
+                              <button
+                                className="btn btn-outline-danger btn-sm"
+                                onClick={() => handleDeleteItemClick(item)}
+                                title="Delete item"
+                              >
+                                <i className="bi bi-trash"></i>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                       {isBillingSection && (
                         <td>
                           <button
@@ -464,7 +493,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                     </tr>
                     {item.isGroup === true && expandedItems.has(item.id) && (
                       <tr>
-                        <td colSpan={isBillingSection ? 4 : 5} className={`bg-light p-0 ${styles.expandedRow}`}>
+                        <td colSpan={isBillingSection ? 4 : 6} className={`bg-light p-0 ${styles.expandedRow}`}>
                           <div className={`p-2 ${isBillingSection ? styles.expandedContentBilling : styles.expandedContent}`}>
                             <div className="d-flex align-items-center mb-2">
                               {loadingSubItems.has(item.id) && (
@@ -488,14 +517,45 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                                     {isBillingSection ? (
                                       // Simplified layout for billing section - just show ingredient and portion
                                       <div className="d-flex flex-column gap-2">
-                                        {subItemsData[item.id].subItems.map((subItem: any) => (
-                                          <div key={subItem.id} className={styles.ingredientCard}>
-                                            <span className="fw-medium">{subItem.name}</span>
-                                            <span className="badge bg-primary">
-                                              {subItem.portionSize} {subItem.unit || "servings"}
-                                            </span>
-                                          </div>
-                                        ))}
+                                        {subItemsData[item.id].subItems.map((subItem: any) => {
+                                          // Check if this constituent item is missing/unavailable
+                                          const missingForItem = missingConstituents[item.id] || [];
+                                          const isUnavailable = missingForItem.some(m => m.itemId === subItem.id);
+                                          const missingInfo = missingForItem.find(m => m.itemId === subItem.id);
+
+                                          return (
+                                            <div
+                                              key={subItem.id}
+                                              className={styles.ingredientCard}
+                                              style={isUnavailable ? {
+                                                backgroundColor: "#fff3cd",
+                                                borderColor: "#ffc107",
+                                                borderWidth: "2px",
+                                                borderStyle: "solid"
+                                              } : {}}
+                                            >
+                                              <div className="d-flex align-items-center justify-content-between w-100">
+                                                <span className={`fw-medium ${isUnavailable ? "text-danger" : ""}`}>
+                                                  {subItem.name}
+                                                  {isUnavailable && (
+                                                    <i className="bi bi-exclamation-triangle-fill text-warning ms-2"
+                                                      title={`Insufficient stock: Available ${missingInfo?.available || 0}, Required ${missingInfo?.required || 0}`}></i>
+                                                  )}
+                                                </span>
+                                                <div className="d-flex align-items-center gap-2">
+                                                  {isUnavailable && (
+                                                    <span className="badge bg-warning text-dark" title={`Available: ${missingInfo?.available || 0}, Required: ${missingInfo?.required || 0}`}>
+                                                      {missingInfo?.available || 0} / {missingInfo?.required || 0}
+                                                    </span>
+                                                  )}
+                                                  <span className={`badge ${isUnavailable ? "bg-danger" : "bg-primary"}`}>
+                                                    {subItem.portionSize} {subItem.unit || "servings"}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     ) : (
                                       // Full table for non-billing sections
@@ -546,7 +606,7 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={isBillingSection ? 4 : 5} className="text-center text-muted py-4">
+                  <td colSpan={isBillingSection ? 4 : 6} className="text-center text-muted py-4">
                     {searchTerm ? "No items found matching your search." : "No items available."}
                   </td>
                 </tr>
@@ -567,6 +627,10 @@ const ViewItems: React.FC<ViewItemsProps> = ({
                 )
               );
               setShowEditModal(false);
+              // Refresh items if we have a callback
+              if (onItemUpdated) {
+                onItemUpdated();
+              }
             }}
             item={selectedItem}
           />
@@ -584,5 +648,8 @@ const ViewItems: React.FC<ViewItemsProps> = ({
     </div>
   );
 };
+
+const ViewItems = React.memo(ViewItemsComponent);
+ViewItems.displayName = "ViewItems";
 
 export default ViewItems;

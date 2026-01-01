@@ -31,6 +31,8 @@ import { SupplierPayment } from "@backend/entities/SupplierPayment";
 import { SupplierTransaction } from "@backend/entities/SupplierTransaction";
 import { ProductionIssue } from "@backend/entities/ProductionIssue";
 import { ProductionPreparation } from "@backend/entities/ProductionPreparation";
+import { PricelistItemAudit } from "@backend/entities/PricelistItemAudit";
+import { ItemAudit } from "@backend/entities/ItemAudit";
 
 let connectionInstance: DataSource | null = null;
 let isInitializing = false;
@@ -75,6 +77,8 @@ export const AppDataSource = new DataSource({
     SupplierTransaction,
     ProductionIssue,
     ProductionPreparation,
+    PricelistItemAudit,
+    ItemAudit,
   ],
   migrations: ["src/backend/config/migrations/*.cjs"],
   synchronize: false,
