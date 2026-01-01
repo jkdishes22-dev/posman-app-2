@@ -141,6 +141,16 @@ const permissions = {
     // Production
     CAN_ISSUE_PRODUCTION: "can_issue_production",
     CAN_VIEW_PRODUCTION_HISTORY: "can_view_production_history",
+
+    // Reports
+    CAN_VIEW_SALES_REVENUE_REPORT: "can_view_sales_revenue_report",
+    CAN_VIEW_PRODUCTION_STOCK_REVENUE_REPORT: "can_view_production_stock_revenue_report",
+    CAN_VIEW_ITEMS_SOLD_COUNT_REPORT: "can_view_items_sold_count_report",
+    CAN_VIEW_VOIDED_ITEMS_REPORT: "can_view_voided_items_report",
+    CAN_VIEW_EXPENDITURE_REPORT: "can_view_expenditure_report",
+    CAN_VIEW_INVOICES_PENDING_BILLS_REPORT: "can_view_invoices_pending_bills_report",
+    CAN_VIEW_PURCHASE_ORDERS_REPORT: "can_view_purchase_orders_report",
+    CAN_VIEW_PNL_REPORT: "can_view_pnl_report",
 };
 
 export default permissions;

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 // Supervisor station users page - redirects to admin station users page
@@ -9,11 +9,12 @@ export default function SupervisorStationUsersPage() {
     const router = useRouter();
 
     useEffect(() => {
-        // Since APIs are reusable and RoleAwareLayout handles layout selection,
-        // we can redirect to the admin page which will automatically use SupervisorLayout
+        // Use replace immediately to avoid adding to history
+        // This performs a client-side navigation without full page reload
         router.replace("/admin/station/user");
     }, [router]);
 
+    // Return null immediately - the redirect happens in useEffect
     return null;
 }
 

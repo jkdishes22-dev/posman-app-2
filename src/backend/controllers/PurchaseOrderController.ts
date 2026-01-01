@@ -1,5 +1,6 @@
 import { PurchaseOrderService } from "@backend/service/PurchaseOrderService";
 import { NextApiRequest, NextApiResponse } from "next";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const createPurchaseOrderHandler = async (
     req: NextApiRequest,
@@ -15,11 +16,11 @@ export const createPurchaseOrderHandler = async (
         const purchaseOrder = await poService.createPurchaseOrder(req.body, userId);
         res.status(201).json(purchaseOrder);
     } catch (error: any) {
-        console.error("Error creating purchase order:", error);
-        res.status(500).json({
-            message: "Failed to create purchase order",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "creating",
+            resource: "purchase order"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -50,11 +51,11 @@ export const fetchPurchaseOrdersHandler = async (
         const purchaseOrders = await poService.fetchPurchaseOrders(filters);
         res.status(200).json(purchaseOrders);
     } catch (error: any) {
-        console.error("Error fetching purchase orders:", error);
-        res.status(500).json({
-            message: "Failed to fetch purchase orders",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "purchase orders"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -73,11 +74,11 @@ export const fetchPurchaseOrderHandler = async (
 
         res.status(200).json(purchaseOrder);
     } catch (error: any) {
-        console.error("Error fetching purchase order:", error);
-        res.status(500).json({
-            message: "Failed to fetch purchase order",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "purchase order"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -100,11 +101,11 @@ export const updatePurchaseOrderHandler = async (
         );
         res.status(200).json(purchaseOrder);
     } catch (error: any) {
-        console.error("Error updating purchase order:", error);
-        res.status(500).json({
-            message: "Failed to update purchase order",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "updating",
+            resource: "purchase order"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -127,11 +128,11 @@ export const receivePurchaseOrderHandler = async (
         );
         res.status(200).json(purchaseOrder);
     } catch (error: any) {
-        console.error("Error receiving purchase order:", error);
-        res.status(500).json({
-            message: "Failed to receive purchase order",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "receiving",
+            resource: "purchase order"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -150,11 +151,11 @@ export const cancelPurchaseOrderHandler = async (
         const purchaseOrder = await poService.cancelPurchaseOrder(Number(id), userId);
         res.status(200).json(purchaseOrder);
     } catch (error: any) {
-        console.error("Error cancelling purchase order:", error);
-        res.status(500).json({
-            message: "Failed to cancel purchase order",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "cancelling",
+            resource: "purchase order"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 

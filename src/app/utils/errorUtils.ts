@@ -76,16 +76,28 @@ export const standardizeApiError = (error: any, status: number): StandardizedErr
     }
 
     if (status >= 500) {
+        // Backend now returns user-friendly messages in the 'error' field
+        // Fallback to generic message if error structure is unexpected
+        const userMessage = error.error || error.message || "An error occurred while processing your request. Please try again or contact support if the problem persists.";
         return {
-            message: error.message || "Server error occurred",
-            details: { status, serverError: true }
+            message: userMessage,
+            details: { 
+                status, 
+                serverError: true,
+                errorCode: error.code // Include error code if available
+            }
         };
     }
 
-    // Generic error
+    // Generic error (400-499)
+    // Backend returns user-friendly messages in 'error' field
+    const userMessage = error.error || error.message || "An error occurred";
     return {
-        message: error.message || error.error || "An error occurred",
-        details: { status }
+        message: userMessage,
+        details: { 
+            status,
+            errorCode: error.code // Include error code if available
+        }
     };
 };
 

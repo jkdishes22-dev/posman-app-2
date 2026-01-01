@@ -62,10 +62,20 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
 
   useEffect(() => {
     if (item) {
-      setEditedItem(item);
+      // Ensure all boolean fields are properly initialized
+      const itemWithDefaults = {
+        ...item,
+        isGroup: item.isGroup ?? false,
+        isStock: (item as any).isStock ?? false,
+        allowNegativeInventory: item.allowNegativeInventory ?? false,
+      };
+      setEditedItem(itemWithDefaults);
       if (item.pricelistId) {
         setPricelistId(item.pricelistId);
       }
+      // Clear errors when item changes (modal opens with new item)
+      setError(null);
+      setErrorDetails(null);
     } else {
       setEditedItem(null);
       setPricelistId(null);
@@ -88,29 +98,84 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
 
   const handleSave = async () => {
     if (editedItem) {
+      // Clear previous errors
+      setError(null);
+      setErrorDetails(null);
+
+      // Validate required fields
+      if (!editedItem.name || !editedItem.name.trim()) {
+        setError("Item name is required");
+        return;
+      }
+
+      if (!editedItem.code || !editedItem.code.trim()) {
+        setError("Item code is required");
+        return;
+      }
+
+      if (!pricelistId) {
+        setError("Pricelist is required");
+        return;
+      }
+
+      if (!editedItem.price || editedItem.price <= 0) {
+        setError("Item price is required and must be greater than 0");
+        return;
+      }
+
       try {
+        // Include pricelistItemId if available (for pricelist price updates)
+        // Only include if it's a valid number (not NaN, null, or undefined)
+        const pricelistItemId = (editedItem as any).pricelistItemId;
+        const validPricelistItemId =
+          pricelistItemId !== null &&
+            pricelistItemId !== undefined &&
+            !isNaN(Number(pricelistItemId)) &&
+            Number(pricelistItemId) > 0
+            ? Number(pricelistItemId)
+            : undefined;
+
+        const requestBody: any = {
+          id: editedItem.id,
+          name: editedItem.name,
+          code: editedItem.code,
+          category: editedItem.category,
+          price: editedItem.price,
+          isGroup: editedItem.isGroup ?? false,
+          isStock: (editedItem as any).isStock ?? false,
+          allowNegativeInventory: editedItem.allowNegativeInventory ?? false,
+          pricelistId,
+        };
+
+        // Only include pricelistItemId if it's valid
+        if (validPricelistItemId !== undefined) {
+          requestBody.pricelistItemId = validPricelistItemId;
+        }
+
         const result = await apiCall(`/api/menu/items/${editedItem.id}`, {
           method: "PATCH",
-          body: JSON.stringify({ ...editedItem, pricelistId }),
+          body: JSON.stringify(requestBody),
         });
 
         if (result.status === 200) {
+          // Clear errors on success
+          setError(null);
+          setErrorDetails(null);
           onSave(result.data); // Call save function with the updated item
           onClose(); // Close modal
         } else {
+          // Error - apiCall already standardizes all non-2XX errors
           setError(result.error || "Failed to update item");
           setErrorDetails(result.errorDetails);
+          // Don't close modal on error - let user see the error and try again
         }
       } catch (error: any) {
         setError("Network error occurred");
         setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+        // Don't close modal on error - let user see the error and try again
       }
     }
   };
-
-  if (error) {
-    return <p>{error}</p>; // Display error message
-  }
 
   return (
     <Modal show={show} onHide={onClose}>
@@ -140,31 +205,50 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
           editedItem && (
             <>
               <div className="mb-3">
-                <label className="form-label">Item Name</label>
+                <label className="form-label">Item Name <span className="text-danger">*</span></label>
                 <input
                   type="text"
                   className="form-control"
                   name="name"
-                  value={editedItem.name || ""} // Use empty string if null
-                  onChange={handleChange}
+                  value={editedItem.name || ""}
+                  onChange={(e) => {
+                    handleChange(e);
+                    if (error && error.includes("Item name")) {
+                      setError(null);
+                    }
+                  }}
+                  required
                 />
               </div>
               <div className="mb-3">
-                <label className="form-label">Item Code</label>
+                <label className="form-label">Item Code <span className="text-danger">*</span></label>
                 <input
                   type="text"
                   className="form-control"
                   name="code"
                   value={editedItem.code || ""}
-                  onChange={handleChange}
+                  onChange={(e) => {
+                    handleChange(e);
+                    if (error && error.includes("Item code")) {
+                      setError(null);
+                    }
+                  }}
+                  required
                 />
               </div>
-              <div className="form-group">
-                <label>Pricelist</label>
+              <div className="mb-3">
+                <label className="form-label">Pricelist <span className="text-danger">*</span></label>
                 <select
                   className="form-control"
-                  value={Number(pricelistId)} // Controlled component
-                  onChange={(e) => setPricelistId(parseInt(e.target.value))}
+                  value={pricelistId ? Number(pricelistId) : ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setPricelistId(value ? parseInt(value) : null);
+                    if (error && error.includes("Pricelist")) {
+                      setError(null);
+                    }
+                  }}
+                  required
                 >
                   <option value="">Select Pricelist</option>
                   {Array.isArray(pricelists) && pricelists.map((pricelist: any) => (
@@ -175,41 +259,112 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
                 </select>
               </div>
               <div className="mb-3">
-                <label className="form-label">Item Price</label>
+                <label className="form-label">Item Price <span className="text-danger">*</span></label>
                 <input
-                  type="text"
+                  type="number"
                   className="form-control"
                   name="price"
-                  value={editedItem.price || 0}
-                  onChange={handleChange}
+                  value={editedItem.price || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (editedItem) {
+                      setEditedItem({
+                        ...editedItem,
+                        price: value ? parseFloat(value) : 0,
+                      });
+                    }
+                    if (error && error.includes("Item price")) {
+                      setError(null);
+                    }
+                  }}
+                  min="0"
+                  step="0.01"
+                  required
                 />
               </div>
               <div className="mb-3">
-                <label className="form-label">Is Group</label>
-                <input
-                  type="checkbox"
-                  name="isGroup"
-                  checked={editedItem.isGroup}
-                  onChange={handleChange}
-                />
+                <div className="form-check">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    name="isGroup"
+                    id="editIsGroup"
+                    checked={editedItem.isGroup || false}
+                    onChange={handleChange}
+                  />
+                  <label className="form-check-label d-flex align-items-center justify-content-between w-100" htmlFor="editIsGroup">
+                    <span>
+                      Is Group
+                    </span>
+                    <span className="ms-2">
+                      <small className="text-muted">Current: </small>
+                      <span className={`badge ${editedItem.isGroup ? "bg-success" : "bg-secondary"}`}>
+                        {editedItem.isGroup ? "Enabled" : "Disabled"}
+                      </span>
+                    </span>
+                  </label>
+                </div>
               </div>
-              <div className="form-group">
-                <label>
-                  Allow Negative Inventory{" "}
-                  <i
-                    className="bi bi-question-circle text-muted"
-                    data-bs-toggle="tooltip"
-                    data-bs-placement="right"
-                    data-bs-html="true"
-                    title="When enabled, this item can be sold even when inventory is zero or negative. Use with caution - this bypasses normal inventory validation."
-                  ></i>
-                </label>
-                <input
-                  type="checkbox"
-                  name="allowNegativeInventory"
-                  checked={editedItem.allowNegativeInventory || false}
-                  onChange={handleChange}
-                />
+              <div className="mb-3">
+                <div className="form-check">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    name="isStock"
+                    id="editIsStock"
+                    checked={(editedItem as any).isStock || false}
+                    onChange={handleChange}
+                  />
+                  <label className="form-check-label d-flex align-items-center justify-content-between w-100" htmlFor="editIsStock">
+                    <span>
+                      Is Stock Item (Suppliable)
+                      <i
+                        className="bi bi-question-circle ms-1 text-muted"
+                        style={{ cursor: "help" }}
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        data-bs-html="true"
+                        title="<strong>Stock Items (isStock: true):</strong> Items purchased/supplied (e.g., Eggs, Milk, Flour). Can be used as ingredients in recipes and are received via purchase orders.<br/><br/><strong>Sellable Items (isStock: false):</strong> Items produced and sold (e.g., Tortilla, Coffee, Omelette). Composite items (isGroup: true) can have recipes that specify how much stock items are deducted when sold.<br/><br/><strong>Note:</strong> Items can be both stock and sellable (e.g., Milk can be purchased AND produced). The system handles both inventory pools separately."
+                      ></i>
+                    </span>
+                    <span className="ms-2">
+                      <small className="text-muted">Current: </small>
+                      <span className={`badge ${(editedItem as any).isStock ? "bg-success" : "bg-secondary"}`}>
+                        {(editedItem as any).isStock ? "Enabled" : "Disabled"}
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <div className="mb-3">
+                <div className="form-check">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    name="allowNegativeInventory"
+                    id="editAllowNegativeInventory"
+                    checked={editedItem.allowNegativeInventory || false}
+                    onChange={handleChange}
+                  />
+                  <label className="form-check-label d-flex align-items-center justify-content-between w-100" htmlFor="editAllowNegativeInventory">
+                    <span>
+                      Allow Negative Inventory{" "}
+                      <i
+                        className="bi bi-question-circle text-muted"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="right"
+                        data-bs-html="true"
+                        title="When enabled, this item can be sold even when inventory is zero or negative. Use with caution - this bypasses normal inventory validation."
+                      ></i>
+                    </span>
+                    <span className="ms-2">
+                      <small className="text-muted">Current: </small>
+                      <span className={`badge ${editedItem.allowNegativeInventory ? "bg-success" : "bg-secondary"}`}>
+                        {editedItem.allowNegativeInventory ? "Enabled" : "Disabled"}
+                      </span>
+                    </span>
+                  </label>
+                </div>
               </div>
             </>
           )

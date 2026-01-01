@@ -217,12 +217,12 @@ export class BillService {
         query.andWhere("bill.id = :billId", { billId });
       }
 
-      if (userId && includeBills) {
-        query.andWhere("bill.user_id = :userId", { userId });
-      }
-
+      // If billingUserId is provided, use it (takes precedence for filtering by specific waitress)
+      // Otherwise, if user is a regular user/waitress, restrict to their own bills
       if (billingUserId) {
         query.andWhere("bill.user_id = :billingUserId", { billingUserId });
+      } else if (userId && includeBills) {
+        query.andWhere("bill.user_id = :userId", { userId });
       }
 
       // Add consistent ordering for pagination
@@ -251,12 +251,12 @@ export class BillService {
           countQuery.andWhere("bill.status = :status", { status });
         }
 
-        if (userId && includeBills) {
-          countQuery.andWhere("bill.user_id = :userId", { userId });
-        }
-
+        // If billingUserId is provided, use it (takes precedence for filtering by specific waitress)
+        // Otherwise, if user is a regular user/waitress, restrict to their own bills
         if (billingUserId) {
           countQuery.andWhere("bill.user_id = :billingUserId", { billingUserId });
+        } else if (userId && includeBills) {
+          countQuery.andWhere("bill.user_id = :userId", { userId });
         }
 
         const countResult = await countQuery.getRawOne();
@@ -1157,6 +1157,29 @@ export class BillService {
     }
 
     return voidRequests;
+  }
+
+  // Unified method to get change requests (void or quantity_change)
+  // requestType: "void" | "quantity_change" | "all"
+  async getChangeRequests(userId?: number, requestType: "void" | "quantity_change" | "all" = "all") {
+    const requests = [];
+
+    if (requestType === "void" || requestType === "all") {
+      const voidRequests = await this.getVoidRequests(userId);
+      requests.push(...voidRequests.map(req => ({ ...req, type: "void" })));
+    }
+
+    if (requestType === "quantity_change" || requestType === "all") {
+      const quantityChangeRequests = await this.getQuantityChangeRequests(userId);
+      requests.push(...quantityChangeRequests.map(req => ({ ...req, type: "quantity_change" })));
+    }
+
+    // Sort by created_at descending
+    return requests.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return dateB - dateA;
+    });
   }
 
   // Get void request statistics

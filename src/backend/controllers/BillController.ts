@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { BillFilter, BillService } from "@services/BillService";
 import { DEFAULT_PAGE_SIZE } from "@backend/config/constants";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
@@ -8,8 +9,11 @@ export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
     const newBill = await billService.createBill(req.body);
     res.status(201).json(newBill);
   } catch (error: any) {
-    console.error("Error creating bill:", error);
-    res.status(500).json({ error: `Error creating bill: ${error.message}` });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "creating",
+      resource: "bill"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -43,8 +47,11 @@ export const fetchBills = async (req: NextApiRequest, res: NextApiResponse) => {
     const { bills, total } = await billService.fetchBills(currentUserId, billFilter, Number(page), Number(pageSize));
     res.status(200).json({ bills, total });
   } catch (error: any) {
-    console.error("Error fetching bills:", error);
-    res.status(500).json({ error: `Error fetching bills: ${error.message}` });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "bills"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -63,8 +70,11 @@ export const getVoidRequests = async (req: NextApiRequest, res: NextApiResponse)
     const voidRequests = await billService.getVoidRequests(userId);
     res.status(200).json({ voidRequests });
   } catch (error: any) {
-    console.error("Error fetching void requests:", error);
-    res.status(500).json({ error: `Error fetching void requests: ${error.message}` });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "void requests"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -75,8 +85,11 @@ export const getVoidRequestStats = async (req: NextApiRequest, res: NextApiRespo
     const stats = await billService.getVoidRequestStats();
     res.status(200).json({ stats });
   } catch (error: any) {
-    console.error("Error fetching void request stats:", error);
-    res.status(500).json({ error: `Error fetching void request stats: ${error.message}` });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "void request statistics"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -95,8 +108,11 @@ export const getQuantityChangeRequests = async (req: NextApiRequest, res: NextAp
     const quantityChangeRequests = await billService.getQuantityChangeRequests(userId);
     res.status(200).json({ quantityChangeRequests });
   } catch (error: any) {
-    console.error("Error fetching quantity change requests:", error);
-    res.status(500).json({ error: `Error fetching quantity change requests: ${error.message}` });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "quantity change requests"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -107,8 +123,42 @@ export const getQuantityChangeRequestStats = async (req: NextApiRequest, res: Ne
     const stats = await billService.getQuantityChangeRequestStats();
     res.status(200).json({ stats });
   } catch (error: any) {
-    console.error("Error fetching quantity change request stats:", error);
-    res.status(500).json({ error: `Error fetching quantity change request stats: ${error.message}` });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "quantity change request statistics"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
+  }
+};
+
+export const getChangeRequests = async (req: NextApiRequest, res: NextApiResponse) => {
+  const billService = new BillService(req.db);
+  const currentUserId = Number(req.user?.id);
+
+  try {
+    // Check user roles - supervisors see all change requests, sales users see only their own
+    const userRoles = req.user?.roles?.map((role: any) => role.name || role) || [];
+    const isSupervisor = userRoles.includes("supervisor") || userRoles.includes("admin");
+
+    // Only pass userId for sales users - supervisors get all requests
+    const userId = isSupervisor ? undefined : currentUserId;
+
+    // Get requestType from query params: "void", "quantity_change", or "all" (default)
+    const requestType = (req.query.requestType as "void" | "quantity_change" | "all") || "all";
+
+    // Validate requestType
+    if (!["void", "quantity_change", "all"].includes(requestType)) {
+      return res.status(400).json({ error: "Invalid requestType. Must be 'void', 'quantity_change', or 'all'" });
+    }
+
+    const changeRequests = await billService.getChangeRequests(userId, requestType);
+    res.status(200).json({ changeRequests });
+  } catch (error: any) {
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "change requests"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -120,8 +170,11 @@ export const cancelBill = async (req: NextApiRequest, res: NextApiResponse) => {
     const result = await billService.cancelBill(Number(billId));
     res.status(200).json({ message: "Bill cancelled successfully", result });
   } catch (error: any) {
-    console.error("Error cancelling bill:", error);
-    res.status(500).json({ error: `Error cancelling bill: ${error.message}` });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "cancelling",
+      resource: "bill"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -135,10 +188,11 @@ export const voidBillItem = async (
     const result = await billService.voidBillItem(Number(billItemId));
     res.status(200).json({ message: "Bill item voided successfully", result });
   } catch (error: any) {
-    console.error("Error voiding bill item:", error);
-    res
-      .status(500)
-      .json({ error: `Error voiding bill item: ${error.message}` });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "voiding",
+      resource: "bill item"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -152,8 +206,12 @@ export const fetchBillItems = async (
   try {
     const items = await billService.fetchBillItems(Number(billId));
     res.status(200).json(items);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching bills", error });
+  } catch (error: any) {
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "bill items"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -167,21 +225,11 @@ export const submitBill = async (req: NextApiRequest, res: NextApiResponse) => {
     const submittedBill = await billService.submitBill(billPayment);
     res.status(200).json(submittedBill);
   } catch (error: any) {
-    console.error("Error submitting bill:", error);
-    console.error("Error details:", {
-      message: error?.message,
-      stack: error?.stack,
-      name: error?.name,
-      billPayment: req.body
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "submitting",
+      resource: "bill"
     });
-    res.status(500).json({
-      message: "Error submitting bill",
-      error: error?.message || "Unknown error occurred",
-      details: process.env.NODE_ENV === "development" ? {
-        stack: error?.stack,
-        name: error?.name
-      } : undefined
-    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -192,21 +240,11 @@ export const closeBill = async (req: NextApiRequest, res: NextApiResponse) => {
     const closedBill = await billService.closeBill(Number(billId));
     res.status(200).json(closedBill);
   } catch (error: any) {
-    console.error("Error closing bill:", error);
-    console.error("Error details:", {
-      message: error?.message,
-      stack: error?.stack,
-      name: error?.name,
-      billId: req.query.billId
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "closing",
+      resource: "bill"
     });
-    res.status(500).json({
-      message: "Error closing bill",
-      error: error?.message || "Unknown error occurred",
-      details: process.env.NODE_ENV === "development" ? {
-        stack: error?.stack,
-        name: error?.name
-      } : undefined
-    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -220,7 +258,11 @@ export const bulkCloseBills = async (req: NextApiRequest, res: NextApiResponse) 
     const results = await billService.closeBillsBulk(billIds.map(Number));
     res.status(200).json({ results });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "closing",
+      resource: "bills"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -234,7 +276,11 @@ export const bulkSubmitBills = async (req: NextApiRequest, res: NextApiResponse)
     const results = await billService.submitBillsBulk(billPayments, parseInt(req.user?.id as string));
     res.status(200).json({ results });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "submitting",
+      resource: "bills"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -261,7 +307,11 @@ export const reopenBill = async (req: NextApiRequest, res: NextApiResponse) => {
       bill: result
     });
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "reopening",
+      resource: "bill"
+    });
+    res.status(400).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -282,6 +332,10 @@ export const resubmitBill = async (req: NextApiRequest, res: NextApiResponse) =>
       bill: result
     });
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "resubmitting",
+      resource: "bill"
+    });
+    res.status(400).json({ error: userMessage, code: errorCode });
   }
 };

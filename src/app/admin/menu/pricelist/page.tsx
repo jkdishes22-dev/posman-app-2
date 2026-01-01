@@ -9,6 +9,8 @@ import { Button, Form } from "react-bootstrap";
 import { AuthError } from "src/app/types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import ExpressItemSearchModal from "../../../components/ExpressItemSearchModal";
+import PricelistUploadModal from "../../../components/PricelistUploadModal";
+import PricelistAuditLog from "../../../components/PricelistAuditLog";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { useTooltips } from "../../../hooks/useTooltips";
@@ -18,6 +20,8 @@ export default function PricelistPage() {
   const [showModal, setShowModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
   const [showExpressSearch, setShowExpressSearch] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showAuditModal, setShowAuditModal] = useState(false);
   interface Pricelist {
     id: number;
     name: string;
@@ -207,17 +211,18 @@ export default function PricelistPage() {
 
   interface PricelistParams {
     name: string;
+    code?: string;
     description: string;
     station: string;
   }
 
-  const handleAddPricelist = async ({ name, description, station }: PricelistParams) => {
+  const handleAddPricelist = async ({ name, code, description, station }: PricelistParams) => {
     try {
       setAddPricelistError(null);
       setAddPricelistErrorDetails(null);
       const result = await apiCall("/api/menu/pricelists", {
         method: "POST",
-        body: JSON.stringify({ name, description, station }),
+        body: JSON.stringify({ name, code, description, station }),
       });
 
       if (result.status >= 200 && result.status < 300) {
@@ -268,6 +273,33 @@ export default function PricelistPage() {
     } catch (error: any) {
       console.error("Failed to add item", error);
       setItemError("Failed to add item: " + error.message);
+    }
+  };
+
+  const handleDeleteItem = async (itemId: number) => {
+    if (!selectedPricelistId) {
+      setItemError("No pricelist selected");
+      return;
+    }
+
+    try {
+      setItemError("");
+      // Delete item from pricelist by disabling the pricelist_item relationship
+      const result = await apiCall(`/api/menu/pricelists/${selectedPricelistId}/items/${itemId}`, {
+        method: "DELETE",
+      });
+
+      if (result.status >= 200 && result.status < 300) {
+        // Success - refresh pricelist items
+        await fetchPricelistItems(selectedPricelistId, true);
+        setItemError("");
+      } else {
+        // Error - apiCall already standardizes all non-2XX errors
+        setItemError(result.error || "Failed to delete item from pricelist");
+      }
+    } catch (error: any) {
+      console.error("Failed to delete item from pricelist", error);
+      setItemError("Failed to delete item: " + error.message);
     }
   };
 
@@ -540,6 +572,23 @@ export default function PricelistPage() {
                         Add Item
                       </button>
                       <button
+                        className="btn btn-success btn-sm"
+                        onClick={() => setShowUploadModal(true)}
+                        disabled={filteredPricelists.find(p => p.id === selectedPricelistId)?.status === "inactive"}
+                        title={filteredPricelists.find(p => p.id === selectedPricelistId)?.status === "inactive" ? "Cannot upload items to inactive pricelist" : "Upload items from CSV/Excel"}
+                      >
+                        <i className="bi bi-upload me-1"></i>
+                        Upload
+                      </button>
+                      <button
+                        className="btn btn-info btn-sm"
+                        onClick={() => setShowAuditModal(true)}
+                        title="View audit log"
+                      >
+                        <i className="bi bi-clock-history me-1"></i>
+                        Audit Log
+                      </button>
+                      <button
                         className="btn btn-outline-secondary btn-sm"
                         onClick={() => fetchPricelistItems(selectedPricelistId, true)}
                         title="Refresh items"
@@ -578,6 +627,12 @@ export default function PricelistPage() {
                   isBillingSection={false}
                   isPricelistSection={true}
                   isCategoryItemsSection={false}
+                  handleDeleteItem={handleDeleteItem}
+                  onItemUpdated={() => {
+                    if (selectedPricelistId) {
+                      fetchPricelistItems(selectedPricelistId, true);
+                    }
+                  }}
                 />
 
                 {/* Pagination Controls */}
@@ -658,6 +713,25 @@ export default function PricelistPage() {
             // You can add logic here to show the item in the current view
           }}
         />
+        {selectedPricelistId && (
+          <>
+            <PricelistUploadModal
+              pricelistId={selectedPricelistId}
+              show={showUploadModal}
+              onHide={() => setShowUploadModal(false)}
+              onUploadComplete={() => {
+                if (selectedPricelistId) {
+                  fetchPricelistItems(selectedPricelistId, true);
+                }
+              }}
+            />
+            <PricelistAuditLog
+              pricelistId={selectedPricelistId}
+              show={showAuditModal}
+              onHide={() => setShowAuditModal(false)}
+            />
+          </>
+        )}
 
         {/* Confirmation Modal */}
         {showConfirmModal && confirmAction && (

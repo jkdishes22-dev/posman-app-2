@@ -19,9 +19,9 @@ const QuantityModal: React.FC<QuantityModalProps> = ({
 }) => {
   const [quantity, setQuantity] = useState<string>("");
   const [quantityError, setQuantityError] = useState<string>("");
-  
-  const maxAvailable = availableQuantity !== undefined 
-    ? availableQuantity - alreadyInBill 
+
+  const maxAvailable = availableQuantity !== undefined
+    ? availableQuantity - alreadyInBill
     : undefined;
 
   const handleNumberClick = (num: string) => {
@@ -43,7 +43,7 @@ const QuantityModal: React.FC<QuantityModalProps> = ({
 
   const handleConfirm = () => {
     const quantityNumber = parseInt(quantity, 10);
-    
+
     if (isNaN(quantityNumber) || quantityNumber <= 0) {
       setQuantityError("Quantity must be greater than 0");
       return;
@@ -64,7 +64,7 @@ const QuantityModal: React.FC<QuantityModalProps> = ({
   };
 
   return (
-    <Modal show={!!item} onHide={onClose}>
+    <Modal show={!!item} onHide={onClose} centered>
       <Modal.Header closeButton>
         <Modal.Title>Specify Quantity for {item?.name}</Modal.Title>
       </Modal.Header>

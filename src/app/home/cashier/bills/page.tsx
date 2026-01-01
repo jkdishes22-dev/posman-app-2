@@ -22,11 +22,28 @@ const CashierBillsPage = () => {
     // Component initialization
   }, []);
 
-  const [filters, setFilters] = useState({
-    billingDate: null,
-    selectedWaitress: "",
-    status: "submitted",
-  });
+  // Initialize filters from URL params if present
+  const getInitialFilters = () => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const statusParam = urlParams.get("status");
+      const validStatuses = ["submitted", "closed", "voided", "reopened", "all"];
+      const status = statusParam && validStatuses.includes(statusParam) ? statusParam : "submitted";
+
+      return {
+        billingDate: null,
+        selectedWaitress: "",
+        status: status,
+      };
+    }
+    return {
+      billingDate: null,
+      selectedWaitress: "",
+      status: "submitted",
+    };
+  };
+
+  const [filters, setFilters] = useState(getInitialFilters());
   const [waitresses, setWaitresses] = useState<User[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
@@ -36,6 +53,7 @@ const CashierBillsPage = () => {
   const [showCloseBillSuccessModal, setShowCloseBillSuccessModal] = useState(false);
   const [closedBillInfo, setClosedBillInfo] = useState<{ id: number; total: number } | null>(null);
   const [searchBillId, setSearchBillId] = useState("");
+  const [billIdInput, setBillIdInput] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [total, setTotal] = useState(0);
@@ -96,8 +114,9 @@ const CashierBillsPage = () => {
       if (billIdParam) {
         const billId = parseInt(billIdParam, 10);
         if (!isNaN(billId)) {
-          // Set search bill ID first
+          // Set search bill ID and input
           setSearchBillId(billIdParam);
+          setBillIdInput(billIdParam);
           // Fetch all bill IDs for navigation
           fetchAllBillIds();
           // Fetch the bill by ID
@@ -245,18 +264,31 @@ const CashierBillsPage = () => {
   };
 
   const fetchSalesPersons = async () => {
-    const url = "/api/users?role=user";
+    // Fetch both 'user' and 'sales' role users
     try {
-      const result = await apiCall(url);
-      if (result.status === 200) {
-        setWaitresses(Array.isArray(result.data.users) ? result.data.users : []);
-        setError(null);
-        setErrorDetails(null);
-      } else {
-        setError(result.error || "Failed to fetch users");
-        setErrorDetails(result.errorDetails);
-        setWaitresses([]);
+      const [userResult, salesResult] = await Promise.all([
+        apiCall("/api/users?role=user"),
+        apiCall("/api/users?role=sales")
+      ]);
+
+      const allUsers: User[] = [];
+
+      if (userResult.status === 200 && Array.isArray(userResult.data.users)) {
+        allUsers.push(...userResult.data.users);
       }
+
+      if (salesResult.status === 200 && Array.isArray(salesResult.data.users)) {
+        allUsers.push(...salesResult.data.users);
+      }
+
+      // Remove duplicates based on user ID
+      const uniqueUsers = allUsers.filter((user, index, self) =>
+        index === self.findIndex((u) => u.id === user.id)
+      );
+
+      setWaitresses(uniqueUsers);
+      setError(null);
+      setErrorDetails(null);
     } catch (error: any) {
       setError("Network error occurred");
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
@@ -282,47 +314,57 @@ const CashierBillsPage = () => {
       setSelectedBill(null);
       setSelectedBills([]);
       setSearchBillId("");
-      // Clear URL parameter when filters change
+      // Update URL parameters when filters change
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
         url.searchParams.delete("billId");
+        // Update status in URL
+        if (key === "status") {
+          if (value && value !== "submitted") {
+            url.searchParams.set("status", value);
+          } else {
+            url.searchParams.delete("status");
+          }
+        }
         window.history.pushState({}, "", url.toString());
       }
     }
   };
   const handleDateChange = (date: Date | null) => handleFilterChange("billingDate", date);
-  const handleBillIdSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const billId = event.target.value;
-    if (/^\d*$/.test(billId)) {
+  const handleBillIdInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    // Only allow numeric input
+    if (/^\d*$/.test(value)) {
+      setBillIdInput(value);
+    }
+  };
+
+  const handleBillIdSearch = () => {
+    const billId = billIdInput.trim();
+    if (billId === "") {
+      // Clear search
+      setSearchBillId("");
+      setSelectedBill(null);
+      setSelectedBills([]);
+      setPage(1);
+      setFilters((prev) => ({ ...prev, status: "all" }));
+      // Clear URL parameter
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("billId");
+        window.history.pushState({}, "", url.toString());
+      }
+    } else {
+      // Perform search
       setSearchBillId(billId);
-      if (billId === "") {
-        setSelectedBill(null);
-        setSelectedBills([]);
-        setPage(1); // Reset to first page
-        // Reset status to "all" to show all bills when clearing bill ID search
-        // The useEffect will automatically call fetchBills when filters change
-        setFilters((prev) => ({ ...prev, status: "all" }));
-        // Clear URL parameter
-        if (typeof window !== "undefined") {
-          const url = new URL(window.location.href);
-          url.searchParams.delete("billId");
-          window.history.pushState({}, "", url.toString());
-        }
-      } else {
-        const filtered = bills.filter((bill) => bill.id.toString().includes(billId));
-        if (filtered.length > 0) {
-          setBills(filtered);
-        } else {
-          // Fetch all bill IDs for navigation
-          fetchAllBillIds();
-          fetchBillById(Number(billId));
-          // Update URL parameter
-          if (typeof window !== "undefined") {
-            const url = new URL(window.location.href);
-            url.searchParams.set("billId", billId);
-            window.history.pushState({}, "", url.toString());
-          }
-        }
+      // Fetch all bill IDs for navigation
+      fetchAllBillIds();
+      fetchBillById(Number(billId));
+      // Update URL parameter
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("billId", billId);
+        window.history.pushState({}, "", url.toString());
       }
     }
   };
@@ -604,15 +646,28 @@ const CashierBillsPage = () => {
                       <label htmlFor="billId" className="form-label fw-semibold">
                         Bill ID
                       </label>
-                      <div>
+                      <div className="d-flex gap-2">
                         <input
                           type="text"
                           className="form-control"
                           id="billId"
                           placeholder="Enter Bill ID"
-                          value={searchBillId}
-                          onChange={handleBillIdSearch}
+                          value={billIdInput}
+                          onChange={handleBillIdInputChange}
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter") {
+                              handleBillIdSearch();
+                            }
+                          }}
                         />
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={handleBillIdSearch}
+                          disabled={!billIdInput.trim()}
+                        >
+                          <i className="bi bi-search"></i>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -736,7 +791,7 @@ const CashierBillsPage = () => {
                             window.history.pushState({}, "", url.toString());
                           }
                         }}
-                        title="Clear Bill ID filter and return to manage bills"
+                        title="Clear Bill ID filter and return to process bills"
                       >
                         <i className="bi bi-x me-1"></i>
                         Clear
@@ -848,6 +903,7 @@ const CashierBillsPage = () => {
                           <th>Status</th>
                           <th>Total</th>
                           <th>Created By</th>
+                          <th>Created Date</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -906,6 +962,9 @@ const CashierBillsPage = () => {
                             </td>
                             <td>
                               {bill.user.firstName} {bill.user.lastName}
+                            </td>
+                            <td>
+                              {bill.created_at ? new Date(bill.created_at).toLocaleString() : "N/A"}
                             </td>
                             <td>
                               {/* Role-based actions */}

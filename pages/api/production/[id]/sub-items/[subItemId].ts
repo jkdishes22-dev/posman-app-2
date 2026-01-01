@@ -34,8 +34,33 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 }
             })
         )(req, res);
+    } else if (req.method === "PATCH") {
+        return authMiddleware(
+            authorize([permissions.CAN_ADD_ITEM])(async (req, res) => {
+                try {
+                    const { portionSize } = req.body;
+
+                    if (portionSize === undefined || portionSize === null || isNaN(Number(portionSize))) {
+                        return res.status(400).json({
+                            message: "portionSize is required and must be a valid number"
+                        });
+                    }
+
+                    const connection = await getConnection();
+                    const itemService = new ItemService(connection);
+                    await itemService.updatePortionSize(Number(id), Number(subItemId), Number(portionSize));
+                    res.status(200).json({ message: "Portion size updated successfully" });
+                } catch (error: any) {
+                    console.error("Error updating portion size:", error);
+                    res.status(500).json({
+                        message: "Failed to update portion size",
+                        error: error.message
+                    });
+                }
+            })
+        )(req, res);
     } else {
-        res.setHeader("Allow", ["DELETE"]);
+        res.setHeader("Allow", ["DELETE", "PATCH"]);
         res.status(405).json({ message: `Method ${req.method} not allowed` });
     }
 };

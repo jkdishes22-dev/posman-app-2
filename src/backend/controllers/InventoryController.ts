@@ -1,5 +1,6 @@
 import { InventoryService } from "@backend/service/InventoryService";
 import { NextApiRequest, NextApiResponse } from "next";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const fetchInventoryHandler = async (
     req: NextApiRequest,
@@ -35,11 +36,11 @@ export const fetchInventoryHandler = async (
             res.status(200).json(result.items);
         }
     } catch (error: any) {
-        console.error("Error fetching inventory:", error);
-        res.status(500).json({
-            message: "Failed to fetch inventory",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "inventory"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -58,11 +59,11 @@ export const fetchInventoryItemHandler = async (
 
         res.status(200).json(inventoryLevel);
     } catch (error: any) {
-        console.error("Error fetching inventory item:", error);
-        res.status(500).json({
-            message: "Failed to fetch inventory item",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "inventory item"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -84,11 +85,11 @@ export const updateInventoryHandler = async (
         // For now, return not implemented
         res.status(501).json({ message: "Update inventory levels not yet implemented" });
     } catch (error: any) {
-        console.error("Error updating inventory:", error);
-        res.status(500).json({
-            message: "Failed to update inventory",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "updating",
+            resource: "inventory"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -122,11 +123,11 @@ export const adjustInventoryHandler = async (
         );
         res.status(200).json(inventory);
     } catch (error: any) {
-        console.error("Error adjusting inventory:", error);
-        res.status(500).json({
-            message: "Failed to adjust inventory",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "adjusting",
+            resource: "inventory"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -139,11 +140,11 @@ export const getLowStockHandler = async (
         const lowStockItems = await inventoryService.checkLowStock();
         res.status(200).json(lowStockItems);
     } catch (error: any) {
-        console.error("Error fetching low stock items:", error);
-        res.status(500).json({
-            message: "Failed to fetch low stock items",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "low stock items"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -194,11 +195,11 @@ export const disposeInventoryHandler = async (
         );
         res.status(200).json(inventory);
     } catch (error: any) {
-        console.error("Error disposing inventory:", error);
-        res.status(500).json({
-            message: "Failed to dispose inventory",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "disposing",
+            resource: "inventory"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -211,11 +212,11 @@ export const getInventoryStatsHandler = async (
         const stats = await inventoryService.getInventoryStats();
         res.status(200).json(stats);
     } catch (error: any) {
-        console.error("Error fetching inventory stats:", error);
-        res.status(500).json({
-            message: "Failed to fetch inventory stats",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "inventory statistics"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -228,11 +229,11 @@ export const getReorderSuggestionsHandler = async (
         const suggestions = await inventoryService.getReorderSuggestions();
         res.status(200).json(suggestions);
     } catch (error: any) {
-        console.error("Error fetching reorder suggestions:", error);
-        res.status(500).json({
-            message: "Failed to fetch reorder suggestions",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "reorder suggestions"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -251,11 +252,11 @@ export const getInventoryHistoryHandler = async (
         );
         res.status(200).json(history);
     } catch (error: any) {
-        console.error("Error fetching inventory history:", error);
-        res.status(500).json({
-            message: "Failed to fetch inventory history",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "inventory history"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -280,11 +281,11 @@ export const getAllInventoryTransactionsHandler = async (
         );
         res.status(200).json(result);
     } catch (error: any) {
-        console.error("Error fetching inventory transactions:", error);
-        res.status(500).json({
-            message: "Failed to fetch inventory transactions",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "inventory transactions"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -294,7 +295,7 @@ export const getAvailableInventoryHandler = async (
 ) => {
     const inventoryService = new InventoryService(req.db);
     try {
-        const { itemIds } = req.query;
+        const { itemIds, includeDetails } = req.query;
 
         if (!itemIds) {
             return res.status(400).json({
@@ -314,21 +315,44 @@ export const getAvailableInventoryHandler = async (
             });
         }
 
-        const availableMap = await inventoryService.getAvailableInventoryForItems(itemIdArray);
+        // Check if details are requested
+        const includeDetailsFlag = includeDetails === "true" || includeDetails === "1";
 
-        // Convert Map to object for JSON response
-        const result: Record<number, number> = {};
-        availableMap.forEach((available, itemId) => {
-            result[itemId] = available;
-        });
+        if (includeDetailsFlag) {
+            const result = await inventoryService.getAvailableInventoryForItems(itemIdArray, true);
 
-        res.status(200).json({ available: result });
+            // Convert Maps to objects for JSON response
+            const available: Record<number, number> = {};
+            result.availability.forEach((avail, itemId) => {
+                available[itemId] = avail;
+            });
+
+            const missingConstituents: Record<number, Array<{ itemId: number; itemName: string; available: number; required: number }>> = {};
+            result.missingConstituents.forEach((constituents, itemId) => {
+                missingConstituents[itemId] = constituents;
+            });
+
+            res.status(200).json({
+                available,
+                missingConstituents,
+            });
+        } else {
+            const availableMap = await inventoryService.getAvailableInventoryForItems(itemIdArray);
+
+            // Convert Map to object for JSON response
+            const result: Record<number, number> = {};
+            availableMap.forEach((available, itemId) => {
+                result[itemId] = available;
+            });
+
+            res.status(200).json({ available: result });
+        }
     } catch (error: any) {
-        console.error("Error fetching available inventory:", error);
-        res.status(500).json({
-            message: "Failed to fetch available inventory",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "available inventory"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 

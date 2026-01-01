@@ -157,10 +157,24 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
       return;
     }
 
-    // Validation 3: Total paid must equal bill total (with tolerance for floating point)
-    if (Math.abs(normalizedTotalPaid - normalizedTotalAmount) > 0.01) {
-      setPaymentValidationError(`Total paid (KES ${normalizedTotalPaid.toFixed(2)}) must equal bill total (KES ${normalizedTotalAmount.toFixed(2)}).`);
-      return;
+    // Validation 3: For reopened bills, check if payments already exist
+    // If bill is reopened and has existing payments, allow resubmission without new payments
+    const isReopened = selectedBill?.status === "reopened";
+    const existingPayments = selectedBill?.bill_payments || [];
+    const existingTotalPaid = existingPayments.reduce(
+      (sum, bp) => sum + (bp.payment?.creditAmount || 0),
+      0
+    );
+
+    if (isReopened && existingTotalPaid >= normalizedTotalAmount) {
+      // Reopened bill already has full payment - no new payment required
+      // Allow submission with 0 payment
+    } else {
+      // For pending bills or reopened bills with partial/no payments, require full payment
+      if (Math.abs(normalizedTotalPaid - normalizedTotalAmount) > 0.01) {
+        setPaymentValidationError(`Total paid (KES ${normalizedTotalPaid.toFixed(2)}) must equal bill total (KES ${normalizedTotalAmount.toFixed(2)}).`);
+        return;
+      }
     }
 
     if (selectedBill.bill_items.length === 0) {
@@ -168,20 +182,27 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
       return;
     }
 
+    // For reopened bills with existing full payment, allow 0 payment
     const paymentDetails = {
-      paymentMethod,
+      paymentMethod: isReopened && existingTotalPaid >= normalizedTotalAmount ? "cash" : paymentMethod,
       cashAmount:
-        paymentMethod === "cash" || paymentMethod === "cash_mpesa"
-          ? Number(cashAmount)
-          : 0,
+        isReopened && existingTotalPaid >= normalizedTotalAmount
+          ? 0
+          : paymentMethod === "cash" || paymentMethod === "cash_mpesa"
+            ? Number(cashAmount)
+            : 0,
       mpesaAmount:
-        paymentMethod === "mpesa" || paymentMethod === "cash_mpesa"
-          ? Number(mpesaAmount)
-          : 0,
+        isReopened && existingTotalPaid >= normalizedTotalAmount
+          ? 0
+          : paymentMethod === "mpesa" || paymentMethod === "cash_mpesa"
+            ? Number(mpesaAmount)
+            : 0,
       mpesaCode:
-        paymentMethod === "mpesa" || paymentMethod === "cash_mpesa"
-          ? mpesaCode
-          : null,
+        isReopened && existingTotalPaid >= normalizedTotalAmount
+          ? null
+          : paymentMethod === "mpesa" || paymentMethod === "cash_mpesa"
+            ? mpesaCode
+            : null,
       pendingAmount: pendingAmount > 0 ? pendingAmount : 0,
       billId: selectedBill?.id,
     };
@@ -218,7 +239,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
     <Modal show={show} onHide={handleClose}>
       <Modal.Header closeButton>
         <Modal.Title>
-          Submit Bill - Total: <strong>{totalAmount}</strong>
+          {selectedBill?.status === "reopened" ? "Resubmit" : "Submit"} Bill - Total: <strong>{totalAmount}</strong>
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>

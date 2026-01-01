@@ -4,8 +4,19 @@ import { useEffect } from "react";
 
 function BootstrapClient() {
   useEffect(() => {
-    // Just ensure Bootstrap is loaded - tooltips are handled by useTooltips hook in components
     import("bootstrap/dist/js/bootstrap.bundle.min.js")
+      .then((bootstrap) => {
+        // Initialize tooltips globally
+        const tooltipTriggerList = [].slice.call(
+          document.querySelectorAll("[data-bs-toggle=\"tooltip\"]")
+        );
+        tooltipTriggerList.map(function (tooltipTriggerEl: any) {
+          return new (bootstrap as any).Tooltip(tooltipTriggerEl, {
+            trigger: "hover focus",
+            delay: { show: 200, hide: 100 }
+          });
+        });
+      })
       .catch((error) => {
         console.error("Error loading Bootstrap:", error);
       });

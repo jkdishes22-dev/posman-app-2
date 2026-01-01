@@ -1,5 +1,6 @@
 import { CategoryService } from "@backend/service/CategoryService";
 import { NextApiRequest, NextApiResponse } from "next";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const createCategoryHandler = async (
   req: NextApiRequest,
@@ -11,21 +12,11 @@ export const createCategoryHandler = async (
     const newCategory = await categoryService.createCategory(name);
     res.status(201).json(newCategory);
   } catch (error: any) {
-    console.error("Error creating category:", error);
-
-    // Handle duplicate entry error
-    if (error.code === "ER_DUP_ENTRY" && error.sqlMessage?.includes("unique_name_idx")) {
-      return res.status(400).json({
-        message: `Category "${name}" already exists. Please choose a different name.`,
-        code: "DUPLICATE_CATEGORY"
-      });
-    }
-
-    // Handle other errors
-    res.status(500).json({
-      message: "Failed to create category",
-      error: error.message
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "creating",
+      resource: "category"
     });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -38,7 +29,11 @@ export const fetchCategoriesHandler = async (
     const categories = await categoryService.fetchCategories();
     res.status(200).json(categories);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to fetch categories", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "fetching",
+      resource: "categories"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -52,6 +47,10 @@ export const deleteCategoryHandler = async (
     await categoryService.deleteCategory(Number(id));
     res.status(204).end();
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to delete category", error });
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "deleting",
+      resource: "category"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
   }
 };

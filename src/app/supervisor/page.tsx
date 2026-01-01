@@ -8,6 +8,27 @@ import { useApiCall } from "../utils/apiUtils";
 import ErrorDisplay from "../components/ErrorDisplay";
 import { useTooltips } from "../hooks/useTooltips";
 
+// Helper function to format time ago
+function getTimeAgo(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) {
+        return "Just now";
+    } else if (diffMins < 60) {
+        return `${diffMins} min${diffMins !== 1 ? "s" : ""} ago`;
+    } else if (diffHours < 24) {
+        return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+    } else if (diffDays < 7) {
+        return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
+    } else {
+        return date.toLocaleDateString();
+    }
+}
+
 export default function SupervisorPage() {
     const router = useRouter();
     const apiCall = useApiCall();
@@ -51,6 +72,9 @@ export default function SupervisorPage() {
 
             // Fetch today's bills to calculate sales
             const billsResult = await apiCall(`/api/bills?date=${todayStr}&page=1&pageSize=1000`);
+            
+            // Fetch recent bills (last 24 hours) for activity feed
+            const recentBillsResult = await apiCall(`/api/bills?page=1&pageSize=20`);
 
             let totalSales = 0;
             let activeBills = 0;
@@ -71,18 +95,80 @@ export default function SupervisorPage() {
                 console.warn("Failed to load today's bills:", billsResult.error);
             }
 
+            // Fetch low stock items
+            const lowStockResult = await apiCall("/api/inventory/low-stock");
+            let lowStockItems = 0;
+            let lowStockItemsList: any[] = [];
+
+            if (lowStockResult.status === 200) {
+                lowStockItemsList = lowStockResult.data || [];
+                lowStockItems = lowStockItemsList.length;
+            } else {
+                console.warn("Failed to load low stock items:", lowStockResult.error);
+            }
+
             setStats({
                 totalSales,
                 activeBills,
-                lowStockItems: 3, // TODO: Fetch from inventory API when available
+                lowStockItems,
                 teamMembers: 12, // TODO: Fetch from users API when available
                 pendingVoidRequests
             });
-            setRecentActivity([
-                { id: 1, type: "sale", description: "New bill #1234 created", time: "2 min ago" },
-                { id: 2, type: "inventory", description: "Stock alert: Coffee beans low", time: "15 min ago" },
-                { id: 3, type: "payment", description: "Payment processed for bill #1230", time: "1 hour ago" }
-            ]);
+
+            // Build recent activity from real data
+            const activities: any[] = [];
+
+            // Add recent bills (created, submitted, closed) - from recent bills API
+            if (recentBillsResult.status === 200) {
+                const recentBills = recentBillsResult.data?.bills || [];
+                recentBills.slice(0, 5).forEach((bill: any) => {
+                    let description = "";
+                    let type = "sale";
+                    
+                    if (bill.status === "pending") {
+                        description = `New bill #${bill.id} created`;
+                        type = "sale";
+                    } else if (bill.status === "submitted") {
+                        description = `Bill #${bill.id} submitted`;
+                        type = "sale";
+                    } else if (bill.status === "closed") {
+                        description = `Bill #${bill.id} closed - KES ${(Number(bill.total) || 0).toFixed(2)}`;
+                        type = "payment";
+                    } else if (bill.status === "reopened") {
+                        description = `Bill #${bill.id} reopened`;
+                        type = "sale";
+                    }
+
+                    if (description) {
+                        const createdAt = new Date(bill.created_at);
+                        const timeAgo = getTimeAgo(createdAt);
+                        
+                        activities.push({
+                            id: `bill-${bill.id}`,
+                            type,
+                            description,
+                            time: timeAgo,
+                            timestamp: createdAt.getTime()
+                        });
+                    }
+                });
+            }
+
+            // Add low stock alerts (most recent 3)
+            lowStockItemsList.slice(0, 3).forEach((item: any) => {
+                const itemName = item.item?.name || `Item #${item.item_id}`;
+                activities.push({
+                    id: `low-stock-${item.item_id}`,
+                    type: "inventory",
+                    description: `Stock alert: ${itemName} low (${item.available_quantity} available)`,
+                    time: "Recently detected",
+                    timestamp: Date.now() // Low stock is current state, not a timestamped event
+                });
+            });
+
+            // Sort by timestamp (most recent first) and take top 5
+            activities.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            setRecentActivity(activities.slice(0, 5));
         } catch (error) {
             setError("Network error occurred");
             setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });

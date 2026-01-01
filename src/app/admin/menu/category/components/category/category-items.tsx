@@ -38,6 +38,12 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
     }
   };
 
+  const handleItemUpdated = () => {
+    if (selectedCategory) {
+      fetchItems(selectedCategory.id);
+    }
+  };
+
   return (
     <>
       <ViewItems
@@ -51,6 +57,7 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
         isPricelistSection={false}
         isCategoryItemsSection={true}
         onItemPick={() => { }}
+        onItemUpdated={handleItemUpdated}
       />
       <NewItemModal
         selectedCategory={selectedCategory}

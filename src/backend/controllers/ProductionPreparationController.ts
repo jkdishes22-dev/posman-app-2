@@ -1,6 +1,7 @@
 import { ProductionPreparationService } from "@backend/service/ProductionPreparationService";
 import { ProductionPreparationStatus } from "@backend/entities/ProductionPreparation";
 import { NextApiRequest, NextApiResponse } from "next";
+import { handleApiError } from "@backend/utils/errorHandler";
 
 export const createPreparationHandler = async (
     req: NextApiRequest,
@@ -31,11 +32,11 @@ export const createPreparationHandler = async (
         );
         res.status(201).json(preparation);
     } catch (error: any) {
-        console.error("Error creating preparation:", error);
-        res.status(500).json({
-            message: "Failed to create preparation",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "creating",
+            resource: "preparation"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -72,11 +73,11 @@ export const fetchPreparationsHandler = async (
         const result = await preparationService.fetchPreparations(filters, limit, offset);
         res.status(200).json(result);
     } catch (error: any) {
-        console.error("Error fetching preparations:", error);
-        res.status(500).json({
-            message: "Failed to fetch preparations",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "preparations"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -95,11 +96,11 @@ export const fetchPreparationHandler = async (
 
         res.status(200).json(preparation);
     } catch (error: any) {
-        console.error("Error fetching preparation:", error);
-        res.status(500).json({
-            message: "Failed to fetch preparation",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "preparation"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -121,11 +122,11 @@ export const approvePreparationHandler = async (
         );
         res.status(200).json(preparation);
     } catch (error: any) {
-        console.error("Error approving preparation:", error);
-        res.status(500).json({
-            message: "Failed to approve preparation",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "approving",
+            resource: "preparation"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -156,11 +157,11 @@ export const rejectPreparationHandler = async (
         );
         res.status(200).json(preparation);
     } catch (error: any) {
-        console.error("Error rejecting preparation:", error);
-        res.status(500).json({
-            message: "Failed to reject preparation",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "rejecting",
+            resource: "preparation"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 
@@ -209,11 +210,11 @@ export const issueDirectlyHandler = async (
         );
         res.status(201).json(preparation);
     } catch (error: any) {
-        console.error("Error issuing directly:", error);
-        res.status(500).json({
-            message: "Failed to issue production directly",
-            error: error.message,
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "issuing",
+            resource: "production"
         });
+        res.status(500).json({ error: userMessage, code: errorCode });
     }
 };
 

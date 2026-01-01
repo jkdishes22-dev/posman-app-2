@@ -2,18 +2,22 @@ import { Item, ItemStatus } from "@entities/Item";
 import { Currency, PricelistItem } from "@entities/PricelistItem";
 import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { ItemGroup } from "@entities/ItemGroup";
+import { Inventory } from "@entities/Inventory";
 import logger from "../utils/logger";
 import { cache } from "@backend/utils/cache";
+import { AuditService } from "./AuditService";
 
 export class ItemService {
   private itemRepository: Repository<Item>;
   private pricelistItemRepository: Repository<PricelistItem>;
   private itemGroupRepository: Repository<ItemGroup>;
+  private auditService: AuditService;
 
   constructor(datasource: DataSource) {
     this.itemRepository = datasource.getRepository(Item);
     this.pricelistItemRepository = datasource.getRepository(PricelistItem);
     this.itemGroupRepository = datasource.getRepository(ItemGroup);
+    this.auditService = new AuditService(datasource);
   }
 
   public async createItem(
@@ -158,6 +162,7 @@ export class ItemService {
       code: pi.item.code,
       isGroup: Boolean(pi.item.isGroup),
       isStock: Boolean(pi.item.isStock),
+      allowNegativeInventory: Boolean(pi.item.allowNegativeInventory),
       category: {
         id: pi.item.category?.id,
         name: pi.item.category?.name,
@@ -329,6 +334,38 @@ export class ItemService {
           throw new Error("Item not found");
         }
 
+        // Track changes for audit logging
+        const fieldsToTrack = ["category", "isStock", "allowNegativeInventory", "name", "code"];
+        for (const field of fieldsToTrack) {
+          if (itemData[field] !== undefined && itemToUpdate[field] !== itemData[field]) {
+            const oldValue = itemToUpdate[field];
+            const newValue = itemData[field];
+
+            // For category, we need to get the ID
+            if (field === "category") {
+              const oldCategoryId = oldValue?.id || oldValue;
+              const newCategoryId = newValue?.id || newValue;
+              if (oldCategoryId !== newCategoryId) {
+                await this.auditService.logItemChange(
+                  itemToUpdate.id,
+                  "category",
+                  oldCategoryId,
+                  newCategoryId,
+                  user_id
+                );
+              }
+            } else {
+              await this.auditService.logItemChange(
+                itemToUpdate.id,
+                field,
+                oldValue,
+                newValue,
+                user_id
+              );
+            }
+          }
+        }
+
         const updatedItemData = {
           ...itemToUpdate,
           ...itemData,
@@ -337,20 +374,56 @@ export class ItemService {
 
         await transactionalEntityManager.save(Item, updatedItemData);
 
-        const pricelistItemToUpdate = await this.pricelistItemRepository
-          .createQueryBuilder("pi")
-          .innerJoinAndSelect("pi.item", "item")
-          .innerJoinAndSelect("pi.pricelist", "pricelist")
-          .where("pi.id = :pricelistItemId", {
-            pricelistItemId: Number(pricelistItemId),
-          })
-          .getOne();
+        // Create inventory record when item is marked as stock item (isStock: true)
+        // Stock items are purchased/supplied items that need inventory tracking
+        // Note: Sellable items (isStock: false) get inventory records automatically when production is issued
+        if (itemData.isStock === true && itemToUpdate.isStock !== true) {
+          const inventoryRepository = transactionalEntityManager.getRepository(Inventory);
+          const existingInventory = await inventoryRepository.findOne({
+            where: { item_id: itemData.id },
+          });
+
+          if (!existingInventory) {
+            const newInventory = inventoryRepository.create({
+              item_id: itemData.id,
+              quantity: 0,
+              reserved_quantity: 0,
+              created_by: user_id,
+            });
+            await inventoryRepository.save(newInventory);
+          }
+        }
+
+        // Only query for pricelistItem if pricelistItemId is provided and valid
+        let pricelistItemToUpdate = null;
+        if (pricelistItemId !== null && pricelistItemId !== undefined && !isNaN(Number(pricelistItemId)) && Number(pricelistItemId) > 0) {
+          pricelistItemToUpdate = await this.pricelistItemRepository
+            .createQueryBuilder("pi")
+            .innerJoinAndSelect("pi.item", "item")
+            .innerJoinAndSelect("pi.pricelist", "pricelist")
+            .where("pi.id = :pricelistItemId", {
+              pricelistItemId: Number(pricelistItemId),
+            })
+            .getOne();
+        }
 
         if (pricelistItemToUpdate) {
           await this.disablePreExistingPricelistItems(
             transactionalEntityManager,
             pricelistItemToUpdate,
           );
+
+          // Log price change if it changed
+          const oldPrice = pricelistItemToUpdate.price;
+          if (oldPrice !== price) {
+            await this.auditService.logPricelistItemChange(
+              pricelistItemToUpdate.id,
+              "price",
+              oldPrice,
+              price,
+              user_id
+            );
+          }
 
           pricelistItemToUpdate.price = price;
           pricelistItemToUpdate.updated_by = user_id;
@@ -375,7 +448,13 @@ export class ItemService {
         cache.invalidate("items_pricelist");
         cache.invalidate("items_station");
 
-        return updatedItemData;
+        // Reload the item to ensure all fields are properly set and relations are loaded
+        const savedItem = await transactionalEntityManager.findOne(Item, {
+          where: { id: itemData.id },
+          relations: ["category"],
+        });
+
+        return savedItem || updatedItemData;
       },
     );
   }
@@ -546,6 +625,23 @@ export class ItemService {
       item: { id: groupId },
       subItem: { id: itemId },
     });
+  }
+
+  async updatePortionSize(groupId: number, subItemId: number, portionSize: number) {
+    const itemGroup = await this.itemGroupRepository.findOne({
+      where: {
+        item: { id: groupId },
+        subItem: { id: subItemId },
+      },
+    });
+
+    if (!itemGroup) {
+      throw new Error("Item group relationship not found");
+    }
+
+    itemGroup.portion_size = Number(portionSize);
+    await this.itemGroupRepository.save(itemGroup);
+    return itemGroup;
   }
 
   async getSubItemsForPlatter(platterId: number): Promise<any> {

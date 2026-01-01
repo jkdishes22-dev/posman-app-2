@@ -19,8 +19,18 @@ const LogoutButton: React.FC<LogoutButtonProps> = ({
 }) => {
     const { logout } = useAuth();
 
-    const handleLogout = () => {
-        logout();
+    const handleLogout = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+            logout();
+        } catch (error) {
+            console.error("Error in logout handler:", error);
+            // Force redirect even if there's an error
+            if (typeof window !== "undefined") {
+                window.location.replace("/");
+            }
+        }
     };
 
     return (

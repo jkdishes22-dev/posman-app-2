@@ -361,4 +361,19 @@ export class PricelistService {
     cache.set(cacheKey, result);
     return result;
   }
+
+  async removeItemFromPricelist(pricelistId: number, itemId: number): Promise<void> {
+    const result = await this.pricelistItemRepository.delete({
+      pricelist: { id: pricelistId },
+      item: { id: itemId }
+    });
+
+    if (result.affected === 0) {
+      throw new Error("Item not found in this pricelist");
+    }
+
+    // Invalidate cache
+    cache.invalidate(`pricelist_items_${pricelistId}`);
+    cache.invalidate("items");
+  }
 }

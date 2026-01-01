@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { formatISO } from "date-fns";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
@@ -29,6 +32,7 @@ const SupervisorBillsPage: React.FC = () => {
     const [errorDetails, setErrorDetails] = useState<any>(null);
     const [statusFilter, setStatusFilter] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
+    const [createdDate, setCreatedDate] = useState<Date | null>(null);
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
     const pageSize = 10;
@@ -44,13 +48,13 @@ const SupervisorBillsPage: React.FC = () => {
 
     useEffect(() => {
         fetchBills();
-    }, [statusFilter, page]);
+    }, [statusFilter, page, createdDate]);
 
-    // Reset to page 1 when status filter changes
+    // Reset to page 1 when status filter or date changes
     useEffect(() => {
         setPage(1);
         setSearchPage(1);
-    }, [statusFilter]);
+    }, [statusFilter, createdDate]);
 
     // Reset search page when search term changes
     useEffect(() => {
@@ -63,9 +67,16 @@ const SupervisorBillsPage: React.FC = () => {
             setError(null);
             setErrorDetails(null);
 
-            const url = statusFilter === "all"
-                ? `/api/bills?page=${page}&pageSize=${pageSize}`
-                : `/api/bills?status=${statusFilter}&page=${page}&pageSize=${pageSize}`;
+            let url = `/api/bills?page=${page}&pageSize=${pageSize}`;
+
+            if (statusFilter !== "all") {
+                url += `&status=${statusFilter}`;
+            }
+
+            if (createdDate) {
+                const formattedDate = formatISO(createdDate, { representation: "date" });
+                url += `&date=${formattedDate}`;
+            }
 
             const result = await apiCall(url);
 
@@ -95,7 +106,16 @@ const SupervisorBillsPage: React.FC = () => {
             bill.user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             bill.station?.name.toLowerCase().includes(searchTerm.toLowerCase());
 
-        return matchesSearch;
+        // Filter by created date if selected
+        const matchesDate = !createdDate || (() => {
+            const billDate = new Date(bill.created_at);
+            const filterDate = new Date(createdDate);
+            return billDate.getFullYear() === filterDate.getFullYear() &&
+                billDate.getMonth() === filterDate.getMonth() &&
+                billDate.getDate() === filterDate.getDate();
+        })();
+
+        return matchesSearch && matchesDate;
     });
 
     // For client-side pagination when searching
@@ -147,7 +167,7 @@ const SupervisorBillsPage: React.FC = () => {
                         <div className="card mb-4">
                             <div className="card-body">
                                 <div className="row g-3">
-                                    <div className="col-12 col-md-6 col-lg-4">
+                                    <div className="col-12 col-md-6 col-lg-3">
                                         <label className="form-label">Status Filter</label>
                                         <select
                                             className="form-select"
@@ -162,7 +182,18 @@ const SupervisorBillsPage: React.FC = () => {
                                             <option value="voided">Voided</option>
                                         </select>
                                     </div>
-                                    <div className="col-12 col-md-6 col-lg-4">
+                                    <div className="col-12 col-md-6 col-lg-3">
+                                        <label className="form-label">Created Date</label>
+                                        <DatePicker
+                                            selected={createdDate}
+                                            onChange={(date: Date | null) => setCreatedDate(date)}
+                                            dateFormat="yyyy-MM-dd"
+                                            className="form-control"
+                                            placeholderText="Select date"
+                                            isClearable
+                                        />
+                                    </div>
+                                    <div className="col-12 col-md-6 col-lg-3">
                                         <label className="form-label">Search</label>
                                         <input
                                             type="text"
@@ -172,12 +203,13 @@ const SupervisorBillsPage: React.FC = () => {
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
-                                    <div className="col-12 col-md-12 col-lg-4 d-flex align-items-end">
+                                    <div className="col-12 col-md-6 col-lg-3 d-flex align-items-end">
                                         <button
                                             className="btn btn-outline-secondary w-100"
                                             onClick={() => {
                                                 setSearchTerm("");
                                                 setStatusFilter("all");
+                                                setCreatedDate(null);
                                                 setPage(1);
                                             }}
                                         >
