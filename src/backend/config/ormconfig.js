@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // TypeORM CLI configuration file for migrations
 // This file is used by TypeORM CLI to run migrations in production
 // Note: For full functionality, use data-source.ts instead

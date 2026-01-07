@@ -159,9 +159,31 @@ This application can be packaged as a Windows desktop application using Electron
 
 ### Prerequisites for Windows Build
 
+#### Icon Files Required
+
+Before building, ensure you have the following icon files in `public/icons/`:
+
+- **`JKlogo-512.ico`** (required for Windows installer) - Application icon in ICO format
+- **`JKlogo-512.png`** (fallback) - Application icon in PNG format (used if ICO doesn't exist)
+
+**Note**: Windows installers require `.ico` format for best results. If you only have a PNG file, electron-builder will automatically convert it, but the quality may not be optimal.
+
+**To generate ICO from PNG:**
+1. Use an online converter: https://convertio.co/png-ico/ or https://www.icoconverter.com/
+2. Or use ImageMagick: `convert public/icons/JKlogo-512.png public/icons/JKlogo-512.ico`
+3. Or use electron-icon-maker: `npx electron-icon-maker --input=public/icons/JKlogo-512.png --output=public/icons/`
+
+See `scripts/generate-icons.md` for detailed instructions.
+
+### Prerequisites for Windows Build
+
 - Node.js (v18 or higher)
 - All project dependencies installed (`npm install`)
-- Icon file: `public/icons/JKlogo-512.png` (for Windows installer icon)
+- **Icon files** (required):
+  - `public/icons/JKlogo-512.ico` - Windows installer icon (ICO format, recommended)
+  - `public/icons/JKlogo-512.png` - Fallback icon (PNG format)
+  
+  **Note**: Windows installers require `.ico` format for best results. If you only have a PNG file, electron-builder will automatically convert it, but the quality may not be optimal. See `scripts/generate-icons.md` for instructions on generating ICO files.
 
 ### Building Windows Installer
 

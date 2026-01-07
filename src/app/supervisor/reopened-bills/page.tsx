@@ -198,7 +198,7 @@ export default function SupervisorReopenedBillsPage() {
                                 <Button
                                   variant="outline-primary"
                                   size="sm"
-                                  onClick={() => window.open(`/home/cashier/bills?billId=${bill.id}`, '_blank')}
+                                  onClick={() => window.open(`/home/cashier/bills?billId=${bill.id}`, "_blank")}
                                 >
                                   <i className="bi bi-eye me-1"></i>
                                   View Details

@@ -134,7 +134,7 @@ export default function ChefPreparationPage() {
             if (result.status >= 200 && result.status < 300) {
                 setSuccessMessage(
                     `Successfully created preparation request for ${quantity} units of ${selectedItem.name}. ` +
-                    `Waiting for supervisor approval.`
+                    "Waiting for supervisor approval."
                 );
                 setSelectedItem(null);
                 setItemSearchQuery("");

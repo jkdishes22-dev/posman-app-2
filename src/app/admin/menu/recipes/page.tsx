@@ -60,13 +60,13 @@ function RecipesPage() {
 
         let detailedError = `${errorMessage}`;
         if (missingPermissions.length > 0) {
-          detailedError += `\n\nMissing permissions: ${missingPermissions.join(', ')}`;
+          detailedError += `\n\nMissing permissions: ${missingPermissions.join(", ")}`;
         }
         if (userRoles.length > 0) {
-          detailedError += `\n\nYour roles: ${userRoles.join(', ')}`;
+          detailedError += `\n\nYour roles: ${userRoles.join(", ")}`;
         }
         if (!isAdmin) {
-          detailedError += `\n\nNote: You need admin privileges to access recipes.`;
+          detailedError += "\n\nNote: You need admin privileges to access recipes.";
         }
 
         setFetchError(detailedError);
@@ -125,10 +125,10 @@ function RecipesPage() {
 
         let detailedError = `${errorMessage}`;
         if (missingPermissions.length > 0) {
-          detailedError += `\n\nMissing permissions: ${missingPermissions.join(', ')}`;
+          detailedError += `\n\nMissing permissions: ${missingPermissions.join(", ")}`;
         }
         if (userRoles.length > 0) {
-          detailedError += `\n\nYour roles: ${userRoles.join(', ')}`;
+          detailedError += `\n\nYour roles: ${userRoles.join(", ")}`;
         }
 
         setAddSubItemError(detailedError);
@@ -280,13 +280,13 @@ function RecipesPage() {
               <div className="flex-grow-1">
                 <strong>Access Error</strong>
                 <div className="mt-2">
-                  {fetchError.split('\n').map((line, index) => (
-                    <div key={index} className={line.includes('Missing permissions:') || line.includes('Your roles:') || line.includes('Note:') ? 'small text-muted' : ''}>
+                  {fetchError.split("\n").map((line, index) => (
+                    <div key={index} className={line.includes("Missing permissions:") || line.includes("Your roles:") || line.includes("Note:") ? "small text-muted" : ""}>
                       {line}
                     </div>
                   ))}
                 </div>
-                {fetchError.includes('Missing permissions:') && (
+                {fetchError.includes("Missing permissions:") && (
                   <div className="mt-3">
                     <small className="text-muted">
                       <i className="bi bi-info-circle me-1"></i>
@@ -311,13 +311,13 @@ function RecipesPage() {
               <div className="flex-grow-1">
                 <strong>Add Ingredient Error</strong>
                 <div className="mt-2">
-                  {addSubItemError.split('\n').map((line, index) => (
-                    <div key={index} className={line.includes('Missing permissions:') || line.includes('Your roles:') ? 'small text-muted' : ''}>
+                  {addSubItemError.split("\n").map((line, index) => (
+                    <div key={index} className={line.includes("Missing permissions:") || line.includes("Your roles:") ? "small text-muted" : ""}>
                       {line}
                     </div>
                   ))}
                 </div>
-                {addSubItemError.includes('Missing permissions:') && (
+                {addSubItemError.includes("Missing permissions:") && (
                   <div className="mt-3">
                     <small className="text-muted">
                       <i className="bi bi-info-circle me-1"></i>
@@ -503,7 +503,7 @@ function RecipesPage() {
                         ) : (
                           <tr>
                             <td colSpan={3} className="text-center py-4">
-                              <i className="bi bi-inbox text-muted" style={{ fontSize: '2rem' }}></i>
+                              <i className="bi bi-inbox text-muted" style={{ fontSize: "2rem" }}></i>
                               <p className="text-muted mt-2 mb-0">No ingredients defined</p>
                               <p className="text-muted small mt-1">Add stock items (ingredients) that will be deducted when this item is sold</p>
                             </td>
@@ -514,7 +514,7 @@ function RecipesPage() {
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <i className="bi bi-cursor text-muted" style={{ fontSize: '3rem' }}></i>
+                    <i className="bi bi-cursor text-muted" style={{ fontSize: "3rem" }}></i>
                     <p className="text-muted mt-3 mb-0">Select a composite item to view or edit its recipe</p>
                     <p className="text-muted small mt-2">Define which stock items (ingredients) are used and how much is deducted per unit sold</p>
                   </div>

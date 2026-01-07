@@ -349,9 +349,9 @@ export default function UsersPage() {
                   {roles.map((role) => (
                     <div
                       key={role.id}
-                      className={`list-group-item list-group-item-action ${selectedRole?.id === role.id ? 'active' : ''}`}
+                      className={`list-group-item list-group-item-action ${selectedRole?.id === role.id ? "active" : ""}`}
                       onClick={() => fetchPermissions(role)}
-                      style={{ cursor: 'pointer' }}
+                      style={{ cursor: "pointer" }}
                     >
                       <div className="d-flex align-items-center">
                         <i className="bi bi-shield me-2"></i>
@@ -369,7 +369,7 @@ export default function UsersPage() {
               <div className="card-header bg-light">
                 <h5 className="mb-0 fw-bold">
                   <i className="bi bi-list-ul me-2 text-primary"></i>
-                  Scopes: {selectedRole ? selectedRole.name : 'Select a role'}
+                  Scopes: {selectedRole ? selectedRole.name : "Select a role"}
                 </h5>
               </div>
               <div className="card-body">
@@ -435,7 +435,7 @@ export default function UsersPage() {
                               </div>
                             ) : (
                               <div className="text-center py-4">
-                                <i className="bi bi-key text-muted" style={{ fontSize: '3rem' }}></i>
+                                <i className="bi bi-key text-muted" style={{ fontSize: "3rem" }}></i>
                                 <p className="text-muted mt-3 mb-0">No permissions added for this scope</p>
                               </div>
                             )}
@@ -445,13 +445,13 @@ export default function UsersPage() {
                     </>
                   ) : (
                     <div className="text-center py-4">
-                      <i className="bi bi-exclamation-circle text-muted" style={{ fontSize: '3rem' }}></i>
+                      <i className="bi bi-exclamation-circle text-muted" style={{ fontSize: "3rem" }}></i>
                       <p className="text-muted mt-3 mb-0">No scopes available for the selected role</p>
                     </div>
                   )
                 ) : (
                   <div className="text-center py-4">
-                    <i className="bi bi-cursor text-muted" style={{ fontSize: '3rem' }}></i>
+                    <i className="bi bi-cursor text-muted" style={{ fontSize: "3rem" }}></i>
                     <p className="text-muted mt-3 mb-0">Please select a role to see the available scopes</p>
                   </div>
                 )}
@@ -467,7 +467,7 @@ export default function UsersPage() {
           <Modal.Title>Delete Permission</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Are you sure you want to delete the permission "{typeof permissionToDelete === 'string' ? permissionToDelete : permissionToDelete?.name || permissionToDelete?.id}
+          Are you sure you want to delete the permission "{typeof permissionToDelete === "string" ? permissionToDelete : permissionToDelete?.name || permissionToDelete?.id}
           "?
         </Modal.Body>
         <Modal.Footer>

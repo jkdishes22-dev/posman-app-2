@@ -172,11 +172,11 @@ export default function InlineItemSearch({
           <Card.Header className="bg-light">
             <h6 className="mb-0">
               <i className="bi bi-search me-2"></i>
-              Search Results ({results.length} item{results.length !== 1 ? 's' : ''})
+              Search Results ({results.length} item{results.length !== 1 ? "s" : ""})
             </h6>
           </Card.Header>
           <Card.Body className="p-0">
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            <div style={{ maxHeight: "400px", overflowY: "auto" }}>
               {results.map((item) => (
                 <div key={item.id} className="border-bottom p-3">
                   <div className="d-flex justify-content-between align-items-start mb-2">
@@ -201,7 +201,7 @@ export default function InlineItemSearch({
                     <div>
                       <small className="text-success mb-2 d-block">
                         <i className="bi bi-list-ul me-1"></i>
-                        Available in {item.totalPricelists} pricelist{item.totalPricelists !== 1 ? 's' : ''}:
+                        Available in {item.totalPricelists} pricelist{item.totalPricelists !== 1 ? "s" : ""}:
                       </small>
                       <div className="d-flex flex-wrap gap-2">
                         {item.pricelists.map((pricelist, index) => (
@@ -234,7 +234,7 @@ export default function InlineItemSearch({
       {showResults && query.length >= 2 && results.length === 0 && !isLoading && (
         <Card className="mb-3">
           <Card.Body className="text-center py-4">
-            <i className="bi bi-search text-muted" style={{ fontSize: '2rem' }}></i>
+            <i className="bi bi-search text-muted" style={{ fontSize: "2rem" }}></i>
             <p className="text-muted mt-2 mb-0">No items found for "{query}"</p>
           </Card.Body>
         </Card>

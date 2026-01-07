@@ -1,7 +1,7 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { hasPermission, getRolePermissions } from '../config/role-permissions';
+import { NextApiRequest, NextApiResponse } from "next";
+import { hasPermission, getRolePermissions } from "../config/role-permissions";
 
-export interface AuthenticatedRequest extends Omit<NextApiRequest, 'user'> {
+export interface AuthenticatedRequest extends Omit<NextApiRequest, "user"> {
     user: {
         id: string;
         roles: string[];
@@ -16,13 +16,13 @@ export function requirePermission(permission: string) {
             try {
                 // Check if user is authenticated
                 if (!req.user) {
-                    return res.status(401).json({ message: 'Authentication required' });
+                    return res.status(401).json({ message: "Authentication required" });
                 }
 
                 // Check if user has the required permission
                 if (!hasPermission(req.user.roles, permission)) {
                     return res.status(403).json({
-                        message: 'Insufficient permissions',
+                        message: "Insufficient permissions",
                         required: permission,
                         userRoles: req.user.roles
                     });
@@ -31,8 +31,8 @@ export function requirePermission(permission: string) {
                 // User has permission, proceed with handler
                 return await handler(req, res);
             } catch (error) {
-                console.error('ACL middleware error:', error);
-                return res.status(500).json({ message: 'Internal server error' });
+                console.error("ACL middleware error:", error);
+                return res.status(500).json({ message: "Internal server error" });
             }
         };
     };
@@ -44,7 +44,7 @@ export function requireAnyPermission(permissions: string[]) {
         return async (req: AuthenticatedRequest, res: NextApiResponse) => {
             try {
                 if (!req.user) {
-                    return res.status(401).json({ message: 'Authentication required' });
+                    return res.status(401).json({ message: "Authentication required" });
                 }
 
                 // Check if user has any of the required permissions
@@ -54,7 +54,7 @@ export function requireAnyPermission(permissions: string[]) {
 
                 if (!hasAnyPermission) {
                     return res.status(403).json({
-                        message: 'Insufficient permissions',
+                        message: "Insufficient permissions",
                         required: permissions,
                         userRoles: req.user.roles
                     });
@@ -62,8 +62,8 @@ export function requireAnyPermission(permissions: string[]) {
 
                 return await handler(req, res);
             } catch (error) {
-                console.error('ACL middleware error:', error);
-                return res.status(500).json({ message: 'Internal server error' });
+                console.error("ACL middleware error:", error);
+                return res.status(500).json({ message: "Internal server error" });
             }
         };
     };
@@ -75,7 +75,7 @@ export function requireAllPermissions(permissions: string[]) {
         return async (req: AuthenticatedRequest, res: NextApiResponse) => {
             try {
                 if (!req.user) {
-                    return res.status(401).json({ message: 'Authentication required' });
+                    return res.status(401).json({ message: "Authentication required" });
                 }
 
                 // Check if user has all required permissions
@@ -85,7 +85,7 @@ export function requireAllPermissions(permissions: string[]) {
 
                 if (!hasAllPermissions) {
                     return res.status(403).json({
-                        message: 'Insufficient permissions',
+                        message: "Insufficient permissions",
                         required: permissions,
                         userRoles: req.user.roles
                     });
@@ -93,8 +93,8 @@ export function requireAllPermissions(permissions: string[]) {
 
                 return await handler(req, res);
             } catch (error) {
-                console.error('ACL middleware error:', error);
-                return res.status(500).json({ message: 'Internal server error' });
+                console.error("ACL middleware error:", error);
+                return res.status(500).json({ message: "Internal server error" });
             }
         };
     };
@@ -106,7 +106,7 @@ export function requireRole(roles: string[]) {
         return async (req: AuthenticatedRequest, res: NextApiResponse) => {
             try {
                 if (!req.user) {
-                    return res.status(401).json({ message: 'Authentication required' });
+                    return res.status(401).json({ message: "Authentication required" });
                 }
 
                 // Check if user has any of the required roles
@@ -116,7 +116,7 @@ export function requireRole(roles: string[]) {
 
                 if (!hasRequiredRole) {
                     return res.status(403).json({
-                        message: 'Insufficient role',
+                        message: "Insufficient role",
                         required: roles,
                         userRoles: req.user.roles
                     });
@@ -124,8 +124,8 @@ export function requireRole(roles: string[]) {
 
                 return await handler(req, res);
             } catch (error) {
-                console.error('ACL middleware error:', error);
-                return res.status(500).json({ message: 'Internal server error' });
+                console.error("ACL middleware error:", error);
+                return res.status(500).json({ message: "Internal server error" });
             }
         };
     };
@@ -137,41 +137,41 @@ export function restrictBusinessOperations() {
         return async (req: AuthenticatedRequest, res: NextApiResponse) => {
             try {
                 if (!req.user) {
-                    return res.status(401).json({ message: 'Authentication required' });
+                    return res.status(401).json({ message: "Authentication required" });
                 }
 
                 // Check if user is admin and trying to perform business operations
-                if (req.user.roles.includes('admin')) {
+                if (req.user.roles.includes("admin")) {
                     const businessOperations = [
-                        'can_add_bill',
-                        'can_edit_bill',
-                        'can_add_bill_item',
-                        'can_edit_bill_item',
-                        'can_add_bill_payment',
-                        'can_edit_bill_payment',
-                        'can_add_payment',
-                        'can_edit_payment',
-                        'can_add_inventory',
-                        'can_edit_inventory'
+                        "can_add_bill",
+                        "can_edit_bill",
+                        "can_add_bill_item",
+                        "can_edit_bill_item",
+                        "can_add_bill_payment",
+                        "can_edit_bill_payment",
+                        "can_add_payment",
+                        "can_edit_payment",
+                        "can_add_inventory",
+                        "can_edit_inventory"
                     ];
 
                     // Check if the request is for a business operation
                     const isBusinessOperation = businessOperations.some(permission =>
-                        req.url?.includes(permission.replace('can_', '').replace('_', '-'))
+                        req.url?.includes(permission.replace("can_", "").replace("_", "-"))
                     );
 
                     if (isBusinessOperation) {
                         return res.status(403).json({
-                            message: 'Admin role cannot perform business operations',
-                            restriction: 'Business operations are restricted for admin role'
+                            message: "Admin role cannot perform business operations",
+                            restriction: "Business operations are restricted for admin role"
                         });
                     }
                 }
 
                 return await handler(req, res);
             } catch (error) {
-                console.error('ACL middleware error:', error);
-                return res.status(500).json({ message: 'Internal server error' });
+                console.error("ACL middleware error:", error);
+                return res.status(500).json({ message: "Internal server error" });
             }
         };
     };
@@ -183,10 +183,10 @@ export function withACL(handler: (req: AuthenticatedRequest, res: NextApiRespons
         try {
             // This would typically load user roles and permissions from the database
             // For now, we'll simulate this based on the JWT token
-            const token = req.headers.authorization?.replace('Bearer ', '');
+            const token = req.headers.authorization?.replace("Bearer ", "");
 
             if (!token) {
-                return res.status(401).json({ message: 'Authentication required' });
+                return res.status(401).json({ message: "Authentication required" });
             }
 
             // In a real implementation, you would:
@@ -198,14 +198,14 @@ export function withACL(handler: (req: AuthenticatedRequest, res: NextApiRespons
             // For now, we'll simulate this
             req.user = {
                 id: "1",
-                roles: ['admin'], // This would come from the database
+                roles: ["admin"], // This would come from the database
                 permissions: [] // This would be calculated from roles
             };
 
             return await handler(req, res);
         } catch (error) {
-            console.error('ACL middleware error:', error);
-            return res.status(500).json({ message: 'Internal server error' });
+            console.error("ACL middleware error:", error);
+            return res.status(500).json({ message: "Internal server error" });
         }
     };
 }

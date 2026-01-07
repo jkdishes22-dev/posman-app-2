@@ -188,7 +188,7 @@ export class ReportService {
 
   private getDateRange(startDate: Date, endDate: Date, period?: "day" | "week" | "month" | "year"): { start: Date; end: Date } {
     const start = startOfDay(startDate);
-    let end = endOfDay(endDate);
+    const end = endOfDay(endDate);
 
     if (period === "week") {
       return { start: startOfWeek(start), end: endOfWeek(end) };
@@ -252,7 +252,7 @@ export class ReportService {
 
     // Process actual revenue
     actualBills.forEach(bill => {
-      const billDate = new Date(bill.created_at).toISOString().split('T')[0];
+      const billDate = new Date(bill.created_at).toISOString().split("T")[0];
       if (!reportMap.has(billDate)) {
         reportMap.set(billDate, {
           date: billDate,
@@ -277,7 +277,7 @@ export class ReportService {
 
     // Process projected revenue
     projectedBills.forEach(bill => {
-      const billDate = new Date(bill.created_at).toISOString().split('T')[0];
+      const billDate = new Date(bill.created_at).toISOString().split("T")[0];
       if (!reportMap.has(billDate)) {
         reportMap.set(billDate, {
           date: billDate,
@@ -329,7 +329,7 @@ export class ReportService {
     const reportMap = new Map<string, ProductionStockRevenueReportItem>();
 
     bills.forEach(bill => {
-      const billDate = new Date(bill.created_at).toISOString().split('T')[0];
+      const billDate = new Date(bill.created_at).toISOString().split("T")[0];
 
       bill.bill_items?.forEach(billItem => {
         if (billItem.status === BillItemStatus.VOIDED || !billItem.item) return;
@@ -394,8 +394,8 @@ export class ReportService {
     billItems.forEach(billItem => {
       if (!billItem.item) return;
 
-      const date = new Date(billItem.bill.created_at).toISOString().split('T')[0];
-      const key = `${date}_${billItem.item.id}${userId ? `_${billItem.bill.user_id}` : ''}`;
+      const date = new Date(billItem.bill.created_at).toISOString().split("T")[0];
+      const key = `${date}_${billItem.item.id}${userId ? `_${billItem.bill.user_id}` : ""}`;
 
       if (!reportMap.has(key)) {
         reportMap.set(key, {
@@ -404,7 +404,7 @@ export class ReportService {
           itemName: billItem.item.name,
           quantity: 0,
           userId: userId ? billItem.bill.user_id : undefined,
-          userName: userId && billItem.bill.user ? `${billItem.bill.user.firstName || ''} ${billItem.bill.user.lastName || ''}`.trim() : undefined
+          userName: userId && billItem.bill.user ? `${billItem.bill.user.firstName || ""} ${billItem.bill.user.lastName || ""}`.trim() : undefined
         });
       }
 
@@ -463,16 +463,16 @@ export class ReportService {
       const approvedBy = billItem.void_approved_by ? userMap.get(billItem.void_approved_by) : undefined;
 
       return {
-        date: new Date(billItem.void_requested_at || billItem.created_at).toISOString().split('T')[0],
+        date: new Date(billItem.void_requested_at || billItem.created_at).toISOString().split("T")[0],
         itemId: billItem.item?.id || 0,
         itemName: billItem.item?.name || "Unknown",
         quantity: billItem.quantity || 0,
         subtotal: billItem.subtotal || 0,
         voidReason: billItem.void_reason || "",
         requestedBy: billItem.void_requested_by || 0,
-        requestedByName: requestedBy ? `${requestedBy.firstName || ''} ${requestedBy.lastName || ''}`.trim() || "Unknown" : "Unknown",
+        requestedByName: requestedBy ? `${requestedBy.firstName || ""} ${requestedBy.lastName || ""}`.trim() || "Unknown" : "Unknown",
         approvedBy: billItem.void_approved_by,
-        approvedByName: approvedBy ? `${approvedBy.firstName || ''} ${approvedBy.lastName || ''}`.trim() || undefined : undefined,
+        approvedByName: approvedBy ? `${approvedBy.firstName || ""} ${approvedBy.lastName || ""}`.trim() || undefined : undefined,
         voidRequestedAt: billItem.void_requested_at || billItem.created_at,
         voidApprovedAt: billItem.void_approved_at,
         billId: billItem.bill_id || 0
@@ -515,7 +515,7 @@ export class ReportService {
     const results: ExpenditureReportItem[] = [];
 
     purchaseOrders.forEach(po => {
-      const poDate = new Date(po.created_at).toISOString().split('T')[0];
+      const poDate = new Date(po.created_at).toISOString().split("T")[0];
 
       po.items?.forEach(poItem => {
         if (!poItem.item || !poItem.item.isStock) return;
@@ -568,7 +568,7 @@ export class ReportService {
     const invoices = await invoiceQuery.getMany();
 
     invoices.forEach(po => {
-      const poDate = new Date(po.created_at).toISOString().split('T')[0];
+      const poDate = new Date(po.created_at).toISOString().split("T")[0];
       const itemBreakdown = po.items?.map(item => ({
         itemId: item.item?.id || 0,
         itemName: item.item?.name || "Unknown",
@@ -604,7 +604,7 @@ export class ReportService {
     const pendingBills = await pendingBillsQuery.getMany();
 
     pendingBills.forEach(bill => {
-      const billDate = new Date(bill.created_at).toISOString().split('T')[0];
+      const billDate = new Date(bill.created_at).toISOString().split("T")[0];
       const itemBreakdown = bill.bill_items
         ?.filter(item => item.status !== BillItemStatus.VOIDED)
         .map(item => ({
@@ -658,7 +658,7 @@ export class ReportService {
     const purchaseOrders = await query.getMany();
 
     return purchaseOrders.map(po => {
-      const poDate = new Date(po.created_at).toISOString().split('T')[0];
+      const poDate = new Date(po.created_at).toISOString().split("T")[0];
       const itemBreakdown = po.items?.map(item => ({
         itemId: item.item?.id || 0,
         itemName: item.item?.name || "Unknown",
@@ -751,7 +751,7 @@ export class ReportService {
     const reportMap = new Map<string, PnLReportItem>();
 
     actualRevenueResults.forEach(row => {
-      const date = new Date(row.date).toISOString().split('T')[0];
+      const date = new Date(row.date).toISOString().split("T")[0];
       if (!reportMap.has(date)) {
         reportMap.set(date, {
           date,
@@ -768,7 +768,7 @@ export class ReportService {
     });
 
     projectedRevenueResults.forEach(row => {
-      const date = new Date(row.date).toISOString().split('T')[0];
+      const date = new Date(row.date).toISOString().split("T")[0];
       if (!reportMap.has(date)) {
         reportMap.set(date, {
           date,
@@ -785,7 +785,7 @@ export class ReportService {
     });
 
     expensesResults.forEach(row => {
-      const date = new Date(row.date).toISOString().split('T')[0];
+      const date = new Date(row.date).toISOString().split("T")[0];
       if (!reportMap.has(date)) {
         reportMap.set(date, {
           date,
@@ -802,7 +802,7 @@ export class ReportService {
     });
 
     voidsResults.forEach(row => {
-      const date = new Date(row.date).toISOString().split('T')[0];
+      const date = new Date(row.date).toISOString().split("T")[0];
       if (!reportMap.has(date)) {
         reportMap.set(date, {
           date,

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { MigrationInterface, QueryRunner } = require("typeorm");
 
 /**
@@ -7,7 +8,7 @@ const { MigrationInterface, QueryRunner } = require("typeorm");
  * These tables store field-level changes with old/new values, user who made the change, and timestamp.
  */
 module.exports = class CreatePricelistAuditTables1700000000031 {
-    name = 'CreatePricelistAuditTables1700000000031'
+    name = "CreatePricelistAuditTables1700000000031"
 
     async up(queryRunner) {
         // Check if pricelist_item_audit table already exists
@@ -15,7 +16,7 @@ module.exports = class CreatePricelistAuditTables1700000000031 {
             SELECT COUNT(*) as count
             FROM INFORMATION_SCHEMA.TABLES
             WHERE TABLE_SCHEMA = DATABASE()
-            AND TABLE_NAME = 'pricelist_item_audit'
+            AND TABLE_NAME = "pricelist_item_audit"
         `);
 
         if (checkPricelistItemAuditTable[0].count === 0) {
@@ -47,7 +48,7 @@ module.exports = class CreatePricelistAuditTables1700000000031 {
             SELECT COUNT(*) as count
             FROM INFORMATION_SCHEMA.TABLES
             WHERE TABLE_SCHEMA = DATABASE()
-            AND TABLE_NAME = 'item_audit'
+            AND TABLE_NAME = "item_audit"
         `);
 
         if (checkItemAuditTable[0].count === 0) {
@@ -81,7 +82,7 @@ module.exports = class CreatePricelistAuditTables1700000000031 {
             SELECT COUNT(*) as count
             FROM INFORMATION_SCHEMA.TABLES
             WHERE TABLE_SCHEMA = DATABASE()
-            AND TABLE_NAME = 'item_audit'
+            AND TABLE_NAME = "item_audit"
         `);
 
         if (checkItemAuditTable[0].count > 0) {
@@ -98,7 +99,7 @@ module.exports = class CreatePricelistAuditTables1700000000031 {
             SELECT COUNT(*) as count
             FROM INFORMATION_SCHEMA.TABLES
             WHERE TABLE_SCHEMA = DATABASE()
-            AND TABLE_NAME = 'pricelist_item_audit'
+            AND TABLE_NAME = "pricelist_item_audit"
         `);
 
         if (checkPricelistItemAuditTable[0].count > 0) {

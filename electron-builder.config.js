@@ -54,7 +54,10 @@ module.exports = {
         arch: ["x64"],
       },
     ],
-    icon: "public/icons/JKlogo-512.png",
+    // Windows needs .ico format
+    // electron-builder will automatically convert .png to .ico if .ico doesn't exist
+    // But it's better to provide .ico file for best quality
+    icon: "public/icons/JKlogo-512.ico", // Falls back to .png if .ico doesn't exist
     publisherName: "JK PosMan",
     requestedExecutionLevel: "asInvoker",
   },
@@ -65,9 +68,11 @@ module.exports = {
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
     shortcutName: "JK PosMan",
-    installerIcon: "public/icons/JKlogo-512.png",
-    uninstallerIcon: "public/icons/JKlogo-512.png",
-    installerHeaderIcon: "public/icons/JKlogo-512.png",
+    runAfterFinish: true, // Launch app after installation completes
+    // electron-builder will convert PNG to ICO automatically if ICO doesn't exist
+    installerIcon: "public/icons/JKlogo-512.ico", // Falls back to .png if .ico doesn't exist
+    uninstallerIcon: "public/icons/JKlogo-512.ico",
+    installerHeaderIcon: "public/icons/JKlogo-512.ico",
     include: "build/installer.nsh",
     license: "LICENSE",
     menuCategory: "Business",

@@ -195,18 +195,18 @@ export default function GlobalItemSearch({
             />
 
             {showResults && showDropdown && results.length > 0 && (
-                <div className="dropdown-menu show w-100" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                <div className="dropdown-menu show w-100" style={{ maxHeight: "400px", overflowY: "auto" }}>
                     <div className="dropdown-header">
                         <i className="bi bi-search me-2"></i>
-                        Found {results.length} item{results.length !== 1 ? 's' : ''}
+                        Found {results.length} item{results.length !== 1 ? "s" : ""}
                     </div>
                     {results.map((item, index) => (
                         <div
                             key={item.id}
-                            className={`dropdown-item d-flex justify-content-between align-items-start ${index === selectedIndex ? 'active' : ''
+                            className={`dropdown-item d-flex justify-content-between align-items-start ${index === selectedIndex ? "active" : ""
                                 }`}
                             onClick={() => handleItemSelect(item)}
-                            style={{ cursor: 'pointer' }}
+                            style={{ cursor: "pointer" }}
                         >
                             <div className="flex-grow-1">
                                 <div className="fw-semibold">{item.name}</div>
@@ -218,7 +218,7 @@ export default function GlobalItemSearch({
                                     <div className="mt-1">
                                         <small className="text-success">
                                             <i className="bi bi-list-ul me-1"></i>
-                                            Available in {item.totalPricelists} pricelist{item.totalPricelists !== 1 ? 's' : ''}
+                                            Available in {item.totalPricelists} pricelist{item.totalPricelists !== 1 ? "s" : ""}
                                         </small>
                                     </div>
                                 )}
@@ -226,7 +226,7 @@ export default function GlobalItemSearch({
                             <div className="text-end">
                                 {item.pricelists.map((pricelist, idx) => (
                                     <div key={idx} className="small">
-                                        <span className={`badge ${pricelist.isDefault ? 'bg-primary' : 'bg-secondary'} me-1`}>
+                                        <span className={`badge ${pricelist.isDefault ? "bg-primary" : "bg-secondary"} me-1`}>
                                             {pricelist.pricelistName}
                                         </span>
                                         <span className="text-muted">

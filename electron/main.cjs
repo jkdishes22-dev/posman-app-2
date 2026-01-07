@@ -89,7 +89,23 @@ function startNextServer() {
  * Create the main application window
  */
 function createWindow() {
-    mainWindow = new BrowserWindow({
+    // Try to find icon file (Windows uses .ico, macOS/Linux use .png)
+    const fs = require("fs");
+    let iconPath = null;
+    const iconDir = path.join(__dirname, "../public/icons");
+    
+    if (process.platform === "win32") {
+        // Windows: prefer .ico, fallback to .png
+        const icoPath = path.join(iconDir, "JKlogo-512.ico");
+        const pngPath = path.join(iconDir, "JKlogo-512.png");
+        iconPath = fs.existsSync(icoPath) ? icoPath : (fs.existsSync(pngPath) ? pngPath : null);
+    } else {
+        // macOS/Linux: use .png
+        const pngPath = path.join(iconDir, "JKlogo-512.png");
+        iconPath = fs.existsSync(pngPath) ? pngPath : null;
+    }
+    
+    const windowOptions = {
         width: 1400,
         height: 900,
         minWidth: 1024,
@@ -100,10 +116,16 @@ function createWindow() {
             preload: path.join(__dirname, "preload.cjs"),
             webSecurity: true,
         },
-        icon: path.join(__dirname, "../public/icons/JKlogo-512.png"),
         titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
         show: false, // Don't show until ready
-    });
+    };
+    
+    // Only set icon if file exists
+    if (iconPath) {
+        windowOptions.icon = iconPath;
+    }
+    
+    mainWindow = new BrowserWindow(windowOptions);
 
     // Show window when ready
     mainWindow.once("ready-to-show", () => {

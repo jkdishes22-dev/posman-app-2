@@ -34,14 +34,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         action,
         newStatus,
         userId: req.user?.id
-      }, 'Station status updated');
+      }, "Station status updated");
 
       res.status(200).json({
         message: `Station ${action}d successfully`,
         status: newStatus
       });
     } catch (error: any) {
-      logger.error({ error: error.message, stationId: req.query.stationId }, 'Failed to update station status');
+      logger.error({ error: error.message, stationId: req.query.stationId }, "Failed to update station status");
       res.status(500).json({
         message: "Error updating station status",
         error: error.message,

@@ -74,7 +74,7 @@ export default function SupervisorPage() {
             const billsResult = await apiCall(`/api/bills?date=${todayStr}&page=1&pageSize=1000`);
             
             // Fetch recent bills (last 24 hours) for activity feed
-            const recentBillsResult = await apiCall(`/api/bills?page=1&pageSize=20`);
+            const recentBillsResult = await apiCall("/api/bills?page=1&pageSize=20");
 
             let totalSales = 0;
             let activeBills = 0;

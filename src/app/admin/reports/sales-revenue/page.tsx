@@ -34,8 +34,8 @@ export default function SalesRevenueReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [dateRange, setDateRange] = useState({
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: new Date().toISOString().split("T")[0]
   });
   const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("day");
   const [selectedItemId, setSelectedItemId] = useState<string>("");
@@ -189,7 +189,7 @@ export default function SalesRevenueReportPage() {
                       <option value="">All Items</option>
                       {items.map((item) => (
                         <option key={item.id} value={item.id.toString()}>
-                          {item.name} {item.code ? `(${item.code})` : ''}
+                          {item.name} {item.code ? `(${item.code})` : ""}
                         </option>
                       ))}
                     </Form.Select>

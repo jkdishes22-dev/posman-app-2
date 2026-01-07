@@ -24,13 +24,13 @@ const NotAuthorizedPage = () => {
               {/* Icon */}
               <div className="mb-4">
                 <div className="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger bg-opacity-10"
-                  style={{ width: '80px', height: '80px' }}>
-                  <i className="bi bi-shield-exclamation text-danger" style={{ fontSize: '2.5rem' }}></i>
+                  style={{ width: "80px", height: "80px" }}>
+                  <i className="bi bi-shield-exclamation text-danger" style={{ fontSize: "2.5rem" }}></i>
                 </div>
               </div>
 
               {/* Title */}
-              <h1 className="fw-bold text-dark mb-3" style={{ fontSize: '2.5rem' }}>
+              <h1 className="fw-bold text-dark mb-3" style={{ fontSize: "2.5rem" }}>
                 Access Denied
               </h1>
 

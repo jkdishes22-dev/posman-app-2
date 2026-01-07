@@ -1,0 +1,7 @@
+# Ignore CommonJS migration files (they use require() which is correct for .cjs)
+**/*.cjs
+# Ignore build outputs
+.next/
+dist/
+dist-electron/
+node_modules/

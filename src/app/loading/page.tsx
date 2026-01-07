@@ -13,8 +13,8 @@ const LoadingPage = () => {
                             {/* Loading Icon */}
                             <div className="mb-4">
                                 <div className="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary bg-opacity-10"
-                                    style={{ width: '80px', height: '80px' }}>
-                                    <div className="spinner-border text-primary" role="status" style={{ width: '2.5rem', height: '2.5rem' }}>
+                                    style={{ width: "80px", height: "80px" }}>
+                                    <div className="spinner-border text-primary" role="status" style={{ width: "2.5rem", height: "2.5rem" }}>
                                         <span className="visually-hidden">Loading...</span>
                                     </div>
                                 </div>
@@ -30,11 +30,11 @@ const LoadingPage = () => {
                             </p>
 
                             {/* Progress Bar */}
-                            <div className="progress mb-4" style={{ height: '4px' }}>
+                            <div className="progress mb-4" style={{ height: "4px" }}>
                                 <div
                                     className="progress-bar bg-primary"
                                     role="progressbar"
-                                    style={{ width: '100%' }}
+                                    style={{ width: "100%" }}
                                     aria-valuenow={100}
                                     aria-valuemin={0}
                                     aria-valuemax={100}

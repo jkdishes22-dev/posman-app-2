@@ -97,17 +97,17 @@ export default function AdminPage() {
                 <Card
                   className="h-100 shadow-sm border-0 admin-feature-card"
                   style={{
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease-in-out'
+                    cursor: "pointer",
+                    transition: "all 0.2s ease-in-out"
                   }}
                   onClick={() => router.push(feature.path)}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
                   }}
                   data-bs-toggle="tooltip"
                   data-bs-placement="top"

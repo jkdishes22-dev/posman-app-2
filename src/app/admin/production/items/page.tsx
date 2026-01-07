@@ -67,8 +67,8 @@ export default function InventoryPage() {
       filtered = filtered.filter((item) => item.isStock === false);
     } else if (itemFilter === "both") {
       // Items that are both stock and sellable would need a different check
-      // For now, show all items
-      filtered = filtered;
+      // For now, show all items (no filtering needed)
+      // filtered already contains all items
     }
     // "all" shows everything
 

@@ -1,12 +1,12 @@
 "use client";
 
-import React from 'react';
-import { Button } from 'react-bootstrap';
-import { useAuth } from '../contexts/AuthContext';
+import React from "react";
+import { Button } from "react-bootstrap";
+import { useAuth } from "../contexts/AuthContext";
 
 interface LogoutButtonProps {
     variant?: string;
-    size?: 'sm' | 'lg';
+    size?: "sm" | "lg";
     className?: string;
     children?: React.ReactNode;
 }

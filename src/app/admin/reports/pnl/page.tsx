@@ -24,8 +24,8 @@ export default function PnLReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [dateRange, setDateRange] = useState({
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: new Date().toISOString().split("T")[0]
   });
   const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("day");
   const apiCall = useApiCall();
@@ -170,7 +170,7 @@ export default function PnLReportPage() {
             </div>
           </div>
           <div className="col-md-3">
-            <div className={`card text-white ${totals.actualPnL >= 0 ? 'bg-success' : 'bg-danger'}`}>
+            <div className={`card text-white ${totals.actualPnL >= 0 ? "bg-success" : "bg-danger"}`}>
               <div className="card-body">
                 <h6 className="card-title">Actual P&L</h6>
                 <h3 className="mb-0">${(totals.actualPnL || 0).toFixed(2)}</h3>
@@ -178,7 +178,7 @@ export default function PnLReportPage() {
             </div>
           </div>
           <div className="col-md-3">
-            <div className={`card text-white ${totals.projectedPnL >= 0 ? 'bg-success' : 'bg-danger'}`}>
+            <div className={`card text-white ${totals.projectedPnL >= 0 ? "bg-success" : "bg-danger"}`}>
               <div className="card-body">
                 <h6 className="card-title">Projected P&L</h6>
                 <h3 className="mb-0">${(totals.projectedPnL || 0).toFixed(2)}</h3>
@@ -222,10 +222,10 @@ export default function PnLReportPage() {
                             <td>${(Number(report.projectedRevenue) || 0).toFixed(2)}</td>
                             <td>${(Number(report.expenses) || 0).toFixed(2)}</td>
                             <td>${(Number(report.voids) || 0).toFixed(2)}</td>
-                            <td className={report.actualPnL >= 0 ? 'text-success' : 'text-danger'}>
+                            <td className={report.actualPnL >= 0 ? "text-success" : "text-danger"}>
                               ${(Number(report.actualPnL) || 0).toFixed(2)}
                             </td>
-                            <td className={report.projectedPnL >= 0 ? 'text-success' : 'text-danger'}>
+                            <td className={report.projectedPnL >= 0 ? "text-success" : "text-danger"}>
                               ${(Number(report.projectedPnL) || 0).toFixed(2)}
                             </td>
                           </tr>

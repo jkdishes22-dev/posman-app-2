@@ -18,7 +18,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 const { status } = req.query;
 
                 let stations;
-                if (status === 'enabled') {
+                if (status === "enabled") {
                     stations = await stationService.getEnabledStations();
                 } else {
                     stations = await stationService.getAllStations();

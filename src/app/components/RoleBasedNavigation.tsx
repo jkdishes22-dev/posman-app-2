@@ -1,8 +1,8 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { Nav, Navbar, NavDropdown, Badge } from 'react-bootstrap';
-import Link from 'next/link';
-import { getMenuItems } from '../../backend/config/role-permissions';
+import React, { useState, useEffect } from "react";
+import { Nav, Navbar, NavDropdown, Badge } from "react-bootstrap";
+import Link from "next/link";
+import { getMenuItems } from "../../backend/config/role-permissions";
 
 interface User {
   id: number;
@@ -21,31 +21,31 @@ export default function RoleBasedNavigation({ user, currentPath }: RoleBasedNavi
 
   useEffect(() => {
     // Get menu items based on user's primary role
-    const primaryRole = user.roles[0] || 'sales';
+    const primaryRole = user.roles[0] || "sales";
     const items = getMenuItems(primaryRole);
     setMenuItems(items);
   }, [user.roles]);
 
   const getRoleDisplayName = (role: string) => {
     const roleNames = {
-      admin: 'Administrator',
-      supervisor: 'Supervisor',
-      sales: 'Sales',
-      cashier: 'Cashier',
-      storekeeper: 'Storekeeper'
+      admin: "Administrator",
+      supervisor: "Supervisor",
+      sales: "Sales",
+      cashier: "Cashier",
+      storekeeper: "Storekeeper"
     };
     return roleNames[role] || role;
   };
 
   const getRoleBadgeColor = (role: string) => {
     const colors = {
-      admin: 'danger',
-      supervisor: 'warning',
-      sales: 'primary',
-      cashier: 'success',
-      storekeeper: 'info'
+      admin: "danger",
+      supervisor: "warning",
+      sales: "primary",
+      cashier: "success",
+      storekeeper: "info"
     };
-    return colors[role] || 'secondary';
+    return colors[role] || "secondary";
   };
 
   return (
@@ -66,7 +66,7 @@ export default function RoleBasedNavigation({ user, currentPath }: RoleBasedNavi
                 as={Link}
                 href={item.path}
                 className={`fw-semibold ${
-                  currentPath === item.path ? 'text-primary' : 'text-dark'
+                  currentPath === item.path ? "text-primary" : "text-dark"
                 }`}
               >
                 <i className={`${item.icon} me-1`}></i>

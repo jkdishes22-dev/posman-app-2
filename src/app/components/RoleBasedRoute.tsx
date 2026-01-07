@@ -1,7 +1,7 @@
 "use client";
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { hasPermission, getMenuItems } from '../../backend/config/role-permissions';
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { hasPermission, getMenuItems } from "../../backend/config/role-permissions";
 
 interface User {
   id: number;
@@ -23,7 +23,7 @@ export default function RoleBasedRoute({
   user, 
   requiredPermission, 
   requiredRole, 
-  fallbackPath = '/not-authorized' 
+  fallbackPath = "/not-authorized" 
 }: RoleBasedRouteProps) {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
@@ -44,7 +44,7 @@ export default function RoleBasedRoute({
 
       // If no specific requirements, check if user has any valid role
       if (!requiredRole && !requiredPermission) {
-        const validRoles = ['admin', 'supervisor', 'sales', 'cashier', 'storekeeper'];
+        const validRoles = ["admin", "supervisor", "sales", "cashier", "storekeeper"];
         const hasValidRole = user.roles.some(role => validRoles.includes(role));
         
         if (!hasValidRole) {
@@ -68,7 +68,7 @@ export default function RoleBasedRoute({
   if (isAuthorized === null) {
     // Loading state
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: '50vh' }}>
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -124,7 +124,7 @@ export function useMenuItems(user: User) {
   const [menuItems, setMenuItems] = useState<any[]>([]);
 
   useEffect(() => {
-    const primaryRole = user.roles[0] || 'sales';
+    const primaryRole = user.roles[0] || "sales";
     const items = getMenuItems(primaryRole);
     setMenuItems(items);
   }, [user.roles]);

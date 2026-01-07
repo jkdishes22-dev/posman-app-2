@@ -19,7 +19,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (cached !== null) {
       // Set cache headers for browser caching (longer TTL for better performance)
       res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-      res.setHeader("ETag", `"categories"`);
+      res.setHeader("ETag", "\"categories\"");
       return res.status(200).json(cached);
     }
 
@@ -31,7 +31,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         cache.set(cacheKey, data);
         // Set cache headers (longer TTL for better performance)
         res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-        res.setHeader("ETag", `"categories"`);
+        res.setHeader("ETag", "\"categories\"");
       }
       return originalJson.call(this, data);
     };

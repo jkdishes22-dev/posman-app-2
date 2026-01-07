@@ -44,9 +44,9 @@ const QuantityModal: React.FC<QuantityModalProps> = ({ item, onClose, onConfirm 
     };
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && isValid) {
+        if (e.key === "Enter" && isValid) {
             handleConfirm();
-        } else if (e.key === 'Escape') {
+        } else if (e.key === "Escape") {
             onClose();
         }
     };
@@ -121,8 +121,8 @@ const QuantityModal: React.FC<QuantityModalProps> = ({ item, onClose, onConfirm 
                             onKeyDown={handleKeyPress}
                             min="1"
                             max="999"
-                            className={`text-center fw-bold ${!isValid ? 'is-invalid' : ''}`}
-                            style={{ fontSize: '1.25rem' }}
+                            className={`text-center fw-bold ${!isValid ? "is-invalid" : ""}`}
+                            style={{ fontSize: "1.25rem" }}
                         />
 
                         <Button

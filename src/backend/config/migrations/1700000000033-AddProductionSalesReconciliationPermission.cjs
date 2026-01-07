@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
- * @typedef {import('typeorm').MigrationInterface} MigrationInterface
- * @typedef {import('typeorm').QueryRunner} QueryRunner
+ * @typedef {import("typeorm").MigrationInterface} MigrationInterface
+ * @typedef {import("typeorm").QueryRunner} QueryRunner
  */
 
 const { QueryRunner } = require("typeorm");
@@ -22,11 +23,11 @@ class AddProductionSalesReconciliationPermission1700000000033 {
 
         // Get financial scope ID (reports are financial operations)
         const scopes = await queryRunner.query(
-            "SELECT id, name FROM `permission_scope` WHERE `name` = 'financial'"
+            "SELECT id, name FROM `permission_scope` WHERE `name` = \"financial\""
         );
 
         if (scopes.length === 0) {
-            console.log("   ⚠️  Warning: 'financial' scope not found, cannot create permission");
+            console.log("   ⚠️  Warning: \"financial\" scope not found, cannot create permission");
             return;
         }
 
@@ -84,7 +85,7 @@ class AddProductionSalesReconciliationPermission1700000000033 {
             const roleId = roleMap[roleName];
 
             if (!roleId) {
-                console.log(`   ⚠️  Warning: Role '${roleName}' not found, skipping`);
+                console.log(`   ⚠️  Warning: Role "${roleName}" not found, skipping`);
                 continue;
             }
 
@@ -104,10 +105,10 @@ class AddProductionSalesReconciliationPermission1700000000033 {
                     [roleId, permissionId]
                 );
                 totalAssigned++;
-                console.log(`   ✅ Assigned '${permissionName}' to '${roleName}'`);
+                console.log(`   ✅ Assigned "${permissionName}" to "${roleName}"`);
             } else {
                 totalSkipped++;
-                console.log(`   ⏭️  '${permissionName}' already assigned to '${roleName}'`);
+                console.log(`   ⏭️  "${permissionName}" already assigned to "${roleName}"`);
             }
         }
 

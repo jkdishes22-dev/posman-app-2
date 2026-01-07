@@ -56,14 +56,14 @@ export default function SupervisorSettingsPage() {
                             <div className="d-grid gap-2">
                               <Button
                                 variant="outline-primary"
-                                onClick={() => window.location.href = '/supervisor/menu/category'}
+                                onClick={() => window.location.href = "/supervisor/menu/category"}
                               >
                                 <i className="bi bi-grid me-1"></i>
                                 Manage Categories
                               </Button>
                               <Button
                                 variant="outline-primary"
-                                onClick={() => window.location.href = '/supervisor/menu/pricelist'}
+                                onClick={() => window.location.href = "/supervisor/menu/pricelist"}
                               >
                                 <i className="bi bi-tags me-1"></i>
                                 Manage Pricelists
@@ -81,14 +81,14 @@ export default function SupervisorSettingsPage() {
                             <div className="d-grid gap-2">
                               <Button
                                 variant="outline-success"
-                                onClick={() => window.location.href = '/supervisor/production/items'}
+                                onClick={() => window.location.href = "/supervisor/production/items"}
                               >
                                 <i className="bi bi-box me-1"></i>
                                 Manage Items
                               </Button>
                               <Button
                                 variant="outline-success"
-                                onClick={() => window.location.href = '/supervisor/menu/recipes'}
+                                onClick={() => window.location.href = "/supervisor/menu/recipes"}
                               >
                                 <i className="bi bi-calculator me-1"></i>
                                 Manage Definitions
@@ -113,14 +113,14 @@ export default function SupervisorSettingsPage() {
                             <div className="d-grid gap-2">
                               <Button
                                 variant="outline-primary"
-                                onClick={() => window.location.href = '/home/my-sales'}
+                                onClick={() => window.location.href = "/home/my-sales"}
                               >
                                 <i className="bi bi-receipt me-1"></i>
                                 Sales Bills
                               </Button>
                               <Button
                                 variant="outline-primary"
-                                onClick={() => window.location.href = '/home/post-sales'}
+                                onClick={() => window.location.href = "/home/post-sales"}
                               >
                                 <i className="bi bi-plus-circle me-1"></i>
                                 Create Bill
@@ -139,14 +139,14 @@ export default function SupervisorSettingsPage() {
                             <div className="d-grid gap-2">
                               <Button
                                 variant="outline-success"
-                                onClick={() => window.location.href = '/home/cashier/bills'}
+                                onClick={() => window.location.href = "/home/cashier/bills"}
                               >
                                 <i className="bi bi-cash-stack me-1"></i>
                                 Cashier Bills
                               </Button>
                               <Button
                                 variant="outline-success"
-                                onClick={() => window.location.href = '/supervisor/bills/change-requests'}
+                                onClick={() => window.location.href = "/supervisor/bills/change-requests"}
                               >
                                 <i className="bi bi-exclamation-triangle me-1"></i>
                                 Change Requests
@@ -167,7 +167,7 @@ export default function SupervisorSettingsPage() {
                             <div className="d-grid gap-2">
                               <Button
                                 variant="outline-warning"
-                                onClick={() => window.location.href = '/supervisor/bills/settings'}
+                                onClick={() => window.location.href = "/supervisor/bills/settings"}
                               >
                                 <i className="bi bi-gear me-1"></i>
                                 Manage Reopen Reasons

@@ -1,7 +1,7 @@
 "use client";
 
-import React from 'react';
-import { Station } from '../types/types';
+import React from "react";
+import { Station } from "../types/types";
 
 interface StationFilterProps {
     selectedStationId: number | null;
@@ -18,7 +18,7 @@ const StationFilter: React.FC<StationFilterProps> = ({
     availableStations,
     onStationFilterChange,
     onStationSwitch,
-    className = '',
+    className = "",
     showLabel = true,
     showSwitchOption = false
 }) => {

@@ -102,7 +102,7 @@ const ProfilePage = () => {
 
                 {loading ? (
                     <div className="text-center py-5">
-                        <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+                        <div className="spinner-border text-primary" role="status" style={{ width: "3rem", height: "3rem" }}>
                             <span className="visually-hidden">Loading...</span>
                         </div>
                         <p className="mt-3 text-muted">Loading profile...</p>
@@ -166,8 +166,8 @@ const ProfilePage = () => {
                                                                         Default Station
                                                                     </span>
                                                                 )}
-                                                                <span className={`badge ${station.status === 'active' ? 'bg-success' : 'bg-secondary'}`}>
-                                                                    <i className={`bi ${station.status === 'active' ? 'bi-check-circle' : 'bi-pause-circle'} me-1`}></i>
+                                                                <span className={`badge ${station.status === "active" ? "bg-success" : "bg-secondary"}`}>
+                                                                    <i className={`bi ${station.status === "active" ? "bi-check-circle" : "bi-pause-circle"} me-1`}></i>
                                                                     {station.status}
                                                                 </span>
                                                             </div>
@@ -184,7 +184,7 @@ const ProfilePage = () => {
                                         </div>
                                     ) : (
                                         <div className="text-center py-4">
-                                            <i className="bi bi-hdd text-muted" style={{ fontSize: '3rem' }}></i>
+                                            <i className="bi bi-hdd text-muted" style={{ fontSize: "3rem" }}></i>
                                             <p className="text-muted mt-3 mb-0">No stations assigned</p>
                                         </div>
                                     )}

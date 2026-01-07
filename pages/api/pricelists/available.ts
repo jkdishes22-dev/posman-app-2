@@ -17,8 +17,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
             // Check if user is admin
             const userRoles = req.user.roles.map((role) => role.name);
-            const isAdmin = userRoles.includes('admin');
-            logger.info({ userId, userRoles, isAdmin }, 'User accessing pricelists');
+            const isAdmin = userRoles.includes("admin");
+            logger.info({ userId, userRoles, isAdmin }, "User accessing pricelists");
 
 
             let pricelists = [];
@@ -67,7 +67,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 }));
             }
 
-            logger.info({ userId, pricelistCount: pricelists.length, isAdmin }, 'Returning pricelists to user');
+            logger.info({ userId, pricelistCount: pricelists.length, isAdmin }, "Returning pricelists to user");
             res.status(200).json({
                 message: "Pricelists fetched successfully",
                 pricelists

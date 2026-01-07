@@ -33,7 +33,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         limit: parseInt(limit as string),
         resultCount: searchResults.length,
         userId: userId
-      }, 'Item search performed for user');
+      }, "Item search performed for user");
 
       res.status(200).json({
         items: searchResults,
@@ -41,7 +41,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         total: searchResults.length
       });
     } catch (error: any) {
-      logger.error({ error: error.message, query: req.query.q, userId: req.user?.id }, 'Failed to search items');
+      logger.error({ error: error.message, query: req.query.q, userId: req.user?.id }, "Failed to search items");
       res.status(500).json({
         message: "Error searching items",
         error: error.message,

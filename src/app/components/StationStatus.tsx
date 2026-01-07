@@ -1,17 +1,17 @@
 "use client";
 
-import React from 'react';
-import { Badge, Card } from 'react-bootstrap';
-import { useStation } from '../contexts/StationContext';
+import React from "react";
+import { Badge, Card } from "react-bootstrap";
+import { useStation } from "../contexts/StationContext";
 
 interface StationStatusProps {
     className?: string;
-    variant?: 'compact' | 'detailed' | 'minimal';
+    variant?: "compact" | "detailed" | "minimal";
 }
 
 const StationStatus: React.FC<StationStatusProps> = ({
-    className = '',
-    variant = 'compact'
+    className = "",
+    variant = "compact"
 }) => {
     const { currentStation, availableStations, isLoading, error } = useStation();
 
@@ -48,7 +48,7 @@ const StationStatus: React.FC<StationStatusProps> = ({
         );
     }
 
-    if (variant === 'minimal') {
+    if (variant === "minimal") {
         return (
             <div className={`d-flex align-items-center ${className}`}>
                 <Badge bg="success" className="d-flex align-items-center small">
@@ -59,7 +59,7 @@ const StationStatus: React.FC<StationStatusProps> = ({
         );
     }
 
-    if (variant === 'compact') {
+    if (variant === "compact") {
         return (
             <div className={`d-flex align-items-center ${className}`}>
                 <Badge bg="success" className="d-flex align-items-center me-1 small">
@@ -94,7 +94,7 @@ const StationStatus: React.FC<StationStatusProps> = ({
                 {availableStations.length > 1 && (
                     <div className="mt-1">
                         <small className="text-muted">
-                            {availableStations.length - 1} other station{availableStations.length - 1 !== 1 ? 's' : ''} available
+                            {availableStations.length - 1} other station{availableStations.length - 1 !== 1 ? "s" : ""} available
                         </small>
                     </div>
                 )}

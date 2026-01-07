@@ -35,14 +35,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         action, 
         newStatus, 
         userId: req.user?.id 
-      }, 'Pricelist status updated');
+      }, "Pricelist status updated");
 
       res.status(200).json({ 
         message: `Pricelist ${action}d successfully`,
         status: newStatus 
       });
     } catch (error: any) {
-      logger.error({ error: error.message, pricelistId: req.query.pricelistId }, 'Failed to update pricelist status');
+      logger.error({ error: error.message, pricelistId: req.query.pricelistId }, "Failed to update pricelist status");
       res.status(500).json({
         message: "Error updating pricelist status",
         error: error.message,

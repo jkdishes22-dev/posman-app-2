@@ -207,7 +207,7 @@ export default function VoidApprovalInterface({
             {bills.length === 0 ? (
                 <Card>
                     <Card.Body className="text-center py-4">
-                        <i className="bi bi-check-circle text-success" style={{ fontSize: '3rem' }}></i>
+                        <i className="bi bi-check-circle text-success" style={{ fontSize: "3rem" }}></i>
                         <h6 className="mt-3 mb-1">No Pending Void Requests</h6>
                         <p className="text-muted mb-0">All void requests have been processed</p>
                     </Card.Body>
@@ -247,7 +247,7 @@ export default function VoidApprovalInterface({
                                         </thead>
                                         <tbody>
                                             {bill.bill_items
-                                                ?.filter((item) => item.status === 'void_pending')
+                                                ?.filter((item) => item.status === "void_pending")
                                                 .map((item) => (
                                                     <tr key={item.id}>
                                                         <td>{item.item.name}</td>
@@ -322,12 +322,12 @@ export default function VoidApprovalInterface({
                                 <strong>Total:</strong> ${(Number(selectedItem.subtotal) || 0).toFixed(2)}
                             </p>
                             <p className="mb-1">
-                                <strong>Reason:</strong> {selectedItem.void_reason || 'No reason provided'}
+                                <strong>Reason:</strong> {selectedItem.void_reason || "No reason provided"}
                             </p>
                             <p className="mb-0">
                                 <strong>Requested by:</strong> {selectedItem.void_requested_by_user ?
                                     `${selectedItem.void_requested_by_user.firstName} ${selectedItem.void_requested_by_user.lastName}` :
-                                    'Unknown'
+                                    "Unknown"
                                 }
                             </p>
                         </div>
@@ -417,12 +417,12 @@ export default function VoidApprovalInterface({
                                 <strong>Total:</strong> ${(Number(selectedItem.subtotal) || 0).toFixed(2)}
                             </p>
                             <p className="mb-1">
-                                <strong>Reason:</strong> {selectedItem.void_reason || 'No reason provided'}
+                                <strong>Reason:</strong> {selectedItem.void_reason || "No reason provided"}
                             </p>
                             <p className="mb-0">
                                 <strong>Requested by:</strong> {selectedItem.void_requested_by_user ?
                                     `${selectedItem.void_requested_by_user.firstName} ${selectedItem.void_requested_by_user.lastName}` :
-                                    'Unknown'
+                                    "Unknown"
                                 }
                             </p>
                         </div>

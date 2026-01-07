@@ -1,25 +1,25 @@
-import React from 'react';
-import { Button, Card, Alert, Badge, Table } from 'react-bootstrap';
+import React from "react";
+import { Button, Card, Alert, Badge, Table } from "react-bootstrap";
 
 // Material Design Button Component
 interface MaterialButtonProps {
-    variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'light' | 'dark';
-    size?: 'sm' | 'lg';
+    variant?: "primary" | "secondary" | "success" | "danger" | "warning" | "info" | "light" | "dark";
+    size?: "sm" | "lg";
     className?: string;
     children: React.ReactNode;
     onClick?: () => void;
     disabled?: boolean;
-    type?: 'button' | 'submit' | 'reset';
+    type?: "button" | "submit" | "reset";
 }
 
 export const MaterialButton: React.FC<MaterialButtonProps> = ({
-    variant = 'primary',
+    variant = "primary",
     size,
-    className = '',
+    className = "",
     children,
     onClick,
     disabled = false,
-    type = 'button'
+    type = "button"
 }) => {
     return (
         <Button
@@ -47,7 +47,7 @@ interface MaterialCardProps {
 export const MaterialCard: React.FC<MaterialCardProps> = ({
     title,
     subtitle,
-    className = '',
+    className = "",
     children,
     headerActions
 }) => {
@@ -69,7 +69,7 @@ export const MaterialCard: React.FC<MaterialCardProps> = ({
 
 // Material Design Alert Component
 interface MaterialAlertProps {
-    variant?: 'danger' | 'warning' | 'info' | 'success';
+    variant?: "danger" | "warning" | "info" | "success";
     title?: string;
     children: React.ReactNode;
     dismissible?: boolean;
@@ -78,12 +78,12 @@ interface MaterialAlertProps {
 }
 
 export const MaterialAlert: React.FC<MaterialAlertProps> = ({
-    variant = 'danger',
+    variant = "danger",
     title,
     children,
     dismissible = true,
     onDismiss,
-    className = ''
+    className = ""
 }) => {
     return (
         <Alert variant={variant} dismissible={dismissible} onClose={onDismiss} className={className}>
@@ -95,15 +95,15 @@ export const MaterialAlert: React.FC<MaterialAlertProps> = ({
 
 // Material Design Badge Component
 interface MaterialBadgeProps {
-    variant?: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'info' | 'light' | 'dark';
+    variant?: "primary" | "secondary" | "success" | "danger" | "warning" | "info" | "light" | "dark";
     children: React.ReactNode;
     className?: string;
 }
 
 export const MaterialBadge: React.FC<MaterialBadgeProps> = ({
-    variant = 'primary',
+    variant = "primary",
     children,
-    className = ''
+    className = ""
 }) => {
     return (
         <Badge bg={variant} className={className}>
@@ -125,7 +125,7 @@ interface MaterialTableProps {
 export const MaterialTable: React.FC<MaterialTableProps> = ({
     headers,
     data,
-    className = '',
+    className = "",
     striped = true,
     hover = true,
     bordered = false
@@ -169,7 +169,7 @@ export const MaterialSectionHeader: React.FC<MaterialSectionHeaderProps> = ({
     title,
     subtitle,
     actions,
-    className = ''
+    className = ""
 }) => {
     return (
         <div className={`d-flex justify-content-between align-items-center mb-4 ${className}`}>
@@ -184,7 +184,7 @@ export const MaterialSectionHeader: React.FC<MaterialSectionHeaderProps> = ({
 
 // Material Design Status Badge
 interface MaterialStatusBadgeProps {
-    status: 'active' | 'inactive' | 'pending' | 'success' | 'error' | 'warning';
+    status: "active" | "inactive" | "pending" | "success" | "error" | "warning";
     children: React.ReactNode;
     className?: string;
 }
@@ -192,22 +192,22 @@ interface MaterialStatusBadgeProps {
 export const MaterialStatusBadge: React.FC<MaterialStatusBadgeProps> = ({
     status,
     children,
-    className = ''
+    className = ""
 }) => {
     const getVariant = (status: string) => {
         switch (status) {
-            case 'active':
-            case 'success':
-                return 'success';
-            case 'inactive':
-            case 'error':
-                return 'danger';
-            case 'pending':
-                return 'warning';
-            case 'warning':
-                return 'warning';
+            case "active":
+            case "success":
+                return "success";
+            case "inactive":
+            case "error":
+                return "danger";
+            case "pending":
+                return "warning";
+            case "warning":
+                return "warning";
             default:
-                return 'secondary';
+                return "secondary";
         }
     };
 
@@ -218,7 +218,7 @@ export const MaterialStatusBadge: React.FC<MaterialStatusBadgeProps> = ({
     );
 };
 
-export default {
+const MaterialComponents = {
     MaterialButton,
     MaterialCard,
     MaterialAlert,
@@ -227,3 +227,5 @@ export default {
     MaterialSectionHeader,
     MaterialStatusBadge
 };
+
+export default MaterialComponents;

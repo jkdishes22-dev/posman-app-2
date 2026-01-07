@@ -25,8 +25,8 @@ export default function SupervisorProductionReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<any>(null);
   const [dateRange, setDateRange] = useState({
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: new Date().toISOString().split("T")[0]
   });
   const apiCall = useApiCall();
 
@@ -245,14 +245,14 @@ export default function SupervisorProductionReportsPage() {
                 <div className="d-grid gap-2">
                   <Button
                     variant="outline-primary"
-                    onClick={() => window.open('/supervisor/production', '_blank')}
+                    onClick={() => window.open("/supervisor/production", "_blank")}
                   >
                     <i className="bi bi-calendar-day me-1"></i>
                     Daily Production
                   </Button>
                   <Button
                     variant="outline-success"
-                    onClick={() => window.open('/supervisor/production/items', '_blank')}
+                    onClick={() => window.open("/supervisor/production/items", "_blank")}
                   >
                     <i className="bi bi-box me-1"></i>
                     Manage Items

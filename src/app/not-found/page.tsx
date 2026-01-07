@@ -24,14 +24,14 @@ const NotFoundPage = () => {
                             {/* Icon */}
                             <div className="mb-4">
                                 <div className="d-inline-flex align-items-center justify-content-center rounded-circle bg-warning bg-opacity-10"
-                                    style={{ width: '80px', height: '80px' }}>
-                                    <i className="bi bi-exclamation-triangle text-warning" style={{ fontSize: '2.5rem' }}></i>
+                                    style={{ width: "80px", height: "80px" }}>
+                                    <i className="bi bi-exclamation-triangle text-warning" style={{ fontSize: "2.5rem" }}></i>
                                 </div>
                             </div>
 
                             {/* Error Code */}
                             <div className="mb-3">
-                                <h1 className="fw-bold text-dark mb-0" style={{ fontSize: '4rem', lineHeight: '1' }}>
+                                <h1 className="fw-bold text-dark mb-0" style={{ fontSize: "4rem", lineHeight: "1" }}>
                                     404
                                 </h1>
                                 <div className="text-primary fw-medium">Page Not Found</div>

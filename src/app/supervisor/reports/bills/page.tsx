@@ -24,8 +24,8 @@ export default function SupervisorBillsReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<any>(null);
   const [dateRange, setDateRange] = useState({
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: new Date().toISOString().split("T")[0]
   });
   const apiCall = useApiCall();
 
@@ -250,14 +250,14 @@ export default function SupervisorBillsReportsPage() {
                 <div className="d-grid gap-2">
                   <Button
                     variant="outline-primary"
-                    onClick={() => window.open('/home/cashier/bills', '_blank')}
+                    onClick={() => window.open("/home/cashier/bills", "_blank")}
                   >
                     <i className="bi bi-cash-stack me-1"></i>
                     View Cashier Bills
                   </Button>
                   <Button
                     variant="outline-success"
-                    onClick={() => window.open('/home/my-sales', '_blank')}
+                    onClick={() => window.open("/home/my-sales", "_blank")}
                   >
                     <i className="bi bi-receipt me-1"></i>
                     View Sales Bills

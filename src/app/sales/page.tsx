@@ -27,15 +27,15 @@ export default function SalesPage() {
       });
 
       setActiveBills([
-        { id: 1, table: 'A1', items: 3, total: 45.50, status: 'active' },
-        { id: 2, table: 'B2', items: 2, total: 32.00, status: 'active' },
-        { id: 3, table: 'C3', items: 4, total: 67.25, status: 'active' }
+        { id: 1, table: "A1", items: 3, total: 45.50, status: "active" },
+        { id: 2, table: "B2", items: 2, total: 32.00, status: "active" },
+        { id: 3, table: "C3", items: 4, total: 67.25, status: "active" }
       ]);
 
       setRecentActivity([
-        { id: 1, type: 'bill', description: 'Bill #1234 completed', amount: 45.50, time: '5 min ago' },
-        { id: 2, type: 'payment', description: 'Payment received for #1233', amount: 32.00, time: '12 min ago' },
-        { id: 3, type: 'bill', description: 'New bill #1235 created', amount: 0, time: '18 min ago' }
+        { id: 1, type: "bill", description: "Bill #1234 completed", amount: 45.50, time: "5 min ago" },
+        { id: 2, type: "payment", description: "Payment received for #1233", amount: 32.00, time: "12 min ago" },
+        { id: 3, type: "bill", description: "New bill #1235 created", amount: 0, time: "18 min ago" }
       ]);
 
       setIsLoading(false);
@@ -46,7 +46,7 @@ export default function SalesPage() {
     return (
       <RoleAwareLayout>
         <div className="container-fluid">
-          <div className="d-flex justify-content-center align-items-center" style={{ height: '50vh' }}>
+          <div className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
             <div className="spinner-border text-primary" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
@@ -224,9 +224,9 @@ export default function SalesPage() {
                   {recentActivity.map((activity) => (
                     <div key={activity.id} className="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0 border-bottom">
                       <div className="d-flex align-items-center">
-                        <div className={`me-3 p-2 rounded-circle ${activity.type === 'bill' ? 'bg-primary' : 'bg-success'
+                        <div className={`me-3 p-2 rounded-circle ${activity.type === "bill" ? "bg-primary" : "bg-success"
                           }`}>
-                          <i className={`bi ${activity.type === 'bill' ? 'bi-receipt' : 'bi-credit-card'
+                          <i className={`bi ${activity.type === "bill" ? "bi-receipt" : "bi-credit-card"
                             } text-white`}></i>
                         </div>
                         <div>

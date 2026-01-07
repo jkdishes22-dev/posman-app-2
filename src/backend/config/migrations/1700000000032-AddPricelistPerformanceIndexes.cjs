@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { MigrationInterface, QueryRunner } = require("typeorm");
 
 /**
@@ -9,7 +10,7 @@ const { MigrationInterface, QueryRunner } = require("typeorm");
  * - Audit log queries by item_id and changed_at
  */
 module.exports = class AddPricelistPerformanceIndexes1700000000032 {
-    name = 'AddPricelistPerformanceIndexes1700000000032'
+    name = "AddPricelistPerformanceIndexes1700000000032"
 
     async up(queryRunner) {
         // Check if table exists helper - try to query the table directly
@@ -20,7 +21,7 @@ module.exports = class AddPricelistPerformanceIndexes1700000000032 {
                 return true;
             } catch (error) {
                 // If table doesn't exist, we'll get ER_NO_SUCH_TABLE error
-                if (error.code === 'ER_NO_SUCH_TABLE' || error.errno === 1146) {
+                if (error.code === "ER_NO_SUCH_TABLE" || error.errno === 1146) {
                     return false;
                 }
                 // For other errors, log and return false
@@ -36,8 +37,8 @@ module.exports = class AddPricelistPerformanceIndexes1700000000032 {
                     SELECT COUNT(*) as count
                     FROM INFORMATION_SCHEMA.STATISTICS
                     WHERE TABLE_SCHEMA = DATABASE()
-                    AND TABLE_NAME = '${tableName}'
-                    AND INDEX_NAME = '${indexName}'
+                    AND TABLE_NAME = \"${tableName}\"
+                    AND INDEX_NAME = \"${indexName}\"
                 `);
                 return result[0].count > 0;
             } catch (error) {

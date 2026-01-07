@@ -26,8 +26,8 @@ export default function ProductionStockRevenueReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [dateRange, setDateRange] = useState({
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    startDate: new Date().toISOString().split("T")[0],
+    endDate: new Date().toISOString().split("T")[0]
   });
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [items, setItems] = useState<Item[]>([]);
@@ -120,7 +120,7 @@ export default function ProductionStockRevenueReportPage() {
                     <Form.Label>Item</Form.Label>
                     <Form.Select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}>
                       <option value="">All Items</option>
-                      {items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ''}</option>)}
+                      {items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ""}</option>)}
                     </Form.Select>
                   </div>
                   <div className="col-md-3">

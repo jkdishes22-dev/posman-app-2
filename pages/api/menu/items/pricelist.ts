@@ -35,7 +35,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 count: items.length
             });
         } catch (error: any) {
-            logger.error({ error: error.message, pricelistId: req.query.pricelistId, userId: req.user?.id }, 'Failed to fetch pricelist items');
+            logger.error({ error: error.message, pricelistId: req.query.pricelistId, userId: req.user?.id }, "Failed to fetch pricelist items");
             res.status(500).json({
                 message: "Error fetching items for pricelist",
                 error: error.message,

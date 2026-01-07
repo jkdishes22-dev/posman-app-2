@@ -1,22 +1,22 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { useStation } from '../contexts/StationContext';
-import { useAuth } from '../contexts/AuthContext';
-import { Station } from '../types/types';
+import React, { useState, useRef, useEffect } from "react";
+import { useStation } from "../contexts/StationContext";
+import { useAuth } from "../contexts/AuthContext";
+import { Station } from "../types/types";
 
 interface StationSwitcherProps {
     className?: string;
     onStationChange?: (station: Station) => void;
     showLabel?: boolean;
-    size?: 'sm' | 'md' | 'lg';
+    size?: "sm" | "md" | "lg";
 }
 
 const StationSwitcher: React.FC<StationSwitcherProps> = ({
-    className = '',
+    className = "",
     onStationChange,
     showLabel = true,
-    size = 'md'
+    size = "md"
 }) => {
     const { currentStation, availableStations, setCurrentStation } = useStation();
     const { user } = useAuth();
@@ -26,7 +26,7 @@ const StationSwitcher: React.FC<StationSwitcherProps> = ({
 
     // Check if user has permission to switch stations (admin/supervisor only)
     const canSwitchStations = user?.roles?.some(role =>
-        role.name === 'admin' || role.name === 'supervisor'
+        role.name === "admin" || role.name === "supervisor"
     ) || false;
 
     // Handle station switching with error handling
@@ -51,8 +51,8 @@ const StationSwitcher: React.FC<StationSwitcherProps> = ({
         };
 
         if (showDropdown) {
-            document.addEventListener('mousedown', handleClickOutside);
-            return () => document.removeEventListener('mousedown', handleClickOutside);
+            document.addEventListener("mousedown", handleClickOutside);
+            return () => document.removeEventListener("mousedown", handleClickOutside);
         }
     }, [showDropdown]);
 
@@ -66,9 +66,9 @@ const StationSwitcher: React.FC<StationSwitcherProps> = ({
     }
 
     const sizeClasses = {
-        sm: 'btn-sm',
-        md: '',
-        lg: 'btn-lg'
+        sm: "btn-sm",
+        md: "",
+        lg: "btn-lg"
     };
 
     return (
@@ -93,7 +93,7 @@ const StationSwitcher: React.FC<StationSwitcherProps> = ({
                     {availableStations.map((station) => (
                         <li key={station.id}>
                             <button
-                                className={`dropdown-item ${currentStation?.id === station.id ? 'active' : ''}`}
+                                className={`dropdown-item ${currentStation?.id === station.id ? "active" : ""}`}
                                 onClick={() => handleStationSwitch(station)}
                             >
                                 <i className="bi bi-geo-alt me-2"></i>

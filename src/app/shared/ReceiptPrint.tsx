@@ -14,6 +14,7 @@ const ReceiptContent = ({ bill, label, showTotals = true }: { bill: any; label: 
     return (
         <div className="receipt-container">
             <div style={{ textAlign: "center", marginBottom: 4 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src="/icons/JKlogo-96.png"
                     alt="JKPOSMAN Logo"

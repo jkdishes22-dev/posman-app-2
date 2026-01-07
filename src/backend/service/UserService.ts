@@ -409,8 +409,8 @@ export class UserService {
 
   async addUserStation(payload: { station?: any; user: any }) {
     // Check if user already has this station assigned
-    const userId = typeof payload.user === 'object' ? payload.user.id : payload.user;
-    const stationId = typeof payload.station === 'object' ? payload.station.id : payload.station;
+    const userId = typeof payload.user === "object" ? payload.user.id : payload.user;
+    const stationId = typeof payload.station === "object" ? payload.station.id : payload.station;
 
     const existingUserStation = await this.userStationRepository.findOne({
       where: {

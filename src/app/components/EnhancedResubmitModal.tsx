@@ -48,7 +48,7 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
         if (!reference || paymentMethod !== "mpesa") return true;
 
         try {
-            const result = await apiCall(`/api/payments/check-reference`, {
+            const result = await apiCall("/api/payments/check-reference", {
                 method: "POST",
                 body: JSON.stringify({
                     reference: reference.trim(),
@@ -310,7 +310,7 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
                                                 disabled={isSubmitting}
                                                 min="0"
                                                 max={remainingAmount}
-                                                className={cashAmount && parseFloat(cashAmount) > remainingAmount ? 'is-invalid' : ''}
+                                                className={cashAmount && parseFloat(cashAmount) > remainingAmount ? "is-invalid" : ""}
                                             />
                                             {cashAmount && parseFloat(cashAmount) > remainingAmount && (
                                                 <div className="invalid-feedback">
@@ -339,7 +339,7 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
                                                     disabled={isSubmitting}
                                                     min="0"
                                                     max={remainingAmount}
-                                                    className={mpesaAmount && parseFloat(mpesaAmount) > remainingAmount ? 'is-invalid' : ''}
+                                                    className={mpesaAmount && parseFloat(mpesaAmount) > remainingAmount ? "is-invalid" : ""}
                                                 />
                                                 {mpesaAmount && parseFloat(mpesaAmount) > remainingAmount && (
                                                     <div className="invalid-feedback">

@@ -2,13 +2,13 @@
  * Utility functions for printing receipts with timestamp-based filenames
  */
 
-import React from 'react';
-import ReactDOM from 'react-dom/client';
+import React from "react";
+import ReactDOM from "react-dom/client";
 
 export interface PrintOptions {
     bill: any;
     title: string;
-    type: 'customer' | 'captain' | 'receipt';
+    type: "customer" | "captain" | "receipt";
 }
 
 /**
@@ -16,8 +16,8 @@ export interface PrintOptions {
  */
 export const generateReceiptFilename = (bill: any, type: string): string => {
     const now = new Date();
-    const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const billId = bill.id || bill.bill_id || bill.billId || bill.bill_number || 'unknown';
+    const timestamp = now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const billId = bill.id || bill.bill_id || bill.billId || bill.bill_number || "unknown";
     const dateStr = now.toISOString().slice(0, 10); // YYYY-MM-DD format
 
     return `receipt_${type}_${billId}_${dateStr}_${timestamp}.html`;
@@ -29,7 +29,7 @@ export const generateReceiptFilename = (bill: any, type: string): string => {
 export const generatePrintTitle = (bill: any, type: string): string => {
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    const billId = bill.id || bill.bill_id || bill.billId || bill.bill_number || 'N/A';
+    const billId = bill.id || bill.bill_id || bill.billId || bill.bill_number || "N/A";
 
     return `${type.charAt(0).toUpperCase() + type.slice(1)} Copy - Bill #${billId} - ${timeStr}`;
 };
@@ -41,14 +41,14 @@ export const printReceiptWithTimestamp = async (
     Component: any,
     bill: any,
     title: string,
-    type: 'customer' | 'captain' | 'receipt' = 'receipt'
+    type: "customer" | "captain" | "receipt" = "receipt"
 ): Promise<void> => {
     return new Promise<void>((resolve) => {
         // Create a temporary div for the receipt
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px';
-        tempDiv.style.top = '-9999px';
+        const tempDiv = document.createElement("div");
+        tempDiv.style.position = "absolute";
+        tempDiv.style.left = "-9999px";
+        tempDiv.style.top = "-9999px";
         document.body.appendChild(tempDiv);
 
         // Render the component
@@ -61,11 +61,11 @@ export const printReceiptWithTimestamp = async (
             const filename = generateReceiptFilename(bill, type);
             const printTitle = generatePrintTitle(bill, type);
 
-            const win = window.open('', '', 'width=350,height=600');
+            const win = window.open("", "", "width=350,height=600");
 
             // Check if pop-up was blocked
             if (!win) {
-                alert('Pop-up blocked! Please allow pop-ups for this site and try again.');
+                alert("Pop-up blocked! Please allow pop-ups for this site and try again.");
                 // Clean up
                 root.unmount();
                 document.body.removeChild(tempDiv);
@@ -77,13 +77,13 @@ export const printReceiptWithTimestamp = async (
                 // Set the document title with timestamp
                 win.document.title = printTitle;
 
-                win.document.write('<html><head>');
+                win.document.write("<html><head>");
                 win.document.write(`<title>${printTitle}</title>`);
-                win.document.write('<meta charset="utf-8">');
-                win.document.write('<meta name="viewport" content="width=device-width, initial-scale=1.0">');
-                win.document.write('</head><body>');
+                win.document.write("<meta charset=\"utf-8\">");
+                win.document.write("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
+                win.document.write("</head><body>");
                 win.document.write(printContents);
-                win.document.write('</body></html>');
+                win.document.write("</body></html>");
                 win.document.close();
                 win.focus();
 
@@ -99,7 +99,7 @@ export const printReceiptWithTimestamp = async (
                     resolve();
                 }, 500);
             } catch (error) {
-                console.error('Print error:', error);
+                console.error("Print error:", error);
                 // Clean up
                 root.unmount();
                 document.body.removeChild(tempDiv);
@@ -115,14 +115,14 @@ export const printReceiptWithTimestamp = async (
 export const downloadReceiptAsFile = async (
     Component: any,
     bill: any,
-    type: 'customer' | 'captain' | 'receipt' = 'receipt'
+    type: "customer" | "captain" | "receipt" = "receipt"
 ): Promise<void> => {
     return new Promise<void>((resolve) => {
         // Create a temporary div for the receipt
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px';
-        tempDiv.style.top = '-9999px';
+        const tempDiv = document.createElement("div");
+        tempDiv.style.position = "absolute";
+        tempDiv.style.left = "-9999px";
+        tempDiv.style.top = "-9999px";
         document.body.appendChild(tempDiv);
 
         // Render the component
@@ -155,9 +155,9 @@ export const downloadReceiptAsFile = async (
 </html>`;
 
             // Create and download the file
-            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const blob = new Blob([htmlContent], { type: "text/html" });
             const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
+            const link = document.createElement("a");
             link.href = url;
             link.download = filename;
             document.body.appendChild(link);

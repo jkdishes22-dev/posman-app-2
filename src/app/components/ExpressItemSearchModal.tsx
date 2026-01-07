@@ -202,7 +202,7 @@ export default function ExpressItemSearchModal({
                     key={item.id}
                     className="list-group-item list-group-item-action"
                     onClick={() => handleItemClick(item)}
-                    style={{ cursor: 'pointer' }}
+                    style={{ cursor: "pointer" }}
                   >
                     <div className="d-flex justify-content-between align-items-start">
                       <div className="flex-grow-1">

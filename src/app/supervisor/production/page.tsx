@@ -23,7 +23,7 @@ export default function SupervisorDailyProductionPage() {
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
 
   const apiCall = useApiCall();
 

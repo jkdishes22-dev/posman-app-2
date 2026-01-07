@@ -43,7 +43,7 @@ export default function ReopeningInterface({
     // Business rule validation (Rule 4.4)
     const canReopenBill = (bill: Bill) => {
         // Only allow reopening if bill is submitted AND has actual issues
-        if (bill.status !== 'submitted') {
+        if (bill.status !== "submitted") {
             return false;
         }
 
@@ -65,7 +65,7 @@ export default function ReopeningInterface({
     };
 
     const canResubmitBill = (bill: Bill) => {
-        return bill.status === 'reopened';
+        return bill.status === "reopened";
     };
 
     // Fetch reopen reasons on component mount
@@ -180,7 +180,7 @@ export default function ReopeningInterface({
         <div>
 
             {/* Cashier/Supervisor User - Reopen Interface */}
-            {userRole === 'cashier' && bill.status === 'submitted' && (
+            {userRole === "cashier" && bill.status === "submitted" && (
                 <div className="mb-3">
                     {canReopenBill(bill) ? (
                         <div>
@@ -196,7 +196,7 @@ export default function ReopeningInterface({
             )}
 
             {/* Sales User - Resubmit Interface */}
-            {userRole === 'sales' && canResubmitBill(bill) && (
+            {userRole === "sales" && canResubmitBill(bill) && (
                 <div className="mb-3">
                     <Button
                         variant="primary"

@@ -20,7 +20,7 @@ export default function StationPage() {
   const [selectedStationId, setSelectedStationId] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<{ type: 'activate' | 'deactivate', stationId: number, stationName: string } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: "activate" | "deactivate", stationId: number, stationName: string } | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
   const [fetchStationsError, setFetchStationsError] = useState(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
@@ -390,17 +390,17 @@ export default function StationPage() {
       });
 
       if (result.status === 200) {
-        console.log('Station status updated successfully, refreshing data...');
+        console.log("Station status updated successfully, refreshing data...");
         // Refresh stations list
         const refreshResult = await apiCall("/api/stations");
-        console.log('Refreshed stations data:', refreshResult.data);
+        console.log("Refreshed stations data:", refreshResult.data);
         if (refreshResult.status === 200) {
           setStations(refreshResult.data || []);
           // Don't set filteredStations here - let the useEffect handle it
           // This ensures proper filtering by status
-          console.log('Stations updated, useEffect will handle filtering');
+          console.log("Stations updated, useEffect will handle filtering");
         } else {
-          console.error('Failed to refresh stations:', refreshResult.error);
+          console.error("Failed to refresh stations:", refreshResult.error);
           setErrorDetails(refreshResult.errorDetails);
         }
         setShowConfirmModal(false);
@@ -491,7 +491,7 @@ export default function StationPage() {
                       </label>
                       <select
                         className="form-select"
-                        style={{ width: 'auto', minWidth: '150px' }}
+                        style={{ width: "auto", minWidth: "150px" }}
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
                       >
@@ -519,7 +519,7 @@ export default function StationPage() {
                   handleClose={() => setShowModal(false)}
                   handleAddStation={handleAddStation}
                 />
-                <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                <div className="table-responsive" style={{ maxHeight: "400px", overflowY: "auto" }}>
                   <table className="table table-hover mb-0">
                     <thead className="table-light">
                       <tr>
@@ -534,8 +534,8 @@ export default function StationPage() {
                         <tr
                           key={station.id}
                           onClick={() => setSelectedStationId(station.id)}
-                          className={`cursor-pointer ${selectedStationId === station.id ? 'table-primary' : ''}`}
-                          style={{ cursor: 'pointer' }}
+                          className={`cursor-pointer ${selectedStationId === station.id ? "table-primary" : ""}`}
+                          style={{ cursor: "pointer" }}
                         >
                           <td className="fw-medium">{index + 1}</td>
                           <td>{station.name}</td>
@@ -603,7 +603,7 @@ export default function StationPage() {
                             setLinkPricelistError(null);
                             setShowPricelistModal(true);
                           }}
-                          disabled={!selectedStationId || stations.find(s => s.id === selectedStationId)?.status !== 'active'}
+                          disabled={!selectedStationId || stations.find(s => s.id === selectedStationId)?.status !== "active"}
                         >
                           <i className="bi bi-plus-circle me-1"></i>
                           Add
@@ -614,7 +614,7 @@ export default function StationPage() {
                       <i className="bi bi-info-circle me-1"></i>
                       The <strong>Default</strong> pricelist is used for billing on this station.
                     </div>
-                    {selectedStationId && stations.find(s => s.id === selectedStationId)?.status !== 'active' && (
+                    {selectedStationId && stations.find(s => s.id === selectedStationId)?.status !== "active" && (
                       <div className="alert alert-warning alert-sm mt-2 mb-0" role="alert">
                         <i className="bi bi-exclamation-triangle me-1"></i>
                         <strong>Station Inactive:</strong> Cannot add or manage pricelists.
@@ -668,7 +668,7 @@ export default function StationPage() {
                                     variant="outline-primary"
                                     size="sm"
                                     onClick={() => handleSetDefaultPricelist(pricelist.id)}
-                                    disabled={stations.find(s => s.id === selectedStationId)?.status !== 'active'}
+                                    disabled={stations.find(s => s.id === selectedStationId)?.status !== "active"}
                                   >
                                     <i className="bi bi-star me-1"></i>
                                     Set Default
@@ -678,7 +678,7 @@ export default function StationPage() {
                                   variant="outline-secondary"
                                   size="sm"
                                   onClick={() => handleUnlinkPricelist(pricelist.id)}
-                                  disabled={stations.find(s => s.id === selectedStationId)?.status !== 'active'}
+                                  disabled={stations.find(s => s.id === selectedStationId)?.status !== "active"}
                                 >
                                   <i className="bi bi-trash me-1"></i>
                                   Remove
@@ -688,7 +688,7 @@ export default function StationPage() {
                           ))
                         ) : (
                           <div className="text-center py-4">
-                            <i className="bi bi-inbox text-muted" style={{ fontSize: '2rem' }}></i>
+                            <i className="bi bi-inbox text-muted" style={{ fontSize: "2rem" }}></i>
                             <p className="text-muted mt-2 mb-0">No pricelists linked to this station</p>
                           </div>
                         )}
@@ -714,13 +714,13 @@ export default function StationPage() {
                           setShowUserModal(true);
                           fetchAvailableUsers();
                         }}
-                        disabled={!selectedStationId || stations.find(s => s.id === selectedStationId)?.status !== 'active'}
+                        disabled={!selectedStationId || stations.find(s => s.id === selectedStationId)?.status !== "active"}
                       >
                         <i className="bi bi-plus-circle me-1"></i>
                         Add
                       </Button>
                     </div>
-                    {selectedStationId && stations.find(s => s.id === selectedStationId)?.status !== 'active' && (
+                    {selectedStationId && stations.find(s => s.id === selectedStationId)?.status !== "active" && (
                       <div className="alert alert-warning alert-sm mt-2 mb-0" role="alert">
                         <i className="bi bi-exclamation-triangle me-1"></i>
                         <strong>Station Inactive:</strong> Cannot add or manage users.
@@ -755,7 +755,7 @@ export default function StationPage() {
                                   variant="outline-secondary"
                                   size="sm"
                                   onClick={() => handleToggleUserStatus(user.id, user.status)}
-                                  disabled={stations.find(s => s.id === selectedStationId)?.status !== 'active'}
+                                  disabled={stations.find(s => s.id === selectedStationId)?.status !== "active"}
                                 >
                                   <i className={`bi ${user.status === "active" ? "bi-pause-circle" : "bi-play-circle"} me-1`}></i>
                                   {user.status === "active" ? "Deactivate" : "Activate"}
@@ -764,7 +764,7 @@ export default function StationPage() {
                                   variant="outline-danger"
                                   size="sm"
                                   onClick={() => handleRemoveUser(user.id)}
-                                  disabled={stations.find(s => s.id === selectedStationId)?.status !== 'active'}
+                                  disabled={stations.find(s => s.id === selectedStationId)?.status !== "active"}
                                 >
                                   <i className="bi bi-trash me-1"></i>
                                   Remove
@@ -774,7 +774,7 @@ export default function StationPage() {
                           ))
                         ) : (
                           <div className="text-center py-4">
-                            <i className="bi bi-person-x text-muted" style={{ fontSize: '2rem' }}></i>
+                            <i className="bi bi-person-x text-muted" style={{ fontSize: "2rem" }}></i>
                             <p className="text-muted mt-2 mb-0">No users linked to this station</p>
                           </div>
                         )}
@@ -790,7 +790,7 @@ export default function StationPage() {
 
       {/* Pricelist Selection Modal */}
       {showPricelistModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
@@ -847,7 +847,7 @@ export default function StationPage() {
                 </div>
               )}
 
-              <div className="modal-body" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <div className="modal-body" style={{ maxHeight: "400px", overflowY: "auto" }}>
                 {availablePricelists.length > 0 ? (
                   <div className="list-group list-group-flush">
                     {availablePricelists.map((pricelist) => (
@@ -868,7 +868,7 @@ export default function StationPage() {
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <i className="bi bi-inbox text-muted" style={{ fontSize: '2rem' }}></i>
+                    <i className="bi bi-inbox text-muted" style={{ fontSize: "2rem" }}></i>
                     <p className="text-muted mt-2 mb-0">No available pricelists to link</p>
                   </div>
                 )}
@@ -889,7 +889,7 @@ export default function StationPage() {
 
       {/* User Selection Modal */}
       {showUserModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
@@ -907,7 +907,7 @@ export default function StationPage() {
                   onClick={() => setShowUserModal(false)}
                 ></button>
               </div>
-              <div className="modal-body" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <div className="modal-body" style={{ maxHeight: "400px", overflowY: "auto" }}>
                 {addUserError && (
                   <div className="alert alert-danger alert-sm mb-3" role="alert">
                     <i className="bi bi-exclamation-triangle me-1"></i>
@@ -938,8 +938,8 @@ export default function StationPage() {
                             <h6 className="mb-1 fw-semibold">{user.firstName} {user.lastName}</h6>
                             <small className="text-muted">@{user.username}</small>
                             {user.role_name && (
-                              <span className={`badge ms-2 ${user.role_name === 'admin' ? 'bg-danger' : 'bg-primary'
-                                } text-white`} style={{ fontSize: '0.7rem' }}>
+                              <span className={`badge ms-2 ${user.role_name === "admin" ? "bg-danger" : "bg-primary"
+                                } text-white`} style={{ fontSize: "0.7rem" }}>
                                 {user.role_name}
                               </span>
                             )}
@@ -950,7 +950,7 @@ export default function StationPage() {
                               size="sm"
                               onClick={() => handleAddUser(user.id)}
                               className="btn-enterprise btn-enterprise-primary flex-shrink-0 rounded-pill"
-                              style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+                              style={{ fontSize: "0.8rem", padding: "0.25rem 0.5rem" }}
                               title="Add user to this station (gives billing permission)"
                             >
                               <i className="bi bi-plus-circle me-1"></i>
@@ -963,7 +963,7 @@ export default function StationPage() {
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <i className="bi bi-person-x text-muted" style={{ fontSize: '2rem' }}></i>
+                    <i className="bi bi-person-x text-muted" style={{ fontSize: "2rem" }}></i>
                     <p className="text-muted mt-2 mb-0">No available users to add</p>
                     <small className="text-muted">
                       Only users with <span className="badge bg-primary text-white ms-1 me-1">waiter</span>,
@@ -989,13 +989,13 @@ export default function StationPage() {
 
       {/* Confirmation Modal */}
       {showConfirmModal && confirmAction && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">
-                  <i className={`bi ${confirmAction.type === 'activate' ? 'bi-play-circle text-success' : 'bi-pause-circle text-danger'} me-2`}></i>
-                  {confirmAction.type === 'activate' ? 'Activate' : 'Deactivate'} Station
+                  <i className={`bi ${confirmAction.type === "activate" ? "bi-play-circle text-success" : "bi-pause-circle text-danger"} me-2`}></i>
+                  {confirmAction.type === "activate" ? "Activate" : "Deactivate"} Station
                 </h5>
                 <button
                   type="button"
@@ -1011,7 +1011,7 @@ export default function StationPage() {
                   Are you sure you want to <strong>{confirmAction.type}</strong> the station
                   <strong> "{confirmAction.stationName}"</strong>?
                 </p>
-                {confirmAction.type === 'deactivate' && (
+                {confirmAction.type === "deactivate" && (
                   <div className="alert alert-warning" role="alert">
                     <i className="bi bi-exclamation-triangle me-2"></i>
                     <strong>Warning:</strong> Deactivating this station will prevent users from billing on it and will disable all related operations.
@@ -1031,11 +1031,11 @@ export default function StationPage() {
                 </button>
                 <button
                   type="button"
-                  className={`btn ${confirmAction.type === 'activate' ? 'btn-success' : 'btn-danger'}`}
+                  className={`btn ${confirmAction.type === "activate" ? "btn-success" : "btn-danger"}`}
                   onClick={confirmToggleStationStatus}
                 >
-                  <i className={`bi ${confirmAction.type === 'activate' ? 'bi-play-circle' : 'bi-pause-circle'} me-1`}></i>
-                  {confirmAction.type === 'activate' ? 'Activate' : 'Deactivate'} Station
+                  <i className={`bi ${confirmAction.type === "activate" ? "bi-play-circle" : "bi-pause-circle"} me-1`}></i>
+                  {confirmAction.type === "activate" ? "Activate" : "Deactivate"} Station
                 </button>
               </div>
             </div>

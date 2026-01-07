@@ -1,22 +1,22 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Form, Alert, Spinner } from 'react-bootstrap';
-import { useStation } from '../contexts/StationContext';
-import { useAuth } from '../contexts/AuthContext';
-import { Station } from '../types/types';
+import React, { useState } from "react";
+import { Form, Alert, Spinner } from "react-bootstrap";
+import { useStation } from "../contexts/StationContext";
+import { useAuth } from "../contexts/AuthContext";
+import { Station } from "../types/types";
 
 interface StationSelectorProps {
     className?: string;
     showLabel?: boolean;
-    size?: 'sm' | 'lg';
+    size?: "sm" | "lg";
     disabled?: boolean;
 }
 
 const StationSelector: React.FC<StationSelectorProps> = ({
-    className = '',
+    className = "",
     showLabel = true,
-    size = 'sm',
+    size = "sm",
     disabled = false
 }) => {
     const {
@@ -32,7 +32,7 @@ const StationSelector: React.FC<StationSelectorProps> = ({
 
     // Check if user has permission to switch stations (admin/supervisor only)
     const canSwitchStations = user?.roles?.some(role =>
-        role.name === 'admin' || role.name === 'supervisor'
+        role.name === "admin" || role.name === "supervisor"
     ) || false;
 
     const handleStationChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -95,7 +95,7 @@ const StationSelector: React.FC<StationSelectorProps> = ({
         <div className={className}>
             <Form.Group>
                 <Form.Select
-                    value={currentStation?.id || ''}
+                    value={currentStation?.id || ""}
                     onChange={handleStationChange}
                     size={size}
                     disabled={disabled || isChanging}
