@@ -30,9 +30,10 @@ jobs:
         env:
           ELECTRON_BUILD: "true"
           NODE_ENV: "production"
-          # Add any required environment variables for build
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          # Optional: Add environment variables if your build requires them
+          # Most Next.js builds don't need these, but include if your build process connects to DB
+          DATABASE_URL: ${{ secrets.DATABASE_URL || '' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'build-token' }}
 
       - name: Verify standalone build exists
         run: |
@@ -42,9 +43,13 @@ jobs:
           }
 
       - name: Build Windows Installer (x64)
-        run: npx electron-builder --win --x64 --config.npmRebuild=false
+        run: npx electron-builder --win --x64 --config.npmRebuild=false --publish never
         env:
           NODE_ENV: "production"
+          # Disable auto-publishing - artifacts are uploaded for download
+          # For releases, use the build-windows.yml workflow with tags
+          GH_TOKEN: ""
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
       - name: Upload Windows Installer
         uses: actions/upload-artifact@v4

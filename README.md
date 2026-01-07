@@ -64,7 +64,7 @@ Before you begin, ensure you have the following installed:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/posman-app.git
+git clone <your-repository-url>
 cd posman-app
 ```
 
@@ -82,12 +82,13 @@ cp .env.example .env
 
 Edit the `.env` file with your configuration:
 ```env
-# Database
+# Database (supports both DB_* and MYSQL_* prefixes)
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=your_username
 DB_PASSWORD=your_password
 DB_NAME=posman_db
+# Alternative: MYSQL_HOST, MYSQL_PORT, MYSQL_USERNAME, MYSQL_PASSWORD, MYSQL_DATABASE
 
 # JWT
 JWT_SECRET=your_jwt_secret
@@ -278,10 +279,13 @@ win-*-unpacked/
    - name: Build Windows
      runs-on: windows-latest
      steps:
-       - uses: actions/checkout@v3
-       - run: npm install
+       - uses: actions/checkout@v4
+       - uses: actions/setup-node@v4
+         with:
+           node-version: '20.x'
+       - run: npm ci
        - run: ELECTRON_BUILD=true npm run build
-       - run: node scripts/build-electron.js win
+       - run: npx electron-builder --win --x64 --config.npmRebuild=false
    ```
 
 3. **Accept ARM64 build**: Works on Windows on ARM devices, but won't work on standard x64 Windows machines
@@ -360,22 +364,40 @@ The project includes GitHub Actions workflows for automated Windows builds. This
 
 **For Production Releases:**
 
-1. Create a version tag:
+**Option 1: Using Git Tags (Recommended - Auto-creates Release)**
+
+1. Create and push a version tag:
    ```bash
    git tag v1.0.0
    git push origin v1.0.0
    ```
 
-2. Or create a GitHub Release through the web interface
-
-3. The `build-windows.yml` workflow will:
+2. The `build-windows.yml` workflow will automatically:
    - Build both x64 and ia32 installers
    - Upload them as artifacts
-   - Create a GitHub Release with installers attached
+   - **Create a GitHub Release** with installers attached
 
-4. Download from either location:
-   - **Actions tab** → Artifacts section (as described above)
+3. Download from either location:
    - **Releases tab** → Your release → Assets section (direct download)
+   - **Actions tab** → Artifacts section (as backup)
+
+**Option 2: Creating GitHub Release Manually**
+
+1. Create a GitHub Release through the web interface:
+   - Go to **Releases** → **Draft a new release**
+   - Create a tag (e.g., `v1.0.0`) or use an existing tag
+   - Publish the release
+
+2. The `build-windows.yml` workflow will:
+   - Build both x64 and ia32 installers
+   - Upload them as artifacts
+   - **Note**: Installers will be in artifacts only (not automatically attached to the release)
+
+3. Manually attach installers to the release:
+   - Download artifacts from the Actions tab
+   - Edit the release and upload the `.exe` files to the Assets section
+
+**Recommendation**: Use Option 1 (Git tags) for automatic release creation with installers attached.
 
 #### Manual Trigger
 
@@ -401,6 +423,74 @@ When you download the artifact ZIP, it contains:
 - ✅ Artifact upload for easy download
 - ✅ Release creation with installers attached (for tagged releases)
 - ✅ Build status notifications in workflow logs
+
+#### GitHub Secrets Configuration
+
+The workflows require certain secrets to be configured in your GitHub repository. Here's what you need to set up:
+
+**Required Secrets:**
+
+1. **`DATABASE_URL`** (Optional but recommended)
+   - **Purpose**: Database connection string for Next.js build (if your build process needs database access)
+   - **Format**: `mysql://username:password@host:port/database_name`
+   - **Example**: `mysql://user:pass@localhost:3306/posman_db`
+   - **Note**: May not be required if your build doesn't connect to the database during build time
+   - **How to add**: Repository Settings → Secrets and variables → Actions → New repository secret
+
+2. **`JWT_SECRET`** (Optional but recommended)
+   - **Purpose**: JWT secret key for authentication (if used during build)
+   - **Format**: Any secure random string
+   - **Example**: `your-super-secret-jwt-key-here`
+   - **Note**: Use a strong, random string. Can be the same as your production secret or a build-only secret
+   - **How to add**: Repository Settings → Secrets and variables → Actions → New repository secret
+
+**Automatically Provided (No setup needed):**
+
+- **`GITHUB_TOKEN`** - Automatically provided by GitHub Actions
+  - Used for creating releases and uploading artifacts
+  - No configuration required
+
+**How to Add Secrets:**
+
+1. Go to your GitHub repository
+2. Click **Settings** (top menu)
+3. Click **Secrets and variables** → **Actions** (left sidebar)
+4. Click **New repository secret**
+5. Enter the secret name (e.g., `DATABASE_URL`)
+6. Enter the secret value
+7. Click **Add secret**
+
+**Optional: Making Secrets Optional**
+
+If your Next.js build doesn't require these secrets (most builds don't), you can make them optional by updating the workflow:
+
+```yaml
+env:
+  ELECTRON_BUILD: "true"
+  NODE_ENV: "production"
+  DATABASE_URL: ${{ secrets.DATABASE_URL || '' }}
+  JWT_SECRET: ${{ secrets.JWT_SECRET || 'build-only-secret' }}
+```
+
+Or remove them entirely if not needed:
+
+```yaml
+env:
+  ELECTRON_BUILD: "true"
+  NODE_ENV: "production"
+```
+
+**Security Best Practices:**
+
+- ✅ Never commit secrets to your repository
+- ✅ Use different secrets for different environments (dev/staging/prod)
+- ✅ Rotate secrets regularly
+- ✅ Use GitHub's secret scanning to detect exposed secrets
+- ✅ Limit access to secrets (use environment-specific secrets if needed)
+
+**Testing Without Secrets:**
+
+If you want to test the build without setting up secrets first, you can temporarily remove the secret references from the workflow files. The build should still work if your Next.js app doesn't require database access during build time.
 
 #### Benefits of GitHub Actions Builds
 
@@ -587,9 +677,53 @@ When developing features, consider these PWA guidelines:
 
 ## Database Setup
 
-The application uses MySQL with TypeORM for database management. Refer to the `src/backend/config/data-source.ts` file for database configuration.
+The application uses MySQL with TypeORM for database management.
 
-To ensure proper database initialization across different serverless instances, we have implemented centralized repository management and initialization checking. Refer to the `src/backend/utils/metadata-hack.ts` and `src/backend/datasource.ts` files for more details.
+### Configuration
+
+Database configuration is located in `src/backend/config/data-source.ts`. The application supports both `DB_*` and `MYSQL_*` environment variable prefixes:
+
+- `DB_HOST` or `MYSQL_HOST` (default: `localhost`)
+- `DB_PORT` or `MYSQL_PORT` (default: `3306`)
+- `DB_USER` or `MYSQL_USERNAME` (default: `root`)
+- `DB_PASSWORD` or `MYSQL_PASSWORD` (default: `password`)
+- `DB_NAME` or `MYSQL_DATABASE` (default: `test`)
+
+### Running Migrations
+
+The application uses TypeORM migrations for database schema management. To run migrations:
+
+```bash
+# Run all pending migrations
+npm run migration:run
+
+# Generate a new migration
+npm run migration:generate -- -n YourMigrationName
+
+# Revert the last migration
+npm run migration:revert
+
+# Show migration status
+npm run migration:show
+```
+
+Migration files are located in `src/backend/config/migrations/`. For more details, see the [migrations README](src/backend/config/migrations/README.md).
+
+### Initial Setup
+
+1. Create a MySQL database:
+   ```sql
+   CREATE DATABASE posman_db;
+   ```
+
+2. Configure your `.env` file with database credentials (see Installation section)
+
+3. Run migrations to set up the schema:
+   ```bash
+   npm run migration:run
+   ```
+
+4. (Optional) Seed initial data if seed scripts are available
 
 ## Contributing
 
