@@ -81,7 +81,7 @@ export default function PricelistUploadModal({
       }
     } catch (error: any) {
       setError("Network error occurred");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     } finally {
       setValidating(false);
     }
@@ -134,7 +134,7 @@ export default function PricelistUploadModal({
       }
     } catch (error: any) {
       setError("Network error occurred");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     } finally {
       setUploading(false);
     }

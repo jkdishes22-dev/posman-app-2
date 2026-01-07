@@ -91,7 +91,7 @@ const SupervisorBillsPage: React.FC = () => {
             }
         } catch (error) {
             setError("Network error occurred");
-            setErrorDetails({ networkError: true, status: 0 });
+            setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
             setBills([]);
             setTotal(0);
         } finally {

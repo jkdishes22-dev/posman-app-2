@@ -92,12 +92,12 @@ export default withPWA({
             },
         },
 
-        // 5. Semi-Static API Data - Stale While Revalidate
+        // 5. Semi-Static API Data - Network First with timeout
         // Menu items, categories, pricelists, stations - change infrequently
-        // This strategy serves cached data immediately, then updates in background
+        // This strategy tries network first, falls back to cache if slow
         {
             urlPattern: /^https?:\/\/.*\/api\/menu\/(?:categories|items|pricelists).*/i,
-            handler: "StaleWhileRevalidate",
+            handler: "NetworkFirst",
             options: {
                 cacheName: "menu-data-v1",
                 expiration: {
@@ -108,10 +108,10 @@ export default withPWA({
             },
         },
 
-        // 6. Station and Pricelist APIs - Stale While Revalidate
+        // 6. Station and Pricelist APIs - Network First with timeout
         {
             urlPattern: /^https?:\/\/.*\/api\/(?:stations|pricelists|station).*/i,
-            handler: "StaleWhileRevalidate",
+            handler: "NetworkFirst",
             options: {
                 cacheName: "station-data-v1",
                 expiration: {
@@ -122,10 +122,10 @@ export default withPWA({
             },
         },
 
-        // 7. User Profile Data - Stale While Revalidate
+        // 7. User Profile Data - Network First with timeout
         {
             urlPattern: /^https?:\/\/.*\/api\/users\/me.*/i,
-            handler: "StaleWhileRevalidate",
+            handler: "NetworkFirst",
             options: {
                 cacheName: "user-data-v1",
                 expiration: {

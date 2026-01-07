@@ -49,7 +49,7 @@ export default function SupervisorProductionReportsPage() {
       }
     } catch (error) {
       setError("Network error occurred");
-      setErrorDetails({ networkError: true, status: 0 });
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     } finally {
       setLoading(false);
     }

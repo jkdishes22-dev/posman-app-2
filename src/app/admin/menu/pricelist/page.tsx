@@ -239,7 +239,7 @@ export default function PricelistPage() {
     } catch (error: any) {
       console.error("Failed to add pricelist", error);
       setAddPricelistError("Failed to add pricelist: " + error.message);
-      setAddPricelistErrorDetails({ networkError: true, status: 0 });
+      setAddPricelistErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 
