@@ -328,6 +328,88 @@ The large size is normal for Electron apps because they include:
 - Consider code splitting or removing unused dependencies
 - Compression is already enabled (`compression: 'maximum'`)
 
+### Building with GitHub Actions
+
+The project includes GitHub Actions workflows for automated Windows builds. This is the recommended way to build Windows installers, especially for x64/ia32 architectures.
+
+#### Available Workflows
+
+1. **`build-windows-x64.yml`** - Continuous builds (x64 only)
+   - **Triggers**: On every push to `main` branch, pull requests, or manual trigger
+   - **Purpose**: Quick builds for testing and development
+   - **Artifact Retention**: 7 days
+
+2. **`build-windows.yml`** - Release builds (x64 + ia32)
+   - **Triggers**: On version tags (e.g., `v1.0.0`), GitHub releases, or manual trigger
+   - **Purpose**: Production releases with both architectures
+   - **Artifact Retention**: 30 days
+   - **Also creates**: GitHub Release with installers attached
+
+#### How to Use
+
+**For Development/Testing Builds:**
+
+1. Push to `main` branch or create a pull request
+2. The `build-windows-x64.yml` workflow will run automatically
+3. Download the installer from the Actions tab:
+   - Go to **Actions** tab in your GitHub repository
+   - Click on the workflow run (e.g., "Build Windows Installer (x64)")
+   - Scroll to the **Artifacts** section at the bottom
+   - Click on **windows-installer-x64** to download the ZIP file
+   - Extract the ZIP to get the `.exe` installer
+
+**For Production Releases:**
+
+1. Create a version tag:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+2. Or create a GitHub Release through the web interface
+
+3. The `build-windows.yml` workflow will:
+   - Build both x64 and ia32 installers
+   - Upload them as artifacts
+   - Create a GitHub Release with installers attached
+
+4. Download from either location:
+   - **Actions tab** → Artifacts section (as described above)
+   - **Releases tab** → Your release → Assets section (direct download)
+
+#### Manual Trigger
+
+You can also manually trigger a build:
+
+1. Go to **Actions** tab
+2. Select the workflow (e.g., "Build Windows Installer")
+3. Click **Run workflow** button
+4. Choose branch and click **Run workflow**
+
+#### What's Included in Artifacts
+
+When you download the artifact ZIP, it contains:
+- `posman-app Setup x.x.x.exe` - The Windows installer
+- `posman-app Setup x.x.x.exe.blockmap` - Update metadata (for auto-updates)
+- `latest.yml` - Update configuration (for auto-updates)
+
+#### Workflow Features
+
+- ✅ Automatic Next.js standalone build
+- ✅ Cross-compilation support (builds x64/ia32 on Windows runners)
+- ✅ Native module rebuild skipping (prevents build errors)
+- ✅ Artifact upload for easy download
+- ✅ Release creation with installers attached (for tagged releases)
+- ✅ Build status notifications in workflow logs
+
+#### Benefits of GitHub Actions Builds
+
+- **No local setup required** - Builds run on GitHub's Windows runners
+- **Correct architecture** - Always builds x64/ia32 (not ARM64)
+- **Automated** - Runs on every push or release
+- **Artifact storage** - Installers stored for 7-30 days
+- **Release integration** - Automatically attaches to GitHub Releases
+
 ### Progressive Web App Features
 
 The application is configured as a Progressive Web App (PWA) with the following features:
