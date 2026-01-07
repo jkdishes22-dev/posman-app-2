@@ -6,7 +6,7 @@ import { resolve } from "path";
 dotenv.config({ path: resolve(process.cwd(), ".env") });
 
 import "reflect-metadata";
-import { AppDataSource } from "./data-source";
+import { AppDataSource } from "./data-source.js"; // ES modules require .js extension (ts-node will resolve .ts)
 
 async function runMigrations() {
     try {

@@ -16,6 +16,9 @@ module.exports = {
   productName: "JK PosMan",
   copyright: "Copyright © 2024 JK PosMan",
 
+  // Ensure icon is set at root level for all platforms
+  icon: "public/icons/JKlogo-512.png", // electron-builder will convert to platform-specific format
+
   directories: {
     output: "dist-electron",
     buildResources: "build",
@@ -55,11 +58,17 @@ module.exports = {
       },
     ],
     // Windows needs .ico format
-    // electron-builder will automatically convert .png to .ico if .ico doesn't exist
-    // But it's better to provide .ico file for best quality
-    icon: "public/icons/JKlogo-512.ico", // Falls back to .png if .ico doesn't exist
+    // electron-builder will automatically convert PNG to ICO if ICO doesn't exist
+    // For best results, create JKlogo-512.ico manually (see scripts/create-windows-icon.md)
+    icon: "public/icons/JKlogo-512.png", // Will be auto-converted to .ico during build
     publisherName: "JK PosMan",
     requestedExecutionLevel: "asInvoker",
+    // Windows 7, 10, 11 compatibility
+    // Electron 27+ requires Windows 10+, but we can set minimum version
+    // For Windows 7 support, you may need to use an older Electron version
+    // For now, we'll target Windows 10+ (which includes Windows 11)
+    // Windows 7 users would need an older build with Electron < 20
+    signAndEditExecutable: false, // Set to true if you have code signing certificate
   },
 
   nsis: {
@@ -69,13 +78,16 @@ module.exports = {
     createStartMenuShortcut: true,
     shortcutName: "JK PosMan",
     runAfterFinish: true, // Launch app after installation completes
-    // electron-builder will convert PNG to ICO automatically if ICO doesn't exist
-    installerIcon: "public/icons/JKlogo-512.ico", // Falls back to .png if .ico doesn't exist
-    uninstallerIcon: "public/icons/JKlogo-512.ico",
-    installerHeaderIcon: "public/icons/JKlogo-512.ico",
+    // electron-builder will convert PNG to ICO automatically
+    installerIcon: "public/icons/JKlogo-512.png", // Will be converted to .ico automatically
+    uninstallerIcon: "public/icons/JKlogo-512.png",
+    installerHeaderIcon: "public/icons/JKlogo-512.png",
     include: "build/installer.nsh",
     license: "LICENSE",
     menuCategory: "Business",
+    // Additional NSIS options for better compatibility
+    perMachine: false, // Install for current user only (better for Windows 7/10 compatibility)
+    deleteAppDataOnUninstall: false, // Keep user data on uninstall
   },
 
   // macOS configuration

@@ -157,6 +157,11 @@ The production build includes:
 
 This application can be packaged as a Windows desktop application using Electron.
 
+**Supported Windows Versions:**
+- ✅ Windows 10 (recommended)
+- ✅ Windows 11
+- ⚠️ Windows 7: Requires older Electron version (< 20) - not officially supported in current build
+
 ### Prerequisites for Windows Build
 
 #### Icon Files Required
@@ -335,6 +340,44 @@ The large size is normal for Electron apps because they include:
 1. Navigate to `dist/win-*-unpacked/`
 2. Run `electron.exe` directly
 3. The app will launch without installation
+
+### Windows Debugging
+
+If the app doesn't launch after installation, check the log files:
+
+**Log File Location:**
+```
+C:\Users\<YourUsername>\AppData\Local\JK PosMan\logs\app-<timestamp>.log
+```
+
+**Quick Access:**
+1. Press `Win + R`
+2. Type: `%LOCALAPPDATA%\JK PosMan\logs`
+3. Press Enter
+4. Open the most recent log file
+
+**View Logs via PowerShell:**
+```powershell
+cd $env:LOCALAPPDATA\JK PosMan\logs
+Get-Content (Get-ChildItem -Filter "app-*.log" | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+```
+
+**Windows Event Viewer:**
+1. Press `Win + X` → "Event Viewer"
+2. Navigate to: **Windows Logs** → **Application**
+3. Look for entries related to "JK PosMan" or "electron"
+
+**Manual Testing:**
+1. Navigate to: `C:\Users\<YourUsername>\AppData\Local\Programs\JK PosMan\`
+2. Run `JK PosMan.exe` directly
+3. Check for error messages
+
+**Common Issues:**
+- **App doesn't launch**: Check log files, Windows Event Viewer, or antivirus blocking
+- **Port 3000 in use**: Change port or kill the process using it
+- **Windows 7**: Modern Electron requires Windows 10+. For Windows 7, use an older Electron version.
+
+See `scripts/windows-debug-guide.md` for detailed debugging instructions.
 
 ### Troubleshooting
 
