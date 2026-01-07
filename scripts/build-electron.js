@@ -46,23 +46,49 @@ if (!fs.existsSync(standalonePath)) {
 console.log("⚡ Step 2: Building Electron application...");
 const platform = process.argv[2] || "all"; // 'win', 'mac', 'linux', or 'all'
 
-let buildCommand = "electron-builder";
+// Detect cross-compilation (building for different platform than current)
+const currentPlatform = process.platform;
+const isCrossCompilation =
+  (platform === "win" && currentPlatform !== "win32") ||
+  (platform === "mac" && currentPlatform !== "darwin") ||
+  (platform === "linux" && currentPlatform !== "linux");
+
+if (isCrossCompilation) {
+  console.log("⚠️  Cross-compilation detected. Skipping native module rebuild...");
+  console.log("   Note: For best results, build Windows packages on a Windows machine.");
+}
+
+let buildCommand = "npx electron-builder";
 if (platform !== "all") {
   buildCommand += ` --${platform}`;
 }
 
+// Skip native module rebuilding for cross-compilation
+// Use --config.npmRebuild=false to prevent electron-builder from rebuilding native modules
+if (isCrossCompilation) {
+  buildCommand += " --config.npmRebuild=false";
+  console.log("   Using --config.npmRebuild=false to skip native module rebuilds");
+}
+
+const buildEnv = {
+  ...process.env,
+  NODE_ENV: "production",
+};
+
 try {
   execSync(buildCommand, {
     stdio: "inherit",
-    env: {
-      ...process.env,
-      NODE_ENV: "production",
-    },
+    env: buildEnv,
   });
   console.log("\n✅ Electron build completed successfully!");
   console.log("📦 Installers are in the dist-electron directory");
 } catch (error) {
   console.error("❌ Electron build failed");
+  if (isCrossCompilation) {
+    console.error("\n💡 Tip: Cross-compilation can be problematic with native modules.");
+    console.error("   Consider building on a Windows machine for best results.");
+    console.error("   Or try: SKIP_REBUILD=true node scripts/build-electron.js win");
+  }
   process.exit(1);
 }
 

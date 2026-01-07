@@ -17,6 +17,7 @@ Posman is a comprehensive Point of Sale (POS) and retail management system built
 - **Real-time Updates**: Instant updates for sales and inventory data
 - **Responsive UI**: Built with Bootstrap for a modern, mobile-friendly interface
 - **Progressive Web App**: Offline support and installable on mobile devices
+- **Desktop Application**: Windows desktop app support via Electron
 
 ## Tech Stack
 
@@ -29,6 +30,7 @@ Posman is a comprehensive Point of Sale (POS) and retail management system built
 - **Date Handling**: date-fns
 - **API Documentation**: Swagger UI
 - **PWA Support**: next-pwa with Workbox
+- **Desktop App**: Electron (for Windows packaging)
 
 ## Project Structure
 
@@ -149,6 +151,182 @@ The production build includes:
 - Static asset optimization
 - Progressive Web App features
 - Service Worker for offline support
+
+## Building for Windows (Electron Desktop App)
+
+This application can be packaged as a Windows desktop application using Electron.
+
+### Prerequisites for Windows Build
+
+- Node.js (v18 or higher)
+- All project dependencies installed (`npm install`)
+- Icon file: `public/icons/JKlogo-512.png` (for Windows installer icon)
+
+### Building Windows Installer
+
+#### Step 1: Build Next.js in Standalone Mode
+
+```bash
+ELECTRON_BUILD=true npm run build
+```
+
+This creates a standalone Next.js build optimized for Electron packaging.
+
+#### Step 2: Build Windows Installer
+
+Use the automated build script:
+
+```bash
+node scripts/build-electron.js win
+```
+
+The build script will:
+- Automatically detect cross-compilation (if building on macOS/Linux)
+- Skip native module rebuilding to avoid cross-compilation errors
+- Create Windows installers in the `dist/` directory
+
+#### Alternative: Direct Command
+
+You can also run electron-builder directly:
+
+```bash
+npx electron-builder --win --config.npmRebuild=false
+```
+
+### Build Output: Dist Folder Contents
+
+After a successful build, the `dist/` folder contains:
+
+#### 📦 Main Installer Files
+
+1. **`posman-app Setup x.x.x.exe`** (~500MB)
+   - **Purpose**: Windows installer (NSIS format) for end users
+   - **Features**: 
+     - Full installation wizard
+     - Desktop shortcut creation
+     - Start menu integration
+     - Uninstaller included
+   - **Distribution**: This is the file you distribute to Windows users
+
+2. **`posman-app Setup x.x.x.exe.blockmap`** (~550KB)
+   - **Purpose**: Block map file for incremental updates
+   - **Use**: Only needed if you implement auto-updates
+
+#### 📁 Unpacked Application Folder
+
+**`win-arm64-unpacked/`** or **`win-x64-unpacked/`** - Complete unpacked application
+
+Structure:
+```
+win-*-unpacked/
+├── electron.exe              # Electron runtime executable
+├── resources/
+│   └── app.asar              # Your entire Next.js app (packaged as ASAR archive)
+├── locales/                  # Language packs for Electron UI (100+ files)
+│   ├── en-US.pak
+│   └── ...
+├── *.dll                     # Windows system libraries
+│   ├── d3dcompiler_47.dll    # DirectX compiler
+│   ├── ffmpeg.dll            # Media codecs
+│   ├── libEGL.dll            # OpenGL ES
+│   └── ...
+├── icudtl.dat                # ICU (Internationalization) data
+├── v8_context_snapshot.bin   # V8 JavaScript engine snapshot
+└── LICENSE files             # Electron and Chromium licenses
+```
+
+**Key Components:**
+- **`electron.exe`**: The Electron runtime that runs your app
+- **`resources/app.asar`**: Your entire Next.js application packaged as an ASAR archive
+  - Contains: `.next/standalone/`, `node_modules/`, `public/`, `electron/`, etc.
+- **`locales/`**: Language packs for Electron's UI (menus, dialogs, etc.)
+- **`*.dll` files**: Windows system libraries for graphics, media, and system functions
+
+#### 📄 Configuration Files
+
+- **`builder-effective-config.yaml`**: Shows the actual electron-builder configuration used
+- **`builder-debug.yml`**: Debug information from the build process
+- **`latest.yml`**: Update metadata (for auto-updates if implemented)
+
+### What to Distribute
+
+**For End Users:**
+- ✅ **`posman-app Setup x.x.x.exe`** - This is the only file users need
+
+**For Development/Testing:**
+- Run `electron.exe` from the unpacked folder to test without installing
+
+**For Auto-Updates (if implemented):**
+- Installer `.exe` file
+- `latest.yml`
+- `.blockmap` file
+
+### Architecture Notes
+
+⚠️ **Important**: When building on macOS/Linux for Windows, the build creates a Windows ARM64 version (if on ARM Mac) or matches your system architecture.
+
+**For Windows x64/ia32 builds:**
+1. **Build on Windows** (recommended):
+   ```bash
+   # On a Windows machine
+   node scripts/build-electron.js win
+   ```
+
+2. **Use CI/CD** (GitHub Actions, etc.):
+   ```yaml
+   # .github/workflows/build.yml
+   - name: Build Windows
+     runs-on: windows-latest
+     steps:
+       - uses: actions/checkout@v3
+       - run: npm install
+       - run: ELECTRON_BUILD=true npm run build
+       - run: node scripts/build-electron.js win
+   ```
+
+3. **Accept ARM64 build**: Works on Windows on ARM devices, but won't work on standard x64 Windows machines
+
+### File Sizes Explained
+
+- **Installer (~500MB)**: Includes Electron runtime, Chromium, your app, and all dependencies
+- **Unpacked folder (~500MB)**: Same content, just unpacked
+- **Blockmap (~550KB)**: Small metadata for updates
+
+The large size is normal for Electron apps because they include:
+- Chromium browser engine (~200MB)
+- Node.js runtime (~50MB)
+- Electron framework (~50MB)
+- Your Next.js app and dependencies (~200MB)
+
+### Testing the Build
+
+**On Windows:**
+1. Transfer `posman-app Setup x.x.x.exe` to a Windows machine
+2. Run the installer
+3. Launch the app from Start Menu or Desktop shortcut
+
+**Without Installing (Development):**
+1. Navigate to `dist/win-*-unpacked/`
+2. Run `electron.exe` directly
+3. The app will launch without installation
+
+### Troubleshooting
+
+**Build fails with "electron-builder: command not found"**
+- ✅ Fixed: The script now uses `npx electron-builder`
+
+**Build fails with native module errors**
+- The script automatically skips native module rebuilding for cross-compilation
+- If issues persist, ensure `--config.npmRebuild=false` is set
+
+**Build creates wrong architecture**
+- Check your config: `electron-builder.config.js` → `win.target.arch`
+- For x64, build on Windows or use CI/CD
+
+**Installer is too large**
+- Normal for Electron apps (~500MB)
+- Consider code splitting or removing unused dependencies
+- Compression is already enabled (`compression: 'maximum'`)
 
 ### Progressive Web App Features
 
