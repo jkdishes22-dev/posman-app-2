@@ -70,6 +70,7 @@ const CashierBillsPage = () => {
   const [reopenNotes, setReopenNotes] = useState("");
   const [reopenReasons, setReopenReasons] = useState<{ value: string; label: string; description: string }[]>([]);
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
+  const [showBillItems, setShowBillItems] = useState(false);
 
   // Get user role and ID from token
   let userRole = "";
@@ -104,6 +105,11 @@ const CashierBillsPage = () => {
     fetchSalesPersons();
     fetchReopenReasons();
   }, []);
+
+  // Reset bill items view when selected bill changes
+  useEffect(() => {
+    setShowBillItems(false);
+  }, [selectedBill?.id]);
 
   // Handle billId from URL query parameter
   useEffect(() => {
@@ -264,21 +270,48 @@ const CashierBillsPage = () => {
   };
 
   const fetchSalesPersons = async () => {
-    // Fetch both 'user' and 'sales' role users
+    // Fetch users with roles that can create bills: 'user', 'sales', and 'waitress'
     try {
-      const [userResult, salesResult] = await Promise.all([
+      const [userResult, salesResult, waitressResult] = await Promise.all([
         apiCall("/api/users?role=user"),
-        apiCall("/api/users?role=sales")
+        apiCall("/api/users?role=sales"),
+        apiCall("/api/users?role=waitress").catch(() => ({ status: 404, data: null, error: "Waitress role not found" }))
       ]);
 
       const allUsers: User[] = [];
 
-      if (userResult.status === 200 && Array.isArray(userResult.data.users)) {
-        allUsers.push(...userResult.data.users);
+      // Handle user role results
+      if (userResult.status === 200) {
+        const users = userResult.data?.users || userResult.data || [];
+        if (Array.isArray(users)) {
+          allUsers.push(...users);
+        } else {
+          console.warn("Unexpected user role response structure:", userResult.data);
+        }
+      } else {
+        console.warn("Failed to fetch user role:", userResult.error);
       }
 
-      if (salesResult.status === 200 && Array.isArray(salesResult.data.users)) {
-        allUsers.push(...salesResult.data.users);
+      // Handle sales role results
+      if (salesResult.status === 200) {
+        const users = salesResult.data?.users || salesResult.data || [];
+        if (Array.isArray(users)) {
+          allUsers.push(...users);
+        } else {
+          console.warn("Unexpected sales role response structure:", salesResult.data);
+        }
+      } else {
+        console.warn("Failed to fetch sales role:", salesResult.error);
+      }
+
+      // Handle waitress role results (if it exists)
+      if (waitressResult && waitressResult.status === 200) {
+        const users = waitressResult.data?.users || waitressResult.data || [];
+        if (Array.isArray(users)) {
+          allUsers.push(...users);
+        } else {
+          console.warn("Unexpected waitress role response structure:", waitressResult.data);
+        }
       }
 
       // Remove duplicates based on user ID
@@ -287,9 +320,11 @@ const CashierBillsPage = () => {
       );
 
       setWaitresses(uniqueUsers);
-      setError(null);
-      setErrorDetails(null);
+      if (uniqueUsers.length === 0) {
+        console.log("No waitresses found. User result:", userResult, "Sales result:", salesResult, "Waitress result:", waitressResult);
+      }
     } catch (error: any) {
+      console.error("Error fetching sales persons:", error);
       setError("Network error occurred");
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       setWaitresses([]);
@@ -1097,16 +1132,101 @@ const CashierBillsPage = () => {
                     </div>
                   )}
 
-                  {/* Bill Items Count */}
+                  {/* Bill Items Count with Expandable View */}
                   <div className="mb-3">
-                    <div className="d-flex align-items-center mb-2">
-                      <i className="bi bi-list-ul me-2 text-muted"></i>
-                      <strong>Items:</strong>
+                    <div
+                      className="d-flex justify-content-between align-items-center mb-2 p-2 rounded"
+                      style={{
+                        cursor: "pointer",
+                        transition: "background-color 0.2s ease"
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#f8f9fa"}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                      onClick={() => setShowBillItems(!showBillItems)}
+                    >
+                      <div className="d-flex align-items-center">
+                        <i className="bi bi-list-ul me-2 text-muted"></i>
+                        <strong>Items:</strong>
+                        <span className="badge bg-info ms-2">
+                          {selectedBill.bill_items?.length || 0} items
+                        </span>
+                      </div>
+                      <i className={`bi ${showBillItems ? "bi-chevron-up" : "bi-chevron-down"} text-muted`}></i>
                     </div>
-                    <div className="ms-4">
-                      <span className="badge bg-info">
-                        {selectedBill.bill_items?.length || 0} items
-                      </span>
+                    <div
+                      className={`collapse ${showBillItems ? "show" : ""}`}
+                      style={{
+                        maxHeight: showBillItems ? "400px" : "0px",
+                        overflow: "hidden",
+                        transition: "max-height 0.3s ease-in-out"
+                      }}
+                    >
+                      <div style={{ maxHeight: "400px", overflowY: "auto" }}>
+                        {selectedBill.bill_items && selectedBill.bill_items.length > 0 ? (
+                          <div className="table-responsive">
+                            <table className="table table-sm table-hover mb-0">
+                              <thead className="table-light">
+                                <tr>
+                                  <th style={{ fontSize: "0.85em" }}>Item</th>
+                                  <th style={{ fontSize: "0.85em" }} className="text-end">Qty</th>
+                                  <th style={{ fontSize: "0.85em" }} className="text-end">Price</th>
+                                  <th style={{ fontSize: "0.85em" }} className="text-end">Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {selectedBill.bill_items.map((item: any, index: number) => {
+                                  // Calculate unit price from subtotal and quantity, or use item.price if available
+                                  const unitPrice = item.item?.price || (item.quantity > 0 ? (item.subtotal / item.quantity) : 0);
+                                  const lineTotal = item.subtotal || 0;
+
+                                  return (
+                                    <tr key={item.id || index}>
+                                      <td>
+                                        <div className="small">
+                                          <div className="fw-semibold">
+                                            {item.menu_item?.name || item.item?.name || "Unknown Item"}
+                                          </div>
+                                          {(item.menu_item?.code || item.item?.code) && (
+                                            <div className="text-muted" style={{ fontSize: "0.8em" }}>
+                                              {item.menu_item?.code || item.item?.code}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="text-end">
+                                        <span className="badge bg-secondary">
+                                          {item.quantity || 0}
+                                        </span>
+                                      </td>
+                                      <td className="text-end">
+                                        <small>${(Number(unitPrice) || 0).toFixed(2)}</small>
+                                      </td>
+                                      <td className="text-end">
+                                        <strong>${(Number(lineTotal) || 0).toFixed(2)}</strong>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                              <tfoot className="table-light">
+                                <tr>
+                                  <td colSpan={3} className="text-end fw-bold">
+                                    <strong>Bill Total:</strong>
+                                  </td>
+                                  <td className="text-end fw-bold text-primary">
+                                    ${(Number(selectedBill.total) || 0).toFixed(2)}
+                                  </td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="text-center text-muted py-3">
+                            <i className="bi bi-inbox me-2"></i>
+                            No items in this bill
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 

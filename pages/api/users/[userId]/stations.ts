@@ -22,15 +22,33 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     )(req, res);
   }
   if (req.method === "PATCH") {
-    const { action } = req.body;
-    if (action === "deactivate" || action === "activate") {
+    const { action, userStationId, stationId } = req.body;
+    const headerAction = req.headers["x-action"] as string;
+
+    // Route to disableUserStation if:
+    // 1. action is "deactivate" or "activate" in body, OR
+    // 2. x-action header is "disable" or "deactivate" or "activate", OR
+    // 3. body has userStationId but no stationId (disable/activate operations use userStationId)
+    if (
+      action === "deactivate" ||
+      action === "activate" ||
+      headerAction === "disable" ||
+      headerAction === "deactivate" ||
+      headerAction === "activate" ||
+      (userStationId && !stationId)
+    ) {
       return authMiddleware(
         authorize([permissions.CAN_EDIT_USER_STATION])(disableUserStation),
       )(req, res);
-    } else {
+    } else if (stationId) {
+      // Route to setDefaultUserStation if body has stationId
       return authMiddleware(
         authorize([permissions.CAN_EDIT_USER_STATION])(setDefaultUserStation),
       )(req, res);
+    } else {
+      // Invalid request - neither userStationId nor stationId provided
+      res.status(400).json({ error: "Missing required field: either userStationId or stationId must be provided" });
+      return;
     }
   }
   if (req.method === "DELETE") {
@@ -38,7 +56,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       authorize([permissions.CAN_DELETE_USER_STATION])(disableUserStation),
     )(req, res);
   }
-  
+
   // Method not allowed
   res.setHeader("Allow", ["GET", "POST", "PATCH", "DELETE"]);
   res.status(405).end(`Method ${req.method} Not Allowed`);

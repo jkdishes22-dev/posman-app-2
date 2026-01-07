@@ -118,6 +118,18 @@ function StationUsersPage() {
   const handleAddUserToStation = async () => {
     if (!selectedUser || !selectedStation) return;
 
+    // Check if station is already assigned
+    const stationId = Number(selectedStation);
+    const isAlreadyAssigned = userStations.some(
+      (us: any) => (us.station?.id || us.station_id) === stationId && us.status === "active"
+    );
+
+    if (isAlreadyAssigned) {
+      setError("This station is already assigned to the user");
+      setErrorDetails(null);
+      return;
+    }
+
     try {
       const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
         method: "POST",
@@ -125,12 +137,19 @@ function StationUsersPage() {
           station: selectedStation,
         }),
       });
-      if (result.status === 200) {
+      if (result.status === 200 || result.status === 201) {
         fetchUserStations(selectedUser.id);
+        setSelectedStation(""); // Clear selection after successful addition
         setError(null);
         setErrorDetails(null);
       } else {
-        setError(result.error || "Failed to add user to station");
+        const errorMessage = result.error || "Failed to add user to station";
+        // Check if it's a duplicate error
+        if (errorMessage.toLowerCase().includes("already") || errorMessage.toLowerCase().includes("duplicate")) {
+          setError("This station is already assigned to the user");
+        } else {
+          setError(errorMessage);
+        }
         setErrorDetails(result.errorDetails);
       }
     } catch (error: any) {
@@ -140,15 +159,23 @@ function StationUsersPage() {
   };
 
   const makeDefaultSation = async (stationId: number) => {
-    if (!selectedUser || !stationId) {
-      alert("Please select user and station");
+    // Validate inputs
+    if (!selectedUser) {
+      alert("Please select a user");
       return;
     }
+
+    if (!stationId || isNaN(Number(stationId)) || stationId <= 0) {
+      console.error("Invalid stationId:", stationId);
+      alert("Invalid station ID. Please refresh the page and try again.");
+      return;
+    }
+
     try {
       const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
         method: "PATCH",
         body: JSON.stringify({
-          stationId: stationId,
+          stationId: Number(stationId),
         }),
       });
       if (result.status === 200) {
@@ -173,11 +200,9 @@ function StationUsersPage() {
     try {
       const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
         method: "PATCH",
-        headers: {
-          "x-action": "disable",
-        },
         body: JSON.stringify({
           userStationId: userStationId,
+          action: "deactivate",
         }),
       });
       if (result.status === 200) {
@@ -324,11 +349,20 @@ function StationUsersPage() {
                             onChange={(e) => setSelectedStation(e.target.value)}
                           >
                             <option value="">Select a station</option>
-                            {stations.map((station) => (
-                              <option key={station.id} value={station.id}>
-                                {station.name}
-                              </option>
-                            ))}
+                            {stations
+                              .filter((station) => {
+                                // Filter out stations that are already assigned and active
+                                return !userStations.some(
+                                  (us: any) =>
+                                    (us.station?.id || us.station_id) === station.id &&
+                                    us.status === "active"
+                                );
+                              })
+                              .map((station) => (
+                                <option key={station.id} value={station.id}>
+                                  {station.name}
+                                </option>
+                              ))}
                           </Form.Control>
                         </Form.Group>
                         <Button
@@ -379,11 +413,15 @@ function StationUsersPage() {
                                                 size="sm"
                                                 className="w-12"
                                                 style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
-                                                onClick={() =>
-                                                  makeDefaultSation(
-                                                    station.station_id,
-                                                  )
-                                                }
+                                                onClick={() => {
+                                                  const stationId = station.station?.id || station.station_id;
+                                                  if (stationId && !isNaN(Number(stationId))) {
+                                                    makeDefaultSation(Number(stationId));
+                                                  } else {
+                                                    console.error("Invalid station ID:", { station, stationId });
+                                                    alert("Invalid station ID. Please refresh the page and try again.");
+                                                  }
+                                                }}
                                                 data-bs-toggle="tooltip"
                                                 data-bs-placement="top"
                                                 title="Set this station as the user's default station"

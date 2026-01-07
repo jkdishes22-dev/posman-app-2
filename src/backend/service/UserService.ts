@@ -408,6 +408,34 @@ export class UserService {
   }
 
   async addUserStation(payload: { station?: any; user: any }) {
+    // Check if user already has this station assigned
+    const userId = typeof payload.user === 'object' ? payload.user.id : payload.user;
+    const stationId = typeof payload.station === 'object' ? payload.station.id : payload.station;
+
+    const existingUserStation = await this.userStationRepository.findOne({
+      where: {
+        user: { id: userId },
+        station: { id: stationId },
+      },
+    });
+
+    if (existingUserStation) {
+      // If it exists but is inactive, reactivate it instead of creating duplicate
+      if (existingUserStation.status === UserStationStatus.INACTIVE) {
+        existingUserStation.status = UserStationStatus.ACTIVE;
+        const updated = await this.userStationRepository.save(existingUserStation);
+        
+        // Invalidate cache
+        cache.invalidate(`user_stations_${userId}`);
+        cache.invalidate(`user_roles_stations_${userId}`);
+        cache.invalidate("user_stations");
+        
+        return updated;
+      }
+      // If it's already active, throw an error
+      throw new Error("User already has this station assigned");
+    }
+
     const userStation: DeepPartial<UserStation> =
       this.userStationRepository.create({
         user: payload.user,
@@ -416,8 +444,8 @@ export class UserService {
     const saved = await this.userStationRepository.save(userStation);
 
     // Invalidate cache
-    cache.invalidate(`user_stations_${payload.user.id || payload.user}`);
-    cache.invalidate(`user_roles_stations_${payload.user.id || payload.user}`);
+    cache.invalidate(`user_stations_${userId}`);
+    cache.invalidate(`user_roles_stations_${userId}`);
     cache.invalidate("user_stations");
 
     return saved;
@@ -472,7 +500,7 @@ export class UserService {
   }
 
   async disableUserStation(
-    userStationRequest: { userStation: number },
+    userStationRequest: { userStation: number; action?: string },
     currentUser: number,
   ) {
     const existingStation = await this.userStationRepository.findOne({
@@ -485,9 +513,17 @@ export class UserService {
       throw new Error("User station not found");
     }
 
-    existingStation.status = UserStationStatus.INACTIVE;
+    // Handle activate/deactivate based on action
+    const action = userStationRequest.action?.toLowerCase() || "deactivate";
+    if (action === "activate") {
+      existingStation.status = UserStationStatus.ACTIVE;
+    } else {
+      // Default to deactivate
+      existingStation.status = UserStationStatus.INACTIVE;
+      existingStation.isDefault = false; // Can't be default if inactive
+    }
+    
     existingStation.updated_by = currentUser;
-    existingStation.isDefault = false;
 
     const saved = await this.userStationRepository.save(existingStation);
 

@@ -1133,6 +1133,158 @@ export class InventoryService {
     }
 
     /**
+     * Return inventory for voided item
+     * Called when a bill item is voided after bill submission
+     * Reverses the inventory deduction that was done in deductInventoryForSale
+     * 
+     * Universal Tracking: Returns inventory for both simple and composite items
+     */
+    public async returnInventoryForVoidedItem(
+        billId: number,
+        itemId: number,
+        quantity: number,
+        userId: number
+    ): Promise<void> {
+        const bill = await this.billRepository.findOne({
+            where: { id: billId },
+            relations: ["bill_items", "bill_items.item"],
+        });
+
+        if (!bill) {
+            throw new Error(`Bill ${billId} not found`);
+        }
+
+        // Only return inventory if bill was already submitted (inventory was deducted)
+        // REOPENED bills were previously SUBMITTED, so inventory was deducted
+        // PENDING bills only have reserved inventory, not deducted yet
+        if (bill.status !== BillStatus.SUBMITTED && bill.status !== BillStatus.CLOSED && bill.status !== BillStatus.REOPENED) {
+            // Bill not submitted yet, inventory wasn't deducted, so nothing to return
+            return;
+        }
+
+        const billItem = bill.bill_items?.find(item => item.id === itemId);
+        if (!billItem || !billItem.item) {
+            throw new Error(`Bill item ${itemId} not found in bill ${billId}`);
+        }
+
+        const item = billItem.item;
+
+        // Use transaction to ensure atomicity
+        await this.inventoryRepository.manager.transaction(async (transactionalEntityManager) => {
+            // Check if item has ratio definitions (composite item)
+            const hasRatioDefinitions = await this.itemGroupRepository.count({
+                where: { item: { id: item.id } },
+            }) > 0;
+
+            // If item has ratio definitions, return stock items per ratio
+            if (hasRatioDefinitions) {
+                await this.returnInventoryForCompositeItem(
+                    item.id,
+                    quantity,
+                    billId,
+                    userId,
+                    transactionalEntityManager
+                );
+            }
+
+            // Always return the sellable item itself 1:1
+            let inventory = await transactionalEntityManager.findOne(Inventory, {
+                where: { item_id: item.id },
+            });
+
+            if (!inventory) {
+                // Create inventory record if it doesn't exist
+                inventory = transactionalEntityManager.create(Inventory, {
+                    item_id: item.id,
+                    quantity: 0,
+                    reserved_quantity: 0,
+                    created_by: userId,
+                });
+                inventory = await transactionalEntityManager.save(Inventory, inventory);
+            }
+
+            // Return inventory: increase quantity (reverse the deduction)
+            inventory.quantity += quantity;
+            inventory.updated_by = userId;
+
+            await transactionalEntityManager.save(Inventory, inventory);
+
+            // Create transaction record for return
+            const transaction = transactionalEntityManager.create(InventoryTransaction, {
+                item_id: item.id,
+                transaction_type: InventoryTransactionType.RETURN,
+                quantity: quantity, // Positive for return
+                reference_type: InventoryReferenceType.BILL,
+                reference_id: billId,
+                notes: hasRatioDefinitions
+                    ? `Returned ${quantity} for voided composite item in bill ${billId} (stock items returned per ratio)`
+                    : `Returned for voided item in bill ${billId}`,
+                created_by: userId,
+            });
+            await transactionalEntityManager.save(InventoryTransaction, transaction);
+        });
+
+        // Invalidate cache after inventory return
+        InventoryService.invalidateInventoryCache();
+    }
+
+    /**
+     * Return inventory for composite item (reverses deduction for constituent items)
+     */
+    private async returnInventoryForCompositeItem(
+        itemId: number,
+        quantity: number,
+        billId: number,
+        userId: number,
+        transactionalEntityManager: any
+    ): Promise<void> {
+        const ratioDefinitions = await transactionalEntityManager.find(ItemGroup, {
+            where: { item: { id: itemId } },
+            relations: ["subItem"],
+        });
+
+        for (const ratio of ratioDefinitions) {
+            const constituentItem = ratio.subItem;
+            if (!constituentItem) {
+                continue;
+            }
+
+            const quantityToReturn = quantity * ratio.portion_size;
+
+            let inventory = await transactionalEntityManager.findOne(Inventory, {
+                where: { item_id: constituentItem.id },
+            });
+
+            if (!inventory) {
+                inventory = transactionalEntityManager.create(Inventory, {
+                    item_id: constituentItem.id,
+                    quantity: 0,
+                    reserved_quantity: 0,
+                    created_by: userId,
+                });
+                inventory = await transactionalEntityManager.save(Inventory, inventory);
+            }
+
+            // Return inventory for constituent item
+            inventory.quantity += quantityToReturn;
+            inventory.updated_by = userId;
+            await transactionalEntityManager.save(Inventory, inventory);
+
+            // Create transaction record
+            const transaction = transactionalEntityManager.create(InventoryTransaction, {
+                item_id: constituentItem.id,
+                transaction_type: InventoryTransactionType.RETURN,
+                quantity: quantityToReturn,
+                reference_type: InventoryReferenceType.BILL,
+                reference_id: billId,
+                notes: `Returned ${quantityToReturn} for voided composite item (${constituentItem.name}) in bill ${billId}`,
+                created_by: userId,
+            });
+            await transactionalEntityManager.save(InventoryTransaction, transaction);
+        }
+    }
+
+    /**
      * Release inventory reservation
      * Called when bill is cancelled/deleted (DRAFT status only)
      * 

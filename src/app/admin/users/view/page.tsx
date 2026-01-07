@@ -362,8 +362,11 @@ function UsersPage() {
     try {
       const result = await apiCall("/api/stations");
       if (result.status >= 200 && result.status < 300) {
-        // Filter out stations that user is already linked to
-        const linkedStationIds = userStations.map(us => us.station.id);
+        // Filter out stations that user is already linked to (only active assignments)
+        const linkedStationIds = userStations
+          .filter((us: any) => us.status === "active")
+          .map((us: any) => us.station?.id || us.station_id)
+          .filter((id: any) => id != null);
         const available = (result.data || []).filter(station =>
           station.status === "active" && !linkedStationIds.includes(station.id)
         );
@@ -388,6 +391,17 @@ function UsersPage() {
       return;
     }
 
+    // Check if station is already assigned
+    const stationId = Number(selectedStationId);
+    const isAlreadyAssigned = userStations.some(
+      (us: any) => (us.station?.id || us.station_id) === stationId && us.status === "active"
+    );
+
+    if (isAlreadyAssigned) {
+      setStationError("This station is already assigned to the user");
+      return;
+    }
+
     setStationError("");
     try {
       const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
@@ -403,7 +417,13 @@ function UsersPage() {
         setSelectedStationId("");
         setStationError("");
       } else {
-        setStationError(result.error || "Failed to add station");
+        const errorMessage = result.error || "Failed to add station";
+        // Check if it's a duplicate error
+        if (errorMessage.toLowerCase().includes("already") || errorMessage.toLowerCase().includes("duplicate")) {
+          setStationError("This station is already assigned to the user");
+        } else {
+          setStationError(errorMessage);
+        }
         setErrorDetails(result.errorDetails);
       }
     } catch (error) {
@@ -413,14 +433,24 @@ function UsersPage() {
   };
 
   const handleSetDefaultStation = async (stationId: number) => {
-    if (!selectedUser) return;
+    if (!selectedUser) {
+      setStationError("Please select a user");
+      return;
+    }
+
+    // Validate stationId
+    if (!stationId || isNaN(Number(stationId)) || stationId <= 0) {
+      console.error("Invalid stationId:", stationId);
+      setStationError("Invalid station ID. Please refresh the page and try again.");
+      return;
+    }
 
     setStationError("");
     try {
       const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
         method: "PATCH",
         body: JSON.stringify({
-          stationId: stationId,
+          stationId: Number(stationId),
         }),
       });
       if (result.status === 200) {
@@ -948,7 +978,15 @@ function UsersPage() {
                                     <li>
                                       <button
                                         className="dropdown-item"
-                                        onClick={() => handleSetDefaultStation(userStation.station.id)}
+                                        onClick={() => {
+                                          const stationId = userStation.station?.id || userStation.station_id;
+                                          if (stationId && !isNaN(Number(stationId))) {
+                                            handleSetDefaultStation(Number(stationId));
+                                          } else {
+                                            console.error("Invalid station ID:", { userStation, stationId });
+                                            setStationError("Invalid station ID. Please refresh the page and try again.");
+                                          }
+                                        }}
                                       >
                                         <i className="bi bi-star me-2"></i>
                                         Set as Default

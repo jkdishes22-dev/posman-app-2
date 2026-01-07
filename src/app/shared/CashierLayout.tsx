@@ -6,6 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import StationSwitcher from "../components/StationSwitcher";
+import HelpMenu from "../components/HelpMenu";
 import { AuthError } from "../types/types";
 
 interface CashierLayoutProps {
@@ -425,6 +426,10 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
                                         <i className="bi bi-sliders me-2"></i>
                                         Preferences
                                     </a>
+                                </li>
+                                <li><hr className="dropdown-divider" /></li>
+                                <li>
+                                    <HelpMenu />
                                 </li>
                                 <li><hr className="dropdown-divider" /></li>
                                 <li>

@@ -6,6 +6,7 @@ import { PurchaseOrderItem } from "@backend/entities/PurchaseOrderItem";
 import { Item } from "@backend/entities/Item";
 import { User } from "@backend/entities/User";
 import { Supplier } from "@backend/entities/Supplier";
+import { ProductionPreparation, ProductionPreparationStatus } from "@backend/entities/ProductionPreparation";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 
 export interface ReportFilters {
@@ -129,6 +130,41 @@ export interface PnLReportItem {
   projectedPnL: number;
 }
 
+export interface ProductionSalesReconciliationReportItem {
+  itemId: number;
+  itemName: string;
+  itemCode?: string;
+  quantityIssued: number;
+  quantitySold: number;
+  quantityVoided: number;
+  quantityStale: number; // For future use - can be calculated from inventory transactions
+  remainingBalance: number;
+  issuedValue: number;
+  soldValue: number;
+  voidedValue: number;
+  details?: {
+    issued: Array<{
+      date: string;
+      quantity: number;
+      referenceId: number;
+      referenceType: "preparation" | "issue";
+    }>;
+    sold: Array<{
+      date: string;
+      quantity: number;
+      billId: number;
+      billNumber: string;
+    }>;
+    voided: Array<{
+      date: string;
+      quantity: number;
+      billId: number;
+      billNumber: string;
+      voidReason: string;
+    }>;
+  };
+}
+
 export class ReportService {
   private billRepository: Repository<Bill>;
   private billItemRepository: Repository<BillItem>;
@@ -137,6 +173,7 @@ export class ReportService {
   private itemRepository: Repository<Item>;
   private userRepository: Repository<User>;
   private supplierRepository: Repository<Supplier>;
+  private productionPreparationRepository: Repository<ProductionPreparation>;
 
   constructor(dataSource: DataSource) {
     this.billRepository = dataSource.getRepository(Bill);
@@ -146,6 +183,7 @@ export class ReportService {
     this.itemRepository = dataSource.getRepository(Item);
     this.userRepository = dataSource.getRepository(User);
     this.supplierRepository = dataSource.getRepository(Supplier);
+    this.productionPreparationRepository = dataSource.getRepository(ProductionPreparation);
   }
 
   private getDateRange(startDate: Date, endDate: Date, period?: "day" | "week" | "month" | "year"): { start: Date; end: Date } {
@@ -165,7 +203,7 @@ export class ReportService {
 
   async getSalesRevenueReport(filters: ReportFilters): Promise<SalesRevenueReportItem[]> {
     const { startDate, endDate, itemId, userId, period } = filters;
-    
+
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
@@ -189,8 +227,8 @@ export class ReportService {
       .leftJoinAndSelect("bill.bill_items", "billItem")
       .leftJoinAndSelect("billItem.item", "item")
       .leftJoinAndSelect("bill.user", "user")
-      .where("bill.status IN (:...activeStatuses)", { 
-        activeStatuses: [BillStatus.PENDING, BillStatus.SUBMITTED, BillStatus.REOPENED] 
+      .where("bill.status IN (:...activeStatuses)", {
+        activeStatuses: [BillStatus.PENDING, BillStatus.SUBMITTED, BillStatus.REOPENED]
       })
       .andWhere("billItem.status != :voidedStatus", { voidedStatus: BillItemStatus.VOIDED })
       .andWhere("bill.created_at >= :start", { start })
@@ -266,7 +304,7 @@ export class ReportService {
 
   async getProductionStockRevenueReport(filters: ReportFilters): Promise<ProductionStockRevenueReportItem[]> {
     const { startDate, endDate, itemId } = filters;
-    
+
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
@@ -292,7 +330,7 @@ export class ReportService {
 
     bills.forEach(bill => {
       const billDate = new Date(bill.created_at).toISOString().split('T')[0];
-      
+
       bill.bill_items?.forEach(billItem => {
         if (billItem.status === BillItemStatus.VOIDED || !billItem.item) return;
 
@@ -324,7 +362,7 @@ export class ReportService {
 
   async getItemsSoldCountReport(filters: ReportFilters): Promise<ItemsSoldCountReportItem[]> {
     const { startDate, endDate, itemId, userId } = filters;
-    
+
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
@@ -383,7 +421,7 @@ export class ReportService {
 
   async getVoidedItemsReport(filters: ReportFilters): Promise<VoidedItemsReportItem[]> {
     const { startDate, endDate, itemId, userId } = filters;
-    
+
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
@@ -447,7 +485,7 @@ export class ReportService {
 
   async getExpenditureReport(filters: ReportFilters): Promise<ExpenditureReportItem[]> {
     const { startDate, endDate, itemId, supplierId } = filters;
-    
+
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
@@ -478,7 +516,7 @@ export class ReportService {
 
     purchaseOrders.forEach(po => {
       const poDate = new Date(po.created_at).toISOString().split('T')[0];
-      
+
       po.items?.forEach(poItem => {
         if (!poItem.item || !poItem.item.isStock) return;
 
@@ -505,7 +543,7 @@ export class ReportService {
 
   async getInvoicesPendingBillsReport(filters: ReportFilters): Promise<InvoicesPendingBillsReportItem[]> {
     const { startDate, endDate, itemId } = filters;
-    
+
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
@@ -553,8 +591,8 @@ export class ReportService {
       .createQueryBuilder("bill")
       .leftJoinAndSelect("bill.bill_items", "billItem")
       .leftJoinAndSelect("billItem.item", "item")
-      .where("bill.status IN (:...pendingStatuses)", { 
-        pendingStatuses: [BillStatus.SUBMITTED, BillStatus.REOPENED] 
+      .where("bill.status IN (:...pendingStatuses)", {
+        pendingStatuses: [BillStatus.SUBMITTED, BillStatus.REOPENED]
       })
       .andWhere("bill.created_at >= :start", { start })
       .andWhere("bill.created_at <= :end", { end });
@@ -594,7 +632,7 @@ export class ReportService {
 
   async getPurchaseOrdersReport(filters: ReportFilters): Promise<PurchaseOrdersReportItem[]> {
     const { startDate, endDate, itemId, supplierId } = filters;
-    
+
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
@@ -647,7 +685,7 @@ export class ReportService {
 
   async getPnLReport(filters: ReportFilters): Promise<PnLReportItem[]> {
     const { startDate, endDate, period } = filters;
-    
+
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
@@ -672,8 +710,8 @@ export class ReportService {
     const projectedRevenueQuery = this.billItemRepository
       .createQueryBuilder("billItem")
       .leftJoin("billItem.bill", "bill")
-      .where("bill.status IN (:...activeStatuses)", { 
-        activeStatuses: [BillStatus.PENDING, BillStatus.SUBMITTED, BillStatus.REOPENED] 
+      .where("bill.status IN (:...activeStatuses)", {
+        activeStatuses: [BillStatus.PENDING, BillStatus.SUBMITTED, BillStatus.REOPENED]
       })
       .andWhere("billItem.status != :voidedStatus", { voidedStatus: BillItemStatus.VOIDED })
       .andWhere("bill.created_at >= :start", { start })
@@ -787,6 +825,204 @@ export class ReportService {
       report.projectedPnL = report.totalRevenue - report.expenses;
       return report;
     }).sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  /**
+   * Production vs Sales Reconciliation Report
+   * Shows issued items against sales/bills with voided items tracking
+   * Example: 10 tortillas produced, 8 sold, 1 stale, 1 voided = 1 remaining
+   */
+  async getProductionSalesReconciliationReport(
+    filters: ReportFilters
+  ): Promise<ProductionSalesReconciliationReportItem[]> {
+    const { startDate, endDate, itemId } = filters;
+
+    if (!startDate || !endDate) {
+      throw new Error("Start date and end date are required");
+    }
+
+    const { start, end } = this.getDateRange(startDate, endDate);
+
+    // Get all production issues/preparations (issued items)
+    let productionQuery = this.productionPreparationRepository
+      .createQueryBuilder("prep")
+      .leftJoinAndSelect("prep.item", "item")
+      .where("prep.status = :status", { status: ProductionPreparationStatus.ISSUED })
+      .andWhere("prep.issued_at >= :start", { start })
+      .andWhere("prep.issued_at <= :end", { end });
+
+    if (itemId) {
+      productionQuery = productionQuery.andWhere("prep.item_id = :itemId", { itemId });
+    }
+
+    const productionIssues = await productionQuery.getMany();
+
+    // Get all sold items (from closed/submitted bills, excluding voided items)
+    let soldItemsQuery = this.billItemRepository
+      .createQueryBuilder("billItem")
+      .leftJoinAndSelect("billItem.item", "item")
+      .leftJoinAndSelect("billItem.bill", "bill")
+      .where("billItem.status != :voidedStatus", { voidedStatus: BillItemStatus.VOIDED })
+      .andWhere("bill.status IN (:...billStatuses)", {
+        billStatuses: [BillStatus.CLOSED, BillStatus.SUBMITTED],
+      })
+      .andWhere("bill.created_at >= :start", { start })
+      .andWhere("bill.created_at <= :end", { end });
+
+    if (itemId) {
+      soldItemsQuery = soldItemsQuery.andWhere("billItem.item_id = :itemId", { itemId });
+    }
+
+    const soldItems = await soldItemsQuery.getMany();
+
+    // Get all voided items
+    let voidedItemsQuery = this.billItemRepository
+      .createQueryBuilder("billItem")
+      .leftJoinAndSelect("billItem.item", "item")
+      .leftJoinAndSelect("billItem.bill", "bill")
+      .where("billItem.status = :voidedStatus", { voidedStatus: BillItemStatus.VOIDED })
+      .andWhere("billItem.void_approved_at >= :start", { start })
+      .andWhere("billItem.void_approved_at <= :end", { end });
+
+    if (itemId) {
+      voidedItemsQuery = voidedItemsQuery.andWhere("billItem.item_id = :itemId", { itemId });
+    }
+
+    const voidedItems = await voidedItemsQuery.getMany();
+
+    // Aggregate by item
+    const itemMap = new Map<number, ProductionSalesReconciliationReportItem>();
+
+    // Process production issues
+    productionIssues.forEach((prep) => {
+      const itemId = prep.item_id;
+      if (!itemId || !prep.item) return;
+
+      if (!itemMap.has(itemId)) {
+        itemMap.set(itemId, {
+          itemId,
+          itemName: prep.item.name || "Unknown",
+          itemCode: prep.item.code || undefined,
+          quantityIssued: 0,
+          quantitySold: 0,
+          quantityVoided: 0,
+          quantityStale: 0,
+          remainingBalance: 0,
+          issuedValue: 0,
+          soldValue: 0,
+          voidedValue: 0,
+          details: {
+            issued: [],
+            sold: [],
+            voided: [],
+          },
+        });
+      }
+
+      const item = itemMap.get(itemId)!;
+      item.quantityIssued += prep.quantity_prepared || 0;
+      item.details!.issued.push({
+        date: prep.issued_at
+          ? new Date(prep.issued_at).toISOString().split("T")[0]
+          : new Date(prep.created_at).toISOString().split("T")[0],
+        quantity: prep.quantity_prepared || 0,
+        referenceId: prep.id,
+        referenceType: "preparation",
+      });
+    });
+
+    // Process sold items
+    soldItems.forEach((billItem) => {
+      const itemId = billItem.item_id;
+      if (!itemId || !billItem.item || !billItem.bill) return;
+
+      if (!itemMap.has(itemId)) {
+        itemMap.set(itemId, {
+          itemId,
+          itemName: billItem.item.name || "Unknown",
+          itemCode: billItem.item.code || undefined,
+          quantityIssued: 0,
+          quantitySold: 0,
+          quantityVoided: 0,
+          quantityStale: 0,
+          remainingBalance: 0,
+          issuedValue: 0,
+          soldValue: 0,
+          voidedValue: 0,
+          details: {
+            issued: [],
+            sold: [],
+            voided: [],
+          },
+        });
+      }
+
+      const item = itemMap.get(itemId)!;
+      const quantity = billItem.quantity || 0;
+      const subtotal = Number(billItem.subtotal) || 0;
+      item.quantitySold += quantity;
+      item.soldValue += subtotal;
+      item.details!.sold.push({
+        date: new Date(billItem.bill.created_at).toISOString().split("T")[0],
+        quantity,
+        billId: billItem.bill.id,
+        billNumber: billItem.bill.request_id || `BILL-${billItem.bill.id}`,
+      });
+    });
+
+    // Process voided items
+    voidedItems.forEach((billItem) => {
+      const itemId = billItem.item_id;
+      if (!itemId || !billItem.item || !billItem.bill) return;
+
+      if (!itemMap.has(itemId)) {
+        itemMap.set(itemId, {
+          itemId,
+          itemName: billItem.item.name || "Unknown",
+          itemCode: billItem.item.code || undefined,
+          quantityIssued: 0,
+          quantitySold: 0,
+          quantityVoided: 0,
+          quantityStale: 0,
+          remainingBalance: 0,
+          issuedValue: 0,
+          soldValue: 0,
+          voidedValue: 0,
+          details: {
+            issued: [],
+            sold: [],
+            voided: [],
+          },
+        });
+      }
+
+      const item = itemMap.get(itemId)!;
+      const quantity = billItem.quantity || 0;
+      const subtotal = Number(billItem.subtotal) || 0;
+      item.quantityVoided += quantity;
+      item.voidedValue += subtotal;
+      item.details!.voided.push({
+        date: billItem.void_approved_at
+          ? new Date(billItem.void_approved_at).toISOString().split("T")[0]
+          : new Date(billItem.bill.created_at).toISOString().split("T")[0],
+        quantity,
+        billId: billItem.bill.id,
+        billNumber: billItem.bill.request_id || `BILL-${billItem.bill.id}`,
+        voidReason: billItem.void_reason || "No reason provided",
+      });
+    });
+
+    // Calculate remaining balance and format results
+    return Array.from(itemMap.values())
+      .map((item) => {
+        // Remaining balance = issued - sold - stale
+        // Note: Voided items are cancelled bills, so items are returned to inventory and available for sale again
+        // Therefore, voided items are NOT subtracted from the balance
+        item.remainingBalance =
+          item.quantityIssued - item.quantitySold - item.quantityStale;
+        return item;
+      })
+      .sort((a, b) => a.itemName.localeCompare(b.itemName));
   }
 }
 

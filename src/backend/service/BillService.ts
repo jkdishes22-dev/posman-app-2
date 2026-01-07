@@ -474,6 +474,26 @@ export class BillService {
 
         bill.total = newTotal;
         await manager.save(bill);
+
+        // Return inventory for voided item if bill was previously submitted
+        // REOPENED status means bill was previously SUBMITTED (inventory was deducted)
+        // PENDING status means inventory was only reserved, not deducted yet
+        if (bill.status === BillStatus.REOPENED) {
+          try {
+            await this.inventoryService.returnInventoryForVoidedItem(
+              billId,
+              itemId,
+              billItem.quantity || 0,
+              approvedBy
+            );
+          } catch (inventoryError: any) {
+            // Log error but don't fail void approval
+            // Inventory return is important but shouldn't block void approval
+            console.error(`Failed to return inventory for voided item ${itemId} in bill ${billId}:`, inventoryError);
+          }
+        }
+        // Note: For PENDING bills, inventory was only reserved, not deducted
+        // Reservation will be released if bill is deleted, but voided items don't need special handling
       } else {
         // Reject void request - revert item to pending
         billItem.status = BillItemStatus.PENDING;

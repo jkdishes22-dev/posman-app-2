@@ -78,6 +78,14 @@ const reportCards: ReportCard[] = [
     icon: "bi-graph-up-arrow",
     path: "/admin/reports/pnl",
     color: "success"
+  },
+  {
+    id: "production-sales-reconciliation",
+    title: "Production vs Sales Reconciliation",
+    description: "Track issued items against sales/bills with voided items (e.g., 10 produced, 8 sold, 1 voided = 1 remaining)",
+    icon: "bi-arrow-left-right",
+    path: "/admin/reports/production-sales-reconciliation",
+    color: "primary"
   }
 ];
 

@@ -151,6 +151,7 @@ const permissions = {
     CAN_VIEW_INVOICES_PENDING_BILLS_REPORT: "can_view_invoices_pending_bills_report",
     CAN_VIEW_PURCHASE_ORDERS_REPORT: "can_view_purchase_orders_report",
     CAN_VIEW_PNL_REPORT: "can_view_pnl_report",
+    CAN_VIEW_PRODUCTION_SALES_RECONCILIATION_REPORT: "can_view_production_sales_reconciliation_report",
 };
 
 export default permissions;

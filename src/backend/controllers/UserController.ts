@@ -163,9 +163,23 @@ export const setDefaultUserStation = async (
     const { userId } = req.query;
     const currentUserId = req.user?.id;
 
+    // Validate stationId
+    const stationIdNum = Number(stationId);
+    if (!stationId || isNaN(stationIdNum) || stationIdNum <= 0) {
+      console.error("Invalid stationId in setDefaultUserStation:", { stationId, userId, body: req.body });
+      return res.status(400).json({ error: "Invalid station ID" });
+    }
+
+    // Validate userId
+    const userIdNum = Number(userId);
+    if (!userId || isNaN(userIdNum) || userIdNum <= 0) {
+      console.error("Invalid userId in setDefaultUserStation:", { stationId, userId, query: req.query });
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
+
     const userStationRequest = {
-      station: Number(stationId),
-      user: Number(userId),
+      station: stationIdNum,
+      user: userIdNum,
     };
 
     const updatedUserStation = await userService.setDefaultStation(
@@ -190,11 +204,21 @@ export const disableUserStation = async (
 
   try {
     const { userStationId, action } = req.body;
+    const headerAction = req.headers["x-action"] as string;
     const currentUser = req.user?.id;
 
+    // Determine the action - prefer body action, fallback to header, default to deactivate
+    const finalAction = action || headerAction || "deactivate";
+
+    // Validate userStationId
+    if (!userStationId || isNaN(Number(userStationId)) || Number(userStationId) <= 0) {
+      console.error("Invalid userStationId in disableUserStation:", { userStationId, body: req.body });
+      return res.status(400).json({ error: "Invalid user station ID" });
+    }
+
     const userStationRequest = {
-      userStation: userStationId,
-      action: action,
+      userStation: Number(userStationId),
+      action: finalAction,
     };
 
     const updatedUserStation = await userService.disableUserStation(

@@ -113,7 +113,7 @@ export default function InvoicesPendingBillsReportPage() {
         <div className="row mb-4">
           <div className="col-md-4"><div className="card bg-info text-white"><div className="card-body"><h6>Invoices</h6><h3>{totals.invoices}</h3></div></div></div>
           <div className="col-md-4"><div className="card bg-warning text-white"><div className="card-body"><h6>Pending Bills</h6><h3>{totals.pendingBills}</h3></div></div></div>
-          <div className="col-md-4"><div className="card bg-secondary text-white"><div className="card-body"><h6>Total Amount</h6><h3>${(totals.totalAmount || 0).toFixed(2)}</h3></div></div></div>
+          <div className="col-md-4"><div className="card bg-secondary text-white"><div className="card-body"><h6>Total Amount</h6><h3>${(Number(totals.totalAmount) || 0).toFixed(2)}</h3></div></div></div>
         </div>
         <div className="row">
           <div className="col-12">
