@@ -78,23 +78,39 @@ function startNextServer() {
         if (app.isPackaged) {
             // Check if files are unpacked (outside ASAR) or packed (inside ASAR)
             // When asarUnpack is configured, .next/standalone is extracted to app.asar.unpacked
+            // CRITICAL: utilityProcess.fork() CANNOT execute files from inside ASAR archives
+            // We MUST use the unpacked path for utilityProcess
             const unpackedPath = path.join(electronDir, "resources", "app.asar.unpacked", ".next", "standalone");
-            const asarPath = path.join(__dirname, "../.next/standalone");
+            const unpackedServerPath = path.join(unpackedPath, "server.js");
+            
+            // Also check alternative unpacked location (sometimes electron-builder uses different structure)
+            const altUnpackedPath = path.join(electronDir, "resources", ".next", "standalone");
+            const altUnpackedServerPath = path.join(altUnpackedPath, "server.js");
+            
+            logToFile(`Checking unpacked path: ${unpackedPath}`);
+            logToFile(`Unpacked server.js exists: ${fs.existsSync(unpackedServerPath)}`);
+            logToFile(`Checking alt unpacked path: ${altUnpackedPath}`);
+            logToFile(`Alt unpacked server.js exists: ${fs.existsSync(altUnpackedServerPath)}`);
 
-            // Prefer unpacked path if it exists (better for utilityProcess)
-            if (fs.existsSync(path.join(unpackedPath, "server.js"))) {
+            // Prefer unpacked path if it exists (REQUIRED for utilityProcess)
+            if (fs.existsSync(unpackedServerPath)) {
                 nextPath = unpackedPath;
-                serverPath = path.join(nextPath, "server.js");
+                serverPath = unpackedServerPath;
                 logToFile("Using unpacked ASAR path (app.asar.unpacked)");
-            } else if (fs.existsSync(path.join(asarPath, "server.js"))) {
-                nextPath = asarPath;
-                serverPath = path.join(nextPath, "server.js");
-                logToFile("Using ASAR path (app.asar)");
+            } else if (fs.existsSync(altUnpackedServerPath)) {
+                nextPath = altUnpackedPath;
+                serverPath = altUnpackedServerPath;
+                logToFile("Using alternative unpacked path");
             } else {
-                // Fallback: try app.getAppPath() approach
-                nextPath = path.join(appPath, ".next", "standalone");
-                serverPath = path.join(nextPath, "server.js");
-                logToFile("Using app.getAppPath() fallback");
+                // CRITICAL ERROR: utilityProcess cannot execute files from ASAR
+                // The build must have asarUnpack configured correctly
+                const error = `Unpacked Next.js server not found. utilityProcess cannot execute files from ASAR archives.\n\nChecked paths:\n- ${unpackedPath}\n- ${altUnpackedPath}\n\nPlease ensure electron-builder.config.js has asarUnpack configured for .next/standalone/**/*`;
+                logToFile(error, "ERROR");
+                logToFile(`App path: ${appPath}`, "ERROR");
+                logToFile(`__dirname: ${__dirname}`, "ERROR");
+                logToFile(`Electron dir: ${electronDir}`, "ERROR");
+                reject(new Error(error));
+                return;
             }
 
             logToFile(`App path: ${appPath}`);

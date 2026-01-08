@@ -42,6 +42,17 @@ if (!fs.existsSync(standalonePath)) {
   process.exit(1);
 }
 
+// Step 2.5: Fix broken dependencies in @swagger-api packages
+console.log("🔧 Fixing broken dependencies...");
+try {
+  execSync("node scripts/fix-swagger-deps.cjs", {
+    stdio: "inherit",
+    cwd: process.cwd(),
+  });
+} catch (error) {
+  console.warn("⚠️  Warning: Could not fix dependencies (continuing anyway)");
+}
+
 // Step 3: Build Electron app
 console.log("⚡ Step 2: Building Electron application...");
 const platform = process.argv[2] || "all"; // 'win', 'mac', 'linux', or 'all'
@@ -82,6 +93,23 @@ try {
   });
   console.log("\n✅ Electron build completed successfully!");
   console.log("📦 Installers are in the dist-electron directory");
+  
+  // Verify unpacked files exist (critical for utilityProcess)
+  console.log("\n🔍 Verifying unpacked files...");
+  const distPath = path.join(process.cwd(), "dist-electron");
+  const unpackedDirs = fs.readdirSync(distPath, { withFileTypes: true })
+    .filter(dirent => dirent.isDirectory() && dirent.name.includes("unpacked"))
+    .map(dirent => path.join(distPath, dirent.name));
+  
+  for (const unpackedDir of unpackedDirs) {
+    const unpackedStandalone = path.join(unpackedDir, "resources", "app.asar.unpacked", ".next", "standalone", "server.js");
+    if (fs.existsSync(unpackedStandalone)) {
+      console.log(`✅ Found unpacked server.js in: ${unpackedDir}`);
+    } else {
+      console.warn(`⚠️  WARNING: Unpacked server.js not found in: ${unpackedDir}`);
+      console.warn(`   This may cause the app to fail to start. Check electron-builder.config.js asarUnpack configuration.`);
+    }
+  }
 } catch (error) {
   console.error("❌ Electron build failed");
   if (isCrossCompilation) {

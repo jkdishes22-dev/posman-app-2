@@ -35,7 +35,12 @@ module.exports = {
     "!node_modules/**/tree-sitter*/**",
     "!node_modules/**/@swagger-api/**",
     "!node_modules/**/swagger-ui-react/**",
+    "!node_modules/**/@tree-sitter-grammars/**",
   ],
+  
+  // Exclude problematic packages from dependency analysis
+  asar: true,
+  nodeGypRebuild: false,
 
   // Unpack .next/standalone directory from ASAR archive
   // This is necessary for utilityProcess to access the Next.js server files
@@ -159,5 +164,14 @@ module.exports = {
 
   // Publish configuration (optional - for auto-updates)
   publish: null, // Set to GitHub/GitLab/etc. for auto-updates
+
+  // Skip problematic packages during dependency analysis
+  onNodeModuleFile: (file, module) => {
+    // Skip @swagger-api packages that have broken dependency references
+    if (file.includes("@swagger-api") || file.includes("tree-sitter")) {
+      return false; // Don't include in build
+    }
+    return true;
+  },
 };
 
