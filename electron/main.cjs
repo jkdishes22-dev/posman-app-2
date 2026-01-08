@@ -82,15 +82,34 @@ function startNextServer() {
             // We MUST use the unpacked path for utilityProcess
             const unpackedPath = path.join(electronDir, "resources", "app.asar.unpacked", ".next", "standalone");
             const unpackedServerPath = path.join(unpackedPath, "server.js");
-            
+
             // Also check alternative unpacked location (sometimes electron-builder uses different structure)
             const altUnpackedPath = path.join(electronDir, "resources", ".next", "standalone");
             const altUnpackedServerPath = path.join(altUnpackedPath, "server.js");
-            
+
             logToFile(`Checking unpacked path: ${unpackedPath}`);
             logToFile(`Unpacked server.js exists: ${fs.existsSync(unpackedServerPath)}`);
             logToFile(`Checking alt unpacked path: ${altUnpackedPath}`);
             logToFile(`Alt unpacked server.js exists: ${fs.existsSync(altUnpackedServerPath)}`);
+
+            // Debug: List what's actually in the unpacked directory
+            const unpackedDir = path.join(electronDir, "resources", "app.asar.unpacked");
+            if (fs.existsSync(unpackedDir)) {
+                try {
+                    const unpackedContents = fs.readdirSync(unpackedDir, { withFileTypes: true });
+                    logToFile(`Unpacked directory exists. Contents: ${unpackedContents.map(d => d.name).join(", ")}`);
+                } catch (err) {
+                    logToFile(`Could not read unpacked directory: ${err.message}`);
+                }
+            } else {
+                logToFile(`Unpacked directory does not exist: ${unpackedDir}`);
+            }
+
+            // Also check if .next exists directly in resources
+            const resourcesNextPath = path.join(electronDir, "resources", ".next");
+            if (fs.existsSync(resourcesNextPath)) {
+                logToFile(`Found .next directory directly in resources`);
+            }
 
             // Prefer unpacked path if it exists (REQUIRED for utilityProcess)
             if (fs.existsSync(unpackedServerPath)) {
@@ -154,6 +173,19 @@ function startNextServer() {
 
         // Use Electron's utilityProcess API instead of child_process.fork()
         // utilityProcess is designed for this use case and uses Electron's embedded Node.js automatically
+        // CRITICAL: serverPath MUST be outside ASAR archive (in app.asar.unpacked)
+        logToFile(`Attempting to fork server at: ${serverPath}`);
+        logToFile(`Server path exists: ${fs.existsSync(serverPath)}`);
+        logToFile(`Server path is absolute: ${path.isAbsolute(serverPath)}`);
+
+        // Verify the path is NOT inside ASAR
+        if (serverPath.includes("app.asar") && !serverPath.includes("app.asar.unpacked")) {
+            const error = `CRITICAL: Server path is inside ASAR archive! utilityProcess cannot execute files from ASAR.\nPath: ${serverPath}\n\nPlease ensure asarUnpack is configured correctly in electron-builder.config.js`;
+            logToFile(error, "ERROR");
+            reject(new Error(error));
+            return;
+        }
+
         try {
             nextServer = utilityProcess.fork(serverPath, [], {
                 cwd: nextPath,
@@ -161,8 +193,10 @@ function startNextServer() {
             });
 
             logToFile("utilityProcess.fork() called successfully");
+            logToFile(`Process PID: ${nextServer.pid || "unknown"}`);
         } catch (error) {
             logToFile(`Failed to create utilityProcess: ${error.message}`, "ERROR");
+            logToFile(`Error code: ${error.code}`, "ERROR");
             logToFile(`Error stack: ${error.stack}`, "ERROR");
             reject(error);
             return;
@@ -174,13 +208,13 @@ function startNextServer() {
             logToFile(`Next.js server message: ${JSON.stringify(message)}`);
         });
 
-        // Handle utilityProcess errors
+        // Handle utilityProcess lifecycle events
         nextServer.on("spawn", () => {
             logToFile("Next.js server process spawned successfully");
         });
 
         nextServer.on("error", (error) => {
-            logToFile(`Failed to start Next.js server: ${error.message}`, "ERROR");
+            logToFile(`utilityProcess error: ${error.message}`, "ERROR");
             logToFile(`Error code: ${error.code}`, "ERROR");
             logToFile(`Error stack: ${error.stack}`, "ERROR");
             reject(error);
@@ -189,10 +223,25 @@ function startNextServer() {
         nextServer.on("exit", (code, signal) => {
             if (code !== 0 && code !== null) {
                 logToFile(`Next.js server exited with code ${code} and signal ${signal}`, "ERROR");
+                // If server exits before we resolve, reject the promise
+                if (code !== null) {
+                    const error = `Next.js server exited unexpectedly with code ${code}`;
+                    logToFile(error, "ERROR");
+                    reject(new Error(error));
+                }
             } else {
                 logToFile(`Next.js server exited normally`);
             }
         });
+
+        // Log process details for debugging
+        setTimeout(() => {
+            if (nextServer && nextServer.pid) {
+                logToFile(`Process still running, PID: ${nextServer.pid}`);
+            } else {
+                logToFile(`WARNING: Process PID not available`, "ERROR");
+            }
+        }, 1000);
 
         // Wait for server to be ready
         let attempts = 0;
