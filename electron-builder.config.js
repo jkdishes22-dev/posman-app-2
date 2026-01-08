@@ -37,6 +37,13 @@ module.exports = {
     "!node_modules/**/swagger-ui-react/**",
   ],
 
+  // Unpack .next/standalone directory from ASAR archive
+  // This is necessary for utilityProcess to access the Next.js server files
+  // Files will be extracted to resources/app.asar.unpacked/.next/standalone
+  asarUnpack: [
+    ".next/standalone/**/*",
+  ],
+
   extraFiles: [
     {
       from: "public/icons",
