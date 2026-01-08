@@ -111,28 +111,124 @@ function startNextServer() {
 
         // Use Electron's bundled Node.js instead of system Node.js
         // This ensures the app works without requiring Node.js installation on target machine
-        const { fork } = require("child_process");
+        const { spawn } = require("child_process");
 
         logToFile(`Server script path: ${serverPath}`);
         logToFile(`Working directory: ${nextPath}`);
         logToFile(`Process execPath: ${process.execPath}`);
         logToFile(`Process execPath exists: ${fs.existsSync(process.execPath)}`);
 
-        // For Electron apps, fork() without execPath will use the current Node.js runtime
-        // Since Electron IS Node.js, this should work. However, if system Node.js is available,
-        // it might use that instead. To ensure we use Electron's Node.js, we need to use execPath.
-        // But fork() with execPath pointing to Electron executable doesn't work.
-        // Solution: Use fork() without execPath, but set NODE_PATH to ensure it uses Electron's modules
+        // The issue: fork() without execPath tries to use system Node.js, which may not exist
+        // Solution: Use spawn() with Electron executable and pass server.js as argument
+        // But Electron executable can't directly run Node.js scripts...
+        // 
+        // Better solution: Use spawn() with process.execPath and pass the script
+        // However, Electron needs special handling. Let's try using the Electron executable
+        // with the --eval flag or by setting up the environment correctly.
+        //
+        // Actually, the best approach for Electron is to use fork() but we need to ensure
+        // it uses Electron's Node.js. Since fork() internally uses spawn(), and spawn()
+        // on Windows needs the executable to exist, we need to make sure fork() can find
+        // the Node.js runtime.
+        //
+        // The real solution: Use process.execPath (Electron) but we can't pass scripts to it directly.
+        // Instead, we need to use a wrapper script or run the server in-process.
+        //
+        // Let's try: Use spawn with process.execPath and pass --eval or use a different method
+        // Actually, the simplest solution is to require() the server.js file directly if possible,
+        // or use a workaround with spawn and proper arguments.
+
+        // Try using spawn with Electron executable and proper Node.js arguments
+        // Electron executable can run Node.js code with --eval or by passing a script
+        // But we need to check if this works...
+
+        // Alternative: Use fork() but ensure PATH includes Electron's directory
+        // Or use spawn() with explicit Node.js path detection
+
+        // For now, let's try the simplest approach: fork() with explicit execPath detection
+        // If that doesn't work, we'll need to run the server in-process or use a wrapper
+
+        // The issue: fork() without execPath tries to use system Node.js, which may not exist
+        // On Windows, fork() internally uses spawn() and needs to find Node.js in PATH
+        // Solution: Modify PATH to exclude system Node.js and ensure fork() uses Electron's Node.js
+        const { fork } = require("child_process");
+
+        // Set NODE_PATH to ensure modules are found
         env.NODE_PATH = path.join(__dirname, "../node_modules");
 
-        // Use fork without execPath - this will use the current process's Node.js (Electron's Node.js)
-        // This is the recommended approach for Electron apps
-        nextServer = fork(serverPath, [], {
-            cwd: nextPath,
-            env: env,
-            stdio: ["ignore", "pipe", "pipe", "ipc"],
-            // Don't use execPath - let it use the current Node.js runtime (Electron)
-        });
+        // The real issue: fork() on Windows tries to find node.exe in PATH
+        // If system Node.js isn't installed, fork() fails with ENOENT
+        // Solution: We need to explicitly tell fork() to use Electron's Node.js
+        // 
+        // In Electron, the Node.js runtime is embedded. fork() should use it, but on Windows
+        // it might be looking for node.exe in PATH. We need to either:
+        // 1. Find Electron's Node.js binary and use it as execPath
+        // 2. Use a different method to start the server
+        //
+        // Actually, the issue might be that fork() is trying to spawn a new process,
+        // and on Windows it needs to find the Node.js executable. Since Electron bundles
+        // Node.js, we need to find where it is or use a workaround.
+        //
+        // BEST SOLUTION: Use process.execPath (Electron executable) but we can't pass scripts to it.
+        // Instead, we need to use spawn() with process.execPath and pass the script as an argument
+        // with special Electron flags, OR find the actual Node.js binary.
+        //
+        // Let's try: Use spawn() with process.execPath and pass the server.js file
+        // But Electron executable can't run arbitrary scripts...
+        //
+        // REAL SOLUTION: The server.js is an ES module, so we need Node.js to run it.
+        // Since fork() is failing, let's try using spawn() with explicit Node.js detection
+        // or use a wrapper approach.
+
+        // Try to find Node.js in Electron's resources
+        // On Windows, Electron might have node.exe somewhere, or we need to use a workaround
+        const electronDir = path.dirname(process.execPath);
+        let nodeExecutable = null;
+
+        // Check common locations for Node.js in Electron
+        const possibleNodePaths = [
+            path.join(electronDir, "node.exe"),
+            path.join(electronDir, "resources", "node.exe"),
+            path.join(electronDir, "resources", "app.asar.unpacked", "node.exe"),
+        ];
+
+        for (const nodePath of possibleNodePaths) {
+            if (fs.existsSync(nodePath)) {
+                nodeExecutable = nodePath;
+                logToFile(`Found Node.js at: ${nodeExecutable}`);
+                break;
+            }
+        }
+
+        if (nodeExecutable) {
+            // Use the found Node.js binary
+            logToFile(`Using Node.js binary: ${nodeExecutable}`);
+            nextServer = fork(serverPath, [], {
+                cwd: nextPath,
+                env: env,
+                stdio: ["ignore", "pipe", "pipe", "ipc"],
+                execPath: nodeExecutable,
+            });
+        } else {
+            // If we can't find Node.js, try fork() without execPath
+            // This might work if Electron's Node.js is in PATH or if fork() can find it
+            logToFile("Node.js binary not found, trying fork() without execPath");
+            logToFile("This will use Electron's Node.js runtime if available");
+
+            // Modify PATH to help fork() find Electron's Node.js
+            if (process.platform === "win32") {
+                const originalPath = env.PATH || "";
+                // Add Electron's directory to PATH
+                env.PATH = electronDir + ";" + originalPath;
+                logToFile(`Added Electron directory to PATH: ${electronDir}`);
+            }
+
+            nextServer = fork(serverPath, [], {
+                cwd: nextPath,
+                env: env,
+                stdio: ["ignore", "pipe", "pipe", "ipc"],
+            });
+        }
 
         // Log server output for debugging
         if (nextServer.stdout) {
