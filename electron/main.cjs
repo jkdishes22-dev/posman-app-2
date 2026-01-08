@@ -10,7 +10,8 @@ const isProduction = !isDev;
 
 let mainWindow = null;
 let nextServer = null;
-const PORT = process.env.PORT || 3000;
+// Use custom port 8817 to avoid conflicts with other services (like Metabase on 3000, Next.js dev on 3000, etc.)
+const PORT = process.env.PORT || 8817;
 const HOST = "localhost";
 
 // Setup logging to file for Windows debugging
@@ -183,14 +184,29 @@ function startNextServer() {
         const checkServer = setInterval(() => {
             attempts++;
             const http = require("http");
-            logToFile(`Checking server readiness (attempt ${attempts}/${maxAttempts})...`);
+            logToFile(`Checking server readiness (attempt ${attempts}/${maxAttempts}) at http://${HOST}:${PORT}...`);
             const req = http.get(`http://${HOST}:${PORT}`, (res) => {
-                if (res.statusCode === 200) {
-                    clearInterval(checkServer);
-                    logToFile("Next.js server started successfully!");
-                    resolve();
+                logToFile(`Server responded with status ${res.statusCode}`);
+                // Check response headers to verify it's our Next.js server, not another service
+                const contentType = res.headers["content-type"] || "";
+                const serverHeader = res.headers["server"] || "";
+                const xPoweredBy = res.headers["x-powered-by"] || "";
+                logToFile(`Response Content-Type: ${contentType}`);
+                logToFile(`Response Server header: ${serverHeader}`);
+                logToFile(`Response X-Powered-By: ${xPoweredBy}`);
+
+                // Next.js typically sets x-powered-by: Next.js
+                if (xPoweredBy.includes("Next.js") || contentType.includes("text/html")) {
+                    if (res.statusCode === 200) {
+                        clearInterval(checkServer);
+                        logToFile("Next.js server started successfully!");
+                        resolve();
+                    } else {
+                        logToFile(`Server responded with status ${res.statusCode} (expected 200)`);
+                    }
                 } else {
-                    logToFile(`Server responded with status ${res.statusCode}`);
+                    logToFile(`WARNING: Server response doesn't look like Next.js!`, "ERROR");
+                    logToFile(`This might be another service (like Metabase) running on port ${PORT}`, "ERROR");
                 }
             });
             req.on("error", (error) => {
@@ -268,6 +284,34 @@ function createWindow() {
     const url = isDev
         ? `http://localhost:${PORT}`
         : `http://${HOST}:${PORT}`;
+
+    logToFile(`Loading URL: ${url}`);
+
+    // Add navigation logging to debug what's actually being loaded
+    mainWindow.webContents.on("did-start-loading", () => {
+        const currentUrl = mainWindow.webContents.getURL();
+        logToFile(`Window started loading: ${currentUrl}`);
+    });
+
+    mainWindow.webContents.on("did-finish-load", () => {
+        const currentUrl = mainWindow.webContents.getURL();
+        logToFile(`Window finished loading: ${currentUrl}`);
+        const title = mainWindow.webContents.getTitle();
+        logToFile(`Page title: ${title}`);
+    });
+
+    mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL) => {
+        logToFile(`Window failed to load: ${validatedURL}`, "ERROR");
+        logToFile(`Error code: ${errorCode}, Description: ${errorDescription}`, "ERROR");
+    });
+
+    mainWindow.webContents.on("did-navigate", (event, navigationUrl) => {
+        logToFile(`Window navigated to: ${navigationUrl}`);
+    });
+
+    mainWindow.webContents.on("did-navigate-in-page", (event, navigationUrl) => {
+        logToFile(`Window navigated in-page to: ${navigationUrl}`);
+    });
 
     mainWindow.loadURL(url);
 
