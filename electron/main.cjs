@@ -70,8 +70,22 @@ function startNextServer() {
 
     return new Promise((resolve, reject) => {
         // In production, start the Next.js server
-        const nextPath = path.join(__dirname, "../.next/standalone");
-        const serverPath = path.join(nextPath, "server.js");
+        // When packaged, __dirname points to app.asar/electron, so we need to adjust the path
+        let nextPath, serverPath;
+        if (app.isPackaged) {
+            // In packaged app, files are in app.asar
+            // __dirname is app.asar/electron, so .next is at app.asar/.next
+            nextPath = path.join(__dirname, "../.next/standalone");
+            serverPath = path.join(nextPath, "server.js");
+            // For ASAR archives, we might need to use app.getAppPath() instead
+            const appPath = app.getAppPath();
+            logToFile(`App path: ${appPath}`);
+            logToFile(`__dirname: ${__dirname}`);
+        } else {
+            // In development, use normal paths
+            nextPath = path.join(__dirname, "../.next/standalone");
+            serverPath = path.join(nextPath, "server.js");
+        }
 
         logToFile(`Looking for Next.js server at: ${serverPath}`);
         logToFile(`Next.js path exists: ${fs.existsSync(nextPath)}`);
@@ -97,22 +111,48 @@ function startNextServer() {
 
         // Use Electron's bundled Node.js instead of system Node.js
         // This ensures the app works without requiring Node.js installation on target machine
-        const nodePath = process.execPath; // Electron executable path
-        const nodeArgs = [serverPath];
-
-        // Start the Next.js server using Electron's Node.js runtime
-        // Note: We use fork instead of spawn to use the same Node.js as Electron
         const { fork } = require("child_process");
+
+        logToFile(`Server script path: ${serverPath}`);
+        logToFile(`Working directory: ${nextPath}`);
+        logToFile(`Process execPath: ${process.execPath}`);
+        logToFile(`Process execPath exists: ${fs.existsSync(process.execPath)}`);
+
+        // For Electron apps, fork() without execPath will use the current Node.js runtime
+        // Since Electron IS Node.js, this should work. However, if system Node.js is available,
+        // it might use that instead. To ensure we use Electron's Node.js, we need to use execPath.
+        // But fork() with execPath pointing to Electron executable doesn't work.
+        // Solution: Use fork() without execPath, but set NODE_PATH to ensure it uses Electron's modules
+        env.NODE_PATH = path.join(__dirname, "../node_modules");
+
+        // Use fork without execPath - this will use the current process's Node.js (Electron's Node.js)
+        // This is the recommended approach for Electron apps
         nextServer = fork(serverPath, [], {
             cwd: nextPath,
             env: env,
-            stdio: "inherit",
-            execPath: nodePath, // Use Electron's bundled Node.js
+            stdio: ["ignore", "pipe", "pipe", "ipc"],
+            // Don't use execPath - let it use the current Node.js runtime (Electron)
         });
+
+        // Log server output for debugging
+        if (nextServer.stdout) {
+            nextServer.stdout.on("data", (data) => {
+                logToFile(`Next.js server stdout: ${data.toString().trim()}`);
+            });
+        }
+        if (nextServer.stderr) {
+            nextServer.stderr.on("data", (data) => {
+                logToFile(`Next.js server stderr: ${data.toString().trim()}`, "ERROR");
+            });
+        }
 
         nextServer.on("error", (error) => {
             logToFile(`Failed to start Next.js server: ${error.message}`, "ERROR");
+            logToFile(`Error code: ${error.code}`, "ERROR");
+            logToFile(`Error syscall: ${error.syscall}`, "ERROR");
             logToFile(`Error stack: ${error.stack}`, "ERROR");
+            logToFile(`Executable path: ${process.execPath}`, "ERROR");
+            logToFile(`Executable exists: ${fs.existsSync(process.execPath)}`, "ERROR");
             reject(error);
         });
 
