@@ -162,6 +162,7 @@ jobs:
           Write-Host "✅ Outputs set successfully (path and name)"
 
       - name: Install application silently
+        id: install-app
         run: |
           $installerPath = "${{ steps.find-installer.outputs.path }}"
 
@@ -212,12 +213,40 @@ jobs:
             # Some installers return non-zero codes even on success, so we'll check if files exist
           }
 
-          # Verify installation
-          $exePath = "$installDir\JK PosMan.exe"
-          if (Test-Path $exePath) {
+          # Verify installation - find the actual executable name
+          # electron-builder may use appId (com.jk.posman) or productName (JK PosMan) for the executable name
+          Write-Host "Searching for application executable..."
+          $possibleExeNames = @("JK PosMan.exe", "posman-app.exe", "com.jk.posman.exe")
+          $exePath = $null
+
+          foreach ($exeName in $possibleExeNames) {
+            $testPath = Join-Path $installDir $exeName
+            if (Test-Path $testPath) {
+              $exePath = $testPath
+              Write-Host "✅ Found application executable: $exeName"
+              break
+            }
+          }
+
+          # If not found, search for any .exe file in the installation directory
+          if (-not $exePath) {
+            Write-Host "Executable not found with expected names, searching for any .exe file..."
+            $exeFiles = Get-ChildItem -Path $installDir -Filter *.exe -File | Where-Object { $_.Name -notlike "*Uninstall*" -and $_.Name -notlike "*Setup*" }
+            if ($exeFiles.Count -gt 0) {
+              $exePath = $exeFiles[0].FullName
+              Write-Host "✅ Found application executable: $($exeFiles[0].Name)"
+            }
+          }
+
+          if ($exePath) {
             Write-Host "✅ Application installed successfully at: $exePath"
+            # Store the actual path for use in later steps
+            Write-Host "actual_exe_path=$exePath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "actual_exe_name=$(Split-Path $exePath -Leaf)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           } else {
-            Write-Error "❌ Application not found at expected location: $exePath"
+            Write-Error "❌ Application executable not found in installation directory: $installDir"
+            Write-Host "Directory contents:"
+            Get-ChildItem -Path $installDir | ForEach-Object { Write-Host "  $($_.Name) ($($_.GetType().Name))" }
             exit 1
           }
 
@@ -232,8 +261,17 @@ jobs:
             Write-Host "Installed files count: $($files.Count)"
             
             # Check for key files
+            # Find the actual executable name (electron-builder may use appId or productName)
+            Write-Host "Searching for application executable..."
+            $exeFiles = Get-ChildItem -Path $installDir -Filter *.exe -File | Where-Object { $_.Name -notlike "*Uninstall*" -and $_.Name -notlike "*Setup*" }
+            if ($exeFiles.Count -gt 0) {
+              Write-Host "✅ Found application executable: $($exeFiles[0].Name)"
+            } else {
+              Write-Host "⚠️ Application executable not found"
+            }
+            
+            # Check for other key files
             $keyFiles = @(
-              "JK PosMan.exe",
               "resources\app.asar",
               "resources\app.asar.unpacked"
             )
@@ -298,8 +336,32 @@ jobs:
         id: test-launch
         timeout-minutes: 2
         run: |
-          $exePath = "$env:ProgramFiles\JK PosMan\JK PosMan.exe"
+          $installDir = "$env:ProgramFiles\JK PosMan"
+
+          # Get the actual executable path from the installation step, or find it
+          $exePath = "${{ steps.install-app.outputs.actual_exe_path }}"
+
+          if ([string]::IsNullOrWhiteSpace($exePath)) {
+            # Fallback: search for the executable
+            Write-Host "Executable path not found in outputs, searching in installation directory..."
+            $exeFiles = Get-ChildItem -Path $installDir -Filter *.exe -File | Where-Object { $_.Name -notlike "*Uninstall*" -and $_.Name -notlike "*Setup*" }
+            if ($exeFiles.Count -gt 0) {
+              $exePath = $exeFiles[0].FullName
+              Write-Host "Found executable: $($exeFiles[0].Name)"
+            } else {
+              Write-Error "❌ Could not find application executable in: $installDir"
+              Write-Host "Directory contents:"
+              Get-ChildItem -Path $installDir | ForEach-Object { Write-Host "  $($_.Name)" }
+              exit 1
+            }
+          }
+
           Write-Host "Attempting to launch: $exePath"
+
+          if (-not (Test-Path $exePath)) {
+            Write-Error "❌ Executable file does not exist: $exePath"
+            exit 1
+          }
 
           # Launch the application
           $process = Start-Process -FilePath $exePath -PassThru -NoNewWindow
