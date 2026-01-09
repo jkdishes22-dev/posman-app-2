@@ -199,12 +199,13 @@ jobs:
           # NSIS installer silent install flags
           # /S = Silent install
           # /D=path = Installation directory (optional)
-          $installDir = "$env:ProgramFiles\JK PosMan"
-
-          Write-Host "Installation directory: $installDir"
+          # Note: With perMachine: false, NSIS defaults to user's LocalAppData
+          # We'll install to a known location, then search for where it actually installed
+          $requestedInstallDir = "$env:ProgramFiles\JK PosMan"
+          Write-Host "Requested installation directory: $requestedInstallDir"
 
           # Run installer silently
-          $process = Start-Process -FilePath $installerPath -ArgumentList "/S", "/D=$installDir" -Wait -PassThru -NoNewWindow
+          $process = Start-Process -FilePath $installerPath -ArgumentList "/S", "/D=$requestedInstallDir" -Wait -PassThru -NoNewWindow
 
           if ($process.ExitCode -eq 0) {
             Write-Host "✅ Installation completed successfully (exit code: $($process.ExitCode))"
@@ -213,10 +214,76 @@ jobs:
             # Some installers return non-zero codes even on success, so we'll check if files exist
           }
 
+          # Find where the installer actually installed the application
+          # With perMachine: false, NSIS typically installs to LocalAppData\Programs
+          Write-Host ""
+          Write-Host "Searching for actual installation directory..."
+          $possibleInstallDirs = @(
+            $requestedInstallDir,  # Where we asked it to install
+            "$env:LOCALAPPDATA\Programs\JK PosMan",  # Default per-user location
+            "$env:APPDATA\JK PosMan",  # Alternative per-user location
+            "$env:ProgramFiles\JK PosMan",  # Per-machine location
+            "$env:ProgramFiles (x86)\JK PosMan",  # 32-bit Program Files
+            "D:\JK PosMan",  # Custom location (if user specified)
+            "C:\JK PosMan"  # Root C: drive
+          )
+
+          $installDir = $null
+          foreach ($dir in $possibleInstallDirs) {
+            if (Test-Path $dir) {
+              # Check if it actually contains application files (not just an empty directory)
+              $hasFiles = (Get-ChildItem -Path $dir -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0
+              if ($hasFiles) {
+                $installDir = $dir
+                Write-Host "✅ Found installation at: $dir"
+                break
+              }
+            }
+          }
+
+          # If still not found, search all drives
+          if (-not $installDir) {
+            Write-Host "Not found in common locations, searching all drives..."
+            Get-PSDrive -PSProvider FileSystem | ForEach-Object {
+              $drive = $_.Root
+              $testPath = Join-Path $drive "JK PosMan"
+              if (Test-Path $testPath) {
+                $hasFiles = (Get-ChildItem -Path $testPath -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0
+                if ($hasFiles) {
+                  Write-Host "  Found on $drive : $testPath"
+                  if (-not $installDir) {
+                    $installDir = $testPath
+                  }
+                }
+              }
+              # Also check LocalAppData equivalent on other drives
+              $localAppDataPath = Join-Path $drive "Users\$env:USERNAME\AppData\Local\Programs\JK PosMan"
+              if (Test-Path $localAppDataPath) {
+                $hasFiles = (Get-ChildItem -Path $localAppDataPath -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0
+                if ($hasFiles) {
+                  Write-Host "  Found in LocalAppData on $drive : $localAppDataPath"
+                  if (-not $installDir) {
+                    $installDir = $localAppDataPath
+                  }
+                }
+              }
+            }
+          }
+
+          if (-not $installDir) {
+            Write-Error "❌ Could not locate installation directory"
+            Write-Host "Searched locations:"
+            $possibleInstallDirs | ForEach-Object { Write-Host "  - $_" }
+            exit 1
+          }
+
+          Write-Host ""
+          Write-Host "Using installation directory: $installDir"
+
           # Verify installation - find the actual executable name
           # electron-builder may use appId (com.jk.posman) or productName (JK PosMan) for the executable name
+          Write-Host ""
           Write-Host "Searching for application executable..."
-          Write-Host "Installation directory: $installDir"
           Write-Host ""
 
           # First, list all contents to see what's actually there
