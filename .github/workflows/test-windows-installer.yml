@@ -34,7 +34,6 @@ jobs:
 
       - name: Download installer artifact
         id: download-artifact
-        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: ${{ github.event.inputs.artifact_name || 'windows-installer-x64' }}
@@ -43,29 +42,30 @@ jobs:
           run-id: ${{ github.event.workflow_run.id || github.event.inputs.workflow_run_id }}
           repository: ${{ github.repository }}
 
-      - name: Check artifact download result
-        if: steps.download-artifact.outcome != 'success'
+      - name: Verify artifact download
         run: |
-          Write-Host "❌ Failed to download artifact"
-          Write-Host ""
-          Write-Host "Error: Resource not accessible by integration"
-          Write-Host ""
-          Write-Host "This usually means:"
-          Write-Host "  1. The workflow needs explicit permissions (already added)"
-          Write-Host "  2. The artifact may not exist in the triggering workflow"
-          Write-Host "  3. Repository settings may restrict artifact access"
-          Write-Host ""
-          Write-Host "For manual testing:"
-          Write-Host "  1. Go to Actions → Build Windows Installer (x64)"
-          Write-Host "  2. Download the artifact manually"
-          Write-Host "  3. Test the installer locally"
-          Write-Host ""
-          Write-Host "If this is an automatic run, check:"
-          Write-Host "  - The build workflow completed successfully"
-          Write-Host "  - The artifact name matches: windows-installer-x64"
-          Write-Host "  - Repository Settings → Actions → General → Workflow permissions"
-          Write-Host "    should allow 'Read and write permissions'"
-          exit 1
+          Write-Host "Verifying artifact download..."
+
+          if (-not (Test-Path ./installer)) {
+            Write-Error "❌ Installer directory not found after download"
+            Write-Host ""
+            Write-Host "Troubleshooting:"
+            Write-Host "  1. Check if the build workflow completed successfully"
+            Write-Host "  2. Verify artifact name: ${{ github.event.inputs.artifact_name || 'windows-installer-x64' }}"
+            Write-Host "  3. Check workflow run ID: ${{ github.event.workflow_run.id || github.event.inputs.workflow_run_id }}"
+            Write-Host "  4. Repository: ${{ github.repository }}"
+            exit 1
+          }
+
+          $files = Get-ChildItem -Path ./installer -Recurse
+          if ($files.Count -eq 0) {
+            Write-Error "❌ Installer directory is empty"
+            exit 1
+          }
+
+          Write-Host "✅ Artifact downloaded successfully"
+          Write-Host "   Files found: $($files.Count)"
+          Write-Host "   Directory: $(Resolve-Path ./installer)"
 
       - name: List downloaded files
         run: |
@@ -77,22 +77,77 @@ jobs:
       - name: Find installer executable
         id: find-installer
         run: |
+          Write-Host "Searching for installer in: ./installer"
+
+          # Check if installer directory exists
+          if (-not (Test-Path ./installer)) {
+            Write-Error "❌ Installer directory not found: ./installer"
+            Write-Host "Current directory: $(Get-Location)"
+            Write-Host "Directory contents:"
+            Get-ChildItem | ForEach-Object { Write-Host "  $($_.Name)" }
+            exit 1
+          }
+
+          # Search for .exe files
           $installer = Get-ChildItem -Path ./installer -Filter *.exe -Recurse | Select-Object -First 1
+
           if ($installer) {
-            Write-Host "Found installer: $($installer.FullName)"
             $installerPath = $installer.FullName
             $installerName = $installer.Name
-            Write-Host "path=$installerPath" >> $env:GITHUB_OUTPUT
+            Write-Host "✅ Found installer: $installerPath"
+            Write-Host "   Name: $installerName"
+            Write-Host "   Size: $([math]::Round($installer.Length / 1MB, 2)) MB"
+            
+            # Set outputs (using proper escaping for paths with spaces)
+            $installerPathEscaped = $installerPath -replace '`', '``' -replace '"', '`"'
+            Write-Host "path=$installerPathEscaped" >> $env:GITHUB_OUTPUT
             Write-Host "name=$installerName" >> $env:GITHUB_OUTPUT
+            
+            # Verify output was set
+            Write-Host "Output set - path: $installerPathEscaped"
           } else {
-            Write-Error "No .exe installer found in artifacts"
+            Write-Error "❌ No .exe installer found in artifacts"
+            Write-Host "Searched in: ./installer"
+            Write-Host "Directory structure:"
+            Get-ChildItem -Path ./installer -Recurse | ForEach-Object {
+              Write-Host "  $($_.FullName)"
+            }
             exit 1
           }
 
       - name: Install application silently
         run: |
           $installerPath = "${{ steps.find-installer.outputs.path }}"
-          Write-Host "Installing: $installerPath"
+
+          # Debug: Check if path is set
+          Write-Host "Installer path from output: '$installerPath'"
+
+          if ([string]::IsNullOrWhiteSpace($installerPath)) {
+            Write-Error "❌ Installer path is empty or null!"
+            Write-Host "Previous step outputs:"
+            Write-Host "  path: '${{ steps.find-installer.outputs.path }}'"
+            Write-Host "  name: '${{ steps.find-installer.outputs.name }}'"
+            Write-Host ""
+            Write-Host "Checking for installer manually..."
+            $manualSearch = Get-ChildItem -Path ./installer -Filter *.exe -Recurse | Select-Object -First 1
+            if ($manualSearch) {
+              Write-Host "Found installer manually: $($manualSearch.FullName)"
+              $installerPath = $manualSearch.FullName
+            } else {
+              Write-Error "❌ Could not find installer even with manual search"
+              exit 1
+            }
+          }
+
+          # Verify file exists
+          if (-not (Test-Path $installerPath)) {
+            Write-Error "❌ Installer file does not exist: $installerPath"
+            exit 1
+          }
+
+          Write-Host "✅ Installing: $installerPath"
+          Write-Host "   File exists: $(Test-Path $installerPath)"
+          Write-Host "   File size: $([math]::Round((Get-Item $installerPath).Length / 1MB, 2)) MB"
 
           # NSIS installer silent install flags
           # /S = Silent install
