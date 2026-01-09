@@ -65,6 +65,24 @@ jobs:
             exit 1
           }
 
+      - name: Verify .next/standalone exists before build
+        run: |
+          Write-Host "Verifying .next/standalone exists before electron-builder runs..."
+          if (-not (Test-Path ".next\standalone\server.js")) {
+            Write-Error "❌ .next/standalone/server.js not found! Build will fail."
+            Write-Host "Current directory: $(Get-Location)"
+            Write-Host "Checking .next directory:"
+            if (Test-Path ".next") {
+              Get-ChildItem -Path ".next" -Recurse -Depth 2 | Select-Object FullName
+            } else {
+              Write-Host "  .next directory does not exist!"
+            }
+            exit 1
+          }
+          Write-Host "✅ .next/standalone/server.js found"
+          $standaloneSize = (Get-Item ".next\standalone\server.js").Length / 1MB
+          Write-Host "   Server.js size: $([math]::Round($standaloneSize, 2)) MB"
+
       - name: Build Windows Installer (x64)
         run: npx electron-builder --win --x64 --config.npmRebuild=false --publish never
         env:
@@ -76,8 +94,10 @@ jobs:
           # Speed optimizations
           ELECTRON_CACHE: "%LOCALAPPDATA%\\electron\\Cache"
           ELECTRON_BUILDER_CACHE: "%USERPROFILE%\\.cache\\electron-builder"
-          # Debug logging for electron-builder
+          # Debug logging for electron-builder (including hooks)
           DEBUG: "electron-builder*"
+          # Force console output from hooks
+          FORCE_COLOR: "1"
 
       - name: Copy .next/standalone and rebuild installer
         run: |
