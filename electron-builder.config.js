@@ -223,38 +223,43 @@ module.exports = {
   },
 
   // Hook after files are prepared - manually copy .next/standalone if extraFiles/extraResources didn't work
+  // This runs AFTER the app is packaged but BEFORE the installer is created
   afterPack: async (context) => {
-    console.log(`\n🔧 afterPack hook executing...`);
-    console.log(`   context keys: ${Object.keys(context).join(", ")}`);
-    console.log(`   appOutDir: ${context.appOutDir || "NOT SET"}`);
-    console.log(`   outDir: ${context.outDir || "NOT SET"}`);
-    console.log(`   appDir: ${context.appDir || "NOT SET"}`);
+    // Force console output (electron-builder might suppress it)
+    process.stdout.write(`\n🔧 afterPack hook executing...\n`);
+    process.stdout.write(`   context keys: ${Object.keys(context).join(", ")}\n`);
+    process.stdout.write(`   appOutDir: ${context.appOutDir || "NOT SET"}\n`);
+    process.stdout.write(`   outDir: ${context.outDir || "NOT SET"}\n`);
+    process.stdout.write(`   appDir: ${context.appDir || "NOT SET"}\n`);
 
     // Try multiple possible output directory locations
     const possibleOutDirs = [
       context.appOutDir,
       context.outDir,
       path.join(process.cwd(), "dist", "win-unpacked"),
+      path.join(process.cwd(), "dist", "win-x64-unpacked"),
       path.join(process.cwd(), "dist-electron", "win-unpacked"),
+      path.join(process.cwd(), "dist-electron", "win-x64-unpacked"),
     ].filter(Boolean);
 
     const sourceStandalone = path.join(context.appDir || process.cwd(), ".next", "standalone");
-    console.log(`   Source standalone: ${sourceStandalone}`);
-    console.log(`   Source exists: ${fs.existsSync(sourceStandalone)}`);
+    process.stdout.write(`   Source standalone: ${sourceStandalone}\n`);
+    process.stdout.write(`   Source exists: ${fs.existsSync(sourceStandalone)}\n`);
 
     if (!fs.existsSync(sourceStandalone)) {
-      console.error(`❌ Source .next/standalone not found at: ${sourceStandalone}`);
+      process.stderr.write(`❌ Source .next/standalone not found at: ${sourceStandalone}\n`);
       return;
     }
 
     // Try to copy to each possible output directory
+    let copied = false;
     for (const appOutDir of possibleOutDirs) {
       if (!appOutDir || !fs.existsSync(appOutDir)) {
-        console.log(`   Skipping ${appOutDir} (does not exist)`);
+        process.stdout.write(`   Skipping ${appOutDir} (does not exist)\n`);
         continue;
       }
 
-      console.log(`\n   Processing output directory: ${appOutDir}`);
+      process.stdout.write(`\n   Processing output directory: ${appOutDir}\n`);
 
       const targetExtraFiles = path.join(appOutDir, ".next", "standalone");
       const targetExtraResources = path.join(appOutDir, "resources", ".next", "standalone");
@@ -264,16 +269,18 @@ module.exports = {
       const extraResourcesExists = fs.existsSync(path.join(targetExtraResources, "server.js"));
 
       if (extraFilesExists) {
-        console.log(`   ✅ .next/standalone already exists at: ${targetExtraFiles}`);
+        process.stdout.write(`   ✅ .next/standalone already exists at: ${targetExtraFiles}\n`);
+        copied = true;
         continue;
       }
       if (extraResourcesExists) {
-        console.log(`   ✅ .next/standalone already exists at: ${targetExtraResources}`);
+        process.stdout.write(`   ✅ .next/standalone already exists at: ${targetExtraResources}\n`);
+        copied = true;
         continue;
       }
 
-      // Manual copy to extraFiles location (app directory)
-      console.log(`   ⚠️ .next/standalone not found, manually copying to: ${targetExtraFiles}`);
+      // Manual copy to extraFiles location (app directory) - this is where the executable is
+      process.stdout.write(`   ⚠️ .next/standalone not found, manually copying to: ${targetExtraFiles}\n`);
       try {
         // Ensure target directory exists
         fs.mkdirSync(targetExtraFiles, { recursive: true });
@@ -281,35 +288,51 @@ module.exports = {
         // Copy files recursively
         const copyRecursive = (src, dest) => {
           const entries = fs.readdirSync(src, { withFileTypes: true });
+          let fileCount = 0;
+          let dirCount = 0;
+
           for (const entry of entries) {
             const srcPath = path.join(src, entry.name);
             const destPath = path.join(dest, entry.name);
+
             if (entry.isDirectory()) {
               fs.mkdirSync(destPath, { recursive: true });
-              copyRecursive(srcPath, destPath);
+              dirCount++;
+              const subCounts = copyRecursive(srcPath, destPath);
+              fileCount += subCounts.files;
+              dirCount += subCounts.dirs;
             } else {
               fs.copyFileSync(srcPath, destPath);
+              fileCount++;
             }
           }
+
+          return { files: fileCount, dirs: dirCount };
         };
 
-        copyRecursive(sourceStandalone, targetExtraFiles);
-        console.log(`   ✅ Successfully copied .next/standalone to: ${targetExtraFiles}`);
+        const counts = copyRecursive(sourceStandalone, targetExtraFiles);
+        process.stdout.write(`   ✅ Copied ${counts.files} files and ${counts.dirs} directories\n`);
 
         // Verify copy
         const verifyPath = path.join(targetExtraFiles, "server.js");
         if (fs.existsSync(verifyPath)) {
-          console.log(`   ✅ Verification: server.js exists at: ${verifyPath}`);
+          process.stdout.write(`   ✅ Verification: server.js exists at: ${verifyPath}\n`);
+          copied = true;
         } else {
-          console.error(`   ❌ Verification failed: server.js not found at: ${verifyPath}`);
+          process.stderr.write(`   ❌ Verification failed: server.js not found at: ${verifyPath}\n`);
         }
       } catch (error) {
-        console.error(`   ❌ Failed to copy: ${error.message}`);
-        console.error(`   Stack: ${error.stack}`);
+        process.stderr.write(`   ❌ Failed to copy: ${error.message}\n`);
+        process.stderr.write(`   Stack: ${error.stack}\n`);
       }
     }
 
-    console.log(`\n✅ afterPack hook completed\n`);
+    if (copied) {
+      process.stdout.write(`\n✅ afterPack hook completed - files copied successfully\n`);
+    } else {
+      process.stderr.write(`\n⚠️ afterPack hook completed - no files were copied\n`);
+    }
+    process.stdout.write(`\n`);
   },
 };
 

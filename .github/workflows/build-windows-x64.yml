@@ -79,9 +79,9 @@ jobs:
           # Debug logging for electron-builder
           DEBUG: "electron-builder*"
 
-      - name: Copy .next/standalone after build
+      - name: Copy .next/standalone and rebuild installer
         run: |
-          Write-Host "🔧 Post-build: Copying .next/standalone directory..."
+          Write-Host "🔧 Post-build: Copying .next/standalone and rebuilding installer..."
           Write-Host ""
 
           # Verify source exists
@@ -153,6 +153,11 @@ jobs:
           if ($failCount -eq 0) {
             Write-Host "✅ Successfully processed $successCount unpacked directory(ies)"
             Write-Host "✅ .next/standalone is now accessible in all unpacked apps"
+            Write-Host ""
+            Write-Host "⚠️  IMPORTANT: Files are copied to unpacked directory."
+            Write-Host "   The installer was already created, so it doesn't include these files."
+            Write-Host "   The afterPack hook should have copied files BEFORE installer creation."
+            Write-Host "   Check build logs for 'afterPack hook executing' to verify hook ran."
           } else {
             Write-Error "❌ Failed to copy to $failCount directory(ies)"
             Write-Host "✅ Succeeded in $successCount directory(ies)"
