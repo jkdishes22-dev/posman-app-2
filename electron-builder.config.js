@@ -58,12 +58,9 @@ module.exports = {
   // Use extraResources to copy .next/standalone to resources/ directory
   // This is more reliable than extraFiles and places files at resources/.next/standalone
   // extraResources copies to resources/ (same level as app.asar), bypassing ASAR entirely
+  // Using string format: "source" copies entire directory to resources/source
   extraResources: [
-    {
-      from: ".next/standalone",
-      to: ".next/standalone",
-      filter: ["**/*"],
-    },
+    ".next/standalone",
   ],
 
   // Keep extraFiles for icons only (extraResources handles .next/standalone)
@@ -190,6 +187,15 @@ module.exports = {
       return false; // Don't include in build
     }
     return true;
+  },
+
+  // Hook to verify and ensure .next/standalone is copied correctly
+  beforePack: async (context) => {
+    const standalonePath = path.join(context.appDir, ".next", "standalone");
+    if (!fs.existsSync(standalonePath)) {
+      throw new Error(`.next/standalone directory not found at ${standalonePath}. Please run 'npm run build' first.`);
+    }
+    console.log(`✅ Verified .next/standalone exists at: ${standalonePath}`);
   },
 };
 

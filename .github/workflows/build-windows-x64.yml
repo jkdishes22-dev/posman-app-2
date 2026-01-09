@@ -81,6 +81,17 @@ jobs:
         run: |
           Write-Host "Verifying .next/standalone directory is accessible..."
 
+          # First, verify source .next/standalone exists before build
+          Write-Host "Checking if source .next/standalone exists..."
+          if (Test-Path ".next\standalone\server.js") {
+            Write-Host "✅ Source .next/standalone/server.js exists"
+          } else {
+            Write-Error "❌ CRITICAL: Source .next/standalone/server.js does not exist!"
+            Write-Error "   The Next.js standalone build was not created before electron-builder ran."
+            Write-Error "   Please check the 'Build Next.js Standalone' step."
+            exit 1
+          }
+
           # Check if dist-electron directory exists
           if (-not (Test-Path "dist-electron")) {
             Write-Host "⚠️ dist-electron directory does not exist. Build may have failed."
@@ -104,12 +115,31 @@ jobs:
           if ($unpackedDir) {
             Write-Host "Found unpacked directory: $($unpackedDir.FullName)"
             
+            # List all contents of resources directory for debugging
+            $resourcesDir = Join-Path $unpackedDir.FullName "resources"
+            if (Test-Path $resourcesDir) {
+              Write-Host "Contents of resources directory:"
+              Get-ChildItem -Path $resourcesDir -ErrorAction SilentlyContinue | ForEach-Object {
+                Write-Host "  - $($_.Name) ($(if ($_.PSIsContainer) { 'DIR' } else { 'FILE' }))"
+              }
+            } else {
+              Write-Host "⚠️ resources directory does not exist: $resourcesDir"
+            }
+            
             # Check for extraResources path (most reliable)
             $extraResourcesPath = Join-Path $unpackedDir.FullName "resources\.next\standalone\server.js"
             if (Test-Path $extraResourcesPath) {
               Write-Host "✅ Found .next/standalone via extraResources: $extraResourcesPath"
             } else {
               Write-Host "⚠️ extraResources path not found: $extraResourcesPath"
+              # Check if .next directory exists at all
+              $nextDir = Join-Path $unpackedDir.FullName "resources\.next"
+              if (Test-Path $nextDir) {
+                Write-Host "   But .next directory exists. Contents:"
+                Get-ChildItem -Path $nextDir -ErrorAction SilentlyContinue | ForEach-Object {
+                  Write-Host "     - $($_.Name)"
+                }
+              }
             }
             
             # Check for asarUnpack path
@@ -126,7 +156,9 @@ jobs:
               Write-Error "   Checked:"
               Write-Error "   - $extraResourcesPath"
               Write-Error "   - $asarUnpackPath"
-              Write-Error "   Build will fail at runtime. Please check electron-builder.config.js"
+              Write-Error ""
+              Write-Error "   Source .next/standalone exists, but electron-builder did not copy it."
+              Write-Error "   Please check electron-builder.config.js extraResources configuration."
               exit 1
             } else {
               Write-Host "✅ Verification passed: .next/standalone is accessible"
