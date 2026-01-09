@@ -78,40 +78,72 @@ jobs:
         id: find-installer
         run: |
           Write-Host "Searching for installer in: ./installer"
+          Write-Host "Current directory: $(Get-Location)"
+          Write-Host ""
 
           # Check if installer directory exists
           if (-not (Test-Path ./installer)) {
             Write-Error "❌ Installer directory not found: ./installer"
-            Write-Host "Current directory: $(Get-Location)"
             Write-Host "Directory contents:"
             Get-ChildItem | ForEach-Object { Write-Host "  $($_.Name)" }
             exit 1
           }
 
-          # Search for .exe files
-          $installer = Get-ChildItem -Path ./installer -Filter *.exe -Recurse | Select-Object -First 1
+          Write-Host "✅ Installer directory exists"
+          Write-Host "Directory contents:"
+          Get-ChildItem -Path ./installer | ForEach-Object { Write-Host "  $($_.Name)" }
+          Write-Host ""
 
-          if ($installer) {
-            $installerPath = $installer.FullName
-            $installerName = $installer.Name
-            Write-Host "✅ Found installer: $installerPath"
-            Write-Host "   Name: $installerName"
-            Write-Host "   Size: $([math]::Round($installer.Length / 1MB, 2)) MB"
-            
-            # Set outputs (using proper escaping for paths with spaces)
-            $installerPathEscaped = $installerPath -replace '`', '``' -replace '"', '`"'
-            Write-Host "path=$installerPathEscaped" >> $env:GITHUB_OUTPUT
-            Write-Host "name=$installerName" >> $env:GITHUB_OUTPUT
-            
-            # Verify output was set
-            Write-Host "Output set - path: $installerPathEscaped"
-          } else {
+          # Search for .exe files
+          Write-Host "Searching for .exe files recursively..."
+          $installers = Get-ChildItem -Path ./installer -Filter *.exe -Recurse
+
+          if ($installers.Count -eq 0) {
             Write-Error "❌ No .exe installer found in artifacts"
             Write-Host "Searched in: ./installer"
-            Write-Host "Directory structure:"
+            Write-Host "Full directory structure:"
             Get-ChildItem -Path ./installer -Recurse | ForEach-Object {
               Write-Host "  $($_.FullName)"
             }
+            exit 1
+          }
+
+          Write-Host "Found $($installers.Count) .exe file(s):"
+          $installers | ForEach-Object { Write-Host "  $($_.FullName)" }
+          Write-Host ""
+
+          # Use the first installer found
+          $installer = $installers[0]
+          $installerPath = $installer.FullName
+          $installerName = $installer.Name
+
+          Write-Host "✅ Selected installer: $installerPath"
+          Write-Host "   Name: $installerName"
+          Write-Host "   Size: $([math]::Round($installer.Length / 1MB, 2)) MB"
+          Write-Host ""
+
+          # Set outputs - use simple format without escaping (GitHub Actions handles it)
+          Write-Host "Setting GitHub Actions outputs..."
+          Write-Host "path=$installerPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "name=$installerName" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+          # Verify output was set by reading it back
+          Write-Host "Verifying outputs were set..."
+          $outputContent = Get-Content -Path $env:GITHUB_OUTPUT -Raw
+          Write-Host "Output file content:"
+          Write-Host $outputContent
+
+          if ($outputContent -match "path=") {
+            Write-Host "✅ Output 'path' was set successfully"
+          } else {
+            Write-Error "❌ Output 'path' was NOT set!"
+            exit 1
+          }
+
+          if ($outputContent -match "name=") {
+            Write-Host "✅ Output 'name' was set successfully"
+          } else {
+            Write-Error "❌ Output 'name' was NOT set!"
             exit 1
           }
 
