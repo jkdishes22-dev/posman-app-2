@@ -211,10 +211,30 @@ jobs:
             Write-Host "Created installation directory: $requestedInstallDir"
           }
 
-          # Run installer silently with explicit directory
+          # Run installer with verbose logging
           # NSIS /D parameter requires no spaces around the equals sign
+          # Try with /S for silent, but also capture any output
           Write-Host "Running installer..."
-          $process = Start-Process -FilePath $installerPath -ArgumentList "/S", "/D=$requestedInstallDir" -Wait -PassThru -NoNewWindow
+          Write-Host "Installer path: $installerPath"
+          Write-Host "Target directory: $requestedInstallDir"
+
+          # Create a log file for the installer
+          $installLog = Join-Path $env:TEMP "installer-log.txt"
+          Write-Host "Installer log will be written to: $installLog"
+
+          # Try running installer - NSIS might need different flags
+          # /S = Silent, /D= = Directory, /NCRC = Skip CRC check (faster)
+          $process = Start-Process -FilePath $installerPath -ArgumentList "/S", "/D=$requestedInstallDir", "/NCRC" -Wait -PassThru -NoNewWindow -RedirectStandardOutput $installLog -RedirectStandardError "$installLog.error"
+
+          # Check if log file was created and has content
+          if (Test-Path $installLog) {
+            Write-Host "Installer output log:"
+            Get-Content $installLog -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  $_" }
+          }
+          if (Test-Path "$installLog.error") {
+            Write-Host "Installer error log:"
+            Get-Content "$installLog.error" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host "  ERROR: $_" }
+          }
 
           Write-Host "Installer exit code: $($process.ExitCode)"
 
