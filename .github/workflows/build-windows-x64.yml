@@ -76,18 +76,18 @@ jobs:
           # Speed optimizations
           ELECTRON_CACHE: "%LOCALAPPDATA%\\electron\\Cache"
           ELECTRON_BUILDER_CACHE: "%USERPROFILE%\\.cache\\electron-builder"
+          # Debug logging for electron-builder
+          DEBUG: "electron-builder*"
 
-      - name: Check if afterPack hook ran (debug)
-        run: |
-          Write-Host "Checking build output for afterPack hook logs..."
-          # The afterPack hook should have logged its execution
-          # This step helps verify the hook ran
+      - name: Copy .next/standalone after build
+        run: node scripts/copy-standalone-after-build.js
 
       - name: Verify .next/standalone is unpacked/copied
         run: |
           Write-Host "Verifying .next/standalone directory is accessible..."
+          Write-Host ""
 
-          # First, verify source .next/standalone exists before build
+          # First, verify source .next/standalone exists
           Write-Host "Checking if source .next/standalone exists..."
           if (Test-Path ".next\standalone\server.js") {
             Write-Host "✅ Source .next/standalone/server.js exists"
@@ -97,6 +97,10 @@ jobs:
             Write-Error "   Please check the 'Build Next.js Standalone' step."
             exit 1
           }
+
+          Write-Host ""
+          Write-Host "Note: Files should have been copied by the post-build script."
+          Write-Host ""
 
           # Check if dist-electron directory exists
           if (-not (Test-Path "dist-electron")) {

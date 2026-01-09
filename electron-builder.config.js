@@ -202,11 +202,24 @@ module.exports = {
 
   // Hook to verify and manually copy .next/standalone if needed
   beforePack: async (context) => {
-    const standalonePath = path.join(context.appDir, ".next", "standalone");
+    console.log(`\n🔧 beforePack hook executing...`);
+    console.log(`   context keys: ${Object.keys(context).join(", ")}`);
+    console.log(`   appDir: ${context.appDir || "NOT SET"}`);
+    console.log(`   outDir: ${context.outDir || "NOT SET"}`);
+    console.log(`   projectDir: ${process.cwd()}`);
+
+    const standalonePath = path.join(context.appDir || process.cwd(), ".next", "standalone");
+    console.log(`   Checking standalone at: ${standalonePath}`);
+
     if (!fs.existsSync(standalonePath)) {
-      throw new Error(`.next/standalone directory not found at ${standalonePath}. Please run 'npm run build' first.`);
+      const error = `.next/standalone directory not found at ${standalonePath}. Please run 'npm run build' first.`;
+      console.error(`   ❌ ${error}`);
+      throw new Error(error);
     }
-    console.log(`✅ Verified .next/standalone exists at: ${standalonePath}`);
+
+    console.log(`   ✅ Verified .next/standalone exists`);
+    console.log(`   ✅ Source server.js exists: ${fs.existsSync(path.join(standalonePath, "server.js"))}`);
+    console.log(`\n`);
   },
 
   // Hook after files are prepared - manually copy .next/standalone if extraFiles/extraResources didn't work
