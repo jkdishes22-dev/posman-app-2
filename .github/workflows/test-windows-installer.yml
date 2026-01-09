@@ -11,6 +11,10 @@ on:
         description: "Artifact name to test (default: windows-installer-x64)"
         required: false
         default: "windows-installer-x64"
+      workflow_run_id:
+        description: "Workflow run ID to download artifact from (for manual triggers)"
+        required: false
+        type: string
 
 jobs:
   test-installer:
@@ -19,17 +23,49 @@ jobs:
     # Only run if the build workflow succeeded
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
+    # Permissions needed to download artifacts from workflow_run
+    permissions:
+      actions: read
+      contents: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Download installer artifact
+        id: download-artifact
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: ${{ github.event.inputs.artifact_name || 'windows-installer-x64' }}
           path: ./installer
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ github.event.workflow_run.id || github.event.inputs.workflow_run_id }}
+          repository: ${{ github.repository }}
+
+      - name: Check artifact download result
+        if: steps.download-artifact.outcome != 'success'
+        run: |
+          Write-Host "❌ Failed to download artifact"
+          Write-Host ""
+          Write-Host "Error: Resource not accessible by integration"
+          Write-Host ""
+          Write-Host "This usually means:"
+          Write-Host "  1. The workflow needs explicit permissions (already added)"
+          Write-Host "  2. The artifact may not exist in the triggering workflow"
+          Write-Host "  3. Repository settings may restrict artifact access"
+          Write-Host ""
+          Write-Host "For manual testing:"
+          Write-Host "  1. Go to Actions → Build Windows Installer (x64)"
+          Write-Host "  2. Download the artifact manually"
+          Write-Host "  3. Test the installer locally"
+          Write-Host ""
+          Write-Host "If this is an automatic run, check:"
+          Write-Host "  - The build workflow completed successfully"
+          Write-Host "  - The artifact name matches: windows-installer-x64"
+          Write-Host "  - Repository Settings → Actions → General → Workflow permissions"
+          Write-Host "    should allow 'Read and write permissions'"
+          exit 1
 
       - name: List downloaded files
         run: |

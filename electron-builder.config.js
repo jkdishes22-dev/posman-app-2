@@ -45,24 +45,30 @@ module.exports = {
   // Unpack .next/standalone directory from ASAR archive
   // This is necessary for utilityProcess to access the Next.js server files
   // Files will be extracted to resources/app.asar.unpacked/.next/standalone
-  // Try multiple patterns to ensure it works
+  // Patterns must match files as they appear INSIDE the ASAR archive
   asarUnpack: [
-    ".next/standalone/**/*",
+    "**/.next/standalone/**",
+    "**/.next/standalone/**/*",
     ".next/standalone/**",
-    ".next/standalone",
+    ".next/standalone/**/*",
   ],
 
-  // Also use extraFiles as a fallback to copy .next/standalone outside ASAR
-  // This ensures the files are accessible even if asarUnpack doesn't work
+  // Use extraResources to copy .next/standalone to resources/ directory
+  // This is more reliable than extraFiles and places files at resources/.next/standalone
+  // extraResources copies to resources/ (same level as app.asar), bypassing ASAR entirely
+  extraResources: [
+    {
+      from: ".next/standalone",
+      to: ".next/standalone",
+      filter: ["**/*"],
+    },
+  ],
+
+  // Keep extraFiles for icons only (extraResources handles .next/standalone)
   extraFiles: [
     {
       from: "public/icons",
       to: "public/icons",
-      filter: ["**/*"],
-    },
-    {
-      from: ".next/standalone",
-      to: ".next/standalone",
       filter: ["**/*"],
     },
   ],

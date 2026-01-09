@@ -87,6 +87,50 @@ jobs:
           ELECTRON_CACHE: "%LOCALAPPDATA%\\electron\\Cache"
           ELECTRON_BUILDER_CACHE: "%USERPROFILE%\\.cache\\electron-builder"
 
+      - name: Verify .next/standalone is unpacked/copied (${{ matrix.arch }})
+        run: |
+          Write-Host "Verifying .next/standalone directory is accessible..."
+
+          # Check unpacked application directory (electron-builder creates win-x64-unpacked or win-ia32-unpacked)
+          $unpackedDir = Get-ChildItem -Path "dist-electron" -Filter "*${{ matrix.arch }}*unpacked" -Directory | Select-Object -First 1
+          if (-not $unpackedDir) {
+            # Try dist directory if dist-electron doesn't have it
+            $unpackedDir = Get-ChildItem -Path "dist" -Filter "*${{ matrix.arch }}*unpacked" -Directory | Select-Object -First 1
+          }
+          if ($unpackedDir) {
+            Write-Host "Found unpacked directory: $($unpackedDir.FullName)"
+            
+            # Check for extraResources path (most reliable)
+            $extraResourcesPath = Join-Path $unpackedDir.FullName "resources\.next\standalone\server.js"
+            if (Test-Path $extraResourcesPath) {
+              Write-Host "✅ Found .next/standalone via extraResources: $extraResourcesPath"
+            } else {
+              Write-Host "⚠️ extraResources path not found: $extraResourcesPath"
+            }
+            
+            # Check for asarUnpack path
+            $asarUnpackPath = Join-Path $unpackedDir.FullName "resources\app.asar.unpacked\.next\standalone\server.js"
+            if (Test-Path $asarUnpackPath) {
+              Write-Host "✅ Found .next/standalone via asarUnpack: $asarUnpackPath"
+            } else {
+              Write-Host "⚠️ asarUnpack path not found: $asarUnpackPath"
+            }
+            
+            # At least one path must exist
+            if (-not (Test-Path $extraResourcesPath) -and -not (Test-Path $asarUnpackPath)) {
+              Write-Error "❌ CRITICAL: .next/standalone/server.js not found in any expected location!"
+              Write-Error "   Checked:"
+              Write-Error "   - $extraResourcesPath"
+              Write-Error "   - $asarUnpackPath"
+              Write-Error "   Build will fail at runtime. Please check electron-builder.config.js"
+              exit 1
+            } else {
+              Write-Host "✅ Verification passed: .next/standalone is accessible"
+            }
+          } else {
+            Write-Host "⚠️ Could not find unpacked directory to verify"
+          }
+
       - name: Upload Windows Installer (${{ matrix.arch }})
         uses: actions/upload-artifact@v4
         with:

@@ -87,16 +87,17 @@ function startNextServer() {
             const altUnpackedPath = path.join(electronDir, "resources", ".next", "standalone");
             const altUnpackedServerPath = path.join(altUnpackedPath, "server.js");
 
-            // Check if extraFiles copied it directly to resources (not in app.asar.unpacked)
-            const extraFilesPath = path.join(electronDir, "resources", ".next", "standalone");
-            const extraFilesServerPath = path.join(extraFilesPath, "server.js");
+            // Check if extraResources copied it directly to resources (not in app.asar.unpacked)
+            // extraResources places files at resources/.next/standalone (most reliable method)
+            const extraResourcesPath = path.join(electronDir, "resources", ".next", "standalone");
+            const extraResourcesServerPath = path.join(extraResourcesPath, "server.js");
 
             logToFile(`Checking unpacked path: ${unpackedPath}`);
             logToFile(`Unpacked server.js exists: ${fs.existsSync(unpackedServerPath)}`);
             logToFile(`Checking alt unpacked path: ${altUnpackedPath}`);
             logToFile(`Alt unpacked server.js exists: ${fs.existsSync(altUnpackedServerPath)}`);
-            logToFile(`Checking extraFiles path: ${extraFilesPath}`);
-            logToFile(`ExtraFiles server.js exists: ${fs.existsSync(extraFilesServerPath)}`);
+            logToFile(`Checking extraResources path: ${extraResourcesPath}`);
+            logToFile(`ExtraResources server.js exists: ${fs.existsSync(extraResourcesServerPath)}`);
 
             // Debug: List what's actually in the unpacked directory
             const unpackedDir = path.join(electronDir, "resources", "app.asar.unpacked");
@@ -135,8 +136,13 @@ function startNextServer() {
                 }
             }
 
-            // Prefer unpacked path if it exists (REQUIRED for utilityProcess)
-            if (fs.existsSync(unpackedServerPath)) {
+            // Priority order: extraResources (most reliable) > unpacked ASAR > alternative paths
+            // extraResources is most reliable because it bypasses ASAR entirely
+            if (fs.existsSync(extraResourcesServerPath)) {
+                nextPath = extraResourcesPath;
+                serverPath = extraResourcesServerPath;
+                logToFile("Using extraResources path (copied to resources/.next/standalone)");
+            } else if (fs.existsSync(unpackedServerPath)) {
                 nextPath = unpackedPath;
                 serverPath = unpackedServerPath;
                 logToFile("Using unpacked ASAR path (app.asar.unpacked)");
@@ -144,14 +150,10 @@ function startNextServer() {
                 nextPath = altUnpackedPath;
                 serverPath = altUnpackedServerPath;
                 logToFile("Using alternative unpacked path");
-            } else if (fs.existsSync(extraFilesServerPath)) {
-                nextPath = extraFilesPath;
-                serverPath = extraFilesServerPath;
-                logToFile("Using extraFiles path (copied outside ASAR)");
             } else {
                 // CRITICAL ERROR: utilityProcess cannot execute files from ASAR
-                // The build must have asarUnpack configured correctly
-                const error = `Unpacked Next.js server not found. utilityProcess cannot execute files from ASAR archives.\n\nChecked paths:\n- ${unpackedPath}\n- ${altUnpackedPath}\n\nPlease ensure electron-builder.config.js has asarUnpack configured for .next/standalone/**/*`;
+                // The build must have extraResources or asarUnpack configured correctly
+                const error = `Unpacked Next.js server not found. utilityProcess cannot execute files from ASAR archives.\n\nChecked paths:\n- ${extraResourcesPath} (extraResources)\n- ${unpackedPath} (asarUnpack)\n- ${altUnpackedPath} (alternative)\n\nPlease ensure electron-builder.config.js has extraResources or asarUnpack configured for .next/standalone`;
                 logToFile(error, "ERROR");
                 logToFile(`App path: ${appPath}`, "ERROR");
                 logToFile(`__dirname: ${__dirname}`, "ERROR");
