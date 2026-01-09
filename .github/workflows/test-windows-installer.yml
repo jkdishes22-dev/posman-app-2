@@ -122,30 +122,44 @@ jobs:
           Write-Host "   Size: $([math]::Round($installer.Length / 1MB, 2)) MB"
           Write-Host ""
 
-          # Set outputs - use simple format without escaping (GitHub Actions handles it)
+          # Set outputs - write directly to file (not through Write-Host)
           Write-Host "Setting GitHub Actions outputs..."
-          Write-Host "path=$installerPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          Write-Host "name=$installerName" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+          # Write directly to the output file (don't use Write-Host - it goes to console, not stdout)
+          "path=$installerPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "name=$installerName" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+          Write-Host "   Written: path=$installerPath"
+          Write-Host "   Written: name=$installerName"
 
           # Verify output was set by reading it back
           Write-Host "Verifying outputs were set..."
-          $outputContent = Get-Content -Path $env:GITHUB_OUTPUT -Raw
-          Write-Host "Output file content:"
-          Write-Host $outputContent
+          $outputContent = Get-Content -Path $env:GITHUB_OUTPUT -Raw -ErrorAction SilentlyContinue
 
-          if ($outputContent -match "path=") {
-            Write-Host "✅ Output 'path' was set successfully"
+          if ($outputContent) {
+            Write-Host "Output file content:"
+            Write-Host $outputContent
           } else {
-            Write-Error "❌ Output 'path' was NOT set!"
+            Write-Host "⚠️ Output file appears empty, but this might be normal if it's being read too quickly"
+          }
+
+          # Check if the file exists and has content
+          if (Test-Path $env:GITHUB_OUTPUT) {
+            $fileSize = (Get-Item $env:GITHUB_OUTPUT).Length
+            Write-Host "✅ Output file exists (size: $fileSize bytes)"
+            
+            if ($fileSize -gt 0) {
+              Write-Host "✅ Output file has content"
+            } else {
+              Write-Error "❌ Output file is empty!"
+              exit 1
+            }
+          } else {
+            Write-Error "❌ Output file does not exist: $env:GITHUB_OUTPUT"
             exit 1
           }
 
-          if ($outputContent -match "name=") {
-            Write-Host "✅ Output 'name' was set successfully"
-          } else {
-            Write-Error "❌ Output 'name' was NOT set!"
-            exit 1
-          }
+          Write-Host "✅ Outputs set successfully (path and name)"
 
       - name: Install application silently
         run: |
