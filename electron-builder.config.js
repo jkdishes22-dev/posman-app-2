@@ -200,13 +200,71 @@ module.exports = {
     return true;
   },
 
-  // Hook to verify and ensure .next/standalone is copied correctly
+  // Hook to verify and manually copy .next/standalone if needed
   beforePack: async (context) => {
     const standalonePath = path.join(context.appDir, ".next", "standalone");
     if (!fs.existsSync(standalonePath)) {
       throw new Error(`.next/standalone directory not found at ${standalonePath}. Please run 'npm run build' first.`);
     }
     console.log(`✅ Verified .next/standalone exists at: ${standalonePath}`);
+  },
+
+  // Hook after files are prepared - manually copy .next/standalone if extraFiles/extraResources didn't work
+  afterPack: async (context) => {
+    const appOutDir = context.appOutDir;
+    if (!appOutDir) {
+      console.log(`⚠️ appOutDir not available in afterPack hook`);
+      return;
+    }
+
+    const sourceStandalone = path.join(context.appDir, ".next", "standalone");
+    const targetExtraFiles = path.join(appOutDir, ".next", "standalone");
+    const targetExtraResources = path.join(appOutDir, "resources", ".next", "standalone");
+
+    // Check if already copied
+    const extraFilesExists = fs.existsSync(path.join(targetExtraFiles, "server.js"));
+    const extraResourcesExists = fs.existsSync(path.join(targetExtraResources, "server.js"));
+
+    if (extraFilesExists || extraResourcesExists) {
+      console.log(`✅ .next/standalone already copied by extraFiles/extraResources`);
+      return;
+    }
+
+    // Manual copy as fallback
+    console.log(`⚠️ .next/standalone not found in output, manually copying...`);
+    console.log(`   Source: ${sourceStandalone}`);
+    console.log(`   Target (extraFiles): ${targetExtraFiles}`);
+    console.log(`   Target (extraResources): ${targetExtraResources}`);
+
+    // Copy to extraFiles location (app directory)
+    if (fs.existsSync(sourceStandalone)) {
+      try {
+        // Ensure target directory exists
+        fs.mkdirSync(targetExtraFiles, { recursive: true });
+
+        // Copy files recursively
+        const copyRecursive = (src, dest) => {
+          const entries = fs.readdirSync(src, { withFileTypes: true });
+          for (const entry of entries) {
+            const srcPath = path.join(src, entry.name);
+            const destPath = path.join(dest, entry.name);
+            if (entry.isDirectory()) {
+              fs.mkdirSync(destPath, { recursive: true });
+              copyRecursive(srcPath, destPath);
+            } else {
+              fs.copyFileSync(srcPath, destPath);
+            }
+          }
+        };
+
+        copyRecursive(sourceStandalone, targetExtraFiles);
+        console.log(`✅ Manually copied .next/standalone to app directory`);
+      } catch (error) {
+        console.error(`❌ Failed to manually copy .next/standalone: ${error.message}`);
+      }
+    } else {
+      console.error(`❌ Source .next/standalone not found at: ${sourceStandalone}`);
+    }
   },
 };
 
