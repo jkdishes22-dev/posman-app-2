@@ -91,12 +91,26 @@ jobs:
         run: |
           Write-Host "Verifying .next/standalone directory is accessible..."
 
-          # Check unpacked application directory (electron-builder creates win-x64-unpacked or win-ia32-unpacked)
-          $unpackedDir = Get-ChildItem -Path "dist-electron" -Filter "*${{ matrix.arch }}*unpacked" -Directory | Select-Object -First 1
-          if (-not $unpackedDir) {
-            # Try dist directory if dist-electron doesn't have it
-            $unpackedDir = Get-ChildItem -Path "dist" -Filter "*${{ matrix.arch }}*unpacked" -Directory | Select-Object -First 1
+          # Check if dist-electron directory exists
+          if (-not (Test-Path "dist-electron")) {
+            Write-Host "⚠️ dist-electron directory does not exist. Build may have failed."
+            Write-Host "Checking for dist directory..."
+            if (-not (Test-Path "dist")) {
+              Write-Error "❌ Neither dist-electron nor dist directory exists. Build failed."
+              exit 1
+            }
           }
+
+          # Check unpacked application directory (electron-builder creates win-x64-unpacked or win-ia32-unpacked)
+          $unpackedDir = $null
+          if (Test-Path "dist-electron") {
+            $unpackedDir = Get-ChildItem -Path "dist-electron" -Filter "*${{ matrix.arch }}*unpacked" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
+          if (-not $unpackedDir -and (Test-Path "dist")) {
+            # Try dist directory if dist-electron doesn't have it
+            $unpackedDir = Get-ChildItem -Path "dist" -Filter "*${{ matrix.arch }}*unpacked" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
+
           if ($unpackedDir) {
             Write-Host "Found unpacked directory: $($unpackedDir.FullName)"
             
