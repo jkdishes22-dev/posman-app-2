@@ -136,7 +136,15 @@ jobs:
               Write-Host "⚠️ resources directory does not exist: $resourcesDir"
             }
             
-            # Check for extraResources path (most reliable)
+            # Check for extraFiles path (copies to app directory, same level as executable)
+            $extraFilesPath = Join-Path $unpackedDir.FullName ".next\standalone\server.js"
+            if (Test-Path $extraFilesPath) {
+              Write-Host "✅ Found .next/standalone via extraFiles: $extraFilesPath"
+            } else {
+              Write-Host "⚠️ extraFiles path not found: $extraFilesPath"
+            }
+            
+            # Check for extraResources path (copies to resources directory)
             $extraResourcesPath = Join-Path $unpackedDir.FullName "resources\.next\standalone\server.js"
             if (Test-Path $extraResourcesPath) {
               Write-Host "✅ Found .next/standalone via extraResources: $extraResourcesPath"
@@ -161,14 +169,15 @@ jobs:
             }
             
             # At least one path must exist
-            if (-not (Test-Path $extraResourcesPath) -and -not (Test-Path $asarUnpackPath)) {
+            if (-not (Test-Path $extraFilesPath) -and -not (Test-Path $extraResourcesPath) -and -not (Test-Path $asarUnpackPath)) {
               Write-Error "❌ CRITICAL: .next/standalone/server.js not found in any expected location!"
               Write-Error "   Checked:"
-              Write-Error "   - $extraResourcesPath"
-              Write-Error "   - $asarUnpackPath"
+              Write-Error "   - $extraFilesPath (extraFiles)"
+              Write-Error "   - $extraResourcesPath (extraResources)"
+              Write-Error "   - $asarUnpackPath (asarUnpack)"
               Write-Error ""
               Write-Error "   Source .next/standalone exists, but electron-builder did not copy it."
-              Write-Error "   Please check electron-builder.config.js extraResources configuration."
+              Write-Error "   Please check electron-builder.config.js extraFiles/extraResources configuration."
               exit 1
             } else {
               Write-Host "✅ Verification passed: .next/standalone is accessible"

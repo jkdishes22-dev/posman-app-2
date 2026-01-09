@@ -92,12 +92,19 @@ function startNextServer() {
             const extraResourcesPath = path.join(electronDir, "resources", ".next", "standalone");
             const extraResourcesServerPath = path.join(extraResourcesPath, "server.js");
 
+            // Check if extraFiles copied it to app directory (same level as executable)
+            // extraFiles places files at app/.next/standalone (where JK PosMan.exe is)
+            const extraFilesPath = path.join(electronDir, ".next", "standalone");
+            const extraFilesServerPath = path.join(extraFilesPath, "server.js");
+
             logToFile(`Checking unpacked path: ${unpackedPath}`);
             logToFile(`Unpacked server.js exists: ${fs.existsSync(unpackedServerPath)}`);
             logToFile(`Checking alt unpacked path: ${altUnpackedPath}`);
             logToFile(`Alt unpacked server.js exists: ${fs.existsSync(altUnpackedServerPath)}`);
             logToFile(`Checking extraResources path: ${extraResourcesPath}`);
             logToFile(`ExtraResources server.js exists: ${fs.existsSync(extraResourcesServerPath)}`);
+            logToFile(`Checking extraFiles path: ${extraFilesPath}`);
+            logToFile(`ExtraFiles server.js exists: ${fs.existsSync(extraFilesServerPath)}`);
 
             // Debug: List what's actually in the unpacked directory
             const unpackedDir = path.join(electronDir, "resources", "app.asar.unpacked");
@@ -166,9 +173,13 @@ function startNextServer() {
                 logToFile(`Resources directory does not exist: ${resourcesDir}`, "ERROR");
             }
 
-            // Priority order: extraResources (most reliable) > unpacked ASAR > alternative paths
-            // extraResources is most reliable because it bypasses ASAR entirely
-            if (fs.existsSync(extraResourcesServerPath)) {
+            // Priority order: extraFiles > extraResources > unpacked ASAR > alternative paths
+            // extraFiles copies to app directory (same level as executable), most accessible
+            if (fs.existsSync(extraFilesServerPath)) {
+                nextPath = extraFilesPath;
+                serverPath = extraFilesServerPath;
+                logToFile("Using extraFiles path (copied to app/.next/standalone)");
+            } else if (fs.existsSync(extraResourcesServerPath)) {
                 nextPath = extraResourcesPath;
                 serverPath = extraResourcesServerPath;
                 logToFile("Using extraResources path (copied to resources/.next/standalone)");
@@ -182,8 +193,8 @@ function startNextServer() {
                 logToFile("Using alternative unpacked path");
             } else {
                 // CRITICAL ERROR: utilityProcess cannot execute files from ASAR
-                // The build must have extraResources or asarUnpack configured correctly
-                const error = `Unpacked Next.js server not found. utilityProcess cannot execute files from ASAR archives.\n\nChecked paths:\n- ${extraResourcesPath} (extraResources)\n- ${unpackedPath} (asarUnpack)\n- ${altUnpackedPath} (alternative)\n\nPlease ensure electron-builder.config.js has extraResources or asarUnpack configured for .next/standalone`;
+                // The build must have extraFiles, extraResources, or asarUnpack configured correctly
+                const error = `Unpacked Next.js server not found. utilityProcess cannot execute files from ASAR archives.\n\nChecked paths:\n- ${extraFilesPath} (extraFiles)\n- ${extraResourcesPath} (extraResources)\n- ${unpackedPath} (asarUnpack)\n- ${altUnpackedPath} (alternative)\n\nPlease ensure electron-builder.config.js has extraFiles, extraResources, or asarUnpack configured for .next/standalone`;
                 logToFile(error, "ERROR");
                 logToFile(`App path: ${appPath}`, "ERROR");
                 logToFile(`__dirname: ${__dirname}`, "ERROR");

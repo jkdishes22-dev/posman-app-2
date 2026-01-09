@@ -58,16 +58,27 @@ module.exports = {
   // Use extraResources to copy .next/standalone to resources/ directory
   // This is more reliable than extraFiles and places files at resources/.next/standalone
   // extraResources copies to resources/ (same level as app.asar), bypassing ASAR entirely
-  // Using string format: "source" copies entire directory to resources/source
+  // Using object format with explicit filter to ensure all files are copied
   extraResources: [
-    ".next/standalone",
+    {
+      from: ".next/standalone",
+      to: ".next/standalone",
+      filter: ["**/*"],
+    },
   ],
 
-  // Keep extraFiles for icons only (extraResources handles .next/standalone)
+  // Use extraFiles to copy .next/standalone to app directory (same level as executable)
+  // This is a fallback if extraResources doesn't work
+  // extraFiles copies to the app directory (where JK PosMan.exe is), not resources/
   extraFiles: [
     {
       from: "public/icons",
       to: "public/icons",
+      filter: ["**/*"],
+    },
+    {
+      from: ".next/standalone",
+      to: ".next/standalone",
       filter: ["**/*"],
     },
   ],
