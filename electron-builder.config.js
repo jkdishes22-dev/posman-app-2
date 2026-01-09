@@ -37,7 +37,7 @@ module.exports = {
     "!node_modules/**/swagger-ui-react/**",
     "!node_modules/**/@tree-sitter-grammars/**",
   ],
-  
+
   // Exclude problematic packages from dependency analysis
   asar: true,
   nodeGypRebuild: false,
@@ -45,14 +45,24 @@ module.exports = {
   // Unpack .next/standalone directory from ASAR archive
   // This is necessary for utilityProcess to access the Next.js server files
   // Files will be extracted to resources/app.asar.unpacked/.next/standalone
+  // Try multiple patterns to ensure it works
   asarUnpack: [
     ".next/standalone/**/*",
+    ".next/standalone/**",
+    ".next/standalone",
   ],
 
+  // Also use extraFiles as a fallback to copy .next/standalone outside ASAR
+  // This ensures the files are accessible even if asarUnpack doesn't work
   extraFiles: [
     {
       from: "public/icons",
       to: "public/icons",
+      filter: ["**/*"],
+    },
+    {
+      from: ".next/standalone",
+      to: ".next/standalone",
       filter: ["**/*"],
     },
   ],

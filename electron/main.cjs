@@ -87,10 +87,16 @@ function startNextServer() {
             const altUnpackedPath = path.join(electronDir, "resources", ".next", "standalone");
             const altUnpackedServerPath = path.join(altUnpackedPath, "server.js");
 
+            // Check if extraFiles copied it directly to resources (not in app.asar.unpacked)
+            const extraFilesPath = path.join(electronDir, "resources", ".next", "standalone");
+            const extraFilesServerPath = path.join(extraFilesPath, "server.js");
+
             logToFile(`Checking unpacked path: ${unpackedPath}`);
             logToFile(`Unpacked server.js exists: ${fs.existsSync(unpackedServerPath)}`);
             logToFile(`Checking alt unpacked path: ${altUnpackedPath}`);
             logToFile(`Alt unpacked server.js exists: ${fs.existsSync(altUnpackedServerPath)}`);
+            logToFile(`Checking extraFiles path: ${extraFilesPath}`);
+            logToFile(`ExtraFiles server.js exists: ${fs.existsSync(extraFilesServerPath)}`);
 
             // Debug: List what's actually in the unpacked directory
             const unpackedDir = path.join(electronDir, "resources", "app.asar.unpacked");
@@ -98,6 +104,18 @@ function startNextServer() {
                 try {
                     const unpackedContents = fs.readdirSync(unpackedDir, { withFileTypes: true });
                     logToFile(`Unpacked directory exists. Contents: ${unpackedContents.map(d => d.name).join(", ")}`);
+
+                    // Check if .next exists inside unpacked
+                    const unpackedNextPath = path.join(unpackedDir, ".next");
+                    if (fs.existsSync(unpackedNextPath)) {
+                        logToFile(`Found .next inside app.asar.unpacked`);
+                        try {
+                            const nextContents = fs.readdirSync(unpackedNextPath, { withFileTypes: true });
+                            logToFile(`Contents of .next: ${nextContents.map(d => d.name).join(", ")}`);
+                        } catch (err) {
+                            logToFile(`Could not read .next: ${err.message}`);
+                        }
+                    }
                 } catch (err) {
                     logToFile(`Could not read unpacked directory: ${err.message}`);
                 }
@@ -109,6 +127,12 @@ function startNextServer() {
             const resourcesNextPath = path.join(electronDir, "resources", ".next");
             if (fs.existsSync(resourcesNextPath)) {
                 logToFile(`Found .next directory directly in resources`);
+                try {
+                    const nextContents = fs.readdirSync(resourcesNextPath, { withFileTypes: true });
+                    logToFile(`Contents of resources/.next: ${nextContents.map(d => d.name).join(", ")}`);
+                } catch (err) {
+                    logToFile(`Could not read resources/.next: ${err.message}`);
+                }
             }
 
             // Prefer unpacked path if it exists (REQUIRED for utilityProcess)
@@ -120,6 +144,10 @@ function startNextServer() {
                 nextPath = altUnpackedPath;
                 serverPath = altUnpackedServerPath;
                 logToFile("Using alternative unpacked path");
+            } else if (fs.existsSync(extraFilesServerPath)) {
+                nextPath = extraFilesPath;
+                serverPath = extraFilesServerPath;
+                logToFile("Using extraFiles path (copied outside ASAR)");
             } else {
                 // CRITICAL ERROR: utilityProcess cannot execute files from ASAR
                 // The build must have asarUnpack configured correctly
