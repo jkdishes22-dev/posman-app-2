@@ -60,6 +60,7 @@ module.exports = {
   // This is more reliable than extraFiles and places files at resources/.next/standalone
   // extraResources copies to resources/ (same level as app.asar), bypassing ASAR entirely
   // Using object format with explicit filter to ensure all files are copied
+  // NOTE: Paths are relative to project root (where electron-builder.config.js is located)
   extraResources: [
     {
       from: ".next/standalone",
@@ -71,6 +72,7 @@ module.exports = {
   // Use extraFiles to copy .next/standalone to app directory (same level as executable)
   // This is a fallback if extraResources doesn't work
   // extraFiles copies to the app directory (where JK PosMan.exe is), not resources/
+  // NOTE: Paths are relative to project root (where electron-builder.config.js is located)
   extraFiles: [
     {
       from: "public/icons",
