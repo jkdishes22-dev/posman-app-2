@@ -90,7 +90,84 @@ jobs:
           DEBUG: "electron-builder*"
 
       - name: Copy .next/standalone after build (${{ matrix.arch }})
-        run: node scripts/copy-standalone-after-build.js
+        run: |
+          Write-Host "🔧 Post-build: Copying .next/standalone directory..."
+          Write-Host ""
+
+          # Verify source exists
+          if (-not (Test-Path ".next\standalone\server.js")) {
+            Write-Error "❌ Source .next/standalone/server.js not found"
+            exit 1
+          }
+          Write-Host "✅ Source found: .next\standalone\server.js"
+          Write-Host ""
+
+          # Find unpacked directories
+          $unpackedDirs = @()
+          if (Test-Path "dist") {
+            $unpackedDirs += Get-ChildItem -Path "dist" -Filter "*${{ matrix.arch }}*unpacked" -Directory -ErrorAction SilentlyContinue
+          }
+          if (Test-Path "dist-electron") {
+            $unpackedDirs += Get-ChildItem -Path "dist-electron" -Filter "*${{ matrix.arch }}*unpacked" -Directory -ErrorAction SilentlyContinue
+          }
+
+          if ($unpackedDirs.Count -eq 0) {
+            Write-Error "❌ No unpacked directories found in dist/ or dist-electron/"
+            exit 1
+          }
+
+          Write-Host "📦 Processing $($unpackedDirs.Count) unpacked directory(ies)..."
+          Write-Host ""
+
+          $successCount = 0
+          $failCount = 0
+
+          foreach ($unpackedDir in $unpackedDirs) {
+            Write-Host "📁 Processing: $($unpackedDir.FullName)"
+            
+            $targetPath = Join-Path $unpackedDir.FullName ".next\standalone"
+            $verifyPath = Join-Path $targetPath "server.js"
+            
+            # Check if already exists
+            if (Test-Path $verifyPath) {
+              Write-Host "   ✅ Already exists at: $targetPath"
+              $successCount++
+              continue
+            }
+            
+            # Copy directory
+            Write-Host "   📋 Copying to: $targetPath"
+            try {
+              # Create target directory
+              New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
+              
+              # Copy all files and directories recursively
+              Copy-Item -Path ".next\standalone\*" -Destination $targetPath -Recurse -Force
+              
+              # Verify copy
+              if (Test-Path $verifyPath) {
+                Write-Host "   ✅ Successfully copied and verified"
+                $successCount++
+              } else {
+                Write-Error "   ❌ Verification failed: server.js not found"
+                $failCount++
+              }
+            } catch {
+              Write-Error "   ❌ Copy failed: $($_.Exception.Message)"
+              $failCount++
+            }
+            Write-Host ""
+          }
+
+          Write-Host "============================================================"
+          if ($failCount -eq 0) {
+            Write-Host "✅ Successfully processed $successCount unpacked directory(ies)"
+            Write-Host "✅ .next/standalone is now accessible in all unpacked apps"
+          } else {
+            Write-Error "❌ Failed to copy to $failCount directory(ies)"
+            Write-Host "✅ Succeeded in $successCount directory(ies)"
+            exit 1
+          }
 
       - name: Verify .next/standalone is unpacked/copied (${{ matrix.arch }})
         run: |
