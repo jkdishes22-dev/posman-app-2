@@ -200,17 +200,38 @@ jobs:
           # /S = Silent install
           # /D=path = Installation directory (optional)
           # Note: With perMachine: false, NSIS defaults to user's LocalAppData
-          # We'll install to a known location, then search for where it actually installed
-          $requestedInstallDir = "$env:ProgramFiles\JK PosMan"
+          # Installing to LocalAppData doesn't require admin privileges
+          $requestedInstallDir = "$env:LOCALAPPDATA\Programs\JK PosMan"
           Write-Host "Requested installation directory: $requestedInstallDir"
+          Write-Host "Note: Using LocalAppData to avoid admin requirements"
 
-          # Run installer silently
+          # Create the directory first to ensure it exists
+          if (-not (Test-Path $requestedInstallDir)) {
+            New-Item -ItemType Directory -Path $requestedInstallDir -Force | Out-Null
+            Write-Host "Created installation directory: $requestedInstallDir"
+          }
+
+          # Run installer silently with explicit directory
+          # NSIS /D parameter requires no spaces around the equals sign
+          Write-Host "Running installer..."
           $process = Start-Process -FilePath $installerPath -ArgumentList "/S", "/D=$requestedInstallDir" -Wait -PassThru -NoNewWindow
 
-          if ($process.ExitCode -eq 0) {
-            Write-Host "✅ Installation completed successfully (exit code: $($process.ExitCode))"
+          Write-Host "Installer exit code: $($process.ExitCode)"
+
+          # Check if the directory was created/modified
+          Start-Sleep -Seconds 2  # Give installer time to finish writing files
+
+          if (Test-Path $requestedInstallDir) {
+            $fileCount = (Get-ChildItem -Path $requestedInstallDir -Recurse -ErrorAction SilentlyContinue | Measure-Object).Count
+            Write-Host "Installation directory exists with $fileCount items"
           } else {
-            Write-Host "⚠️ Installation completed with exit code: $($process.ExitCode)"
+            Write-Host "⚠️ Requested installation directory does not exist after installation"
+          }
+
+          if ($process.ExitCode -eq 0) {
+            Write-Host "✅ Installation process completed (exit code: $($process.ExitCode))"
+          } else {
+            Write-Host "⚠️ Installation process completed with exit code: $($process.ExitCode)"
             # Some installers return non-zero codes even on success, so we'll check if files exist
           }
 
@@ -230,14 +251,27 @@ jobs:
 
           $installDir = $null
           foreach ($dir in $possibleInstallDirs) {
+            Write-Host "  Checking: $dir"
             if (Test-Path $dir) {
               # Check if it actually contains application files (not just an empty directory)
-              $hasFiles = (Get-ChildItem -Path $dir -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0
-              if ($hasFiles) {
+              $items = Get-ChildItem -Path $dir -ErrorAction SilentlyContinue
+              $itemCount = ($items | Measure-Object).Count
+              Write-Host "    Exists: Yes, Contains: $itemCount items"
+              
+              if ($itemCount -gt 0) {
+                # List first few items for debugging
+                $items | Select-Object -First 5 | ForEach-Object {
+                  Write-Host "      - $($_.Name) ($(if ($_.PSIsContainer) { 'DIR' } else { 'FILE' }))"
+                }
+                
                 $installDir = $dir
-                Write-Host "✅ Found installation at: $dir"
+                Write-Host "    ✅ Found installation at: $dir"
                 break
+              } else {
+                Write-Host "    ⚠️ Directory exists but is empty"
               }
+            } else {
+              Write-Host "    Exists: No"
             }
           }
 
