@@ -26,7 +26,9 @@ module.exports = {
 
   files: [
     "electron/**/*",
-    ".next/standalone/**/*",
+    // NOTE: .next/standalone is NOT included in files array because we use extraResources
+    // to copy it outside ASAR. Including it here would pack it into ASAR, making it
+    // inaccessible to utilityProcess.
     ".next/static/**/*",
     "public/**/*",
     "package.json",

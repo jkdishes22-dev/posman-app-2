@@ -136,6 +136,36 @@ function startNextServer() {
                 }
             }
 
+            // Comprehensive debugging: List ALL contents of resources directory
+            const resourcesDir = path.join(electronDir, "resources");
+            if (fs.existsSync(resourcesDir)) {
+                try {
+                    logToFile(`Listing ALL contents of resources directory: ${resourcesDir}`);
+                    const resourcesContents = fs.readdirSync(resourcesDir, { withFileTypes: true });
+                    logToFile(`Resources directory contents (${resourcesContents.length} items):`);
+                    resourcesContents.forEach((item) => {
+                        const itemPath = path.join(resourcesDir, item.name);
+                        if (item.isDirectory()) {
+                            logToFile(`  [DIR]  ${item.name}/`);
+                            // List first-level contents of directories
+                            try {
+                                const subContents = fs.readdirSync(itemPath, { withFileTypes: true });
+                                logToFile(`         Contains: ${subContents.map(d => d.name).join(", ")}`);
+                            } catch (err) {
+                                logToFile(`         (Could not read: ${err.message})`);
+                            }
+                        } else {
+                            const stats = fs.statSync(itemPath);
+                            logToFile(`  [FILE] ${item.name} (${(stats.size / 1024).toFixed(2)} KB)`);
+                        }
+                    });
+                } catch (err) {
+                    logToFile(`Could not list resources directory: ${err.message}`, "ERROR");
+                }
+            } else {
+                logToFile(`Resources directory does not exist: ${resourcesDir}`, "ERROR");
+            }
+
             // Priority order: extraResources (most reliable) > unpacked ASAR > alternative paths
             // extraResources is most reliable because it bypasses ASAR entirely
             if (fs.existsSync(extraResourcesServerPath)) {
