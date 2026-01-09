@@ -122,6 +122,7 @@ module.exports = {
     uninstallerIcon: "public/icons/JKlogo-512.png",
     installerHeaderIcon: "public/icons/JKlogo-512.png",
     include: "build/installer.nsh",
+    script: "build/installer-copy-standalone.nsh", // Copy .next/standalone during installation (fallback)
     license: "LICENSE",
     menuCategory: "Business",
     // Additional NSIS options for better compatibility

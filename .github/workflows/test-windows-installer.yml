@@ -246,6 +246,49 @@ jobs:
                 Write-Host "⚠️ Missing: $file"
               }
             }
+            
+            Write-Host ""
+            Write-Host "🔍 Verifying .next/standalone directory (CRITICAL for app functionality)..."
+            
+            # Check all possible locations for .next/standalone
+            $standaloneLocations = @(
+              @{ Name = "extraFiles (app/.next/standalone)"; Path = Join-Path $installDir ".next\standalone\server.js" },
+              @{ Name = "extraResources (resources/.next/standalone)"; Path = Join-Path $installDir "resources\.next\standalone\server.js" },
+              @{ Name = "asarUnpack (resources/app.asar.unpacked/.next/standalone)"; Path = Join-Path $installDir "resources\app.asar.unpacked\.next\standalone\server.js" }
+            )
+            
+            $found = $false
+            foreach ($loc in $standaloneLocations) {
+              if (Test-Path $loc.Path) {
+                Write-Host "✅ Found .next/standalone at: $($loc.Name)"
+                Write-Host "   Path: $($loc.Path)"
+                $found = $true
+                
+                # Get file size to verify it's not empty
+                $serverJs = Get-Item $loc.Path
+                Write-Host "   server.js size: $([math]::Round($serverJs.Length / 1KB, 2)) KB"
+                break
+              } else {
+                Write-Host "❌ Not found at: $($loc.Name)"
+              }
+            }
+            
+            if (-not $found) {
+              Write-Error "❌ CRITICAL: .next/standalone/server.js not found in any expected location!"
+              Write-Host ""
+              Write-Host "The app will fail to start with 'Unpacked Next.js server not found' error."
+              Write-Host ""
+              Write-Host "This indicates that:"
+              Write-Host "  1. extraFiles/extraResources in electron-builder.config.js are not working"
+              Write-Host "  2. afterPack hook did not copy files"
+              Write-Host "  3. NSIS installation script did not copy files"
+              Write-Host ""
+              Write-Host "Please check the build logs and electron-builder configuration."
+              exit 1
+            } else {
+              Write-Host ""
+              Write-Host "✅ .next/standalone verification passed - app should be able to start"
+            }
           } else {
             Write-Error "❌ Installation directory does not exist"
             exit 1
