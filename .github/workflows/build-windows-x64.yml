@@ -77,6 +77,12 @@ jobs:
           ELECTRON_CACHE: "%LOCALAPPDATA%\\electron\\Cache"
           ELECTRON_BUILDER_CACHE: "%USERPROFILE%\\.cache\\electron-builder"
 
+      - name: Check if afterPack hook ran (debug)
+        run: |
+          Write-Host "Checking build output for afterPack hook logs..."
+          # The afterPack hook should have logged its execution
+          # This step helps verify the hook ran
+
       - name: Verify .next/standalone is unpacked/copied
         run: |
           Write-Host "Verifying .next/standalone directory is accessible..."

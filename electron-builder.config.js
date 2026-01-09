@@ -211,33 +211,56 @@ module.exports = {
 
   // Hook after files are prepared - manually copy .next/standalone if extraFiles/extraResources didn't work
   afterPack: async (context) => {
-    const appOutDir = context.appOutDir;
-    if (!appOutDir) {
-      console.log(`⚠️ appOutDir not available in afterPack hook`);
+    console.log(`\n🔧 afterPack hook executing...`);
+    console.log(`   context keys: ${Object.keys(context).join(", ")}`);
+    console.log(`   appOutDir: ${context.appOutDir || "NOT SET"}`);
+    console.log(`   outDir: ${context.outDir || "NOT SET"}`);
+    console.log(`   appDir: ${context.appDir || "NOT SET"}`);
+
+    // Try multiple possible output directory locations
+    const possibleOutDirs = [
+      context.appOutDir,
+      context.outDir,
+      path.join(process.cwd(), "dist", "win-unpacked"),
+      path.join(process.cwd(), "dist-electron", "win-unpacked"),
+    ].filter(Boolean);
+
+    const sourceStandalone = path.join(context.appDir || process.cwd(), ".next", "standalone");
+    console.log(`   Source standalone: ${sourceStandalone}`);
+    console.log(`   Source exists: ${fs.existsSync(sourceStandalone)}`);
+
+    if (!fs.existsSync(sourceStandalone)) {
+      console.error(`❌ Source .next/standalone not found at: ${sourceStandalone}`);
       return;
     }
 
-    const sourceStandalone = path.join(context.appDir, ".next", "standalone");
-    const targetExtraFiles = path.join(appOutDir, ".next", "standalone");
-    const targetExtraResources = path.join(appOutDir, "resources", ".next", "standalone");
+    // Try to copy to each possible output directory
+    for (const appOutDir of possibleOutDirs) {
+      if (!appOutDir || !fs.existsSync(appOutDir)) {
+        console.log(`   Skipping ${appOutDir} (does not exist)`);
+        continue;
+      }
 
-    // Check if already copied
-    const extraFilesExists = fs.existsSync(path.join(targetExtraFiles, "server.js"));
-    const extraResourcesExists = fs.existsSync(path.join(targetExtraResources, "server.js"));
+      console.log(`\n   Processing output directory: ${appOutDir}`);
 
-    if (extraFilesExists || extraResourcesExists) {
-      console.log(`✅ .next/standalone already copied by extraFiles/extraResources`);
-      return;
-    }
+      const targetExtraFiles = path.join(appOutDir, ".next", "standalone");
+      const targetExtraResources = path.join(appOutDir, "resources", ".next", "standalone");
 
-    // Manual copy as fallback
-    console.log(`⚠️ .next/standalone not found in output, manually copying...`);
-    console.log(`   Source: ${sourceStandalone}`);
-    console.log(`   Target (extraFiles): ${targetExtraFiles}`);
-    console.log(`   Target (extraResources): ${targetExtraResources}`);
+      // Check if already copied
+      const extraFilesExists = fs.existsSync(path.join(targetExtraFiles, "server.js"));
+      const extraResourcesExists = fs.existsSync(path.join(targetExtraResources, "server.js"));
 
-    // Copy to extraFiles location (app directory)
-    if (fs.existsSync(sourceStandalone)) {
+      if (extraFilesExists) {
+        console.log(`   ✅ .next/standalone already exists at: ${targetExtraFiles}`);
+        continue;
+      }
+      if (extraResourcesExists) {
+        console.log(`   ✅ .next/standalone already exists at: ${targetExtraResources}`);
+        continue;
+      }
+
+      // Manual copy to extraFiles location (app directory)
+      console.log(`   ⚠️ .next/standalone not found, manually copying to: ${targetExtraFiles}`);
       try {
         // Ensure target directory exists
         fs.mkdirSync(targetExtraFiles, { recursive: true });
@@ -258,13 +281,22 @@ module.exports = {
         };
 
         copyRecursive(sourceStandalone, targetExtraFiles);
-        console.log(`✅ Manually copied .next/standalone to app directory`);
+        console.log(`   ✅ Successfully copied .next/standalone to: ${targetExtraFiles}`);
+
+        // Verify copy
+        const verifyPath = path.join(targetExtraFiles, "server.js");
+        if (fs.existsSync(verifyPath)) {
+          console.log(`   ✅ Verification: server.js exists at: ${verifyPath}`);
+        } else {
+          console.error(`   ❌ Verification failed: server.js not found at: ${verifyPath}`);
+        }
       } catch (error) {
-        console.error(`❌ Failed to manually copy .next/standalone: ${error.message}`);
+        console.error(`   ❌ Failed to copy: ${error.message}`);
+        console.error(`   Stack: ${error.stack}`);
       }
-    } else {
-      console.error(`❌ Source .next/standalone not found at: ${sourceStandalone}`);
     }
+
+    console.log(`\n✅ afterPack hook completed\n`);
   },
 };
 
