@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToMany, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, Column, ManyToMany, ManyToOne, JoinColumn, Index } from "typeorm";
 import { Role } from "./Role";
 import { PermissionScope } from "./PermissionScope";
 import { BaseEntity } from "./BaseEntity";
@@ -11,6 +11,8 @@ export class Permission extends BaseEntity {
   @ManyToMany(() => Role, (role) => role.permissions)
   roles: Role[];
 
+  // perf: index FK — queried when resolving role permissions in auth middleware
+  @Index()
   @ManyToOne(() => PermissionScope, (scope) => scope.permissions)
   @JoinColumn({ name: "scope_id" })
   scope: PermissionScope;
