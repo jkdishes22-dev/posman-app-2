@@ -1,4 +1,5 @@
 import { getConnection } from "@backend/config/data-source";
+import { formatSetupErrorResponse } from "@backend/config/startup-bootstrap";
 import { NextApiRequest, NextApiResponse } from "next";
 import { DataSource } from "typeorm";
 
@@ -29,9 +30,9 @@ export const dbMiddleware = (handler) => {
       console.error("Database connection error:", error);
       // Reset cached connection on error
       cachedConnection = null;
-      return res
-        .status(500)
-        .json({ message: "Database connection failed: " + error.message });
+
+      const setupError = formatSetupErrorResponse(error);
+      return res.status(setupError.status).json(setupError.body);
     }
   };
 };
