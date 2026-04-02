@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import React from "react";
 import Image from "next/image";
@@ -10,6 +10,23 @@ import { useApiCall } from "./utils/apiUtils";
 import { ApiErrorResponse } from "./utils/errorUtils";
 import ErrorDisplay from "./components/ErrorDisplay";
 
+type SetupState =
+  | "ready"
+  | "db_server_unavailable"
+  | "initialization_required"
+  | "initializing"
+  | "failed";
+
+interface SetupStatus {
+  state: SetupState;
+  message: string;
+  code: string;
+  guidance?: {
+    title: string;
+    steps: string[];
+  };
+}
+
 const LoginForm = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -18,9 +35,59 @@ const LoginForm = () => {
   const [activeField, setActiveField] = useState("username");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
+  const [isCheckingSetup, setIsCheckingSetup] = useState(true);
+  const [isRunningSetup, setIsRunningSetup] = useState(false);
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
   const apiCall = useApiCall();
+
+  const clearErrors = useCallback(() => {
+    setError("");
+    setErrorDetails(null);
+  }, []);
+
+  const readSetupStatus = useCallback(async (retry = false) => {
+    setIsCheckingSetup(true);
+    try {
+      const suffix = retry ? "?retry=1" : "";
+      const result = await apiCall<SetupStatus>(`/api/system/setup-status${suffix}`);
+      if (result.status === 200 && result.data) {
+        setSetupStatus(result.data);
+        if (result.data.state === "db_server_unavailable") {
+          setError(result.data.message);
+          setErrorDetails({ message: result.data.message, status: 503 });
+        } else if (result.data.state === "failed") {
+          setError(result.data.message);
+          setErrorDetails({ message: result.data.message, status: 500 });
+        } else {
+          clearErrors();
+        }
+      } else {
+        setSetupStatus({
+          state: "failed",
+          message: result.error || "Unable to check setup status.",
+          code: "SETUP_FAILED",
+        });
+        setError(result.error || "Unable to check setup status.");
+        setErrorDetails(result.errorDetails || { status: 500 });
+      }
+    } catch (err) {
+      setSetupStatus({
+        state: "failed",
+        message: "Network error while checking setup status.",
+        code: "SETUP_FAILED",
+      });
+      setError("Network error while checking setup status.");
+      setErrorDetails({ message: "Network error while checking setup status.", networkError: true, status: 0 });
+    } finally {
+      setIsCheckingSetup(false);
+    }
+  }, [apiCall, clearErrors]);
+
+  useEffect(() => {
+    readSetupStatus();
+  }, [readSetupStatus]);
 
   // Redirect if already authenticated (but not if we're already redirecting from login)
   useEffect(() => {
@@ -55,6 +122,18 @@ const LoginForm = () => {
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
+    if (setupStatus && setupStatus.state !== "ready") {
+      setError(setupStatus.message);
+      if (setupStatus.state === "db_server_unavailable") {
+        setErrorDetails({ message: setupStatus.message, status: 503 });
+      } else if (setupStatus.state === "initialization_required") {
+        setErrorDetails({ message: setupStatus.message, status: 428 });
+      } else {
+        setErrorDetails({ message: setupStatus.message, status: 500 });
+      }
+      return;
+    }
+
     if (!username || !password) {
       setError("Please fill in all fields");
       return;
@@ -124,6 +203,35 @@ const LoginForm = () => {
     }
   };
 
+  const handleInitializeSetup = async () => {
+    setIsRunningSetup(true);
+    clearErrors();
+    try {
+      const result = await apiCall<SetupStatus>("/api/system/setup-initialize", {
+        method: "POST",
+      });
+
+      if (result.status === 200 && result.data) {
+        setSetupStatus(result.data);
+        if (result.data.state === "ready") {
+          clearErrors();
+        } else {
+          setError(result.data.message || "Setup did not complete.");
+          setErrorDetails({ message: result.data.message || "Setup did not complete.", status: 500 });
+        }
+      } else {
+        setError(result.error || "Database setup failed.");
+        setErrorDetails(result.errorDetails || { status: result.status });
+      }
+    } catch (err) {
+      setError("Network error during setup initialization.");
+      setErrorDetails({ message: "Network error during setup initialization.", networkError: true, status: 0 });
+    } finally {
+      setIsRunningSetup(false);
+      await readSetupStatus(true);
+    }
+  };
+
   const handleInputClick = (field: React.SetStateAction<string>) => {
     setActiveField(field);
   };
@@ -169,10 +277,50 @@ const LoginForm = () => {
                 error={error}
                 errorDetails={errorDetails}
                 onDismiss={() => {
-                  setError("");
-                  setErrorDetails(null);
+                  clearErrors();
                 }}
               />
+              {isCheckingSetup && (
+                <div className="alert alert-info">
+                  <div className="d-flex align-items-center">
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Checking system setup...
+                  </div>
+                </div>
+              )}
+              {!isCheckingSetup && setupStatus && setupStatus.state !== "ready" && (
+                <div className={`alert ${setupStatus.state === "initialization_required" ? "alert-warning" : "alert-danger"}`}>
+                  <h6 className="mb-2">{setupStatus.guidance?.title || "System setup required"}</h6>
+                  <p className="mb-2">{setupStatus.message}</p>
+                  {setupStatus.guidance?.steps && setupStatus.guidance.steps.length > 0 && (
+                    <ul className="mb-3">
+                      {setupStatus.guidance.steps.map((step) => (
+                        <li key={step}>{step}</li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="d-flex gap-2">
+                    {setupStatus.state === "initialization_required" && (
+                      <button
+                        type="button"
+                        className="btn btn-warning btn-sm"
+                        onClick={handleInitializeSetup}
+                        disabled={isRunningSetup}
+                      >
+                        {isRunningSetup ? "Initializing..." : "Run Initial Setup"}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => readSetupStatus(true)}
+                      disabled={isRunningSetup}
+                    >
+                      Retry Check
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="form-outline mb-4 col-xs-3">
                 <label className="form-label" htmlFor="username">
                   User name / code
@@ -202,7 +350,13 @@ const LoginForm = () => {
               <button
                 type="submit"
                 className="btn btn-primary btn-block"
-                disabled={isSubmitting || isRedirecting}
+                disabled={
+                  isSubmitting ||
+                  isRedirecting ||
+                  isCheckingSetup ||
+                  isRunningSetup ||
+                  (setupStatus !== null && setupStatus.state !== "ready")
+                }
               >
                 {isSubmitting ? (
                   <>

@@ -94,6 +94,10 @@ export const AppDataSource = new DataSource({
 });
 
 export const getConnection = async (): Promise<DataSource> => {
+  if (!connectionInstance && AppDataSource.isInitialized) {
+    connectionInstance = AppDataSource;
+  }
+
   if (connectionInstance && connectionInstance.isInitialized) {
     return connectionInstance;
   }
@@ -108,6 +112,9 @@ export const getConnection = async (): Promise<DataSource> => {
 
   isInitializing = true;
   try {
+    const { ensureStartupReadyForRequest } = await import("./startup-bootstrap");
+    await ensureStartupReadyForRequest();
+
     if (!connectionInstance) {
       connectionInstance = await AppDataSource.initialize();
     }
