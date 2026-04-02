@@ -1,19 +1,70 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import jwt from "jsonwebtoken";
 import { MaterialButton, MaterialCard } from "../components/MaterialComponents";
+
+interface DecodedToken {
+  roles?: string[];
+  exp?: number;
+}
+
+function getDashboardPath(primaryRole: string | undefined): string {
+  switch (primaryRole) {
+    case "admin":
+      return "/admin";
+    case "supervisor":
+      return "/supervisor";
+    case "sales":
+      return "/home/billing";
+    case "cashier":
+      return "/home/cashier";
+    case "storekeeper":
+      return "/storekeeper";
+    default:
+      return "/home";
+  }
+}
 
 const NotAuthorizedPage = () => {
   const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [dashboardPath, setDashboardPath] = useState("/home");
 
-  const handleLogin = () => {
+  useEffect(() => {
+    setIsClient(true);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setIsLoggedIn(false);
+      return;
+    }
+    const decoded = jwt.decode(token) as DecodedToken | null;
+    if (!decoded || !Array.isArray(decoded.roles) || decoded.roles.length === 0) {
+      setIsLoggedIn(false);
+      return;
+    }
+    const nowSec = Date.now() / 1000;
+    const exp = decoded.exp;
+    const valid = exp !== undefined && exp > nowSec;
+    setIsLoggedIn(valid);
+    if (valid) {
+      setDashboardPath(getDashboardPath(decoded.roles[0]));
+    }
+  }, []);
+
+  const handleGoToLogin = () => {
     router.push("/");
   };
 
-  const handleGoBack = () => {
-    router.back();
+  const handleGoToDashboard = () => {
+    router.push(dashboardPath);
   };
+
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
@@ -36,7 +87,7 @@ const NotAuthorizedPage = () => {
 
               {/* Description */}
               <p className="text-secondary mb-4 fs-5">
-                You don't have permission to view this page. Please contact your administrator if you believe this is an error.
+                You don&apos;t have permission to view this page. Please contact your administrator if you believe this is an error.
               </p>
 
               {/* Additional Info */}
@@ -51,23 +102,36 @@ const NotAuthorizedPage = () => {
 
               {/* Action Buttons */}
               <div className="d-flex flex-column flex-sm-row gap-3 justify-content-center">
-                <MaterialButton
-                  variant="primary"
-                  onClick={handleLogin}
-                  className="px-4 py-2"
-                >
-                  <i className="bi bi-box-arrow-in-right me-2"></i>
-                  Login Instead
-                </MaterialButton>
+                {isLoggedIn ? (
+                  <MaterialButton
+                    variant="primary"
+                    onClick={handleGoToDashboard}
+                    className="px-4 py-2"
+                  >
+                    <i className="bi bi-house-door me-2"></i>
+                    Go to My Dashboard
+                  </MaterialButton>
+                ) : (
+                  <>
+                    <MaterialButton
+                      variant="primary"
+                      onClick={handleGoToLogin}
+                      className="px-4 py-2"
+                    >
+                      <i className="bi bi-box-arrow-in-right me-2"></i>
+                      Login Instead
+                    </MaterialButton>
 
-                <MaterialButton
-                  variant="secondary"
-                  onClick={handleGoBack}
-                  className="px-4 py-2"
-                >
-                  <i className="bi bi-arrow-left me-2"></i>
-                  Go Back
-                </MaterialButton>
+                    <MaterialButton
+                      variant="secondary"
+                      onClick={handleGoToLogin}
+                      className="px-4 py-2"
+                    >
+                      <i className="bi bi-arrow-left me-2"></i>
+                      Go Back
+                    </MaterialButton>
+                  </>
+                )}
               </div>
 
               {/* Footer */}

@@ -13,7 +13,6 @@ import {
     Form,
     InputGroup,
     Spinner,
-    Alert
 } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
@@ -88,7 +87,13 @@ export default function PurchaseOrdersPage() {
     });
     const [receiveFormData, setReceiveFormData] = useState<Array<{ item_id: number; quantity_received: string }>>([]);
     const [formError, setFormError] = useState<string | null>(null);
+    const [formErrorDetails, setFormErrorDetails] = useState<ApiErrorResponse | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const clearFormErrorState = () => {
+        setFormError(null);
+        setFormErrorDetails(null);
+    };
 
     // Search and filter
     const [searchTerm, setSearchTerm] = useState("");
@@ -176,7 +181,7 @@ export default function PurchaseOrdersPage() {
             notes: "",
             items: [{ item_id: "", quantity_ordered: "", unit_price: "" }],
         });
-        setFormError(null);
+        clearFormErrorState();
         setItemSearchQueries({});
         setItemSearchResults({});
         setShowItemDropdowns({});
@@ -198,12 +203,13 @@ export default function PurchaseOrdersPage() {
                 quantity_received: item.quantity_received.toString()
             }))
         );
-        setFormError(null);
+        clearFormErrorState();
         setShowReceiveModal(true);
     };
 
     const handleCancel = (po: PurchaseOrder) => {
         setSelectedPO(po);
+        clearFormErrorState();
         setShowCancelModal(true);
     };
 
@@ -288,7 +294,7 @@ export default function PurchaseOrdersPage() {
 
     const handleCreateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setFormError(null);
+        clearFormErrorState();
 
         if (!formData.supplier_id) {
             setFormError("Supplier is required");
@@ -341,11 +347,11 @@ export default function PurchaseOrdersPage() {
                     setAuthError({ message: result.error || "Access denied" });
                 }
                 setFormError(result.error || "Failed to create purchase order");
-                setErrorDetails(result.errorDetails);
+                setFormErrorDetails(result.errorDetails ?? null);
             }
         } catch (error: any) {
             setFormError("Network error occurred");
-            setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+            setFormErrorDetails({ networkError: true, status: 0 });
         } finally {
             setIsSubmitting(false);
         }
@@ -355,7 +361,7 @@ export default function PurchaseOrdersPage() {
         e.preventDefault();
         if (!selectedPO) return;
 
-        setFormError(null);
+        clearFormErrorState();
         setIsSubmitting(true);
 
         try {
@@ -380,11 +386,11 @@ export default function PurchaseOrdersPage() {
                     setAuthError({ message: result.error || "Access denied" });
                 }
                 setFormError(result.error || "Failed to receive purchase order");
-                setErrorDetails(result.errorDetails);
+                setFormErrorDetails(result.errorDetails ?? null);
             }
         } catch (error: any) {
             setFormError("Network error occurred");
-            setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+            setFormErrorDetails({ networkError: true, status: 0 });
         } finally {
             setIsSubmitting(false);
         }
@@ -394,7 +400,7 @@ export default function PurchaseOrdersPage() {
         if (!selectedPO) return;
 
         setIsSubmitting(true);
-        setFormError(null);
+        clearFormErrorState();
 
         try {
             const result = await apiCall(`/api/purchase-orders/${selectedPO.id}/cancel`, {
@@ -410,11 +416,11 @@ export default function PurchaseOrdersPage() {
                     setAuthError({ message: result.error || "Access denied" });
                 }
                 setFormError(result.error || "Failed to cancel purchase order");
-                setErrorDetails(result.errorDetails);
+                setFormErrorDetails(result.errorDetails ?? null);
             }
         } catch (error: any) {
             setFormError("Network error occurred");
-            setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+            setFormErrorDetails({ networkError: true, status: 0 });
         } finally {
             setIsSubmitting(false);
         }
@@ -620,6 +626,7 @@ export default function PurchaseOrdersPage() {
                     show={showCreateModal}
                     onHide={() => {
                         setShowCreateModal(false);
+                        clearFormErrorState();
                         setItemSearchQueries({});
                         setItemSearchResults({});
                         setShowItemDropdowns({});
@@ -634,9 +641,11 @@ export default function PurchaseOrdersPage() {
                     <Form onSubmit={handleCreateSubmit}>
                         <Modal.Body>
                             {formError && (
-                                <Alert variant="danger" dismissible onClose={() => setFormError(null)}>
-                                    {formError}
-                                </Alert>
+                                <ErrorDisplay
+                                    error={formError}
+                                    errorDetails={formErrorDetails ?? undefined}
+                                    onDismiss={clearFormErrorState}
+                                />
                             )}
                             <Form.Group className="mb-3 position-relative">
                                 <Form.Label>Supplier <span className="text-danger">*</span></Form.Label>
@@ -1003,16 +1012,25 @@ export default function PurchaseOrdersPage() {
                 </Modal>
 
                 {/* Receive Goods Modal */}
-                <Modal show={showReceiveModal} onHide={() => setShowReceiveModal(false)} size="lg">
+                <Modal
+                    show={showReceiveModal}
+                    onHide={() => {
+                        setShowReceiveModal(false);
+                        clearFormErrorState();
+                    }}
+                    size="lg"
+                >
                     <Modal.Header closeButton>
                         <Modal.Title>Receive Goods - {selectedPO?.order_number}</Modal.Title>
                     </Modal.Header>
                     <Form onSubmit={handleReceiveSubmit}>
                         <Modal.Body>
                             {formError && (
-                                <Alert variant="danger" dismissible onClose={() => setFormError(null)}>
-                                    {formError}
-                                </Alert>
+                                <ErrorDisplay
+                                    error={formError}
+                                    errorDetails={formErrorDetails ?? undefined}
+                                    onDismiss={clearFormErrorState}
+                                />
                             )}
                             <p className="text-muted mb-3">
                                 Enter the quantity received for each item. You can receive items partially.
@@ -1082,15 +1100,23 @@ export default function PurchaseOrdersPage() {
                 </Modal>
 
                 {/* Cancel PO Modal */}
-                <Modal show={showCancelModal} onHide={() => setShowCancelModal(false)}>
+                <Modal
+                    show={showCancelModal}
+                    onHide={() => {
+                        setShowCancelModal(false);
+                        clearFormErrorState();
+                    }}
+                >
                     <Modal.Header closeButton>
                         <Modal.Title>Confirm Cancel</Modal.Title>
                     </Modal.Header>
                     <Modal.Body>
                         {formError && (
-                            <Alert variant="danger" dismissible onClose={() => setFormError(null)}>
-                                {formError}
-                            </Alert>
+                            <ErrorDisplay
+                                error={formError}
+                                errorDetails={formErrorDetails ?? undefined}
+                                onDismiss={clearFormErrorState}
+                            />
                         )}
                         <p>
                             Are you sure you want to cancel purchase order <strong>{selectedPO?.order_number}</strong>?

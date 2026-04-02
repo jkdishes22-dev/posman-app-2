@@ -2,6 +2,7 @@
 
 import React from "react";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
+import SecureRoute from "../../components/SecureRoute";
 import UserJourney from "../../components/UserJourney";
 import { Container, Row, Col, Card, Accordion } from "react-bootstrap";
 import { useTooltips } from "../../hooks/useTooltips";
@@ -127,6 +128,51 @@ export default function AdminHelpPage() {
                     description: "Verify the category appears in the list",
                     details: [
                         "You can now add menu items to this category",
+                    ],
+                },
+            ],
+        },
+        {
+            title: "Create Menu Items",
+            icon: "bi-cup-hot",
+            prerequisites: [
+                { description: "At least one menu category exists" },
+            ],
+            steps: [
+                {
+                    description: "Navigate to Menu & Pricing > Categories",
+                    details: [
+                        "Click on 'Menu & Pricing' in the sidebar menu",
+                        "Select 'Categories' from the submenu",
+                    ],
+                },
+                {
+                    description: "Select or open the category for your items",
+                    details: [
+                        "Click the category where the new items belong",
+                        "The category detail view shows existing items for that category",
+                    ],
+                },
+                {
+                    description: "Add a new menu item",
+                    details: [
+                        "Use 'Add Item', 'New Item', or the item form in the category view",
+                        "Enter item name and any required fields (e.g., code, description)",
+                        "Set status to active when the item should appear in billing",
+                    ],
+                },
+                {
+                    description: "Save the item",
+                    details: [
+                        "Click 'Save' or 'Add' to create the item",
+                        "Repeat for additional items in the same or other categories",
+                    ],
+                },
+                {
+                    description: "Optional: add items to a pricelist",
+                    details: [
+                        "Open Menu & Pricing > Pricelists",
+                        "Select the pricelist and assign prices for the new items",
                     ],
                 },
             ],
@@ -318,6 +364,80 @@ export default function AdminHelpPage() {
             ],
         },
         {
+            title: "View Inventory & Monitor Stock",
+            icon: "bi-boxes",
+            prerequisites: [
+                { description: "Inventory and item master data exist in the system" },
+            ],
+            steps: [
+                {
+                    description: "Navigate to Inventory in the sidebar",
+                    details: [
+                        "Click 'Inventory' in the sidebar menu",
+                        "Select 'Inventory List' to open the stock page",
+                    ],
+                },
+                {
+                    description: "Open the inventory list",
+                    details: [
+                        "You can also reach this page from the admin dashboard tile for Inventory Management",
+                        "You will see items with current quantities and alerts where applicable",
+                    ],
+                },
+                {
+                    description: "Review levels and low-stock indicators",
+                    details: [
+                        "Sort or filter to find items below minimum stock",
+                        "Note reorder points and discrepancies for follow-up",
+                    ],
+                },
+                {
+                    description: "Drill into details as needed",
+                    details: [
+                        "Open an item or transaction history if your role allows",
+                        "Coordinate with storekeeper workflows for adjustments and purchase orders",
+                    ],
+                },
+            ],
+        },
+        {
+            title: "View Reports & Analytics",
+            icon: "bi-graph-up",
+            prerequisites: [
+                { description: "Operational data exists (bills, production, inventory, etc.)" },
+            ],
+            steps: [
+                {
+                    description: "Navigate to Reports & Analytics",
+                    details: [
+                        "Click on 'Reports & Analytics' in the sidebar (or open from the admin dashboard)",
+                        "You will land on the reports hub listing available reports",
+                    ],
+                },
+                {
+                    description: "Choose a report category",
+                    details: [
+                        "Select the report that matches your question (e.g., sales, P&L, production)",
+                        "Some reports may require date range or filters",
+                    ],
+                },
+                {
+                    description: "Set filters and run the report",
+                    details: [
+                        "Pick date range, station, or other parameters as shown",
+                        "Click 'Run', 'Apply', or 'Generate' to load results",
+                    ],
+                },
+                {
+                    description: "Review and export",
+                    details: [
+                        "Review totals and breakdowns on screen",
+                        "Use export or print options if available for sharing or auditing",
+                    ],
+                },
+            ],
+        },
+        {
             title: "View and Manage Bills",
             icon: "bi-receipt",
             prerequisites: [
@@ -357,6 +477,7 @@ export default function AdminHelpPage() {
     ];
 
     return (
+        <SecureRoute roleRequired="admin">
         <RoleAwareLayout>
             <Container fluid className="py-4">
                 {/* Header */}
@@ -436,7 +557,19 @@ export default function AdminHelpPage() {
                                     <li className="mb-2">
                                         <a href="/admin/menu/category" className="text-decoration-none">
                                             <i className="bi bi-grid me-2"></i>
-                                            Manage Categories
+                                            Manage Categories &amp; Menu Items
+                                        </a>
+                                    </li>
+                                    <li className="mb-2">
+                                        <a href="/admin/menu/category" className="text-decoration-none">
+                                            <i className="bi bi-shop me-2"></i>
+                                            Manage Menu Items
+                                        </a>
+                                    </li>
+                                    <li className="mb-2">
+                                        <a href="/storekeeper/stock" className="text-decoration-none">
+                                            <i className="bi bi-boxes me-2"></i>
+                                            Inventory &amp; Stock
                                         </a>
                                     </li>
                                 </ul>
@@ -468,6 +601,7 @@ export default function AdminHelpPage() {
                 </Card>
             </Container>
         </RoleAwareLayout>
+        </SecureRoute>
     );
 }
 

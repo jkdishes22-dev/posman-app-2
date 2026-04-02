@@ -29,6 +29,7 @@ export const ROLE_PERMISSIONS = {
         "can_view_permission_scope",
         "can_edit_permission_scope",
         "can_delete_permission_scope",
+        "can_manage_role",
         "can_view_pricelist",
         "can_add_pricelist",
         "can_edit_pricelist",
@@ -53,7 +54,8 @@ export const ROLE_PERMISSIONS = {
         "can_edit_inventory",
         "can_view_payment",
         "can_view_purchase_order",
-        // Production permissions (read-only)
+        "can_view_supplier",
+        "can_issue_production",
         "can_view_production_history"
     ],
 
@@ -104,6 +106,7 @@ export const ROLE_PERMISSIONS = {
         "can_edit_purchase_order",
         "can_delete_purchase_order",
         "can_receive_purchase_order",
+        "can_adjust_inventory",
         // Production permissions
         "can_issue_production",
         "can_view_production_history",
@@ -180,6 +183,7 @@ export const ROLE_PERMISSIONS = {
         "can_edit_purchase_order",
         "can_delete_purchase_order",
         "can_receive_purchase_order",
+        "can_adjust_inventory",
         // Production permissions
         "can_issue_production",
         "can_view_production_history"
@@ -200,7 +204,8 @@ export const PERMISSION_CATEGORIES = {
         "can_view_user",
         "can_add_user",
         "can_edit_user",
-        "can_delete_user"
+        "can_delete_user",
+        "can_manage_role"
     ],
     billing: [
         "can_view_bill",
@@ -227,6 +232,7 @@ export const PERMISSION_CATEGORIES = {
         "can_add_inventory",
         "can_edit_inventory",
         "can_delete_inventory",
+        "can_adjust_inventory",
         "can_view_item",
         "can_add_item",
         "can_edit_item",
