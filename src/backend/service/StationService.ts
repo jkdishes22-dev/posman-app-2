@@ -281,8 +281,8 @@ export class StationService {
 
     const result = activeUserStations.map(us => us.station);
 
-    // Cache the result
-    cache.set(cacheKey, result);
+    // Cache the result (15 min TTL — user-station assignments rarely change mid-session)
+    cache.set(cacheKey, result, 900000);
     return result;
   }
 

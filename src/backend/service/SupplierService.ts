@@ -7,6 +7,8 @@ export interface SupplierBalance {
     debit_balance: number;
     credit_balance: number;
     available_credit: number; // credit_limit - debit_balance
+    /** Positive when we owe the supplier more than they owe us (debit balance minus credit balance). */
+    net_balance: number;
 }
 
 export class SupplierService {
@@ -96,8 +98,8 @@ export class SupplierService {
      */
     public async fetchSuppliers(): Promise<Supplier[]> {
         const cacheKey = "suppliers_active";
-        
-        // Try cache first
+
+        // Try cache first (10 min TTL — supplier list is stable reference data)
         const cached = cache.get<Supplier[]>(cacheKey);
         if (cached !== null) {
             return cached;
@@ -123,7 +125,7 @@ export class SupplierService {
             .getMany();
 
         // Cache the result
-        cache.set(cacheKey, result);
+        cache.set(cacheKey, result, 600000); // 10 minutes
         return result;
     }
 
@@ -171,20 +173,88 @@ export class SupplierService {
         const debit_balance = parseFloat(result?.total_debit || "0") - parseFloat(result?.total_credit || "0");
         const credit_balance = parseFloat(result?.total_credit || "0") - parseFloat(result?.total_debit || "0");
 
-        // Get credit limit
         const supplier = await this.supplierRepository.findOne({ where: { id: supplierId } });
         const credit_limit = supplier?.credit_limit || 0;
         const available_credit = Math.max(0, credit_limit - debit_balance);
 
-        const balance = {
-            debit_balance: Math.max(0, debit_balance),
-            credit_balance: Math.max(0, credit_balance),
+        const d = Math.max(0, debit_balance);
+        const c = Math.max(0, credit_balance);
+        const balance: SupplierBalance = {
+            debit_balance: d,
+            credit_balance: c,
             available_credit,
+            net_balance: d - c,
         };
 
         // Cache the result
         cache.set(cacheKey, balance);
         return balance;
+    }
+
+    /**
+     * Record a credit against supplier debit (payment or manual adjustment).
+     * Reduces debit_balance by increasing credit_amount on the ledger.
+     */
+    public async recordSupplierCreditTransaction(
+        supplierId: number,
+        kind: "payment" | "adjustment",
+        amount: number,
+        userId: number,
+        options?: { notes?: string; externalReference?: string },
+    ): Promise<SupplierTransaction> {
+        const supplier = await this.supplierRepository.findOne({ where: { id: supplierId } });
+        if (!supplier) {
+            throw new Error(`Supplier with id ${supplierId} not found`);
+        }
+
+        const round2 = (n: number) => Math.round(Number(n) * 100) / 100;
+        const amt = round2(amount);
+        if (amt <= 0) {
+            throw new Error("Amount must be positive");
+        }
+
+        if (kind === "adjustment" && !String(options?.notes ?? "").trim()) {
+            throw new Error("Reason is required for adjustments");
+        }
+
+        const balance = await this.getSupplierBalance(supplierId);
+        const debitOutstanding = round2(balance.debit_balance);
+        if (debitOutstanding <= 0) {
+            throw new Error("No outstanding debit balance to clear");
+        }
+        if (amt > debitOutstanding) {
+            throw new Error("Amount exceeds outstanding debit balance");
+        }
+
+        const noteParts: string[] = [];
+        if (options?.externalReference?.trim()) {
+            noteParts.push(`Ref: ${options.externalReference.trim()}`);
+        }
+        if (options?.notes?.trim()) {
+            noteParts.push(options.notes.trim());
+        }
+        const noteText =
+            noteParts.length > 0
+                ? noteParts.join(" — ")
+                : kind === "payment"
+                  ? "Payment recorded"
+                  : "Balance adjustment";
+
+        const transactionType =
+            kind === "payment" ? SupplierTransactionType.PAYMENT : SupplierTransactionType.ADJUSTMENT;
+        const referenceType =
+            kind === "payment" ? SupplierReferenceType.PAYMENT : SupplierReferenceType.ADJUSTMENT;
+
+        return this.createSupplierTransaction(
+            supplierId,
+            transactionType,
+            0,
+            amt,
+            referenceType,
+            null,
+            noteText,
+            userId,
+        );
     }
 
     /**
@@ -211,10 +281,11 @@ export class SupplierService {
             created_by: userId,
         });
         const saved = await this.supplierTransactionRepository.save(transaction);
-        
-        // Invalidate cache after creating transaction (affects balance)
+
+        // Invalidate cache after creating transaction (affects balance and history)
         cache.invalidate(`supplier_balance_${supplierId}`);
-        
+        cache.invalidate(`supplier_transactions_${supplierId}`);
+
         return saved;
     }
 
