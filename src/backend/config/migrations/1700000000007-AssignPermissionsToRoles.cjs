@@ -50,6 +50,7 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_view_permission_scope',
                 'can_edit_permission_scope',
                 'can_delete_permission_scope',
+                'can_manage_role',
                 'can_view_pricelist',
                 'can_add_pricelist',
                 'can_edit_pricelist',
@@ -71,8 +72,12 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_view_bill_item',
                 'can_view_bill_payment',
                 'can_view_inventory',
+                'can_edit_inventory',
                 'can_view_payment',
-                'can_view_purchase_order'
+                'can_view_purchase_order',
+                'can_view_supplier',
+                'can_issue_production',
+                'can_view_production_history'
             ],
             supervisor: [
                 // Sales permissions

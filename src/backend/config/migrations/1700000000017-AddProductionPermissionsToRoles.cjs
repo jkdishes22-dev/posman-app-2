@@ -10,7 +10,7 @@ const { QueryRunner } = require("typeorm");
  * @implements {MigrationInterface}
  * 
  * Adds production permissions (can_issue_production, can_view_production_history) to roles
- * This migration ensures production permissions are assigned to the appropriate roles
+ * Admin, supervisor, and storekeeper receive issue + history; assignments are idempotent
  */
 class AddProductionPermissionsToRoles1700000000017 {
     constructor() {
@@ -41,7 +41,8 @@ class AddProductionPermissionsToRoles1700000000017 {
         // Role-permission mappings
         const rolePermissions = {
             admin: [
-                'can_view_production_history' // Read-only for admin
+                'can_view_production_history',
+                'can_issue_production'
             ],
             supervisor: [
                 'can_issue_production',

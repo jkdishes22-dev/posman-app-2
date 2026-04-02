@@ -37,7 +37,8 @@ class SeedPermissions1700000000005 {
                 "can_view_permission", "can_add_permission", "can_edit_permission", "can_delete_permission",
                 "can_view_user", "can_add_user", "can_edit_user", "can_delete_user",
                 "can_view_role_permission", "can_add_role_permission", "can_edit_role_permission", "can_delete_role_permission",
-                "can_view_permission_scope", "can_edit_permission_scope", "can_delete_permission_scope"
+                "can_view_permission_scope", "can_edit_permission_scope", "can_delete_permission_scope",
+                "can_manage_role"
             ],
             // Billing scope
             billing: [
@@ -126,6 +127,7 @@ class SeedPermissions1700000000005 {
             "can_view_user", "can_add_user", "can_edit_user", "can_delete_user",
             "can_view_role_permission", "can_add_role_permission", "can_edit_role_permission", "can_delete_role_permission",
             "can_view_permission_scope", "can_edit_permission_scope", "can_delete_permission_scope",
+            "can_manage_role",
             // Billing
             "can_view_bill", "can_add_bill", "can_edit_bill", "can_delete_bill",
             "can_view_bill_item", "can_add_bill_item", "can_edit_bill_item", "can_delete_bill_item",

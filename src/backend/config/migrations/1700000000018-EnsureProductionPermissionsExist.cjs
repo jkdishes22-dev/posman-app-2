@@ -80,7 +80,8 @@ class EnsureProductionPermissionsExist1700000000018 {
         // Role-permission mappings
         const rolePermissions = {
             admin: [
-                'can_view_production_history' // Read-only for admin
+                'can_view_production_history',
+                'can_issue_production'
             ],
             supervisor: [
                 'can_issue_production',

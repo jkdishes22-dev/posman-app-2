@@ -65,7 +65,10 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
             case "network": return "warning";
             case "unauthorized":
                 // 401 errors should be warning (yellow) for admin users with permission issues, danger (red) for auth failures
-                return (errorDetails?.isAdmin && errorDetails?.missingPermissions) ? "warning" : "danger";
+                return (errorDetails?.isAdmin &&
+                    (Boolean(errorDetails?.missingPermissions?.length) || Boolean(errorDetails?.requiredPermissions?.length)))
+                    ? "warning"
+                    : "danger";
             case "forbidden": return "danger";
             case "notFound": return "warning";
             case "serverError": return "danger";
@@ -74,10 +77,16 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
         }
     };
 
-    const isPermissionError = error.includes("Missing permissions") || error.includes("Forbidden") ||
+    const isPermissionError =
+        error.includes("Missing permissions") ||
+        error.includes("Missing permission") ||
+        error.includes("Forbidden") ||
         errorDetails?.status === 403 ||
-        (errorDetails?.status === 401 && errorDetails?.missingPermissions);
-    const hasAdminDetails = errorDetails?.isAdmin && errorDetails?.missingPermissions;
+        (errorDetails?.status === 401 &&
+            (Boolean(errorDetails?.missingPermissions?.length) || Boolean(errorDetails?.requiredPermissions?.length)));
+    const hasAdminPermissionGuidance =
+        errorDetails?.isAdmin &&
+        (Boolean(errorDetails?.missingPermissions?.length) || Boolean(errorDetails?.requiredPermissions?.length));
     const finalVariant = getErrorVariant();
     const errorTitle = getErrorTitle();
 
@@ -132,7 +141,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
             )}
 
             {/* Permission Error Template - Show for both 401 and 403 if admin and has permission details */}
-            {isPermissionError && errorDetails?.isAdmin && errorDetails?.missingPermissions && (
+            {isPermissionError && hasAdminPermissionGuidance && (
                 <div className="mt-3">
                     <button
                         className="btn btn-light btn-sm shadow-1 fw-medium"
@@ -163,27 +172,31 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="mb-3">
-                                    <strong className="text-danger d-block mb-2">Missing Permissions:</strong>
-                                    <div className="d-flex flex-wrap gap-1">
-                                        {errorDetails.missingPermissions?.map((permission, index) => (
-                                            <span key={index} className="badge bg-danger">
-                                                {permission}
-                                            </span>
-                                        ))}
+                                {(errorDetails.missingPermissions?.length ?? 0) > 0 && (
+                                    <div className="mb-3">
+                                        <strong className="text-danger d-block mb-2">Missing Permissions:</strong>
+                                        <div className="d-flex flex-wrap gap-1">
+                                            {errorDetails.missingPermissions?.map((permission, index) => (
+                                                <span key={index} className="badge bg-danger">
+                                                    {permission}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
-                                <div className="mb-3">
-                                    <strong className="text-warning d-block mb-2">Required Permissions:</strong>
-                                    <div className="d-flex flex-wrap gap-1">
-                                        {errorDetails.requiredPermissions?.map((permission, index) => (
-                                            <span key={index} className="badge bg-warning text-dark">
-                                                {permission}
-                                            </span>
-                                        ))}
+                                {(errorDetails.requiredPermissions?.length ?? 0) > 0 && (
+                                    <div className="mb-3">
+                                        <strong className="text-warning d-block mb-2">Required Permissions:</strong>
+                                        <div className="d-flex flex-wrap gap-1">
+                                            {errorDetails.requiredPermissions?.map((permission, index) => (
+                                                <span key={index} className="badge bg-warning text-dark">
+                                                    {permission}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
                                 <div className="alert alert-warning mb-0">
                                     <small>
@@ -199,7 +212,10 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
             )}
 
             {/* 401 Error Template for Admin Users - Show helpful message even without permission details */}
-            {errorDetails?.status === 401 && errorDetails?.isAdmin && !errorDetails?.missingPermissions && (
+            {errorDetails?.status === 401 &&
+                errorDetails?.isAdmin &&
+                !errorDetails?.missingPermissions?.length &&
+                !errorDetails?.requiredPermissions?.length && (
                 <div className="mt-3">
                     <div className="alert alert-warning mb-0">
                         <small>
