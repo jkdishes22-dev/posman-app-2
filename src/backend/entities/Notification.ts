@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from "typeorm";
 import { User } from "./User";
 import { BaseEntity } from "./BaseEntity";
 
@@ -30,9 +30,13 @@ export class Notification extends BaseEntity {
     @Column({ type: "json", nullable: true })
     data: Record<string, any>;
 
+    // perf: index (user_id, status) — filters unread notifications per user
+    @Index(["user_id", "status"])
     @Column({ type: "enum", enum: NotificationStatus, default: NotificationStatus.UNREAD })
     status: NotificationStatus;
 
+    // perf: index FK — queried on every getUserNotifications call
+    @Index()
     @Column({ type: "int" })
     user_id: number;
 

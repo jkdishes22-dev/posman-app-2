@@ -6,6 +6,7 @@ import {
   JoinColumn,
   ManyToMany,
   JoinTable,
+  Index,
 } from "typeorm";
 import { Category } from "./Category";
 import { BaseEntity } from "./BaseEntity";
@@ -23,12 +24,16 @@ export class Item extends BaseEntity {
   @Column({ type: "varchar", length: 255 })
   code: string;
 
+  // perf: index status — filtered in nearly every item list query
+  @Index()
   @Column({
     type: "enum",
     enum: ItemStatus,
   })
   status: string;
 
+  // perf: index FK — queried in fetchItems and category-filtered searches
+  @Index()
   @ManyToOne(() => Category)
   @JoinColumn({ name: "item_category_id" })
   category: Category;
@@ -36,9 +41,13 @@ export class Item extends BaseEntity {
   @Column({ type: "int", nullable: true, name: "default_unit_id" })
   defaultUnitId: number;
 
+  // perf: index is_group — filtered in fetchGroupedItems queries
+  @Index()
   @Column({ type: "boolean", nullable: true, name: "is_group" })
   isGroup: boolean;
 
+  // perf: index is_stock — filtered in inventory/production queries
+  @Index()
   @Column({ type: "boolean", nullable: true, name: "is_stock", default: false })
   isStock: boolean;
 

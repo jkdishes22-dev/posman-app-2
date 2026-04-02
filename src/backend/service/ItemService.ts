@@ -698,43 +698,51 @@ export class ItemService {
    */
   public async searchItemsByName(query: string, limit: number = 10): Promise<any[]> {
     try {
-      const items = await this.itemRepository
+      // perf: single JOIN query replaces N+1 pattern (1 query instead of 1 + N)
+      const rows = await this.itemRepository
         .createQueryBuilder("item")
         .leftJoinAndSelect("item.category", "category")
         .leftJoin("pricelist_item", "pricelistItem", "pricelistItem.item_id = item.id")
-        .leftJoin("pricelist", "pricelist", "pricelist.id = pricelistItem.pricelist_id")
+        .leftJoin("pricelist", "pricelist", "pricelist.id = pricelistItem.pricelist_id AND pricelist.status = :pricelistStatus", { pricelistStatus: "active" })
+        .select([
+          "item.id", "item.name", "item.code",
+          "category.name",
+          "pricelistItem.price", "pricelistItem.currency",
+          "pricelist.id", "pricelist.name", "pricelist.is_default",
+        ])
         .where("item.name LIKE :query", { query: `%${query}%` })
         .andWhere("(item.status = :status OR item.status IS NULL)", { status: ItemStatus.ACTIVE })
-        .andWhere("pricelist.status = :pricelistStatus", { pricelistStatus: "active" })
+        .andWhere("pricelist.id IS NOT NULL")
         .orderBy("item.name", "ASC")
         .limit(limit)
-        .getMany();
+        .getRawMany();
 
-      // Get pricelist information for each item
-      const formattedResults = await Promise.all(items.map(async (item) => {
-        const pricelistItems = await this.pricelistItemRepository
-          .createQueryBuilder("pricelistItem")
-          .leftJoinAndSelect("pricelistItem.pricelist", "pricelist")
-          .where("pricelistItem.item_id = :itemId", { itemId: item.id })
-          .andWhere("pricelist.status = :pricelistStatus", { pricelistStatus: "active" })
-          .getMany();
+      // Group raw rows by item id
+      const itemMap = new Map<number, any>();
+      for (const row of rows) {
+        if (!itemMap.has(row.item_id)) {
+          itemMap.set(row.item_id, {
+            id: row.item_id,
+            name: row.item_name,
+            code: row.item_code,
+            category: row.category_name || "N/A",
+            pricelists: [],
+          });
+        }
+        if (row.pricelist_id) {
+          itemMap.get(row.item_id).pricelists.push({
+            pricelistId: row.pricelist_id,
+            pricelistName: row.pricelist_name,
+            price: row.pricelistItem_price || 0,
+            currency: row.pricelistItem_currency || "USD",
+            isDefault: row.pricelist_is_default || false,
+          });
+        }
+      }
 
-        const pricelists = pricelistItems.map(pi => ({
-          pricelistId: pi.pricelist?.id,
-          pricelistName: pi.pricelist?.name,
-          price: pi.price || 0,
-          currency: pi.currency || "USD",
-          isDefault: pi.pricelist?.is_default || false
-        }));
-
-        return {
-          id: item.id,
-          name: item.name,
-          code: item.code,
-          category: item.category?.name || "N/A",
-          pricelists: pricelists,
-          totalPricelists: pricelists.length
-        };
+      const formattedResults = Array.from(itemMap.values()).map(item => ({
+        ...item,
+        totalPricelists: item.pricelists.length,
       }));
 
       logger.info({
@@ -785,44 +793,51 @@ export class ItemService {
 
       const pricelistIds = accessiblePricelists.map(sp => sp.pricelist.id);
 
-      // Search items that are in accessible pricelists
-      const items = await this.itemRepository
+      // perf: single JOIN query replaces N+1 pattern (1 query instead of 1 + N)
+      const rows = await this.itemRepository
         .createQueryBuilder("item")
         .leftJoinAndSelect("item.category", "category")
-        .leftJoin("pricelist_item", "pricelistItem", "pricelistItem.item_id = item.id")
+        .leftJoin("pricelist_item", "pricelistItem", "pricelistItem.item_id = item.id AND pricelistItem.pricelist_id IN (:...pricelistIds)", { pricelistIds })
+        .leftJoin("pricelist", "pricelist", "pricelist.id = pricelistItem.pricelist_id AND pricelist.status = :pricelistStatus", { pricelistStatus: "active" })
+        .select([
+          "item.id", "item.name", "item.code",
+          "category.name",
+          "pricelistItem.price", "pricelistItem.currency",
+          "pricelist.id", "pricelist.name", "pricelist.is_default",
+        ])
         .where("item.name LIKE :query", { query: `%${query}%` })
         .andWhere("(item.status = :status OR item.status IS NULL)", { status: ItemStatus.ACTIVE })
         .andWhere("pricelistItem.pricelist_id IN (:...pricelistIds)", { pricelistIds })
         .orderBy("item.name", "ASC")
         .limit(limit)
-        .getMany();
+        .getRawMany();
 
-      // Get pricelist information for each item (only accessible ones)
-      const formattedResults = await Promise.all(items.map(async (item) => {
-        const pricelistItems = await this.pricelistItemRepository
-          .createQueryBuilder("pricelistItem")
-          .leftJoinAndSelect("pricelistItem.pricelist", "pricelist")
-          .where("pricelistItem.item_id = :itemId", { itemId: item.id })
-          .andWhere("pricelistItem.pricelist_id IN (:...pricelistIds)", { pricelistIds })
-          .andWhere("pricelist.status = :pricelistStatus", { pricelistStatus: "active" })
-          .getMany();
+      // Group raw rows by item id
+      const itemMap = new Map<number, any>();
+      for (const row of rows) {
+        if (!itemMap.has(row.item_id)) {
+          itemMap.set(row.item_id, {
+            id: row.item_id,
+            name: row.item_name,
+            code: row.item_code,
+            category: row.category_name || "N/A",
+            pricelists: [],
+          });
+        }
+        if (row.pricelist_id) {
+          itemMap.get(row.item_id).pricelists.push({
+            pricelistId: row.pricelist_id,
+            pricelistName: row.pricelist_name,
+            price: row.pricelistItem_price || 0,
+            currency: row.pricelistItem_currency || "USD",
+            isDefault: row.pricelist_is_default || false,
+          });
+        }
+      }
 
-        const pricelists = pricelistItems.map(pi => ({
-          pricelistId: pi.pricelist?.id,
-          pricelistName: pi.pricelist?.name,
-          price: pi.price || 0,
-          currency: pi.currency || "USD",
-          isDefault: pi.pricelist?.is_default || false
-        }));
-
-        return {
-          id: item.id,
-          name: item.name,
-          code: item.code,
-          category: item.category?.name || "N/A",
-          pricelists: pricelists,
-          totalPricelists: pricelists.length
-        };
+      const formattedResults = Array.from(itemMap.values()).map(item => ({
+        ...item,
+        totalPricelists: item.pricelists.length,
       }));
 
       logger.info({
