@@ -160,3 +160,63 @@ export const getSupplierTransactionsHandler = async (
     }
 };
 
+export const recordSupplierCreditHandler = async (
+    req: NextApiRequest,
+    res: NextApiResponse,
+) => {
+    const supplierService = new SupplierService(req.db);
+    try {
+        const { id } = req.query;
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const supplierId = Number(id);
+        if (!Number.isFinite(supplierId)) {
+            return res.status(400).json({ message: "Invalid supplier id" });
+        }
+
+        const { transaction_type, amount, notes, reference } = req.body || {};
+        if (transaction_type !== "payment" && transaction_type !== "adjustment") {
+            return res.status(400).json({
+                message: "transaction_type must be payment or adjustment",
+            });
+        }
+
+        const numAmount = typeof amount === "string" ? parseFloat(amount) : Number(amount);
+        if (!Number.isFinite(numAmount)) {
+            return res.status(400).json({ message: "amount is required and must be a number" });
+        }
+
+        const transaction = await supplierService.recordSupplierCreditTransaction(
+            supplierId,
+            transaction_type,
+            numAmount,
+            Number(userId),
+            {
+                notes: typeof notes === "string" ? notes : undefined,
+                externalReference: typeof reference === "string" ? reference : undefined,
+            },
+        );
+
+        res.status(200).json(transaction);
+    } catch (error: any) {
+        const msg = error?.message || "";
+        if (
+            msg.includes("exceeds") ||
+            msg.includes("required") ||
+            msg.includes("must be positive") ||
+            msg.includes("No outstanding") ||
+            msg.includes("not found")
+        ) {
+            const status = msg.includes("not found") ? 404 : 400;
+            return res.status(status).json({ message: msg });
+        }
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "recording",
+            resource: "supplier credit transaction",
+        });
+        res.status(500).json({ error: userMessage, code: errorCode });
+    }
+};

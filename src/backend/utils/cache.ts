@@ -6,26 +6,25 @@
 interface CacheEntry<T> {
     data: T;
     timestamp: number;
+    ttl: number;
 }
 
 class SimpleCache {
     private cache: Map<string, CacheEntry<any>> = new Map();
-    private readonly defaultTTL = 30000; // 30 seconds default TTL
+    private readonly defaultTTL = 300000; // 5 minutes default TTL
 
     /**
      * Get cached value by key
      * Returns null if not found or expired
      */
-    get<T>(key: string, ttl?: number): T | null {
+    get<T>(key: string): T | null {
         const entry = this.cache.get(key);
         if (!entry) {
             return null;
         }
 
-        const cacheTTL = ttl || this.defaultTTL;
-
-        // Check if cache entry has expired
-        if (Date.now() - entry.timestamp > cacheTTL) {
+        // Check if cache entry has expired using its stored TTL
+        if (Date.now() - entry.timestamp > entry.ttl) {
             this.cache.delete(key);
             return null;
         }
@@ -34,12 +33,13 @@ class SimpleCache {
     }
 
     /**
-     * Set cached value with optional TTL
+     * Set cached value with optional TTL (milliseconds)
      */
     set<T>(key: string, data: T, ttl?: number): void {
         this.cache.set(key, {
             data,
             timestamp: Date.now(),
+            ttl: ttl ?? this.defaultTTL,
         });
     }
 

@@ -19,6 +19,7 @@ import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { AuthError } from "../../types/types";
+import { useAuth } from "../../contexts/AuthContext";
 
 interface Supplier {
   id: number;
@@ -39,6 +40,7 @@ interface Supplier {
 
 export default function SuppliersPage() {
   const apiCall = useApiCall();
+  const { user } = useAuth();
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [filteredSuppliers, setFilteredSuppliers] = useState<Supplier[]>([]);
@@ -77,6 +79,22 @@ export default function SuppliersPage() {
   const [supplierTransactions, setSupplierTransactions] = useState<any[]>([]);
   const [loadingBalance, setLoadingBalance] = useState(false);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
+
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [creditKind, setCreditKind] = useState<"payment" | "adjustment">("payment");
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditReference, setCreditReference] = useState("");
+  const [creditNotes, setCreditNotes] = useState("");
+  const [creditSubmitting, setCreditSubmitting] = useState(false);
+  const [creditError, setCreditError] = useState<string | null>(null);
+  const [creditErrorDetails, setCreditErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  /** Match roles granted can_add_supplier_payment in role-permissions (JWT roles may be strings). */
+  const canAddSupplierPayment =
+    user?.roles?.some((r: any) => {
+      const name = typeof r === "string" ? r : r?.name;
+      return name === "supervisor" || name === "storekeeper";
+    }) ?? false;
 
   useEffect(() => {
     fetchSuppliers();
@@ -185,13 +203,13 @@ export default function SuppliersPage() {
     try {
       // Fetch balance
       const balanceResult = await apiCall(`/api/suppliers/${supplierId}?action=balance`);
-      if (balanceResult.status >= 200 && balanceResult.status < 300) {
+      if (balanceResult.status === 200) {
         setSupplierBalance(balanceResult.data);
       }
 
       // Fetch transactions
       const transactionsResult = await apiCall(`/api/suppliers/${supplierId}?action=transactions&limit=50`);
-      if (transactionsResult.status >= 200 && transactionsResult.status < 300) {
+      if (transactionsResult.status === 200) {
         setSupplierTransactions(Array.isArray(transactionsResult.data) ? transactionsResult.data : []);
       }
     } catch (error: any) {
@@ -199,6 +217,65 @@ export default function SuppliersPage() {
     } finally {
       setLoadingBalance(false);
       setLoadingTransactions(false);
+    }
+  };
+
+  const openCreditModal = (kind: "payment" | "adjustment") => {
+    setCreditKind(kind);
+    setCreditError(null);
+    setCreditErrorDetails(null);
+    const def =
+      supplierBalance?.debit_balance != null
+        ? Number(supplierBalance.debit_balance).toFixed(2)
+        : "";
+    setCreditAmount(def);
+    setCreditReference("");
+    setCreditNotes("");
+    setShowCreditModal(true);
+  };
+
+  const handleCreditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSupplier) return;
+
+    setCreditError(null);
+    setCreditErrorDetails(null);
+
+    const amount = parseFloat(creditAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setCreditError("Enter a valid positive amount");
+      return;
+    }
+
+    if (creditKind === "adjustment" && !creditNotes.trim()) {
+      setCreditError("Reason is required for adjustments");
+      return;
+    }
+
+    setCreditSubmitting(true);
+    try {
+      const result = await apiCall(`/api/suppliers/${selectedSupplier.id}/credit`, {
+        method: "POST",
+        body: JSON.stringify({
+          transaction_type: creditKind,
+          amount,
+          notes: creditNotes.trim() || undefined,
+          reference: creditReference.trim() || undefined,
+        }),
+      });
+
+      if (result.status === 200) {
+        setShowCreditModal(false);
+        await fetchSupplierDetails(selectedSupplier.id);
+      } else {
+        setCreditError(result.error || "Operation failed");
+        setCreditErrorDetails(result.errorDetails ?? null);
+      }
+    } catch {
+      setCreditError("Network error occurred");
+      setCreditErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    } finally {
+      setCreditSubmitting(false);
     }
   };
 
@@ -811,8 +888,29 @@ export default function SuppliersPage() {
 
                 {/* Balance Information */}
                 <Card className="mb-4">
-                  <Card.Header className="bg-light">
+                  <Card.Header className="bg-light d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <h6 className="mb-0">Balance Information</h6>
+                    {canAddSupplierPayment &&
+                      supplierBalance &&
+                      !loadingBalance &&
+                      Number(supplierBalance.debit_balance) > 0 && (
+                        <div className="d-flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => openCreditModal("payment")}
+                          >
+                            Record payment
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline-secondary"
+                            onClick={() => openCreditModal("adjustment")}
+                          >
+                            Adjust balance
+                          </Button>
+                        </div>
+                      )}
                   </Card.Header>
                   <Card.Body>
                     {loadingBalance ? (
@@ -836,7 +934,15 @@ export default function SuppliersPage() {
                         <Col md={4}>
                           <div className="text-center">
                             <p className="text-muted mb-1">Net Balance</p>
-                            <h4 className={supplierBalance.net_balance >= 0 ? "text-success" : "text-danger"}>
+                            <h4
+                              className={
+                                Number(supplierBalance.net_balance ?? 0) > 0
+                                  ? "text-danger"
+                                  : Number(supplierBalance.net_balance ?? 0) < 0
+                                    ? "text-success"
+                                    : "text-muted"
+                              }
+                            >
                               ${(Number(supplierBalance.net_balance) || 0).toFixed(2)}
                             </h4>
                           </div>
@@ -871,7 +977,7 @@ export default function SuppliersPage() {
                         </thead>
                         <tbody>
                           {supplierTransactions.map((transaction: any, index: number) => (
-                            <tr key={index}>
+                            <tr key={transaction.id ?? index}>
                               <td>{new Date(transaction.created_at).toLocaleDateString()}</td>
                               <td>
                                 <Badge bg="info">{transaction.transaction_type}</Badge>
@@ -900,6 +1006,91 @@ export default function SuppliersPage() {
               Close
             </Button>
           </Modal.Footer>
+        </Modal>
+
+        <Modal show={showCreditModal} onHide={() => !creditSubmitting && setShowCreditModal(false)}>
+          <Modal.Header closeButton>
+            <Modal.Title>
+              {creditKind === "payment" ? "Record payment" : "Adjust balance"}
+            </Modal.Title>
+          </Modal.Header>
+          <Form onSubmit={handleCreditSubmit}>
+            <Modal.Body>
+              {creditError && (
+                <ErrorDisplay
+                  error={creditError}
+                  errorDetails={creditErrorDetails}
+                  onDismiss={() => {
+                    setCreditError(null);
+                    setCreditErrorDetails(null);
+                  }}
+                />
+              )}
+              <p className="text-muted small">
+                Applies a credit to this supplier&apos;s account up to the current debit balance.
+              </p>
+              <Form.Group className="mb-3">
+                <Form.Label>Amount</Form.Label>
+                <InputGroup>
+                  <InputGroup.Text>$</InputGroup.Text>
+                  <Form.Control
+                    type="number"
+                    step="0.01"
+                    min={0.01}
+                    value={creditAmount}
+                    onChange={e => setCreditAmount(e.target.value)}
+                    required
+                  />
+                </InputGroup>
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label>Reference (optional)</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={creditReference}
+                  onChange={e => setCreditReference(e.target.value)}
+                  placeholder="Check #, transfer id, etc."
+                />
+              </Form.Group>
+              <Form.Group className="mb-0">
+                <Form.Label>{creditKind === "adjustment" ? "Reason (required)" : "Notes (optional)"}</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  value={creditNotes}
+                  onChange={e => setCreditNotes(e.target.value)}
+                  placeholder={
+                    creditKind === "adjustment"
+                      ? "Describe why this adjustment is recorded"
+                      : "Optional notes"
+                  }
+                  required={creditKind === "adjustment"}
+                />
+              </Form.Group>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button
+                variant="secondary"
+                type="button"
+                disabled={creditSubmitting}
+                onClick={() => setShowCreditModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button variant="primary" type="submit" disabled={creditSubmitting}>
+                {creditSubmitting ? (
+                  <>
+                    <Spinner animation="border" size="sm" className="me-2" />
+                    Saving…
+                  </>
+                ) : creditKind === "payment" ? (
+                  "Record payment"
+                ) : (
+                  "Save adjustment"
+                )}
+              </Button>
+            </Modal.Footer>
+          </Form>
         </Modal>
       </div>
     </RoleAwareLayout>
