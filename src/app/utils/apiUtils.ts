@@ -39,10 +39,16 @@ async function executeRequest<T = any>(
 ): Promise<ApiResponse<T>> {
     try {
         const token = localStorage.getItem("token");
+        const publicEndpoints = [
+            "/api/auth/login",
+            "/api/system/setup-status",
+            "/api/system/setup-initialize"
+        ];
+        const isPublicRequest = publicEndpoints.some(endpoint => url.includes(endpoint));
 
         // If no token and this is not a login request, return error immediately
         // Don't logout here - let the component handle it
-        if (!token && !url.includes("/api/auth/login")) {
+        if (!token && !isPublicRequest) {
             return {
                 data: undefined,
                 error: "No authentication token found",

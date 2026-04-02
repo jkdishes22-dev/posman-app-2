@@ -9,6 +9,7 @@ import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { v4 as uuidv4 } from "uuid";
 import { User } from "@backend/entities/User";
 import { getConnection } from "@backend/config/data-source";
+import { formatSetupErrorResponse } from "@backend/config/startup-bootstrap";
 import { cache } from "@backend/utils/cache";
 config();
 const secret =
@@ -77,6 +78,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     res.status(200).json({ token, role: user.roles[0]?.name || "user" });
   } catch (error: any) {
+    const setupError = formatSetupErrorResponse(error);
+    if (setupError.body.code !== "SETUP_FAILED" || error?.name === "StartupBootstrapError") {
+      return res.status(setupError.status).json(setupError.body);
+    }
+
     res.status(500).json({
       message: "Internal Server Error: " + (error.message || "Unknown error"),
       error: process.env.NODE_ENV === "development" ? error.stack : undefined
