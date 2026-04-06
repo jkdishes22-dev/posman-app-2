@@ -42,7 +42,7 @@ class SeedPermissions1700000000005 {
             ],
             // Billing scope
             billing: [
-                "can_view_bill", "can_add_bill", "can_edit_bill", "can_delete_bill",
+                "can_view_bill", "can_add_bill", "can_edit_bill", "can_close_bill", "can_cancel_bill", "can_reopen_bill", "can_delete_bill",
                 "can_view_bill_item", "can_add_bill_item", "can_edit_bill_item", "can_delete_bill_item",
                 "can_view_bill_payment", "can_add_bill_payment", "can_edit_bill_payment", "can_delete_bill_payment"
             ],
@@ -129,7 +129,7 @@ class SeedPermissions1700000000005 {
             "can_view_permission_scope", "can_edit_permission_scope", "can_delete_permission_scope",
             "can_manage_role",
             // Billing
-            "can_view_bill", "can_add_bill", "can_edit_bill", "can_delete_bill",
+            "can_view_bill", "can_add_bill", "can_edit_bill", "can_close_bill", "can_cancel_bill", "can_reopen_bill", "can_delete_bill",
             "can_view_bill_item", "can_add_bill_item", "can_edit_bill_item", "can_delete_bill_item",
             "can_view_bill_payment", "can_add_bill_payment", "can_edit_bill_payment", "can_delete_bill_payment",
             // Financial

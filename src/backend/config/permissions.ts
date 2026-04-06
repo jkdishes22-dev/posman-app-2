@@ -6,6 +6,9 @@ const permissions = {
     // Bill
     CAN_ADD_BILL: "can_add_bill",
     CAN_EDIT_BILL: "can_edit_bill",
+    CAN_CLOSE_BILL: "can_close_bill",
+    CAN_CANCEL_BILL: "can_cancel_bill",
+    CAN_REOPEN_BILL: "can_reopen_bill",
     CAN_DELETE_BILL: "can_delete_bill",
     CAN_VIEW_BILL: "can_view_bill",
 

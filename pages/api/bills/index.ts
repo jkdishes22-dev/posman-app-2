@@ -28,7 +28,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "PATCH") {
     const { action } = req.query;
     if (action === "cancel") {
-      return authMiddleware(authorize([permissions.CAN_EDIT_BILL])(cancelBill))(
+      return authMiddleware(authorize([permissions.CAN_CANCEL_BILL])(cancelBill))(
         req,
         res,
       );

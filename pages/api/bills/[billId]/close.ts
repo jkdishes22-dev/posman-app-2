@@ -7,7 +7,7 @@ import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
-    await authMiddleware(authorize([permissions.CAN_EDIT_BILL])(closeBill))(
+    await authMiddleware(authorize([permissions.CAN_CLOSE_BILL])(closeBill))(
       req,
       res,
     );
