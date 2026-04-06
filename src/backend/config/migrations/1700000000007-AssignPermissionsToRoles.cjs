@@ -22,11 +22,12 @@ class AssignPermissionsToRoles1700000000007 {
         // This matches ROLE_PERMISSIONS exactly
         const rolePermissions = {
             admin: [
-                // System Management
+                // System management — full control
                 'can_view_role',
                 'can_add_role',
                 'can_edit_role',
                 'can_delete_role',
+                'can_manage_role',
                 'can_view_permission',
                 'can_add_permission',
                 'can_edit_permission',
@@ -50,7 +51,6 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_view_permission_scope',
                 'can_edit_permission_scope',
                 'can_delete_permission_scope',
-                'can_manage_role',
                 'can_view_pricelist',
                 'can_add_pricelist',
                 'can_edit_pricelist',
@@ -67,7 +67,7 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_add_station_pricelist',
                 'can_edit_station_pricelist',
                 'can_delete_station_pricelist',
-                // Read-only access to business data
+                // Read-only access to business data (admin oversees but does not operate)
                 'can_view_bill',
                 'can_view_bill_item',
                 'can_view_bill_payment',
@@ -76,14 +76,18 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_view_payment',
                 'can_view_purchase_order',
                 'can_view_supplier',
+                'can_view_supplier_payment',
                 'can_issue_production',
                 'can_view_production_history'
             ],
             supervisor: [
-                // Sales permissions
+                // Full billing management
                 'can_view_bill',
                 'can_add_bill',
                 'can_edit_bill',
+                'can_close_bill',
+                'can_cancel_bill',
+                'can_reopen_bill',
                 'can_view_bill_item',
                 'can_add_bill_item',
                 'can_edit_bill_item',
@@ -91,28 +95,29 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_view_bill_payment',
                 'can_add_bill_payment',
                 'can_edit_bill_payment',
+                'can_delete_bill_payment',
+                // Full financial management
                 'can_view_payment',
                 'can_add_payment',
                 'can_edit_payment',
+                'can_delete_payment',
+                // Catalogue access
                 'can_view_pricelist',
                 'can_view_category',
                 'can_view_item',
-                'can_view_station',
-                'can_view_user_station',
-                // Cashier permissions
-                'can_delete_bill_payment',
-                'can_delete_payment',
-                // Storekeeper permissions
+                // Full inventory management
                 'can_view_inventory',
                 'can_add_inventory',
                 'can_edit_inventory',
                 'can_delete_inventory',
+                'can_adjust_inventory',
                 'can_add_item',
                 'can_edit_item',
                 'can_delete_item',
                 'can_add_category',
                 'can_edit_category',
                 'can_delete_category',
+                // Full supplier & purchase order management
                 'can_view_supplier',
                 'can_add_supplier',
                 'can_edit_supplier',
@@ -126,41 +131,49 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_edit_purchase_order',
                 'can_delete_purchase_order',
                 'can_receive_purchase_order',
-                'can_adjust_inventory',
-                // Production permissions
+                // Production
                 'can_issue_production',
                 'can_view_production_history',
-                // Additional supervisor permissions
+                // Station oversight
+                'can_view_station',
+                'can_view_user_station',
                 'can_edit_station',
                 'can_view_station_pricelist',
                 'can_edit_user_station'
             ],
             sales: [
-                // Billing and customer operations
+                // Bill creation and management (sales owns the order lifecycle)
                 'can_view_bill',
                 'can_add_bill',
                 'can_edit_bill',
+                'can_cancel_bill',
                 'can_view_bill_item',
                 'can_add_bill_item',
                 'can_edit_bill_item',
                 'can_delete_bill_item',
+                // Payment entry (recording how customer will pay; cashier settles)
                 'can_view_bill_payment',
                 'can_add_bill_payment',
                 'can_edit_bill_payment',
                 'can_view_payment',
                 'can_add_payment',
                 'can_edit_payment',
+                // Catalogue read access
                 'can_view_pricelist',
                 'can_view_category',
                 'can_view_item',
+                // Station access
                 'can_view_station',
                 'can_view_user_station'
             ],
             cashier: [
-                // Financial operations
+                // Bill visibility (cashier settles bills raised by sales)
                 'can_view_bill',
                 'can_view_bill_item',
                 'can_view_bill_payment',
+                // Core cashier action: close the bill once payment is fully received
+                'can_close_bill',
+                // Payment processing
                 'can_add_bill_payment',
                 'can_edit_bill_payment',
                 'can_delete_bill_payment',
@@ -168,15 +181,18 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_add_payment',
                 'can_edit_payment',
                 'can_delete_payment',
+                // Station access
                 'can_view_station',
                 'can_view_user_station'
             ],
             storekeeper: [
-                // Inventory management
+                // Full inventory management
                 'can_view_inventory',
                 'can_add_inventory',
                 'can_edit_inventory',
                 'can_delete_inventory',
+                'can_adjust_inventory',
+                // Items and categories
                 'can_view_item',
                 'can_add_item',
                 'can_edit_item',
@@ -185,8 +201,7 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_add_category',
                 'can_edit_category',
                 'can_delete_category',
-                'can_view_station',
-                'can_view_user_station',
+                // Supplier management
                 'can_view_supplier',
                 'can_add_supplier',
                 'can_edit_supplier',
@@ -195,15 +210,18 @@ class AssignPermissionsToRoles1700000000007 {
                 'can_add_supplier_payment',
                 'can_edit_supplier_payment',
                 'can_delete_supplier_payment',
+                // Purchase orders
                 'can_view_purchase_order',
                 'can_add_purchase_order',
                 'can_edit_purchase_order',
                 'can_delete_purchase_order',
                 'can_receive_purchase_order',
-                'can_adjust_inventory',
-                // Production permissions
+                // Production
                 'can_issue_production',
-                'can_view_production_history'
+                'can_view_production_history',
+                // Station access
+                'can_view_station',
+                'can_view_user_station'
             ]
         };
 

@@ -17,13 +17,15 @@ const REPORT_PERMISSION_NAMES = [
   "can_view_pnl_report",
 ];
 
-/** Baseline ROLE_PERMISSIONS from legacy 0007 (before report + reconciliation extras). */
+/** Baseline ROLE_PERMISSIONS (before report + reconciliation extras). */
 const rolePermissionsBaseline = {
   admin: [
+    // System management — full control
     "can_view_role",
     "can_add_role",
     "can_edit_role",
     "can_delete_role",
+    "can_manage_role",
     "can_view_permission",
     "can_add_permission",
     "can_edit_permission",
@@ -63,17 +65,27 @@ const rolePermissionsBaseline = {
     "can_add_station_pricelist",
     "can_edit_station_pricelist",
     "can_delete_station_pricelist",
+    // Read-only access to business data (admin oversees but does not operate)
     "can_view_bill",
     "can_view_bill_item",
     "can_view_bill_payment",
     "can_view_inventory",
+    "can_edit_inventory",
     "can_view_payment",
     "can_view_purchase_order",
+    "can_view_supplier",
+    "can_view_supplier_payment",
+    "can_issue_production",
+    "can_view_production_history",
   ],
   supervisor: [
+    // Full billing management
     "can_view_bill",
     "can_add_bill",
     "can_edit_bill",
+    "can_close_bill",
+    "can_cancel_bill",
+    "can_reopen_bill",
     "can_view_bill_item",
     "can_add_bill_item",
     "can_edit_bill_item",
@@ -81,26 +93,29 @@ const rolePermissionsBaseline = {
     "can_view_bill_payment",
     "can_add_bill_payment",
     "can_edit_bill_payment",
+    "can_delete_bill_payment",
+    // Full financial management
     "can_view_payment",
     "can_add_payment",
     "can_edit_payment",
+    "can_delete_payment",
+    // Catalogue access
     "can_view_pricelist",
     "can_view_category",
     "can_view_item",
-    "can_view_station",
-    "can_view_user_station",
-    "can_delete_bill_payment",
-    "can_delete_payment",
+    // Full inventory management
     "can_view_inventory",
     "can_add_inventory",
     "can_edit_inventory",
     "can_delete_inventory",
+    "can_adjust_inventory",
     "can_add_item",
     "can_edit_item",
     "can_delete_item",
     "can_add_category",
     "can_edit_category",
     "can_delete_category",
+    // Full supplier & purchase order management
     "can_view_supplier",
     "can_add_supplier",
     "can_edit_supplier",
@@ -114,37 +129,49 @@ const rolePermissionsBaseline = {
     "can_edit_purchase_order",
     "can_delete_purchase_order",
     "can_receive_purchase_order",
-    "can_adjust_inventory",
+    // Production
     "can_issue_production",
     "can_view_production_history",
+    // Station oversight
+    "can_view_station",
+    "can_view_user_station",
     "can_edit_station",
     "can_view_station_pricelist",
     "can_edit_user_station",
   ],
   sales: [
+    // Bill creation and management (sales owns the order lifecycle)
     "can_view_bill",
     "can_add_bill",
     "can_edit_bill",
+    "can_cancel_bill",
     "can_view_bill_item",
     "can_add_bill_item",
     "can_edit_bill_item",
     "can_delete_bill_item",
+    // Payment entry (recording how customer will pay; cashier settles)
     "can_view_bill_payment",
     "can_add_bill_payment",
     "can_edit_bill_payment",
     "can_view_payment",
     "can_add_payment",
     "can_edit_payment",
+    // Catalogue read access
     "can_view_pricelist",
     "can_view_category",
     "can_view_item",
+    // Station access
     "can_view_station",
     "can_view_user_station",
   ],
   cashier: [
+    // Bill visibility (cashier settles bills raised by sales)
     "can_view_bill",
     "can_view_bill_item",
     "can_view_bill_payment",
+    // Core cashier action: close the bill once payment is fully received
+    "can_close_bill",
+    // Payment processing
     "can_add_bill_payment",
     "can_edit_bill_payment",
     "can_delete_bill_payment",
@@ -152,14 +179,18 @@ const rolePermissionsBaseline = {
     "can_add_payment",
     "can_edit_payment",
     "can_delete_payment",
+    // Station access
     "can_view_station",
     "can_view_user_station",
   ],
   storekeeper: [
+    // Full inventory management
     "can_view_inventory",
     "can_add_inventory",
     "can_edit_inventory",
     "can_delete_inventory",
+    "can_adjust_inventory",
+    // Items and categories
     "can_view_item",
     "can_add_item",
     "can_edit_item",
@@ -168,8 +199,7 @@ const rolePermissionsBaseline = {
     "can_add_category",
     "can_edit_category",
     "can_delete_category",
-    "can_view_station",
-    "can_view_user_station",
+    // Supplier management
     "can_view_supplier",
     "can_add_supplier",
     "can_edit_supplier",
@@ -178,14 +208,18 @@ const rolePermissionsBaseline = {
     "can_add_supplier_payment",
     "can_edit_supplier_payment",
     "can_delete_supplier_payment",
+    // Purchase orders
     "can_view_purchase_order",
     "can_add_purchase_order",
     "can_edit_purchase_order",
     "can_delete_purchase_order",
     "can_receive_purchase_order",
-    "can_adjust_inventory",
+    // Production
     "can_issue_production",
     "can_view_production_history",
+    // Station access
+    "can_view_station",
+    "can_view_user_station",
   ],
 };
 
@@ -198,8 +232,6 @@ function buildFinalRolePermissions() {
   return {
     admin: uniqueStrings([
       ...rolePermissionsBaseline.admin,
-      "can_view_production_history",
-      "can_edit_inventory",
       ...REPORT_PERMISSION_NAMES,
       reconciliation,
     ]),
@@ -208,13 +240,22 @@ function buildFinalRolePermissions() {
       ...REPORT_PERMISSION_NAMES,
       reconciliation,
     ]),
-    sales: [...rolePermissionsBaseline.sales],
+    sales: uniqueStrings([
+      ...rolePermissionsBaseline.sales,
+      "can_view_sales_revenue_report",
+      "can_view_items_sold_count_report",
+      "can_view_voided_items_report",
+    ]),
     cashier: uniqueStrings([
       ...rolePermissionsBaseline.cashier,
-      ...REPORT_PERMISSION_NAMES,
-      reconciliation,
+      "can_view_sales_revenue_report",
+      "can_view_invoices_pending_bills_report",
     ]),
-    storekeeper: [...rolePermissionsBaseline.storekeeper],
+    storekeeper: uniqueStrings([
+      ...rolePermissionsBaseline.storekeeper,
+      "can_view_purchase_orders_report",
+      "can_view_expenditure_report",
+    ]),
   };
 }
 
@@ -261,6 +302,9 @@ const SEEDED_PERMISSION_NAMES = uniqueStrings([
   "can_view_bill",
   "can_add_bill",
   "can_edit_bill",
+  "can_close_bill",
+  "can_cancel_bill",
+  "can_reopen_bill",
   "can_delete_bill",
   "can_view_bill_item",
   "can_add_bill_item",
@@ -445,6 +489,9 @@ module.exports = class SeedInitialDataConsolidated1700000000001 {
         "can_view_bill",
         "can_add_bill",
         "can_edit_bill",
+        "can_close_bill",
+        "can_cancel_bill",
+        "can_reopen_bill",
         "can_delete_bill",
         "can_view_bill_item",
         "can_add_bill_item",
