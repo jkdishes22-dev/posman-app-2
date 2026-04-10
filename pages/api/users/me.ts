@@ -14,7 +14,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         if (req.method === "GET") {
             // Check cache first (using shared cache utility)
             const cacheKey = `api_user_me_${userId}`;
-            const cached = cache.get<any>(cacheKey, 60000); // 60 second TTL for user data
+            const cached = cache.get<any>(cacheKey); // TTL is set on cache.set below
             
             if (cached !== null) {
                 // Set cache headers for browser caching

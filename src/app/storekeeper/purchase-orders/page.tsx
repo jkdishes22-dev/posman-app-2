@@ -351,7 +351,7 @@ export default function PurchaseOrdersPage() {
             }
         } catch (error: any) {
             setFormError("Network error occurred");
-            setFormErrorDetails({ networkError: true, status: 0 });
+            setFormErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         } finally {
             setIsSubmitting(false);
         }
@@ -390,7 +390,7 @@ export default function PurchaseOrdersPage() {
             }
         } catch (error: any) {
             setFormError("Network error occurred");
-            setFormErrorDetails({ networkError: true, status: 0 });
+            setFormErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         } finally {
             setIsSubmitting(false);
         }
@@ -420,7 +420,7 @@ export default function PurchaseOrdersPage() {
             }
         } catch (error: any) {
             setFormError("Network error occurred");
-            setFormErrorDetails({ networkError: true, status: 0 });
+            setFormErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         } finally {
             setIsSubmitting(false);
         }
