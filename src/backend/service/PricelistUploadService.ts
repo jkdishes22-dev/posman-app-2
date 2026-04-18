@@ -48,6 +48,7 @@ export interface UploadProcessResult {
 }
 
 export class PricelistUploadService {
+  private dataSource: DataSource;
   private itemRepository: Repository<Item>;
   private categoryRepository: Repository<Category>;
   private pricelistRepository: Repository<Pricelist>;
@@ -57,6 +58,7 @@ export class PricelistUploadService {
   private pricelistService: PricelistService;
 
   constructor(datasource: DataSource) {
+    this.dataSource = datasource;
     this.itemRepository = datasource.getRepository(Item);
     this.categoryRepository = datasource.getRepository(Category);
     this.pricelistRepository = datasource.getRepository(Pricelist);
@@ -491,88 +493,101 @@ export class PricelistUploadService {
       errors: [],
     };
 
-    for (let i = 0; i < validationResult.rows.length; i++) {
-      const row = validationResult.rows[i];
-      const match = validationResult.matchedItems.get(i);
-      const category = validationResult.matchedCategories.get(row.category_code.toLowerCase());
-      const pricelist = validationResult.matchedPricelists.get(row.pricelist_code.toLowerCase());
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-      if (!category || !pricelist) {
-        result.errors.push(`Row ${i + 1}: Missing category or pricelist`);
-        result.skipped++;
-        continue;
-      }
+    try {
+      for (let i = 0; i < validationResult.rows.length; i++) {
+        const row = validationResult.rows[i];
+        const match = validationResult.matchedItems.get(i);
+        const category = validationResult.matchedCategories.get(row.category_code.toLowerCase());
+        const pricelist = validationResult.matchedPricelists.get(row.pricelist_code.toLowerCase());
 
-      const action = userConfirmations.get(i) || "skip";
-      if (action === "skip") {
-        result.skipped++;
-        continue;
-      }
-
-      try {
-        if (action === "create" || (action === "update" && !match?.item)) {
-          // Create new item
-          await this.itemService.createItem(
-            {
-              name: row.name,
-              code: row.code,
-              category: category,
-              isStock: row.is_stock || false,
-              allowNegativeInventory: row.allow_negative_inventory || false,
-            },
-            { pricelistId: pricelist.id, price: row.price },
-            userId
-          );
-          result.created++;
-        } else if (action === "update" && match?.item) {
-          // Update existing item
-          const pricelistItem = await this.pricelistItemRepository.findOne({
-            where: {
-              item: { id: match.item.id },
-              pricelist: { id: pricelist.id },
-            },
-          });
-
-          // Update item fields
-          await this.itemService.updateItem(
-            {
-              id: match.item.id,
-              name: row.name,
-              code: row.code,
-              category: category,
-              isStock: row.is_stock !== undefined ? row.is_stock : match.item.isStock,
-              allowNegativeInventory:
-                row.allow_negative_inventory !== undefined
-                  ? row.allow_negative_inventory
-                  : match.item.allowNegativeInventory,
-            },
-            {
-              pricelistItemId: pricelistItem?.id,
-              price: row.price,
-            },
-            userId,
-            pricelist.id
-          );
-
-          // Update currency and is_enabled if pricelist item exists
-          if (pricelistItem) {
-            if (row.currency && pricelistItem.currency !== row.currency) {
-              pricelistItem.currency = row.currency as Currency;
-            }
-            if (row.is_enabled !== undefined && pricelistItem.is_enabled !== row.is_enabled) {
-              pricelistItem.is_enabled = row.is_enabled;
-            }
-            pricelistItem.updated_by = userId;
-            await this.pricelistItemRepository.save(pricelistItem);
-          }
-
-          result.updated++;
+        if (!category || !pricelist) {
+          result.errors.push(`Row ${i + 1}: Missing category or pricelist`);
+          result.skipped++;
+          continue;
         }
-      } catch (error) {
-        const errorMsg = `Row ${i + 1}: ${error instanceof Error ? error.message : String(error)}`;
-        result.errors.push(errorMsg);
-        logger.error({ row, error }, "Failed to process upload row");
+
+        const action = userConfirmations.get(i) || "skip";
+        if (action === "skip") {
+          result.skipped++;
+          continue;
+        }
+
+        try {
+          if (action === "create" || (action === "update" && !match?.item)) {
+            // Create new item
+            await this.itemService.createItem(
+              {
+                name: row.name,
+                code: row.code,
+                category: category,
+                isStock: row.is_stock || false,
+                allowNegativeInventory: row.allow_negative_inventory || false,
+              },
+              { pricelistId: pricelist.id, price: row.price },
+              userId
+            );
+            result.created++;
+          } else if (action === "update" && match?.item) {
+            // Update existing item
+            const pricelistItem = await this.pricelistItemRepository.findOne({
+              where: {
+                item: { id: match.item.id },
+                pricelist: { id: pricelist.id },
+              },
+            });
+
+            // Update item fields
+            await this.itemService.updateItem(
+              {
+                id: match.item.id,
+                name: row.name,
+                code: row.code,
+                category: category,
+                isStock: row.is_stock !== undefined ? row.is_stock : match.item.isStock,
+                allowNegativeInventory:
+                  row.allow_negative_inventory !== undefined
+                    ? row.allow_negative_inventory
+                    : match.item.allowNegativeInventory,
+              },
+              {
+                pricelistItemId: pricelistItem?.id,
+                price: row.price,
+              },
+              userId,
+              pricelist.id
+            );
+
+            // Update currency and is_enabled if pricelist item exists
+            if (pricelistItem) {
+              if (row.currency && pricelistItem.currency !== row.currency) {
+                pricelistItem.currency = row.currency as Currency;
+              }
+              if (row.is_enabled !== undefined && pricelistItem.is_enabled !== row.is_enabled) {
+                pricelistItem.is_enabled = row.is_enabled;
+              }
+              pricelistItem.updated_by = userId;
+              await this.pricelistItemRepository.save(pricelistItem);
+            }
+
+            result.updated++;
+          }
+        } catch (error) {
+          const errorMsg = `Row ${i + 1}: ${error instanceof Error ? error.message : String(error)}`;
+          result.errors.push(errorMsg);
+          logger.error({ row, error }, "Failed to process upload row");
+        }
       }
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
 
     return result;

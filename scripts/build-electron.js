@@ -18,6 +18,12 @@ const __dirname = dirname(__filename);
 
 console.log("🚀 Starting Electron build process...\n");
 
+// DB_MODE: "sqlite" | "mysql" — can be passed as env var or 3rd CLI arg
+// e.g.  DB_MODE=sqlite node scripts/build-electron.js win
+//        node scripts/build-electron.js win sqlite
+const dbMode = process.env.DB_MODE || process.argv[3] || "mysql";
+console.log(`🗄️  Database mode: ${dbMode}\n`);
+
 // Step 1: Build Next.js in standalone mode
 console.log("📦 Step 1: Building Next.js in standalone mode...");
 try {
@@ -27,6 +33,7 @@ try {
       ...process.env,
       ELECTRON_BUILD: "true",
       NODE_ENV: "production",
+      DB_MODE: dbMode,
     },
   });
   console.log("✅ Next.js build completed\n");
@@ -84,6 +91,7 @@ if (isCrossCompilation) {
 const buildEnv = {
   ...process.env,
   NODE_ENV: "production",
+  DB_MODE: dbMode,
 };
 
 try {

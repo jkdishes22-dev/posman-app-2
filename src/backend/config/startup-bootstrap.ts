@@ -43,6 +43,8 @@ export class StartupBootstrapError extends Error {
   }
 }
 
+const isSqliteMode = (): boolean => process.env.DB_MODE === "sqlite";
+
 type MySqlConfig = {
   host: string;
   port: number;
@@ -135,6 +137,23 @@ function getUnavailableStatus(error: any): SetupStatusPayload {
 }
 
 function getInitializationRequiredStatus(): SetupStatusPayload {
+  if (isSqliteMode()) {
+    return {
+      state: "initialization_required",
+      message:
+        "Database not initialized. Run initial setup to create tables and seed data.",
+      code: "DB_INITIALIZATION_REQUIRED",
+      guidance: {
+        title: "Initial setup required",
+        steps: [
+          "Confirm initial setup from the login screen.",
+          "The app will create the local database file automatically.",
+          "Migrations will run automatically (roles, permissions, and admin seed included).",
+        ],
+      },
+    };
+  }
+
   const config = getDbConfig();
   return {
     state: "initialization_required",
@@ -166,6 +185,18 @@ function getReadyStatus(): SetupStatusPayload {
 }
 
 function getFailedStatus(error: any): SetupStatusPayload {
+  if (isSqliteMode()) {
+    return {
+      state: "failed",
+      message: `Database setup failed: ${error?.message || "Unknown error"}`,
+      code: "SETUP_FAILED",
+      diagnostics: {
+        dbName: process.env.SQLITE_DB_PATH || "posman.db",
+        originalCode: error?.code,
+      },
+    };
+  }
+
   const config = getDbConfig();
   return {
     state: "failed",
@@ -274,6 +305,42 @@ async function hasCoreSchema(): Promise<boolean> {
   });
 }
 
+// --- SQLite-specific bootstrap ---
+
+async function checkSqliteStatus(): Promise<SetupStatusPayload> {
+  try {
+    if (!AppDataSource.isInitialized) {
+      await AppDataSource.initialize();
+    }
+    const requiredTables = ["user", "roles", "permissions", "user_roles", "role_permissions"];
+    const placeholders = requiredTables.map(() => "?").join(",");
+    const result = await AppDataSource.query(
+      `SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name IN (${placeholders})`,
+      requiredTables,
+    );
+    const count = parseInt(result?.[0]?.count ?? "0", 10);
+    return count >= requiredTables.length ? getReadyStatus() : getInitializationRequiredStatus();
+  } catch (error: any) {
+    return getFailedStatus(error);
+  }
+}
+
+async function runSqliteInitialization(): Promise<SetupStatusPayload> {
+  try {
+    console.info("[startup-bootstrap] Running SQLite initialization");
+    if (!AppDataSource.isInitialized) {
+      await AppDataSource.initialize();
+    }
+    await AppDataSource.runMigrations();
+    await ensureBaselineData();
+    return getReadyStatus();
+  } catch (error: any) {
+    return getFailedStatus(error);
+  }
+}
+
+// --- Shared ---
+
 async function ensureBaselineData(): Promise<void> {
   const roleCountResult = await AppDataSource.query(
     "SELECT COUNT(*) as count FROM roles WHERE name IN ('admin', 'supervisor', 'sales', 'cashier', 'storekeeper')",
@@ -305,6 +372,10 @@ async function ensureSchemaAndMigrations(): Promise<void> {
 }
 
 async function checkStatusInternal(): Promise<SetupStatusPayload> {
+  if (isSqliteMode()) {
+    return checkSqliteStatus();
+  }
+
   try {
     const exists = await databaseExists();
     if (!exists) {
@@ -379,6 +450,12 @@ export async function runStartupInitialization(): Promise<SetupStatusPayload> {
 
   bootstrapState.initPromise = (async () => {
     try {
+      if (isSqliteMode()) {
+        const status = await runSqliteInitialization();
+        bootstrapState.current = status;
+        return status;
+      }
+
       console.info("[startup-bootstrap] Running full initialization flow");
       await createDatabaseIfMissing();
       await ensureSchemaAndMigrations();
