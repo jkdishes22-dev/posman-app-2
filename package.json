@@ -26,7 +26,11 @@
     "electron:pack": "electron-builder",
     "electron:pack:win": "electron-builder --win",
     "electron:pack:mac": "electron-builder --mac",
-    "electron:pack:linux": "electron-builder --linux"
+    "electron:pack:linux": "electron-builder --linux",
+    "electron:publish:win": "GH_TOKEN=$GH_TOKEN node scripts/build-electron.js win --publish",
+    "electron:publish:mac": "GH_TOKEN=$GH_TOKEN node scripts/build-electron.js mac --publish",
+    "generate:icons": "node scripts/generate-icons.mjs",
+    "generate:cert": "node scripts/generate-self-signed-cert.cjs"
   },
   "dependencies": {
     "@types/formidable": "^3.4.6",
@@ -38,6 +42,7 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "dotenv": "^16.6.1",
+    "electron-updater": "^6.8.3",
     "express": "^4.21.0",
     "formidable": "^3.5.4",
     "glob": "^11.0.3",
@@ -53,6 +58,7 @@
     "papaparse": "^5.5.3",
     "pino": "^9.9.5",
     "pino-pretty": "^13.1.1",
+    "png-to-ico": "^3.0.1",
     "process": "^0.11.10",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.5",

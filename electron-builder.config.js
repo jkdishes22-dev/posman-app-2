@@ -12,13 +12,33 @@ const isCrossCompiling = (targetPlatform) => {
   );
 };
 
+// Code signing config — reads cert path and password from env vars.
+// CERT_PFX_PATH: path to the .pfx file (defaults to build/signing/cert.pfx)
+// CERT_PASSWORD:  password for the .pfx (defaults to jkposman-dev-cert for the self-signed cert)
+// To disable signing entirely, set SKIP_SIGNING=true
+const getSigningConfig = () => {
+  if (process.env.SKIP_SIGNING === "true") {
+    return { signAndEditExecutable: false };
+  }
+  const pfxPath = process.env.CERT_PFX_PATH || path.join(__dirname, "build", "signing", "cert.pfx");
+  if (!fs.existsSync(pfxPath)) {
+    console.warn(`⚠️  No certificate found at ${pfxPath}. Skipping signing.`);
+    console.warn(`   Run: node scripts/generate-self-signed-cert.cjs`);
+    return { signAndEditExecutable: false };
+  }
+  return {
+    signAndEditExecutable: true,
+    certificateFile: pfxPath,
+    certificatePassword: process.env.CERT_PASSWORD || "jkposman-dev-cert",
+  };
+};
+
 module.exports = {
   appId: "com.jk.posman",
   productName: "JK PosMan",
   copyright: "Copyright © 2024 JK PosMan",
 
-  // Ensure icon is set at root level for all platforms
-  icon: "public/icons/JKlogo-512.png", // electron-builder will convert to platform-specific format
+  icon: "public/icons/JKlogo-512.ico",
 
   directories: {
     output: "dist-electron",
@@ -41,14 +61,9 @@ module.exports = {
     "!node_modules/**/@tree-sitter-grammars/**",
   ],
 
-  // Exclude problematic packages from dependency analysis
   asar: true,
   nodeGypRebuild: false,
 
-  // Unpack .next/standalone directory from ASAR archive
-  // This is necessary for utilityProcess to access the Next.js server files
-  // Files will be extracted to resources/app.asar.unpacked/.next/standalone
-  // Patterns must match files as they appear INSIDE the ASAR archive
   asarUnpack: [
     "**/.next/standalone/**",
     "**/.next/standalone/**/*",
@@ -56,11 +71,6 @@ module.exports = {
     ".next/standalone/**/*",
   ],
 
-  // Use extraResources to copy .next/standalone to resources/ directory
-  // This is more reliable than extraFiles and places files at resources/.next/standalone
-  // extraResources copies to resources/ (same level as app.asar), bypassing ASAR entirely
-  // Using object format with explicit filter to ensure all files are copied
-  // NOTE: Paths are relative to project root (where electron-builder.config.js is located)
   extraResources: [
     {
       from: ".next/standalone",
@@ -69,10 +79,6 @@ module.exports = {
     },
   ],
 
-  // Use extraFiles to copy .next/standalone to app directory (same level as executable)
-  // This is a fallback if extraResources doesn't work
-  // extraFiles copies to the app directory (where JK PosMan.exe is), not resources/
-  // NOTE: Paths are relative to project root (where electron-builder.config.js is located)
   extraFiles: [
     {
       from: "public/icons",
@@ -98,18 +104,10 @@ module.exports = {
         arch: ["x64"],
       },
     ],
-    // Windows needs .ico format
-    // electron-builder will automatically convert PNG to ICO if ICO doesn't exist
-    // For best results, create JKlogo-512.ico manually (see scripts/create-windows-icon.md)
-    icon: "public/icons/JKlogo-512.png", // Will be auto-converted to .ico during build
+    icon: "public/icons/JKlogo-512.ico",
     publisherName: "JK PosMan",
     requestedExecutionLevel: "asInvoker",
-    // Windows 7, 10, 11 compatibility
-    // Electron 27+ requires Windows 10+, but we can set minimum version
-    // For Windows 7 support, you may need to use an older Electron version
-    // For now, we'll target Windows 10+ (which includes Windows 11)
-    // Windows 7 users would need an older build with Electron < 20
-    signAndEditExecutable: false, // Set to true if you have code signing certificate
+    ...getSigningConfig(),
   },
 
   nsis: {
@@ -118,18 +116,16 @@ module.exports = {
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
     shortcutName: "JK PosMan",
-    runAfterFinish: true, // Launch app after installation completes
-    // electron-builder will convert PNG to ICO automatically
-    installerIcon: "public/icons/JKlogo-512.png", // Will be converted to .ico automatically
-    uninstallerIcon: "public/icons/JKlogo-512.png",
-    installerHeaderIcon: "public/icons/JKlogo-512.png",
+    runAfterFinish: true,
+    installerIcon: "public/icons/JKlogo-512.ico",
+    uninstallerIcon: "public/icons/JKlogo-512.ico",
+    installerHeaderIcon: "public/icons/JKlogo-512.ico",
     include: "build/installer.nsh",
-    script: "build/installer-copy-standalone.nsh", // Copy .next/standalone during installation (fallback)
+    script: "build/installer-copy-standalone.nsh",
     license: "LICENSE",
     menuCategory: "Business",
-    // Additional NSIS options for better compatibility
-    perMachine: false, // Install for current user only (better for Windows 7/10 compatibility)
-    deleteAppDataOnUninstall: false, // Keep user data on uninstall
+    perMachine: false,
+    deleteAppDataOnUninstall: false,
   },
 
   // macOS configuration
@@ -154,67 +150,48 @@ module.exports = {
 
   dmg: {
     contents: [
-      {
-        x: 410,
-        y: 150,
-        type: "link",
-        path: "/Applications",
-      },
-      {
-        x: 130,
-        y: 150,
-        type: "file",
-      },
+      { x: 410, y: 150, type: "link", path: "/Applications" },
+      { x: 130, y: 150, type: "file" },
     ],
-    window: {
-      width: 540,
-      height: 380,
-    },
+    window: { width: 540, height: 380 },
     icon: "public/icons/JKlogo-512.png",
-    background: "build/dmg-background.png", // Optional: custom DMG background
+    background: "build/dmg-background.png",
   },
 
-  // Linux configuration (optional)
   linux: {
     target: ["AppImage", "deb"],
     icon: "public/icons",
     category: "Office",
   },
 
-  // Compression
   compression: "maximum",
-
-  // Build options
   buildVersion: process.env.BUILD_VERSION || "1.0.0",
-
-  // Skip rebuilding native modules by default to avoid cross-compilation errors
-  // Native modules (like tree-sitter) can't be cross-compiled from macOS to Windows
-  // Override with --config.npmRebuild=true if you need to rebuild (only works for same-platform builds)
   npmRebuild: false,
 
-  // Publish configuration (optional - for auto-updates)
-  publish: null, // Set to GitHub/GitLab/etc. for auto-updates
+  // Auto-update: publish releases to GitHub.
+  // electron-updater reads latest.yml from the GitHub release assets to check for updates.
+  // To publish: set GH_TOKEN env var and run electron:publish:win
+  publish: {
+    provider: "github",
+    owner: "ojsmaina",
+    repo: "posman",
+    releaseType: "release",
+  },
 
-  // Skip problematic packages during dependency analysis
   onNodeModuleFile: (file, module) => {
-    // Skip @swagger-api packages that have broken dependency references
     if (file.includes("@swagger-api") || file.includes("tree-sitter")) {
-      return false; // Don't include in build
+      return false;
     }
     return true;
   },
 
-  // Hook to verify and manually copy .next/standalone if needed
   beforePack: async (context) => {
     console.log(`\n🔧 beforePack hook executing...`);
-    console.log(`   context keys: ${Object.keys(context).join(", ")}`);
     console.log(`   appDir: ${context.appDir || "NOT SET"}`);
     console.log(`   outDir: ${context.outDir || "NOT SET"}`);
     console.log(`   projectDir: ${process.cwd()}`);
 
     const standalonePath = path.join(context.appDir || process.cwd(), ".next", "standalone");
-    console.log(`   Checking standalone at: ${standalonePath}`);
-
     if (!fs.existsSync(standalonePath)) {
       const error = `.next/standalone directory not found at ${standalonePath}. Please run 'npm run build' first.`;
       console.error(`   ❌ ${error}`);
@@ -222,13 +199,8 @@ module.exports = {
     }
 
     console.log(`   ✅ Verified .next/standalone exists`);
-    console.log(`   ✅ Source server.js exists: ${fs.existsSync(path.join(standalonePath, "server.js"))}`);
-    console.log(`\n`);
+    console.log(`   ✅ Source server.js exists: ${fs.existsSync(path.join(standalonePath, "server.js"))}\n`);
   },
 
-  // Hook after files are prepared - manually copy .next/standalone if extraFiles/extraResources didn't work
-  // This runs AFTER the app is packaged but BEFORE the installer is created
-  // Using separate file for better reliability
   afterPack: "./scripts/afterPackHook.js",
 };
-

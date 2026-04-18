@@ -47,3 +47,14 @@ public/sw.js
 .env
 .gitignore.swp
 public/sw.js.map
+
+# Code signing certificate (sensitive — never commit)
+build/signing/cert.pfx
+build/signing/*.pem
+build/signing/*.key
+
+# Icon generation temp files
+.ico-tmp/
+
+# Electron build output
+dist-electron/
