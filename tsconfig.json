@@ -54,15 +54,16 @@
     "./src/backend/types"
   ],
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
     "**/**/*.ts",
     "**/**/*.tsx",
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    "migration-backups"
+    "migration-backups",
+    ".next"
   ]
 }
