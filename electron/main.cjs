@@ -233,6 +233,9 @@ function startNextServer() {
             PORT: PORT.toString(),
             HOST: HOST,
             NODE_ENV: "production",
+            DB_MODE: process.env.DB_MODE || "mysql",
+            // For SQLite: store DB file in user data directory so it persists across app updates
+            SQLITE_DB_PATH: path.join(app.getPath("userData"), "posman.db"),
         };
 
         // Set NODE_PATH to ensure modules are found
