@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Table, Form, Badge } from "react-bootstrap";
+import { RowMatchInfo } from "@services/PricelistUploadService";
 
 interface UploadPreviewProps {
   validationResult: any;
@@ -14,7 +15,8 @@ export default function UploadPreview({
   userConfirmations,
   onConfirmationChange,
 }: UploadPreviewProps) {
-  const rows = validationResult.rows || [];
+  const rows: any[] = validationResult.rows || [];
+  const rowMatches: RowMatchInfo[] = validationResult.rowMatches || [];
 
   return (
     <div className="mt-3">
@@ -34,7 +36,8 @@ export default function UploadPreview({
           </thead>
           <tbody>
             {rows.map((row: any, index: number) => {
-              const match = validationResult.matchedItems?.get(index);
+              const match = rowMatches[index];
+              const hasMatch = match?.itemId != null;
               const action = userConfirmations.get(index) || "skip";
 
               return (
@@ -47,7 +50,7 @@ export default function UploadPreview({
                   <td>{row.category_code}</td>
                   <td>{row.price}</td>
                   <td>
-                    {match?.item ? (
+                    {hasMatch ? (
                       <Badge bg={match.confidence >= 90 ? "success" : match.confidence >= 70 ? "warning" : "danger"}>
                         {match.matchType} ({match.confidence}%)
                       </Badge>
@@ -59,10 +62,12 @@ export default function UploadPreview({
                     <Form.Select
                       size="sm"
                       value={action}
-                      onChange={(e) => onConfirmationChange(index, e.target.value as "create" | "update" | "skip")}
+                      onChange={(e) =>
+                        onConfirmationChange(index, e.target.value as "create" | "update" | "skip")
+                      }
                     >
                       <option value="skip">Skip</option>
-                      {match?.item ? (
+                      {hasMatch ? (
                         <option value="update">Update</option>
                       ) : (
                         <option value="create">Create</option>
@@ -78,4 +83,3 @@ export default function UploadPreview({
     </div>
   );
 }
-
