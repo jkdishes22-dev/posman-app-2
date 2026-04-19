@@ -21,7 +21,11 @@ console.log("🚀 Starting Electron build process...\n");
 // DB_MODE: "sqlite" | "mysql" — can be passed as env var or 3rd CLI arg
 // e.g.  DB_MODE=sqlite node scripts/build-electron.js win
 //        node scripts/build-electron.js win sqlite
-const dbMode = process.env.DB_MODE || process.argv[3] || "mysql";
+// --publish flag triggers electron-builder --publish always (for GitHub Releases)
+const args = process.argv.slice(2); // e.g. ["win", "--publish"] or ["win", "sqlite"]
+const shouldPublish = args.includes("--publish");
+const nonFlagArgs = args.filter((a) => !a.startsWith("--"));
+const dbMode = process.env.DB_MODE || nonFlagArgs[1] || "mysql";
 console.log(`🗄️  Database mode: ${dbMode}\n`);
 
 // Step 1: Build Next.js in standalone mode
@@ -62,7 +66,7 @@ try {
 
 // Step 3: Build Electron app
 console.log("⚡ Step 2: Building Electron application...");
-const platform = process.argv[2] || "all"; // 'win', 'mac', 'linux', or 'all'
+const platform = nonFlagArgs[0] || "all"; // 'win', 'mac', 'linux', or 'all'
 
 // Detect cross-compilation (building for different platform than current)
 const currentPlatform = process.platform;
@@ -86,6 +90,12 @@ if (platform !== "all") {
 if (isCrossCompilation) {
   buildCommand += " --config.npmRebuild=false";
   console.log("   Using --config.npmRebuild=false to skip native module rebuilds");
+}
+
+// Publish to GitHub Releases when --publish flag is passed
+if (shouldPublish) {
+  buildCommand += " --publish always";
+  console.log("   Publishing to GitHub Releases (requires GH_TOKEN env var)");
 }
 
 const buildEnv = {

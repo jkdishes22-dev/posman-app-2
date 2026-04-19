@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Electron main process uses CommonJS (require) not ES modules
-const { app, BrowserWindow, shell, utilityProcess } = require("electron");
+const { app, BrowserWindow, shell, utilityProcess, dialog } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
@@ -486,12 +487,19 @@ app.whenReady().then(async () => {
         logToFile("Next.js server started, creating window...");
         createWindow();
         logToFile("Window created successfully");
+
+        // Auto-updater: check for updates in production only
+        if (isProduction) {
+            logToFile("Checking for updates...");
+            autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+                logToFile(`Auto-updater error: ${err.message}`, "ERROR");
+            });
+        }
     } catch (error) {
         logToFile(`Failed to start application: ${error.message}`, "ERROR");
         logToFile(`Error stack: ${error.stack}`, "ERROR");
 
         // Show error dialog to user
-        const { dialog } = require("electron");
         dialog.showErrorBox(
             "Application Startup Error",
             `Failed to start JK PosMan:\n\n${error.message}\n\nPlease check the log file at:\n${logFile}`
@@ -499,6 +507,27 @@ app.whenReady().then(async () => {
 
         app.quit();
     }
+});
+
+// Auto-updater: prompt the user to restart when a new version is ready
+autoUpdater.on("update-downloaded", () => {
+    logToFile("Update downloaded, prompting user to restart");
+    dialog.showMessageBox(mainWindow, {
+        type: "info",
+        title: "Update Ready",
+        message: "A new version of JK PosMan has been downloaded.",
+        detail: "Restart the app now to apply the update, or do it later.",
+        buttons: ["Restart Now", "Later"],
+        defaultId: 0,
+        cancelId: 1,
+    }).then(({ response }) => {
+        if (response === 0) {
+            logToFile("User chose to restart for update");
+            autoUpdater.quitAndInstall();
+        } else {
+            logToFile("User deferred restart");
+        }
+    });
 });
 
 app.on("window-all-closed", () => {
