@@ -28,14 +28,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             creditAmount: parseFloat(creditAmount),
             reference: reference || null,
             paidAt: new Date(),
-            created_at: new Date()
+            created_at: new Date(),
+            created_by: parseInt(req.user.id, 10),
         });
 
         // Create the bill payment relationship
         const billPayment = await paymentService.createBillPayment({
             bill: { id: parseInt(billId as string) },
             payment: payment,
-            created_at: new Date()
+            created_at: new Date(),
+            created_by: parseInt(req.user.id, 10),
         });
 
         return res.status(200).json({
@@ -53,4 +55,4 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 };
 
-export default withMiddleware(dbMiddleware, authMiddleware(authorize([permissions.CAN_ADD_BILL_PAYMENT])))(handler);
+export default withMiddleware(dbMiddleware)(authMiddleware(authorize([permissions.CAN_ADD_BILL_PAYMENT])(handler)));
