@@ -11,8 +11,8 @@
  *   - Inline KEY definitions removed (created as separate CREATE INDEX statements)
  *   - INFORMATION_SCHEMA checks → sqlite_master checks
  */
-module.exports = class InitialSchemaSqlite0000 {
-  name = "InitialSchemaSqlite0000";
+module.exports = class InitialSchemaSqlite1700000000000 {
+  name = "InitialSchemaSqlite1700000000000";
 
   async up(queryRunner) {
     await queryRunner.query(`PRAGMA foreign_keys = ON`);

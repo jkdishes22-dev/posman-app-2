@@ -2,8 +2,8 @@
 const { patchQueryRunner } = require("./sqlite-compat-runner.cjs");
 const OriginalMigration = require("../migrations/0001-SeedInitialData.cjs");
 
-module.exports = class SeedInitialDataSqlite0001 {
-  name = "SeedInitialDataSqlite0001";
+module.exports = class SeedInitialDataSqlite1700000000001 {
+  name = "SeedInitialDataSqlite1700000000001";
 
   async up(queryRunner) {
     const migration = new OriginalMigration();

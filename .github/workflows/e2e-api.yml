@@ -1,0 +1,32 @@
+name: E2E API Tests
+
+on:
+  push:
+    branches-ignore:
+      - main          # run on every feature-branch push
+  pull_request:
+    branches:
+      - main          # required check before merging to main
+
+jobs:
+  e2e-api:
+    name: E2E API Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run E2E API tests
+        run: npm run test:e2e
+        env:
+          NODE_ENV: test
+          # DB_MODE and SQLITE_DB_PATH are set by vitest config / global-setup
+          # No MySQL secrets needed — SQLite is self-contained

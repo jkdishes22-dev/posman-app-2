@@ -25,13 +25,15 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return res.status(200).json(cached.data);
     }
 
-    // If not cached, fetch and cache
+    // If not cached, fetch and cache (only successful responses)
     const originalJson = res.json;
     res.json = function (data: any) {
-      pricelistsCache.set(cacheKey, {
-        data: data,
-        timestamp: Date.now()
-      });
+      if (res.statusCode === 200) {
+        pricelistsCache.set(cacheKey, {
+          data: data,
+          timestamp: Date.now()
+        });
+      }
       return originalJson.call(this, data);
     };
 

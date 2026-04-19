@@ -84,7 +84,7 @@ export function createAppDataSource(): DataSource {
       type: "better-sqlite3",
       database: getSqlitePath(),
       entities,
-      migrations: ["src/backend/config/migrations-sqlite/*.cjs"],
+      migrations: ["src/backend/config/migrations-sqlite/[0-9]*.cjs"],
       synchronize: false,
     });
   }

@@ -29,7 +29,12 @@ export const getConnection = async (): Promise<DataSource> => {
     await ensureStartupReadyForRequest();
 
     if (!connectionInstance) {
-      connectionInstance = await AppDataSource.initialize();
+      // ensureStartupReadyForRequest may have already initialized AppDataSource
+      // (e.g. checkSqliteStatus calls initialize). Avoid double-init.
+      if (!AppDataSource.isInitialized) {
+        await AppDataSource.initialize();
+      }
+      connectionInstance = AppDataSource;
     }
     return connectionInstance;
   } catch (error) {
