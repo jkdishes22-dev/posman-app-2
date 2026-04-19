@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Alert, Collapse, Badge } from "react-bootstrap";
+import { RowMatchInfo } from "@services/PricelistUploadService";
 
 interface SmartMatchSuggestionsProps {
   validationResult: any;
@@ -15,15 +16,16 @@ export default function SmartMatchSuggestions({
   onConfirmationChange,
 }: SmartMatchSuggestionsProps) {
   const [showSuggestions, setShowSuggestions] = useState(true);
-  const rows = validationResult.rows || [];
+  const rows: any[] = validationResult.rows || [];
+  const rowMatches: RowMatchInfo[] = validationResult.rowMatches || [];
 
-  // Find items that need review (low confidence matches or no matches)
   const itemsNeedingReview = rows
-    .map((row: any, index: number) => {
-      const match = validationResult.matchedItems?.get(index);
-      return { index, row, match };
-    })
-    .filter(({ match }) => !match?.item || match.confidence < 70);
+    .map((row: any, index: number) => ({
+      index,
+      row,
+      match: rowMatches[index] ?? null,
+    }))
+    .filter(({ match }) => !match?.itemId || match.confidence < 70);
 
   if (itemsNeedingReview.length === 0) {
     return null;
@@ -49,14 +51,13 @@ export default function SmartMatchSuggestions({
             {itemsNeedingReview.map(({ index, row, match }) => (
               <li key={index} className="mb-2">
                 <strong>{row.name}</strong> (Code: <code>{row.code}</code>)
-                {match?.item ? (
+                {match?.itemId ? (
                   <>
-                    {" "}
-                    - Matched with <strong>{match.item.name}</strong> (
+                    {" "}— Matched with <strong>{match.itemName}</strong> (
                     <Badge bg="warning">{match.confidence}% confidence</Badge>)
                   </>
                 ) : (
-                  <> - No match found, will create new item</>
+                  <> — No match found, will create new item</>
                 )}
               </li>
             ))}
@@ -66,4 +67,3 @@ export default function SmartMatchSuggestions({
     </Alert>
   );
 }
-
