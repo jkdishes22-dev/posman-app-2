@@ -136,7 +136,7 @@ describe("PurchaseOrderService", () => {
     });
 
     it("throws when PO is not in DRAFT status", async () => {
-      mockPORepo.findOne.mockResolvedValue({ id: 1, status: PurchaseOrderStatus.APPROVED });
+      mockPORepo.findOne.mockResolvedValue({ id: 1, status: PurchaseOrderStatus.RECEIVED });
 
       await expect(service.updatePurchaseOrder(1, {}, 1)).rejects.toThrow(
         "Cannot update purchase order"

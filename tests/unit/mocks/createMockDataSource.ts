@@ -39,6 +39,7 @@ export function createMockTransactionalEntityManager() {
       // Support both save(Entity, data) and save(data) calling conventions
       return data ?? _entityClass ?? {};
     }),
+    find: vi.fn().mockResolvedValue([]),
     findOne: vi.fn().mockResolvedValue(null),
     findOneBy: vi.fn().mockResolvedValue(null),
     create: vi.fn().mockImplementation((_entityClass: any, data?: any) => data ?? {}),
@@ -78,7 +79,7 @@ export function createMockRepository<T = any>() {
       },
     },
   };
-  return repo as jest.Mocked<import("typeorm").Repository<T>>;
+  return repo as any;
 }
 
 export function createMockDataSource(

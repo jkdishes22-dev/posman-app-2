@@ -16,7 +16,7 @@ async function patch() {
     // @ts-ignore — internal TypeORM path, no public types
     "typeorm/driver/sqlite-abstract/AbstractSqliteDriver.js"
   );
-  const Driver = mod.AbstractSqliteDriver ?? mod.default;
+  const Driver = (mod.AbstractSqliteDriver ?? mod.default) as any;
   if (!Driver) return;
 
   const orig = Driver.prototype.normalizeType;
@@ -28,3 +28,4 @@ async function patch() {
 
 // Run synchronously-ish: export a promise Vitest can await via setupFiles
 await patch();
+export {};

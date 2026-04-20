@@ -110,7 +110,7 @@ describe("SupplierService", () => {
 
       await service.createSupplierTransaction(
         1,
-        SupplierTransactionType.PURCHASE,
+        SupplierTransactionType.PURCHASE_ORDER,
         1000,
         0,
         SupplierReferenceType.PURCHASE_ORDER,

@@ -17,7 +17,7 @@ async function patchSqliteEnumSupport() {
     "typeorm/driver/sqlite-abstract/AbstractSqliteDriver.js"
   );
   const AbstractSqliteDriver =
-    driverModule.AbstractSqliteDriver ?? driverModule.default;
+    (driverModule.AbstractSqliteDriver ?? driverModule.default) as any;
 
   if (!AbstractSqliteDriver) return;
 
@@ -40,7 +40,7 @@ export async function setup() {
   process.env.DB_MODE = "sqlite";
   process.env.SQLITE_DB_PATH = TEST_DB_PATH;
   process.env.JWT_SECRET = "e2e-test-jwt-secret";
-  process.env.NODE_ENV = "test";
+  (process.env as any).NODE_ENV = "test";
   process.env.ADMIN_USERNAME = "admin";
   process.env.ADMIN_PASSWORD = "admin123";
 
