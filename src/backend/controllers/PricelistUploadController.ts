@@ -97,7 +97,7 @@ export const downloadTemplateHandler = async (
     res.setHeader("Content-Type", "text/csv");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="pricelist-upload-template.csv"`
+      "attachment; filename=\"pricelist-upload-template.csv\""
     );
     res.status(200).send(csv);
   } catch (error: any) {
