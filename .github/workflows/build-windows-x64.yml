@@ -125,21 +125,17 @@ jobs:
 
       - name: Upload Windows App (zip)
         uses: actions/upload-artifact@v4
+        continue-on-error: true  # Don't fail CI if storage quota is temporarily exhausted
         with:
           name: windows-app-x64
           path: |
             dist-electron/*.zip
-          retention-days: 3
-          if-no-files-found: error
+          retention-days: 1
+          if-no-files-found: warn
 
-      - name: Display download info
+      - name: Display build output
         run: |
           Write-Host "Build completed successfully!"
-          Write-Host ""
-          Write-Host "Zip file uploaded as artifact:"
-          Write-Host "  - Go to: Actions tab > This workflow run > Artifacts section"
-          Write-Host "  - Download: windows-app-x64"
-          Write-Host ""
           Get-ChildItem -Path dist-electron -Filter *.zip | ForEach-Object {
-            Write-Host "  $($_.Name) ($([math]::Round($_.Length / 1MB, 2)) MB)"
+            Write-Host "$($_.Name) ($([math]::Round($_.Length / 1MB, 2)) MB)"
           }
