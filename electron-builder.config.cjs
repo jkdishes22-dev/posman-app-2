@@ -106,7 +106,7 @@ module.exports = {
     category: "Office",
   },
 
-  compression: "maximum",
+  compression: "normal",
   buildVersion: process.env.BUILD_VERSION || "1.0.0",
   npmRebuild: false,
   publish: null,
