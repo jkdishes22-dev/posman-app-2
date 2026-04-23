@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20.x"
+          node-version: "22.x"
           cache: "npm"
 
       - name: Cache Next.js build cache
@@ -293,10 +293,10 @@ jobs:
         with:
           name: windows-installer-x64
           path: |
-            dist/*.exe
-            dist/*.exe.blockmap
-            dist/latest.yml
-          retention-days: 7
+            dist-electron/*.exe
+            dist-electron/*.exe.blockmap
+            dist-electron/latest.yml
+          retention-days: 3
           if-no-files-found: error
 
       - name: Display download info
@@ -308,7 +308,7 @@ jobs:
           Write-Host "   - Download: windows-installer-x64"
           Write-Host ""
           Write-Host "📥 Files available for download:"
-          Get-ChildItem -Path dist -Filter *.exe | ForEach-Object {
+          Get-ChildItem -Path dist-electron -Filter *.exe | ForEach-Object {
             Write-Host "   - $($_.Name) ($([math]::Round($_.Length / 1MB, 2)) MB)"
           }
           Write-Host ""
