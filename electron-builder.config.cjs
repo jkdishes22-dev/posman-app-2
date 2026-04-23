@@ -63,11 +63,9 @@ module.exports = {
     createStartMenuShortcut: true,
     shortcutName: "JK PosMan",
     runAfterFinish: true,
-    installerIcon: "public/icons/JKlogo-512.png",
-    uninstallerIcon: "public/icons/JKlogo-512.png",
-    installerHeaderIcon: "public/icons/JKlogo-512.png",
-    // installer.nsh and license removed — not committed to repo and not required.
-    // afterPackHook.cjs handles .next/standalone/node_modules copying.
+    // Do NOT set installerIcon/uninstallerIcon/installerHeaderIcon here —
+    // NSIS requires .ico format but the project only has a .png.
+    // electron-builder auto-converts the top-level icon field to .ico for NSIS.
     menuCategory: "Business",
     perMachine: false,
     deleteAppDataOnUninstall: false,
