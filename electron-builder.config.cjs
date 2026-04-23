@@ -48,12 +48,9 @@ module.exports = {
     },
   ],
 
-  // Windows configuration
+  // Windows configuration — x64 only (all supported Win 10+ machines are 64-bit)
   win: {
-    target: [
-      { target: "nsis", arch: ["x64", "ia32"] },
-      { target: "portable", arch: ["x64"] },
-    ],
+    target: [{ target: "nsis", arch: ["x64"] }],
     icon: "public/icons/JKlogo-512.png",
     requestedExecutionLevel: "asInvoker",
     signAndEditExecutable: false,
@@ -69,9 +66,8 @@ module.exports = {
     installerIcon: "public/icons/JKlogo-512.png",
     uninstallerIcon: "public/icons/JKlogo-512.png",
     installerHeaderIcon: "public/icons/JKlogo-512.png",
-    include: "build/installer.nsh",
-    script: "build/installer-copy-standalone.nsh",
-    license: "LICENSE",
+    // installer.nsh and license removed — not committed to repo and not required.
+    // afterPackHook.cjs handles .next/standalone/node_modules copying.
     menuCategory: "Business",
     perMachine: false,
     deleteAppDataOnUninstall: false,
