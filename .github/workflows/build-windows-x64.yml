@@ -84,7 +84,7 @@ jobs:
           Write-Host "   Server.js size: $([math]::Round($standaloneSize, 2)) MB"
 
       - name: Build Windows Installer (x64)
-        run: npx electron-builder --win --x64 --config.npmRebuild=false --publish never
+        run: npx electron-builder --win --x64 --config electron-builder.config.cjs --config.npmRebuild=false --publish never
         env:
           NODE_ENV: "production"
           # Disable auto-publishing - artifacts are uploaded for download

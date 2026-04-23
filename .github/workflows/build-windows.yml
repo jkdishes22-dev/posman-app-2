@@ -74,7 +74,7 @@ jobs:
           }
 
       - name: Build Windows Installer (${{ matrix.arch }})
-        run: npx electron-builder --win --${{ matrix.arch }} --config.npmRebuild=false --publish never
+        run: npx electron-builder --win --${{ matrix.arch }} --config electron-builder.config.cjs --config.npmRebuild=false --publish never
         env:
           NODE_ENV: "production"
           BUILD_VERSION: ${{ github.ref_name }}
