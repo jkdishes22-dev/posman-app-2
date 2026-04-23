@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Electron main process uses CommonJS (require) not ES modules
 const { app, BrowserWindow, shell, utilityProcess, dialog } = require("electron");
-const { autoUpdater } = require("electron-updater");
+// electron-updater is optional — excluded from ASAR to avoid packing duplicate node_modules.
+// The Next.js standalone bundle already contains its own node_modules.
+let autoUpdater = null;
+try { autoUpdater = require("electron-updater").autoUpdater; } catch (_) { /* no-op */ }
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
@@ -494,7 +497,7 @@ app.whenReady().then(async () => {
         logToFile("Window created successfully");
 
         // Auto-updater: check for updates in production only
-        if (isProduction) {
+        if (isProduction && autoUpdater) {
             logToFile("Checking for updates...");
             autoUpdater.checkForUpdatesAndNotify().catch((err) => {
                 logToFile(`Auto-updater error: ${err.message}`, "ERROR");
@@ -515,7 +518,7 @@ app.whenReady().then(async () => {
 });
 
 // Auto-updater: prompt the user to restart when a new version is ready
-autoUpdater.on("update-downloaded", () => {
+if (autoUpdater) autoUpdater.on("update-downloaded", () => {
     logToFile("Update downloaded, prompting user to restart");
     dialog.showMessageBox(mainWindow, {
         type: "info",

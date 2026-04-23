@@ -20,9 +20,10 @@ module.exports = {
     ".next/static/**/*",
     "public/**/*",
     "package.json",
-    // Do NOT include node_modules/**/* here — electron-builder auto-includes production
-    // dependencies only. Explicitly listing node_modules packs all devDependencies too
-    // (2 GB+) into ASAR, causing OOM/timeout on GitHub Windows runners.
+    // Exclude ALL node_modules from ASAR — .next/standalone ships its own node_modules,
+    // so packing root node_modules too doubles size (~1 GB+) and OOMs the 7 GB CI runner.
+    // electron-updater is required lazily in main.cjs (try/catch) so omitting it is safe.
+    "!node_modules/**/*",
   ],
 
   asar: true,
