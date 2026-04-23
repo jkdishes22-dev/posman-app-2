@@ -20,11 +20,9 @@ module.exports = {
     ".next/static/**/*",
     "public/**/*",
     "package.json",
-    "node_modules/**/*",
-    "!node_modules/**/tree-sitter*/**",
-    "!node_modules/**/@swagger-api/**",
-    "!node_modules/**/swagger-ui-react/**",
-    "!node_modules/**/@tree-sitter-grammars/**",
+    // Do NOT include node_modules/**/* here — electron-builder auto-includes production
+    // dependencies only. Explicitly listing node_modules packs all devDependencies too
+    // (2 GB+) into ASAR, causing OOM/timeout on GitHub Windows runners.
   ],
 
   asar: true,
