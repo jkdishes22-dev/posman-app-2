@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Electron main process uses CommonJS (require) not ES modules
 const { app, BrowserWindow, shell, utilityProcess, dialog } = require("electron");
-const { autoUpdater } = require("electron-updater");
+// electron-updater is optional — excluded from ASAR to avoid packing duplicate node_modules.
+// The Next.js standalone bundle already contains its own node_modules.
+let autoUpdater = null;
+try { autoUpdater = require("electron-updater").autoUpdater; } catch (_) { /* no-op */ }
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
@@ -75,28 +78,34 @@ function startNextServer() {
         let nextPath, serverPath;
         const appPath = app.getAppPath();
         const electronDir = path.dirname(process.execPath);
+        // process.resourcesPath = Contents/Resources/ on macOS, <installDir>/resources/ on Windows
+        // This is where extraResources and asarUnpack place files.
+        // electronDir alone is Contents/MacOS/ on macOS, which is NOT where resources are.
+        const resourcesDir = process.resourcesPath || path.join(electronDir, "resources");
 
         if (app.isPackaged) {
-            // Check if files are unpacked (outside ASAR) or packed (inside ASAR)
-            // When asarUnpack is configured, .next/standalone is extracted to app.asar.unpacked
-            // CRITICAL: utilityProcess.fork() CANNOT execute files from inside ASAR archives
-            // We MUST use the unpacked path for utilityProcess
-            const unpackedPath = path.join(electronDir, "resources", "app.asar.unpacked", ".next", "standalone");
-            const unpackedServerPath = path.join(unpackedPath, "server.js");
+            // CRITICAL: utilityProcess.fork() CANNOT execute files from inside ASAR archives.
+            // .next/standalone must be outside ASAR (via extraResources, extraFiles, or asarUnpack).
 
-            // Also check alternative unpacked location (sometimes electron-builder uses different structure)
-            const altUnpackedPath = path.join(electronDir, "resources", ".next", "standalone");
-            const altUnpackedServerPath = path.join(altUnpackedPath, "server.js");
-
-            // Check if extraResources copied it directly to resources (not in app.asar.unpacked)
-            // extraResources places files at resources/.next/standalone (most reliable method)
-            const extraResourcesPath = path.join(electronDir, "resources", ".next", "standalone");
+            // extraResources → Contents/Resources/.next/standalone (macOS) or resources/.next/standalone (Win)
+            const extraResourcesPath = path.join(resourcesDir, ".next", "standalone");
             const extraResourcesServerPath = path.join(extraResourcesPath, "server.js");
 
-            // Check if extraFiles copied it to app directory (same level as executable)
-            // extraFiles places files at app/.next/standalone (where JK PosMan.exe is)
-            const extraFilesPath = path.join(electronDir, ".next", "standalone");
+            // asarUnpack → Contents/Resources/app.asar.unpacked/.next/standalone
+            const unpackedPath = path.join(resourcesDir, "app.asar.unpacked", ".next", "standalone");
+            const unpackedServerPath = path.join(unpackedPath, "server.js");
+
+            // extraFiles → same dir as executable (.next/standalone beside JK PosMan.exe on Win,
+            // or Contents/.next/standalone on macOS — use parent of execPath for macOS)
+            const execDir = process.platform === "darwin"
+                ? path.join(electronDir, "..", "..")  // Contents/MacOS/../../ = Contents/
+                : electronDir;
+            const extraFilesPath = path.join(execDir, ".next", "standalone");
             const extraFilesServerPath = path.join(extraFilesPath, "server.js");
+
+            // Legacy aliases (kept for log parity)
+            const altUnpackedPath = extraResourcesPath;
+            const altUnpackedServerPath = extraResourcesServerPath;
 
             logToFile(`Checking unpacked path: ${unpackedPath}`);
             logToFile(`Unpacked server.js exists: ${fs.existsSync(unpackedServerPath)}`);
@@ -107,45 +116,7 @@ function startNextServer() {
             logToFile(`Checking extraFiles path: ${extraFilesPath}`);
             logToFile(`ExtraFiles server.js exists: ${fs.existsSync(extraFilesServerPath)}`);
 
-            // Debug: List what's actually in the unpacked directory
-            const unpackedDir = path.join(electronDir, "resources", "app.asar.unpacked");
-            if (fs.existsSync(unpackedDir)) {
-                try {
-                    const unpackedContents = fs.readdirSync(unpackedDir, { withFileTypes: true });
-                    logToFile(`Unpacked directory exists. Contents: ${unpackedContents.map(d => d.name).join(", ")}`);
-
-                    // Check if .next exists inside unpacked
-                    const unpackedNextPath = path.join(unpackedDir, ".next");
-                    if (fs.existsSync(unpackedNextPath)) {
-                        logToFile(`Found .next inside app.asar.unpacked`);
-                        try {
-                            const nextContents = fs.readdirSync(unpackedNextPath, { withFileTypes: true });
-                            logToFile(`Contents of .next: ${nextContents.map(d => d.name).join(", ")}`);
-                        } catch (err) {
-                            logToFile(`Could not read .next: ${err.message}`);
-                        }
-                    }
-                } catch (err) {
-                    logToFile(`Could not read unpacked directory: ${err.message}`);
-                }
-            } else {
-                logToFile(`Unpacked directory does not exist: ${unpackedDir}`);
-            }
-
-            // Also check if .next exists directly in resources
-            const resourcesNextPath = path.join(electronDir, "resources", ".next");
-            if (fs.existsSync(resourcesNextPath)) {
-                logToFile(`Found .next directory directly in resources`);
-                try {
-                    const nextContents = fs.readdirSync(resourcesNextPath, { withFileTypes: true });
-                    logToFile(`Contents of resources/.next: ${nextContents.map(d => d.name).join(", ")}`);
-                } catch (err) {
-                    logToFile(`Could not read resources/.next: ${err.message}`);
-                }
-            }
-
-            // Comprehensive debugging: List ALL contents of resources directory
-            const resourcesDir = path.join(electronDir, "resources");
+            // Debug: list resourcesDir contents so failures are easy to diagnose
             if (fs.existsSync(resourcesDir)) {
                 try {
                     logToFile(`Listing ALL contents of resources directory: ${resourcesDir}`);
@@ -234,7 +205,7 @@ function startNextServer() {
             PORT: PORT.toString(),
             HOST: HOST,
             NODE_ENV: "production",
-            DB_MODE: process.env.DB_MODE || "mysql",
+            DB_MODE: process.env.DB_MODE || "sqlite",
             // For SQLite: store DB file in user data directory so it persists across app updates
             SQLITE_DB_PATH: path.join(app.getPath("userData"), "posman.db"),
         };
@@ -371,6 +342,42 @@ function startNextServer() {
 }
 
 /**
+ * Trigger startup bootstrap check once server is up.
+ * This warms backend setup state before the login screen.
+ */
+function checkStartupBootstrapStatus() {
+    return new Promise((resolve) => {
+        const http = require("http");
+        const req = http.get(`http://${HOST}:${PORT}/api/system/setup-status`, (res) => {
+            let body = "";
+            res.on("data", (chunk) => {
+                body += chunk;
+            });
+            res.on("end", () => {
+                try {
+                    const parsed = JSON.parse(body || "{}");
+                    logToFile(`Startup bootstrap status: ${parsed.state || "unknown"} (${parsed.code || "n/a"})`);
+                } catch (error) {
+                    logToFile(`Startup bootstrap status parse failed: ${error.message}`);
+                }
+                resolve();
+            });
+        });
+
+        req.on("error", (error) => {
+            logToFile(`Startup bootstrap status check failed: ${error.message}`, "ERROR");
+            resolve();
+        });
+
+        req.setTimeout(8000, () => {
+            req.destroy();
+            logToFile("Startup bootstrap status check timed out", "ERROR");
+            resolve();
+        });
+    });
+}
+
+/**
  * Create the main application window
  */
 function createWindow() {
@@ -484,12 +491,13 @@ app.whenReady().then(async () => {
     try {
         logToFile("App is ready, starting Next.js server...");
         await startNextServer();
+        await checkStartupBootstrapStatus();
         logToFile("Next.js server started, creating window...");
         createWindow();
         logToFile("Window created successfully");
 
         // Auto-updater: check for updates in production only
-        if (isProduction) {
+        if (isProduction && autoUpdater) {
             logToFile("Checking for updates...");
             autoUpdater.checkForUpdatesAndNotify().catch((err) => {
                 logToFile(`Auto-updater error: ${err.message}`, "ERROR");
@@ -510,7 +518,7 @@ app.whenReady().then(async () => {
 });
 
 // Auto-updater: prompt the user to restart when a new version is ready
-autoUpdater.on("update-downloaded", () => {
+if (autoUpdater) autoUpdater.on("update-downloaded", () => {
     logToFile("Update downloaded, prompting user to restart");
     dialog.showMessageBox(mainWindow, {
         type: "info",

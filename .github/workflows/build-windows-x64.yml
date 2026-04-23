@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20.x"
+          node-version: "22.x"
           cache: "npm"
 
       - name: Cache Next.js build cache
@@ -83,233 +83,59 @@ jobs:
           $standaloneSize = (Get-Item ".next\standalone\server.js").Length / 1MB
           Write-Host "   Server.js size: $([math]::Round($standaloneSize, 2)) MB"
 
-      - name: Build Windows Installer (x64)
-        run: npx electron-builder --win --x64 --config.npmRebuild=false --publish never
+      - name: Build Windows App (x64) — zip portable for CI validation
+        # Use zip target (not nsis) — NSIS compresses .next/standalone/node_modules
+        # (500 MB+) and OOMs the 7 GB GitHub Windows runner. Zip just archives the
+        # unpacked directory with no compression step, so it reliably fits in CI.
+        # The tag-based build-windows.yml workflow uses nsis for real releases.
+        run: npx electron-builder --win --x64 --config electron-builder.config.cjs --config.win.target=zip --config.npmRebuild=false --publish never
         env:
           NODE_ENV: "production"
-          # Disable auto-publishing - artifacts are uploaded for download
-          # For releases, use the build-windows.yml workflow with tags
           GH_TOKEN: ""
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          # Speed optimizations
           ELECTRON_CACHE: "%LOCALAPPDATA%\\electron\\Cache"
           ELECTRON_BUILDER_CACHE: "%USERPROFILE%\\.cache\\electron-builder"
-          # Debug logging for electron-builder (including hooks)
           DEBUG: "electron-builder*"
-          # Force console output from hooks
           FORCE_COLOR: "1"
 
-      - name: Copy .next/standalone and rebuild installer
+      - name: Verify zip output and .next/standalone inside it
         run: |
-          Write-Host "🔧 Post-build: Copying .next/standalone and rebuilding installer..."
-          Write-Host ""
-
-          # Verify source exists
-          if (-not (Test-Path ".next\standalone\server.js")) {
-            Write-Error "❌ Source .next/standalone/server.js not found"
+          # Confirm electron-builder produced a zip
+          $zips = Get-ChildItem -Path dist-electron -Filter *.zip -ErrorAction SilentlyContinue
+          if ($zips.Count -eq 0) {
+            Write-Error "No .zip found in dist-electron — build failed"
             exit 1
           }
-          Write-Host "✅ Source found: .next\standalone\server.js"
-          Write-Host ""
-
-          # Find unpacked directories
-          $unpackedDirs = @()
-          if (Test-Path "dist") {
-            $unpackedDirs += Get-ChildItem -Path "dist" -Filter "*unpacked" -Directory -ErrorAction SilentlyContinue
-          }
-          if (Test-Path "dist-electron") {
-            $unpackedDirs += Get-ChildItem -Path "dist-electron" -Filter "*unpacked" -Directory -ErrorAction SilentlyContinue
+          foreach ($z in $zips) {
+            Write-Host "Produced: $($z.Name) ($([math]::Round($z.Length / 1MB, 2)) MB)"
           }
 
-          if ($unpackedDirs.Count -eq 0) {
-            Write-Error "❌ No unpacked directories found in dist/ or dist-electron/"
-            exit 1
-          }
-
-          Write-Host "📦 Processing $($unpackedDirs.Count) unpacked directory(ies)..."
-          Write-Host ""
-
-          $successCount = 0
-          $failCount = 0
-
-          foreach ($unpackedDir in $unpackedDirs) {
-            Write-Host "📁 Processing: $($unpackedDir.FullName)"
-            
-            $targetPath = Join-Path $unpackedDir.FullName ".next\standalone"
-            $verifyPath = Join-Path $targetPath "server.js"
-            
-            # Check if already exists
-            if (Test-Path $verifyPath) {
-              Write-Host "   ✅ Already exists at: $targetPath"
-              $successCount++
-              continue
-            }
-            
-            # Copy directory
-            Write-Host "   📋 Copying to: $targetPath"
-            try {
-              # Create target directory
-              New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
-              
-              # Copy all files and directories recursively
-              Copy-Item -Path ".next\standalone\*" -Destination $targetPath -Recurse -Force
-              
-              # Verify copy
-              if (Test-Path $verifyPath) {
-                Write-Host "   ✅ Successfully copied and verified"
-                $successCount++
-              } else {
-                Write-Error "   ❌ Verification failed: server.js not found"
-                $failCount++
-              }
-            } catch {
-              Write-Error "   ❌ Copy failed: $($_.Exception.Message)"
-              $failCount++
-            }
-            Write-Host ""
-          }
-
-          Write-Host "============================================================"
-          if ($failCount -eq 0) {
-            Write-Host "✅ Successfully processed $successCount unpacked directory(ies)"
-            Write-Host "✅ .next/standalone is now accessible in all unpacked apps"
-            Write-Host ""
-            Write-Host "⚠️  IMPORTANT: Files are copied to unpacked directory."
-            Write-Host "   The installer was already created, so it doesn't include these files."
-            Write-Host "   The afterPack hook should have copied files BEFORE installer creation."
-            Write-Host "   Check build logs for 'afterPack hook executing' to verify hook ran."
-          } else {
-            Write-Error "❌ Failed to copy to $failCount directory(ies)"
-            Write-Host "✅ Succeeded in $successCount directory(ies)"
-            exit 1
-          }
-
-      - name: Verify .next/standalone is unpacked/copied
-        run: |
-          Write-Host "Verifying .next/standalone directory is accessible..."
-          Write-Host ""
-
-          # First, verify source .next/standalone exists
-          Write-Host "Checking if source .next/standalone exists..."
-          if (Test-Path ".next\standalone\server.js") {
-            Write-Host "✅ Source .next/standalone/server.js exists"
-          } else {
-            Write-Error "❌ CRITICAL: Source .next/standalone/server.js does not exist!"
-            Write-Error "   The Next.js standalone build was not created before electron-builder ran."
-            Write-Error "   Please check the 'Build Next.js Standalone' step."
-            exit 1
-          }
-
-          Write-Host ""
-          Write-Host "Note: Files should have been copied by the post-build script."
-          Write-Host ""
-
-          # Check if dist-electron directory exists
-          if (-not (Test-Path "dist-electron")) {
-            Write-Host "⚠️ dist-electron directory does not exist. Build may have failed."
-            Write-Host "Checking for dist directory..."
-            if (-not (Test-Path "dist")) {
-              Write-Error "❌ Neither dist-electron nor dist directory exists. Build failed."
+          # Confirm .next/standalone is present inside the win-unpacked dir (extraResources)
+          $unpacked = Get-ChildItem -Path dist-electron -Filter "*unpacked" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($unpacked) {
+            $serverJs = Join-Path $unpacked.FullName "resources\.next\standalone\server.js"
+            if (Test-Path $serverJs) {
+              Write-Host "Verified: .next/standalone/server.js inside unpacked app"
+            } else {
+              Write-Error ".next/standalone/server.js missing from unpacked resources"
               exit 1
             }
           }
 
-          # Check unpacked application directory (electron-builder creates win-x64-unpacked or similar)
-          $unpackedDir = $null
-          if (Test-Path "dist-electron") {
-            $unpackedDir = Get-ChildItem -Path "dist-electron" -Filter "*unpacked" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
-          }
-          if (-not $unpackedDir -and (Test-Path "dist")) {
-            # Try dist directory if dist-electron doesn't have it
-            $unpackedDir = Get-ChildItem -Path "dist" -Filter "*unpacked" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
-          }
 
-          if ($unpackedDir) {
-            Write-Host "Found unpacked directory: $($unpackedDir.FullName)"
-            
-            # List all contents of resources directory for debugging
-            $resourcesDir = Join-Path $unpackedDir.FullName "resources"
-            if (Test-Path $resourcesDir) {
-              Write-Host "Contents of resources directory:"
-              Get-ChildItem -Path $resourcesDir -ErrorAction SilentlyContinue | ForEach-Object {
-                Write-Host "  - $($_.Name) ($(if ($_.PSIsContainer) { 'DIR' } else { 'FILE' }))"
-              }
-            } else {
-              Write-Host "⚠️ resources directory does not exist: $resourcesDir"
-            }
-            
-            # Check for extraFiles path (copies to app directory, same level as executable)
-            $extraFilesPath = Join-Path $unpackedDir.FullName ".next\standalone\server.js"
-            if (Test-Path $extraFilesPath) {
-              Write-Host "✅ Found .next/standalone via extraFiles: $extraFilesPath"
-            } else {
-              Write-Host "⚠️ extraFiles path not found: $extraFilesPath"
-            }
-            
-            # Check for extraResources path (copies to resources directory)
-            $extraResourcesPath = Join-Path $unpackedDir.FullName "resources\.next\standalone\server.js"
-            if (Test-Path $extraResourcesPath) {
-              Write-Host "✅ Found .next/standalone via extraResources: $extraResourcesPath"
-            } else {
-              Write-Host "⚠️ extraResources path not found: $extraResourcesPath"
-              # Check if .next directory exists at all
-              $nextDir = Join-Path $unpackedDir.FullName "resources\.next"
-              if (Test-Path $nextDir) {
-                Write-Host "   But .next directory exists. Contents:"
-                Get-ChildItem -Path $nextDir -ErrorAction SilentlyContinue | ForEach-Object {
-                  Write-Host "     - $($_.Name)"
-                }
-              }
-            }
-            
-            # Check for asarUnpack path
-            $asarUnpackPath = Join-Path $unpackedDir.FullName "resources\app.asar.unpacked\.next\standalone\server.js"
-            if (Test-Path $asarUnpackPath) {
-              Write-Host "✅ Found .next/standalone via asarUnpack: $asarUnpackPath"
-            } else {
-              Write-Host "⚠️ asarUnpack path not found: $asarUnpackPath"
-            }
-            
-            # At least one path must exist
-            if (-not (Test-Path $extraFilesPath) -and -not (Test-Path $extraResourcesPath) -and -not (Test-Path $asarUnpackPath)) {
-              Write-Error "❌ CRITICAL: .next/standalone/server.js not found in any expected location!"
-              Write-Error "   Checked:"
-              Write-Error "   - $extraFilesPath (extraFiles)"
-              Write-Error "   - $extraResourcesPath (extraResources)"
-              Write-Error "   - $asarUnpackPath (asarUnpack)"
-              Write-Error ""
-              Write-Error "   Source .next/standalone exists, but electron-builder did not copy it."
-              Write-Error "   Please check electron-builder.config.js extraFiles/extraResources configuration."
-              exit 1
-            } else {
-              Write-Host "✅ Verification passed: .next/standalone is accessible"
-            }
-          } else {
-            Write-Host "⚠️ Could not find unpacked directory to verify"
-          }
-
-      - name: Upload Windows Installer
+      - name: Upload Windows App (zip)
         uses: actions/upload-artifact@v4
+        continue-on-error: true  # Don't fail CI if storage quota is temporarily exhausted
         with:
-          name: windows-installer-x64
+          name: windows-app-x64
           path: |
-            dist/*.exe
-            dist/*.exe.blockmap
-            dist/latest.yml
-          retention-days: 7
-          if-no-files-found: error
+            dist-electron/*.zip
+          retention-days: 1
+          if-no-files-found: warn
 
-      - name: Display download info
+      - name: Display build output
         run: |
-          Write-Host "✅ Build completed successfully!"
-          Write-Host ""
-          Write-Host "📦 Installer files uploaded as artifacts:"
-          Write-Host "   - Go to: Actions tab → This workflow run → Artifacts section"
-          Write-Host "   - Download: windows-installer-x64"
-          Write-Host ""
-          Write-Host "📥 Files available for download:"
-          Get-ChildItem -Path dist -Filter *.exe | ForEach-Object {
-            Write-Host "   - $($_.Name) ($([math]::Round($_.Length / 1MB, 2)) MB)"
+          Write-Host "Build completed successfully!"
+          Get-ChildItem -Path dist-electron -Filter *.zip | ForEach-Object {
+            Write-Host "$($_.Name) ($([math]::Round($_.Length / 1MB, 2)) MB)"
           }
-          Write-Host ""
-          Write-Host "💡 Tip: Artifacts are kept for 7 days. Download them from the Actions tab!"
