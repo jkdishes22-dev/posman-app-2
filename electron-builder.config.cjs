@@ -30,13 +30,8 @@ module.exports = {
   asar: true,
   nodeGypRebuild: false,
 
-  // Unpack from ASAR so utilityProcess can read server.js
-  asarUnpack: [
-    "**/.next/standalone/**",
-    ".next/standalone/**",
-  ],
-
-  // Copy .next/standalone to resources/ (bypasses ASAR entirely)
+  // Copy .next/standalone to resources/ (outside ASAR so utilityProcess can read server.js).
+  // Keep only ONE copy here — duplicating via extraFiles + asarUnpack blows the 14 GB runner disk.
   extraResources: [
     {
       from: ".next/standalone",
@@ -45,16 +40,11 @@ module.exports = {
     },
   ],
 
-  // Also copy to app dir (same level as executable) as a fallback
+  // icons only — .next/standalone is handled by extraResources above
   extraFiles: [
     {
       from: "public/icons",
       to: "public/icons",
-      filter: ["**/*"],
-    },
-    {
-      from: ".next/standalone",
-      to: ".next/standalone",
       filter: ["**/*"],
     },
   ],
