@@ -1,7 +1,8 @@
 import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Supplier } from "./Supplier";
-import { PurchaseOrderItem } from "./PurchaseOrderItem";
+import type { PurchaseOrderItem } from "./PurchaseOrderItem";
+import { EntityRef } from "./entity-refs";
 
 export enum PurchaseOrderStatus {
     DRAFT = "draft",
@@ -45,7 +46,7 @@ export class PurchaseOrder extends BaseEntity {
     @Column({ type: "text", nullable: true })
     notes: string;
 
-    @OneToMany(() => PurchaseOrderItem, (poItem) => poItem.purchase_order)
+    @OneToMany(() => EntityRef.get("PurchaseOrderItem"), (poItem: any) => poItem.purchase_order)
     items: PurchaseOrderItem[];
 }
 

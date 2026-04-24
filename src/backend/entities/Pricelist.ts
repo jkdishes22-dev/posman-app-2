@@ -1,6 +1,7 @@
 import { Column, Entity, OneToMany, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
-import { StationPricelist } from "./StationPricelist";
+import type { StationPricelist } from "./StationPricelist";
+import { EntityRef } from "./entity-refs";
 
 export enum PriceListStatus {
   ACTIVE = "active",
@@ -32,7 +33,7 @@ export class Pricelist extends BaseEntity {
   description: string;
 
   // Relationship to stations through junction table
-  @OneToMany(() => StationPricelist, (sp) => sp.pricelist)
+  @OneToMany(() => EntityRef.get("StationPricelist"), (sp: any) => sp.pricelist)
   stationPricelists: StationPricelist[];
 
   // @OneToMany(() => PricelistItem, (pricelistItem) => pricelistItem.pricelist)

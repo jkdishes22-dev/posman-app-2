@@ -1,6 +1,7 @@
 import { Entity, Column, OneToMany } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
-import { BillPayment } from "./BillPayment";
+import type { BillPayment } from "./BillPayment";
+import { EntityRef } from "./entity-refs";
 
 export enum PaymentType {
   CASH = "CASH",
@@ -34,6 +35,6 @@ export class Payment extends BaseEntity {
   @Column({ type: "varchar", length: 255, nullable: true })
   reference: string | null;
 
-  @OneToMany(() => BillPayment, (billPayment) => billPayment.payment)
+  @OneToMany(() => EntityRef.get("BillPayment"), (billPayment: any) => billPayment.payment)
   bill_payments: Promise<BillPayment[]>;
 }

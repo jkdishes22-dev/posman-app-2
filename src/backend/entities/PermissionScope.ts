@@ -1,12 +1,13 @@
 import { Entity, Column, OneToMany } from "typeorm";
-import { Permission } from "./Permission";
+import type { Permission } from "./Permission";
 import { BaseEntity } from "./BaseEntity";
+import { EntityRef } from "./entity-refs";
 
 @Entity("permission_scope")
 export class PermissionScope extends BaseEntity {
   @Column({ type: "varchar", length: 255 })
   name: string;
 
-  @OneToMany(() => Permission, (permission) => permission.scope)
+  @OneToMany(() => EntityRef.get("Permission"), (permission: any) => permission.scope)
   permissions: Permission[];
 }
