@@ -53,9 +53,8 @@ module.exports = {
     target: [{ target: "nsis", arch: ["x64"] }],
     icon: "public/icons/JKlogo-512.png",
     requestedExecutionLevel: "asInvoker",
-    signingHashAlgorithms: ["sha256"],
-    // Signing is enabled when CSC_LINK env var is set (build-windows.yml decodes it from
-    // the WINDOWS_CERTIFICATE secret). When the secret is absent the build stays unsigned.
+    // Signing is controlled via CSC_LINK / CSC_KEY_PASSWORD env vars set by build-windows.yml.
+    // When WINDOWS_CERTIFICATE secret is absent, the build stays unsigned (same as before).
   },
 
   nsis: {
