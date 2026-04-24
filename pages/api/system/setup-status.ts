@@ -1,5 +1,4 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { getStartupSetupStatus } from "@backend/config/startup-bootstrap";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -10,6 +9,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const shouldRetry = req.query.retry === "1";
 
   try {
+    // Dynamic import keeps module-load errors inside this try/catch so they return
+    // JSON rather than Next.js's default HTML 500 error page.
+    const { getStartupSetupStatus } = await import("@backend/config/startup-bootstrap");
     const status = await getStartupSetupStatus(shouldRetry);
     return res.status(200).json(status);
   } catch (error: any) {

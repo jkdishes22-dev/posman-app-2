@@ -1,6 +1,6 @@
 import { Entity, Column, ManyToMany, JoinTable } from "typeorm";
-import { User } from "./User";
-import { Permission } from "./Permission";
+import type { User } from "./User";
+import type { Permission } from "./Permission";
 import { BaseEntity } from "./BaseEntity";
 
 @Entity("roles")
@@ -8,10 +8,12 @@ export class Role extends BaseEntity {
   @Column({ type: "varchar", length: 255 })
   name: string;
 
-  @ManyToMany(() => User, (user) => user.roles)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  @ManyToMany(() => require("./User").User, (user: any) => user.roles)
   users: User[];
 
-  @ManyToMany(() => Permission, (permission) => permission.roles)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  @ManyToMany(() => require("./Permission").Permission, (permission: any) => permission.roles)
   @JoinTable({
     name: "role_permissions",
     joinColumn: {

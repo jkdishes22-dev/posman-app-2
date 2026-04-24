@@ -1,6 +1,6 @@
 import { Entity, Column, OneToMany } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
-import { BillPayment } from "./BillPayment";
+import type { BillPayment } from "./BillPayment";
 
 export enum PaymentType {
   CASH = "CASH",
@@ -34,6 +34,7 @@ export class Payment extends BaseEntity {
   @Column({ type: "varchar", length: 255, nullable: true })
   reference: string | null;
 
-  @OneToMany(() => BillPayment, (billPayment) => billPayment.payment)
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  @OneToMany(() => require("./BillPayment").BillPayment, (billPayment: any) => billPayment.payment)
   bill_payments: Promise<BillPayment[]>;
 }
