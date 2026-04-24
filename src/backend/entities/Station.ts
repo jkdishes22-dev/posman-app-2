@@ -1,5 +1,6 @@
 import { Column, Entity, OneToMany } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
+import { StationPricelist } from "./StationPricelist";
 
 export enum StationStatus {
   ACTIVE = "active",
@@ -22,6 +23,6 @@ export class Station extends BaseEntity {
   description: string;
 
   // Relationship to pricelists through junction table
-  @OneToMany("StationPricelist", "station")
-  stationPricelists: any[];
+  @OneToMany(() => StationPricelist, (sp) => sp.station)
+  stationPricelists: StationPricelist[];
 }

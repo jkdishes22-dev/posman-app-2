@@ -18,6 +18,12 @@ const nextConfig = {
     },
     // Enable standalone output for Electron packaging
     output: process.env.ELECTRON_BUILD === 'true' ? 'standalone' : undefined,
+    // Keep TypeORM, its driver, and reflect-metadata as external requires rather than
+    // bundling them. Next.js production builds mangle class names inside bundles, which
+    // breaks TypeORM's decorator-based entity metadata lookup at runtime (entities become
+    // "p", "q", etc. and can no longer be matched by name or constructor reference).
+    // Externalising these packages ensures a single shared module instance and intact names.
+    serverExternalPackages: ['typeorm', 'better-sqlite3', 'reflect-metadata'],
     // Include SQLite migration files in standalone output so TypeORM can find them at runtime.
     // Must be top-level (not under experimental) in Next.js 15+.
     outputFileTracingIncludes: {
