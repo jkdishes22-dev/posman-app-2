@@ -87,6 +87,19 @@ jobs:
           Write-Host "better-sqlite3 binary swapped for Electron 39 target"
           Pop-Location
 
+      - name: Decode signing certificate
+        shell: pwsh
+        run: |
+          $cert = "${{ secrets.WINDOWS_CERTIFICATE }}"
+          if ($cert) {
+            $bytes = [Convert]::FromBase64String($cert)
+            [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\cert.pfx", $bytes)
+            "CERT_PATH=$env:RUNNER_TEMP\cert.pfx" | Out-File -Append $env:GITHUB_ENV
+            Write-Host "✅ Certificate decoded — installer will be signed as 'JK PosMan'"
+          } else {
+            Write-Host "⚠️ No WINDOWS_CERTIFICATE secret — building unsigned"
+          }
+
       - name: Build Windows NSIS Installer (x64)
         # compression=store avoids LZMA's 4 GB RAM requirement on the 7 GB runner.
         # The installer is larger (~600 MB) but builds reliably within CI memory limits.
@@ -95,6 +108,8 @@ jobs:
           NODE_ENV: "production"
           BUILD_VERSION: ${{ github.ref_name }}
           GH_TOKEN: ""
+          CSC_LINK: ${{ env.CERT_PATH }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           ELECTRON_CACHE: "%LOCALAPPDATA%\\electron\\Cache"
           ELECTRON_BUILDER_CACHE: "%USERPROFILE%\\.cache\\electron-builder"
