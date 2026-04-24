@@ -1,5 +1,5 @@
 import { DataSource } from "typeorm";
-import { createAppDataSource } from "./data-source.factory";
+import { createAppDataSource } from "./data-source.factory.js";
 
 let connectionInstance: DataSource | null = null;
 let isInitializing = false;
