@@ -69,8 +69,11 @@ jobs:
         # better-sqlite3 compiles a native addon. npm ci builds it for Node.js ABI 127,
         # but utilityProcess.fork() runs inside Electron 39 (ABI 140) — causing the
         # "found 127 requires 140" error on first launch. Rebuild for the correct target.
+        # GYP_MSVS_VERSION avoids a PowerShell VS-detection query that exceeds stdout
+        # maxBuffer on windows-latest (ERR_CHILD_PROCESS_STDIO_MAXBUFFER).
         run: npx --yes @electron/rebuild -v 39.2.7 -m .next/standalone
         env:
+          GYP_MSVS_VERSION: "2022"
           npm_config_runtime: electron
           npm_config_target: 39.2.7
 
