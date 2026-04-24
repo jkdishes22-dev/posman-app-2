@@ -2,6 +2,7 @@ import { Column, Entity, OneToMany, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import type { StationPricelist } from "./StationPricelist";
 import { EntityRef } from "./entity-refs";
+import { enumColType } from "./column-types";
 
 export enum PriceListStatus {
   ACTIVE = "active",
@@ -19,7 +20,7 @@ export class Pricelist extends BaseEntity {
   code: string;
 
   @Column({
-    type: "enum",
+    type: enumColType,
     enum: PriceListStatus,
     nullable: true,
     default: PriceListStatus.INACTIVE,

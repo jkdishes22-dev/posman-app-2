@@ -8,6 +8,7 @@ import {
 import { Bill } from "./Bill";
 import { User } from "./User";
 import { BaseEntity } from "./BaseEntity";
+import { enumColType } from "./column-types";
 
 @Entity("credit_note")
 export class CreditNote extends BaseEntity {
@@ -27,7 +28,7 @@ export class CreditNote extends BaseEntity {
     @Column({ type: "varchar", length: 255, nullable: true })
     notes: string;
 
-    @Column({ type: "enum", enum: ["pending", "processed", "cancelled"], default: "pending" })
+    @Column({ type: enumColType, enum: ["pending", "processed", "cancelled"], default: "pending" })
     status: string;
 
     @Column({ type: "datetime", nullable: true })

@@ -2,6 +2,7 @@ import { Entity, Column, ManyToOne, JoinColumn, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Item } from "./Item";
 import { User } from "./User";
+import { enumColType } from "./column-types";
 
 export enum InventoryTransactionType {
     SALE = "sale",
@@ -34,7 +35,7 @@ export class InventoryTransaction extends BaseEntity {
     item: Item;
 
     @Column({
-        type: "enum",
+        type: enumColType,
         enum: InventoryTransactionType,
         name: "transaction_type",
     })
@@ -44,7 +45,7 @@ export class InventoryTransaction extends BaseEntity {
     quantity: number; // positive for additions, negative for deductions
 
     @Column({
-        type: "enum",
+        type: enumColType,
         enum: InventoryReferenceType,
         nullable: true,
         name: "reference_type",

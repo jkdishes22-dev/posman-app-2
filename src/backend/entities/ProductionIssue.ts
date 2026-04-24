@@ -2,6 +2,7 @@ import { Entity, Column, ManyToOne, JoinColumn, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Item } from "./Item";
 import { User } from "./User";
+import { enumColType } from "./column-types";
 
 export enum ProductionIssueStatus {
     DRAFT = "draft",
@@ -26,7 +27,7 @@ export class ProductionIssue extends BaseEntity {
     quantity_produced: number;
 
     @Column({
-        type: "enum",
+        type: enumColType,
         enum: ProductionIssueStatus,
         default: ProductionIssueStatus.DRAFT,
     })

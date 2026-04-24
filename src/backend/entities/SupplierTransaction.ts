@@ -1,6 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Supplier } from "./Supplier";
+import { enumColType } from "./column-types";
 
 export enum SupplierTransactionType {
   PURCHASE_ORDER = "purchase_order",      // We owe supplier (increases debit_balance)
@@ -41,7 +42,7 @@ export class SupplierTransaction extends BaseEntity {
   supplier: Supplier;
 
   @Column({
-    type: "enum",
+    type: enumColType,
     enum: SupplierTransactionType,
     name: "transaction_type",
   })
@@ -56,7 +57,7 @@ export class SupplierTransaction extends BaseEntity {
   credit_amount: number;
 
   @Column({
-    type: "enum",
+    type: enumColType,
     enum: SupplierReferenceType,
     nullable: true,
     name: "reference_type",

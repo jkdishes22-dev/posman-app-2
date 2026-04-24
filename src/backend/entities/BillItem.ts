@@ -10,6 +10,7 @@ import type { Relation } from "typeorm";
 import { Item } from "./Item";
 import { Bill, BillStatus } from "./Bill";
 import { BaseEntity } from "./BaseEntity";
+import { enumColType } from "./column-types";
 
 export enum BillItemStatus {
   PENDING = "pending",
@@ -46,7 +47,7 @@ export class BillItem extends BaseEntity {
   subtotal: number;
 
   @Column({
-    type: "enum",
+    type: enumColType,
     enum: BillItemStatus,
     default: BillItemStatus.PENDING,
   })

@@ -1,5 +1,6 @@
 import { Entity, Column, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
+import { enumColType } from "./column-types";
 
 export enum SupplierStatus {
     ACTIVE = "active",
@@ -37,7 +38,7 @@ export class Supplier extends BaseEntity {
     // Use SupplierService.getSupplierBalance() to get current balances
 
     @Column({
-        type: "enum",
+        type: enumColType,
         enum: SupplierStatus,
         default: SupplierStatus.ACTIVE,
     })

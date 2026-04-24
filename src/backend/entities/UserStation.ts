@@ -2,6 +2,7 @@ import { Entity, ManyToOne, JoinColumn, Column, Index } from "typeorm";
 import { Station } from "./Station";
 import { User } from "./User";
 import { BaseEntity } from "./BaseEntity";
+import { enumColType } from "./column-types";
 
 export enum UserStationStatus {
   ACTIVE = "active",
@@ -16,7 +17,7 @@ export class UserStation extends BaseEntity {
   isDefault!: boolean;
 
   @Column({
-    type: "enum",
+    type: enumColType,
     enum: UserStationStatus,
     nullable: true,
     default: UserStationStatus.ACTIVE,

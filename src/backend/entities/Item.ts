@@ -10,6 +10,7 @@ import {
 } from "typeorm";
 import { Category } from "./Category";
 import { BaseEntity } from "./BaseEntity";
+import { enumColType } from "./column-types";
 
 export enum ItemStatus {
   ACTIVE = "ACTIVE",
@@ -27,7 +28,7 @@ export class Item extends BaseEntity {
   // perf: index status — filtered in nearly every item list query
   @Index()
   @Column({
-    type: "enum",
+    type: enumColType,
     enum: ItemStatus,
   })
   status: string;
