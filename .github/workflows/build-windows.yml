@@ -65,17 +65,19 @@ jobs:
           }
           Write-Host "standalone/server.js found"
 
-      - name: Rebuild native modules for Electron ABI
-        # better-sqlite3 compiles a native addon. npm ci builds it for Node.js ABI 127,
-        # but utilityProcess.fork() runs inside Electron 39 (ABI 140) — causing the
-        # "found 127 requires 140" error on first launch. Rebuild for the correct target.
-        # GYP_MSVS_VERSION avoids a PowerShell VS-detection query that exceeds stdout
-        # maxBuffer on windows-latest (ERR_CHILD_PROCESS_STDIO_MAXBUFFER).
-        run: npx --yes @electron/rebuild -v 39.2.7 -m .next/standalone
-        env:
-          GYP_MSVS_VERSION: "2022"
-          npm_config_runtime: electron
-          npm_config_target: 39.2.7
+      - name: Swap better-sqlite3 binary for Electron ABI
+        # npm ci compiles better-sqlite3 for Node.js ABI 127; Electron 39 (utilityProcess)
+        # needs ABI 140. Instead of compiling from source (fragile — needs node-gyp +
+        # MSBuild + Python), download the pre-built binary from better-sqlite3's releases.
+        shell: pwsh
+        run: |
+          Push-Location ".next/standalone/node_modules/better-sqlite3"
+          # Remove the Node.js-compiled .node file
+          Remove-Item -Recurse -Force "build" -ErrorAction SilentlyContinue
+          # prebuild-install downloads the correct pre-built binary for the given runtime/target
+          npx --yes prebuild-install --runtime electron --target 39.2.7 --arch x64 --platform win32 --tag-prefix v
+          Write-Host "better-sqlite3 binary swapped for Electron 39 target"
+          Pop-Location
 
       - name: Build Windows NSIS Installer (x64)
         # compression=store avoids LZMA's 4 GB RAM requirement on the 7 GB runner.
