@@ -19,11 +19,9 @@ const nextConfig = {
     // Enable standalone output for Electron packaging
     output: process.env.ELECTRON_BUILD === 'true' ? 'standalone' : undefined,
     // Include SQLite migration files in standalone output so TypeORM can find them at runtime.
-    // Without this, runMigrations() resolves the glob relative to .next/standalone and finds nothing.
-    experimental: {
-        outputFileTracingIncludes: {
-            '/api/**': ['./src/backend/config/migrations-sqlite/**/*.cjs'],
-        },
+    // Must be top-level (not under experimental) in Next.js 15+.
+    outputFileTracingIncludes: {
+        '/api/**': ['./src/backend/config/migrations-sqlite/**/*.cjs'],
     },
     webpack: (config, { dev, isServer }) => {
         config.resolve.alias["@entities"] = path.resolve(__dirname, "src/backend/entities");

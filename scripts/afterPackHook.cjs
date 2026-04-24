@@ -102,6 +102,27 @@ module.exports = async function (context) {
         }
     }
 
+    // Copy .next/static into each resolved standalone dir so the server can serve assets.
+    // Next.js standalone server expects static files at {cwd}/.next/static — without this all
+    // _next/static/* requests return 404.
+    const sourceStatic = path.join(projectDir, ".next", "static");
+    if (fs.existsSync(sourceStatic)) {
+        for (const candidate of candidates) {
+            const hasServerJs = fs.existsSync(path.join(candidate.path, "server.js"));
+            if (!hasServerJs) continue;
+            const targetStatic = path.join(candidate.path, ".next", "static");
+            if (!fs.existsSync(targetStatic)) {
+                log(`\n   Copying .next/static → ${targetStatic}`);
+                const counts = copyDir(sourceStatic, targetStatic);
+                log(`   ✅ .next/static copied: ${counts.files} files, ${counts.dirs} dirs`);
+            } else {
+                log(`\n   ✅ .next/static already present at ${targetStatic}`);
+            }
+        }
+    } else {
+        err(`⚠️ Source .next/static not found at: ${sourceStatic}`);
+    }
+
     if (!handledAny) {
         // Nothing was placed by electron-builder — do full copy to extraResources location
         const targetExtraResources = path.join(appOutDir, "resources", ".next", "standalone");
