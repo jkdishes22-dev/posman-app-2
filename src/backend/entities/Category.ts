@@ -1,5 +1,6 @@
 import { Column, Entity, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
+import { enumColType } from "./column-types";
 
 export enum CategoryStatus {
   ACTIVE = "active",
@@ -18,7 +19,7 @@ export class Category extends BaseEntity {
   code: string;
 
   @Column({
-    type: "enum",
+    type: enumColType,
     enum: CategoryStatus,
     default: CategoryStatus.ACTIVE,
   })

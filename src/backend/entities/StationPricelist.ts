@@ -2,6 +2,7 @@ import { Column, Entity, JoinColumn, ManyToOne, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Station } from "./Station";
 import { Pricelist } from "./Pricelist";
+import { enumColType } from "./column-types";
 
 export enum StationPricelistStatus {
     ACTIVE = "active",
@@ -27,7 +28,7 @@ export class StationPricelist extends BaseEntity {
     is_default: boolean;
 
     @Column({
-        type: "enum",
+        type: enumColType,
         enum: StationPricelistStatus,
         default: StationPricelistStatus.ACTIVE,
     })

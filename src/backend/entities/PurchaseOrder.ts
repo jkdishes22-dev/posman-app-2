@@ -3,6 +3,7 @@ import { BaseEntity } from "./BaseEntity";
 import { Supplier } from "./Supplier";
 import type { PurchaseOrderItem } from "./PurchaseOrderItem";
 import { EntityRef } from "./entity-refs";
+import { enumColType } from "./column-types";
 
 export enum PurchaseOrderStatus {
     DRAFT = "draft",
@@ -34,7 +35,7 @@ export class PurchaseOrder extends BaseEntity {
     expected_delivery_date: Date;
 
     @Column({
-        type: "enum",
+        type: enumColType,
         enum: PurchaseOrderStatus,
         default: PurchaseOrderStatus.DRAFT,
     })

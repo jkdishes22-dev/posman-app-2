@@ -13,6 +13,7 @@ import type { BillPayment } from "./BillPayment";
 import { Station } from "./Station";
 import { BaseEntity } from "./BaseEntity";
 import { EntityRef } from "./entity-refs";
+import { enumColType } from "./column-types";
 
 export enum BillStatus {
   PENDING = "pending",
@@ -37,7 +38,7 @@ export class Bill extends BaseEntity {
   user: User;
 
   @Column({
-    type: "enum",
+    type: enumColType,
     enum: BillStatus,
     nullable: true,
   })

@@ -9,6 +9,7 @@ import {
 import { Bill } from "./Bill";
 import { User } from "./User";
 import { BaseEntity } from "./BaseEntity";
+import { enumColType } from "./column-types";
 
 export enum VoidRequestStatus {
   PENDING = "pending",
@@ -43,7 +44,7 @@ export class BillVoidRequest extends BaseEntity {
   approver: User;
 
   @Column({
-    type: "enum",
+    type: enumColType,
     enum: VoidRequestStatus,
     default: VoidRequestStatus.PENDING,
   })

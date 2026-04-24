@@ -2,6 +2,7 @@ import { Entity, Column, ManyToOne, JoinColumn, Index } from "typeorm";
 import { Pricelist } from "./Pricelist";
 import { Item } from "./Item";
 import { BaseEntity } from "./BaseEntity";
+import { enumColType } from "./column-types";
 
 export enum Currency {
   USD = "USD",
@@ -25,7 +26,7 @@ export class PricelistItem extends BaseEntity {
   price: number;
 
   @Column({
-    type: "enum",
+    type: enumColType,
     enum: Currency,
     nullable: true,
   })

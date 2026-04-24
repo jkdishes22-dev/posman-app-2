@@ -2,6 +2,7 @@ import { Column, Entity, OneToMany } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import type { StationPricelist } from "./StationPricelist";
 import { EntityRef } from "./entity-refs";
+import { enumColType } from "./column-types";
 
 export enum StationStatus {
   ACTIVE = "active",
@@ -14,7 +15,7 @@ export class Station extends BaseEntity {
   name: string;
 
   @Column({
-    type: "enum",
+    type: enumColType,
     enum: StationStatus,
     default: StationStatus.INACTIVE,
   })

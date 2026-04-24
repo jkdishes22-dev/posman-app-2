@@ -2,6 +2,7 @@ import { Entity, Column, ManyToOne, JoinColumn, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Item } from "./Item";
 import { User } from "./User";
+import { enumColType } from "./column-types";
 
 export enum ProductionPreparationStatus {
     PENDING = "pending",
@@ -27,7 +28,7 @@ export class ProductionPreparation extends BaseEntity {
     quantity_prepared: number;
 
     @Column({
-        type: "enum",
+        type: enumColType,
         enum: ProductionPreparationStatus,
         default: ProductionPreparationStatus.PENDING,
     })

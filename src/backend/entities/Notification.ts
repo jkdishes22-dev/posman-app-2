@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from "typeorm";
 import { User } from "./User";
 import { BaseEntity } from "./BaseEntity";
+import { enumColType, jsonColType } from "./column-types";
 
 export enum NotificationType {
     BILL_REOPENED = "bill_reopened",
@@ -27,12 +28,12 @@ export class Notification extends BaseEntity {
     @Column({ type: "varchar", length: 255 })
     message: string;
 
-    @Column({ type: "json", nullable: true })
+    @Column({ type: jsonColType, nullable: true })
     data: Record<string, any>;
 
     // perf: index (user_id, status) — filters unread notifications per user
     @Index(["user_id", "status"])
-    @Column({ type: "enum", enum: NotificationStatus, default: NotificationStatus.UNREAD })
+    @Column({ type: enumColType, enum: NotificationStatus, default: NotificationStatus.UNREAD })
     status: NotificationStatus;
 
     // perf: index FK — queried on every getUserNotifications call

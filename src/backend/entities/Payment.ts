@@ -2,6 +2,7 @@ import { Entity, Column, OneToMany } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import type { BillPayment } from "./BillPayment";
 import { EntityRef } from "./entity-refs";
+import { enumColType } from "./column-types";
 
 export enum PaymentType {
   CASH = "CASH",
@@ -17,7 +18,7 @@ export class Payment extends BaseEntity {
   creditAmount: number;
 
   @Column({
-    type: "enum",
+    type: enumColType,
     enum: PaymentType,
     nullable: false,
     name: "payment_type",
