@@ -12,6 +12,7 @@ import type { BillItem } from "./BillItem";
 import type { BillPayment } from "./BillPayment";
 import { Station } from "./Station";
 import { BaseEntity } from "./BaseEntity";
+import { EntityRef } from "./entity-refs";
 
 export enum BillStatus {
   PENDING = "pending",
@@ -61,12 +62,10 @@ export class Bill extends BaseEntity {
   @JoinColumn({ name: "station_id" })
   station: Station;
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  @OneToMany(() => require("./BillItem").BillItem, (billItem: any) => billItem.bill, { eager: true })
+  @OneToMany(() => EntityRef.get("BillItem"), (billItem: any) => billItem.bill, { eager: true })
   bill_items: BillItem[];
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  @OneToMany(() => require("./BillPayment").BillPayment, (billPayment: any) => billPayment.bill)
+  @OneToMany(() => EntityRef.get("BillPayment"), (billPayment: any) => billPayment.bill)
   bill_payments: BillPayment[];
 
   // Reopening tracking columns (Rule 4.1)

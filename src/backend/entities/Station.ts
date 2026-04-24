@@ -1,6 +1,7 @@
 import { Column, Entity, OneToMany } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import type { StationPricelist } from "./StationPricelist";
+import { EntityRef } from "./entity-refs";
 
 export enum StationStatus {
   ACTIVE = "active",
@@ -23,7 +24,6 @@ export class Station extends BaseEntity {
   description: string;
 
   // Relationship to pricelists through junction table
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  @OneToMany(() => require("./StationPricelist").StationPricelist, (sp: any) => sp.station)
+  @OneToMany(() => EntityRef.get("StationPricelist"), (sp: any) => sp.station)
   stationPricelists: StationPricelist[];
 }
