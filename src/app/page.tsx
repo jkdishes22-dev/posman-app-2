@@ -3,8 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import React from "react";
 import Image from "next/image";
-import jwt from "jsonwebtoken";
-import { DecodedToken } from "./components/SecureRoute";
+import { decodeJwt, DecodedToken } from "./utils/tokenUtils";
 import { useAuth } from "./contexts/AuthContext";
 import { useApiCall } from "./utils/apiUtils";
 import { ApiErrorResponse } from "./utils/errorUtils";
@@ -95,7 +94,7 @@ const LoginForm = () => {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const decodedToken = jwt.decode(token) as DecodedToken;
+          const decodedToken = decodeJwt(token);
           if (decodedToken && decodedToken.roles && decodedToken.roles.length > 0) {
             setIsRedirecting(true);
             const primaryRole = decodedToken.roles[0];
@@ -155,7 +154,7 @@ const LoginForm = () => {
 
       if (result.status === 200) {
         const { token, role } = result.data;
-        const decodedToken = jwt.decode(token) as DecodedToken;
+        const decodedToken = decodeJwt(token);
         // Include id from token root level, not just user object
         const userData = decodedToken ? {
           ...(decodedToken.user || {}),

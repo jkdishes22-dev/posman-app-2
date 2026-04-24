@@ -1,4 +1,3 @@
-import jwt from "jsonwebtoken";
 import { createApiCall } from "./apiUtils";
 
 export interface DecodedToken {
@@ -9,9 +8,24 @@ export interface DecodedToken {
     exp?: number;
 }
 
+// jwt.decode() from 'jsonwebtoken' is a Node.js library that causes TDZ errors when
+// webpack bundles it for the browser. This replacement does the same thing (base64-decode
+// the payload) without pulling in Node.js crypto internals.
+export const decodeJwt = <T = DecodedToken>(token: string): T | null => {
+    try {
+        const payload = token.split(".")[1];
+        if (!payload) return null;
+        // atob handles standard base64; JWT uses base64url (- and _ variants)
+        const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+        return JSON.parse(json) as T;
+    } catch {
+        return null;
+    }
+};
+
 export const isTokenExpiringSoon = (token: string, thresholdMinutes: number = 5): boolean => {
     try {
-        const decoded = jwt.decode(token) as DecodedToken;
+        const decoded = decodeJwt(token);
         if (!decoded || !decoded.exp) return true;
 
         const currentTime = Date.now() / 1000;

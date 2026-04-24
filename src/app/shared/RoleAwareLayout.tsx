@@ -9,7 +9,7 @@ import HomePageLayout from "./HomePageLayout";
 import CashierPageLayout from "./CashierPageLayout";
 import StoreKeeperPageLayout from "./StoreKeeperPageLayout";
 import { useAuth } from "../contexts/AuthContext";
-import jwt from "jsonwebtoken";
+import { decodeJwt } from "../utils/tokenUtils";
 
 interface RoleAwareLayoutProps {
     children: React.ReactNode;
@@ -34,7 +34,7 @@ export default function RoleAwareLayout({ children }: RoleAwareLayoutProps) {
             }
 
             try {
-                const decoded = jwt.decode(token) as any;
+                const decoded = decodeJwt<any>(token);
 
                 // Check if token is expired
                 if (decoded && decoded.exp) {

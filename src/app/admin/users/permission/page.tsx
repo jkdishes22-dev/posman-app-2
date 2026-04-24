@@ -8,7 +8,7 @@ import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
 import AsyncSelect from "react-select/async";
 import { AuthError, Role, Scope } from "src/app/types/types";
-import jwt from "jsonwebtoken";
+import { decodeJwt } from "../../../utils/tokenUtils";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
@@ -256,7 +256,7 @@ export default function UsersPage() {
       // If the current user has this role, refresh their token
       const userToken = localStorage.getItem("token");
       if (userToken) {
-        const decoded = jwt.decode(userToken);
+        const decoded = decodeJwt<any>(userToken);
         if (
           decoded &&
           typeof decoded === "object" &&

@@ -1,15 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import jwt from "jsonwebtoken";
+import { decodeJwt, DecodedToken } from "../utils/tokenUtils";
 
-export interface DecodedToken {
-  id: number;
-  user: Record<string, string>;
-  roles: string[];
-  iat?: number;
-  exp?: number;
-}
+export type { DecodedToken };
 
 interface SecureRouteProps {
   children: React.ReactNode;
@@ -34,7 +28,7 @@ const SecureRoute = ({ children, roleRequired, rolesRequired, allowAnyAuthentica
     if (!token) {
       router.push("/");
     } else {
-      const decodedToken = jwt.decode(token) as DecodedToken | null;
+      const decodedToken = decodeJwt(token);
       if (!decodedToken) {
         router.push("/");
       } else if (!allowAnyAuthenticated) {
