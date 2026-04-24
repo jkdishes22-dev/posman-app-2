@@ -53,7 +53,8 @@ module.exports = {
     target: [{ target: "nsis", arch: ["x64"] }],
     icon: "public/icons/JKlogo-512.png",
     requestedExecutionLevel: "asInvoker",
-    // Signing is controlled via CSC_LINK / CSC_KEY_PASSWORD env vars set by build-windows.yml.
+    signAndEditExecutable: false,
+    // Signing of the NSIS installer is controlled via CSC_LINK / CSC_KEY_PASSWORD env vars.
     // When WINDOWS_CERTIFICATE secret is absent, the build stays unsigned (same as before).
   },
 
