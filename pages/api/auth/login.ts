@@ -78,6 +78,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     res.status(200).json({ token, role: user.roles[0]?.name || "user" });
   } catch (error: any) {
+    console.error("[login] Unhandled error:", error?.stack || error?.message || error);
     const setupError = formatSetupErrorResponse(error);
     if (setupError.body.code !== "SETUP_FAILED" || error?.name === "StartupBootstrapError") {
       return res.status(setupError.status).json(setupError.body);

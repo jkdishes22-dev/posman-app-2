@@ -215,7 +215,7 @@ export class UserService {
       WHERE u.id = ?
     `;
 
-    const results = await this.userRepository.manager.query(query, [userId]);
+    const results: any[] = await this.userRepository.manager.query(query, [userId]) ?? [];
 
     if (results.length === 0) {
       throw new Error("User not found");

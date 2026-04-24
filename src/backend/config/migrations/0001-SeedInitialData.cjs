@@ -469,6 +469,7 @@ module.exports = class SeedInitialDataConsolidated1700000000001 {
         "can_add_role",
         "can_edit_role",
         "can_delete_role",
+        "can_manage_role",
         "can_view_permission",
         "can_add_permission",
         "can_edit_permission",
