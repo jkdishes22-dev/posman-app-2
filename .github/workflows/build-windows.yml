@@ -65,6 +65,15 @@ jobs:
           }
           Write-Host "standalone/server.js found"
 
+      - name: Rebuild native modules for Electron ABI
+        # better-sqlite3 compiles a native addon. npm ci builds it for Node.js ABI 127,
+        # but utilityProcess.fork() runs inside Electron 39 (ABI 140) — causing the
+        # "found 127 requires 140" error on first launch. Rebuild for the correct target.
+        run: npx --yes @electron/rebuild -v 39.2.7 -m .next/standalone
+        env:
+          npm_config_runtime: electron
+          npm_config_target: 39.2.7
+
       - name: Build Windows NSIS Installer (x64)
         # compression=store avoids LZMA's 4 GB RAM requirement on the 7 GB runner.
         # The installer is larger (~600 MB) but builds reliably within CI memory limits.

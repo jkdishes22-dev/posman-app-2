@@ -236,10 +236,26 @@ function startNextServer() {
             nextServer = utilityProcess.fork(serverPath, [], {
                 cwd: nextPath,
                 env: env,
+                stdio: "pipe",
             });
 
             logToFile("utilityProcess.fork() called successfully");
             logToFile(`Process PID: ${nextServer.pid || "unknown"}`);
+
+            // Pipe server stdout/stderr to the Electron log so errors (e.g. native module
+            // ABI mismatches, missing migrations) are visible without a separate console.
+            if (nextServer.stdout) {
+                nextServer.stdout.on("data", (data) => {
+                    const lines = data.toString().trim().split("\n");
+                    lines.forEach((line) => { if (line) logToFile(`[server] ${line}`); });
+                });
+            }
+            if (nextServer.stderr) {
+                nextServer.stderr.on("data", (data) => {
+                    const lines = data.toString().trim().split("\n");
+                    lines.forEach((line) => { if (line) logToFile(`[server-err] ${line}`, "ERROR"); });
+                });
+            }
         } catch (error) {
             logToFile(`Failed to create utilityProcess: ${error.message}`, "ERROR");
             logToFile(`Error code: ${error.code}`, "ERROR");
@@ -291,7 +307,7 @@ function startNextServer() {
 
         // Wait for server to be ready
         let attempts = 0;
-        const maxAttempts = 60; // 30 seconds (60 * 500ms)
+        const maxAttempts = 240; // 120 seconds (240 * 500ms) — first cold start with SQLite init takes > 30s
         const checkServer = setInterval(() => {
             attempts++;
             const http = require("http");
@@ -331,13 +347,13 @@ function startNextServer() {
             });
         }, 500);
 
-        // Timeout after 30 seconds
+        // Timeout after 120 seconds — covers slow first-boot SQLite migration on cold hardware
         setTimeout(() => {
             clearInterval(checkServer);
-            const error = "Server startup timeout after 30 seconds";
+            const error = "Server startup timeout after 120 seconds";
             logToFile(error, "ERROR");
             reject(new Error(error));
-        }, 30000);
+        }, 120000);
     });
 }
 
@@ -488,13 +504,51 @@ function createWindow() {
  * App lifecycle handlers
  */
 app.whenReady().then(async () => {
+    // Enforce single instance — if another JK PosMan is already open, focus it and quit this one.
+    if (!app.requestSingleInstanceLock()) {
+        logToFile("Another instance is already running — quitting duplicate");
+        app.quit();
+        return;
+    }
+    // When a second instance tries to open, bring the existing window to the front.
+    app.on("second-instance", () => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+        }
+    });
+
+    logToFile("App is ready, creating window with loading screen...");
+    createWindow();
+
+    // Show a loading page immediately so the user sees something while the server starts.
+    const loadingPage = "data:text/html;charset=utf-8," + encodeURIComponent(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>JK PosMan</title>
+<style>*{margin:0;box-sizing:border-box}
+body{background:#0f172a;color:#94a3b8;font-family:system-ui,sans-serif;
+display:flex;justify-content:center;align-items:center;height:100vh}
+.card{text-align:center;padding:2rem}
+h2{color:#e2e8f0;font-size:1.5rem;margin-bottom:.5rem}
+.sub{font-size:.9rem;margin-bottom:1.5rem}
+.hint{font-size:.75rem;opacity:.5;margin-top:1rem}
+.spinner{width:36px;height:36px;border:3px solid #1e3a5f;border-top-color:#3b82f6;
+border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
+@keyframes spin{to{transform:rotate(360deg)}}</style></head>
+<body><div class="card">
+<div class="spinner"></div>
+<h2>JK PosMan</h2>
+<p class="sub">Starting application, please wait…</p>
+<p class="hint">First launch initialises the database and may take up to a minute.</p>
+</div></body></html>`);
+    mainWindow.loadURL(loadingPage);
+
     try {
-        logToFile("App is ready, starting Next.js server...");
+        logToFile("Starting Next.js server...");
         await startNextServer();
         await checkStartupBootstrapStatus();
-        logToFile("Next.js server started, creating window...");
-        createWindow();
-        logToFile("Window created successfully");
+        logToFile("Server ready, loading app URL...");
+        mainWindow.loadURL(`http://${HOST}:${PORT}`);
+        logToFile("App loaded successfully");
 
         // Auto-updater: check for updates in production only
         if (isProduction && autoUpdater) {
@@ -507,13 +561,29 @@ app.whenReady().then(async () => {
         logToFile(`Failed to start application: ${error.message}`, "ERROR");
         logToFile(`Error stack: ${error.stack}`, "ERROR");
 
-        // Show error dialog to user
-        dialog.showErrorBox(
-            "Application Startup Error",
-            `Failed to start JK PosMan:\n\n${error.message}\n\nPlease check the log file at:\n${logFile}`
-        );
-
-        app.quit();
+        // Show error inside the window instead of a blocking dialog so the user can still
+        // read the message without the app becoming unresponsive.
+        const errorPage = "data:text/html;charset=utf-8," + encodeURIComponent(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>JK PosMan — Startup Error</title>
+<style>*{margin:0;box-sizing:border-box}
+body{background:#0f172a;color:#94a3b8;font-family:system-ui,sans-serif;
+display:flex;justify-content:center;align-items:center;height:100vh}
+.card{background:#1e293b;border-radius:8px;padding:2rem;max-width:520px;width:90%}
+h2{color:#f87171;margin-bottom:.75rem}p{line-height:1.6;margin-bottom:.5rem}
+.path{background:#0f172a;border-radius:4px;padding:.5rem;font-size:.8rem;word-break:break-all;margin-top:.5rem}
+button{margin-top:1.25rem;padding:.5rem 1.25rem;background:#3b82f6;color:#fff;
+border:none;border-radius:4px;cursor:pointer;font-size:.9rem}
+button:hover{background:#2563eb}</style></head>
+<body><div class="card">
+<h2>Failed to start JK PosMan</h2>
+<p>${error.message.replace(/</g,"&lt;")}</p>
+<p>Check the log file for details:</p>
+<div class="path">${logFile}</div>
+<button onclick="location.reload()">Retry</button>
+</div></body></html>`);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.loadURL(errorPage);
+        }
     }
 });
 
