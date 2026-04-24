@@ -32,7 +32,7 @@ export class Pricelist extends BaseEntity {
   description: string;
 
   // Relationship to stations through junction table
-  @OneToMany("StationPricelist", "pricelist")
+  @OneToMany(() => StationPricelist, (sp) => sp.pricelist)
   stationPricelists: StationPricelist[];
 
   // @OneToMany(() => PricelistItem, (pricelistItem) => pricelistItem.pricelist)
