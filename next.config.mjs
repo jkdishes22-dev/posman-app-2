@@ -27,7 +27,10 @@ const nextConfig = {
     // Include SQLite migration files in standalone output so TypeORM can find them at runtime.
     // Must be top-level (not under experimental) in Next.js 15+.
     outputFileTracingIncludes: {
-        '/api/**': ['./src/backend/config/migrations-sqlite/**/*.cjs'],
+        '/api/**': [
+            './src/backend/config/migrations-sqlite/**/*.cjs',
+            './src/backend/config/migrations/**/*.cjs',
+        ],
     },
     webpack: (config, { dev, isServer }) => {
         config.resolve.alias["@entities"] = path.resolve(__dirname, "src/backend/entities");
