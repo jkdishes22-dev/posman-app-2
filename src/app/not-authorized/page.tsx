@@ -2,13 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import jwt from "jsonwebtoken";
+import { decodeJwt } from "../utils/tokenUtils";
 import { MaterialButton, MaterialCard } from "../components/MaterialComponents";
-
-interface DecodedToken {
-  roles?: string[];
-  exp?: number;
-}
 
 function getDashboardPath(primaryRole: string | undefined): string {
   switch (primaryRole) {
@@ -40,7 +35,7 @@ const NotAuthorizedPage = () => {
       setIsLoggedIn(false);
       return;
     }
-    const decoded = jwt.decode(token) as DecodedToken | null;
+    const decoded = decodeJwt(token);
     if (!decoded || !Array.isArray(decoded.roles) || decoded.roles.length === 0) {
       setIsLoggedIn(false);
       return;

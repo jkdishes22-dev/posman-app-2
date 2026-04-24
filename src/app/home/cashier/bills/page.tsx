@@ -7,7 +7,7 @@ import { formatISO } from "date-fns";
 import { Bill, BillPayment, User } from "src/app/types/types";
 import { Modal, Button, Form } from "react-bootstrap";
 import Pagination from "../../../components/Pagination";
-import jwt from "jsonwebtoken";
+import { decodeJwt } from "../../../utils/tokenUtils";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
@@ -78,7 +78,7 @@ const CashierBillsPage = () => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("token");
     if (token) {
-      const decoded: any = jwt.decode(token);
+      const decoded: any = decodeJwt<any>(token);
       if (decoded) {
         if (decoded.roles && decoded.roles.length > 0) {
           userRole = decoded.roles[0];
