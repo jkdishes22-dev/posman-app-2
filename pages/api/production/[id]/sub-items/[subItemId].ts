@@ -27,10 +27,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     res.status(200).json({ message: "Sub-item removed successfully" });
                 } catch (error: any) {
                     console.error("Error removing sub-item:", error);
-                    res.status(500).json({
-                        message: "Failed to remove sub-item",
-                        error: error.message
-                    });
+                    res.status(500).json({ message: "Some error occurred. Please try again." });
                 }
             })
         )(req, res);
@@ -52,10 +49,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     res.status(200).json({ message: "Portion size updated successfully" });
                 } catch (error: any) {
                     console.error("Error updating portion size:", error);
-                    res.status(500).json({
-                        message: "Failed to update portion size",
-                        error: error.message
-                    });
+                    res.status(500).json({ message: "Some error occurred. Please try again." });
                 }
             })
         )(req, res);

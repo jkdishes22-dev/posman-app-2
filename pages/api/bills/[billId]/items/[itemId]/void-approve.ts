@@ -44,7 +44,7 @@ const approveVoidRequest = async (req: NextApiRequest, res: NextApiResponse) => 
         console.error("Error approving void request:", error);
         return res.status(500).json({
             error: "Internal server error",
-            details: error instanceof Error ? error.message : "Unknown error"
+            details: undefined
         });
     }
 };

@@ -9,11 +9,16 @@ export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
     const newBill = await billService.createBill(req.body);
     res.status(201).json(newBill);
   } catch (error: any) {
+    const isValidationError = error?.message && (
+      error.message.includes("Insufficient inventory") ||
+      error.message.includes("not found") ||
+      error.message.includes("Invalid")
+    );
     const { userMessage, errorCode } = handleApiError(error, {
       operation: "creating",
       resource: "bill"
     });
-    res.status(500).json({ error: userMessage, code: errorCode });
+    res.status(isValidationError ? 400 : 500).json({ error: userMessage, code: errorCode });
   }
 };
 

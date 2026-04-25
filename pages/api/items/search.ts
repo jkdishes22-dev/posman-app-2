@@ -3,6 +3,7 @@ import { authMiddleware } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { ItemService } from "@backend/service/ItemService";
+import { handleApiError } from "@backend/utils/errorHandler";
 import logger from "@backend/utils/logger";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -42,10 +43,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       });
     } catch (error: any) {
       logger.error({ error: error.message, query: req.query.q, userId: req.user?.id }, "Failed to search items");
-      res.status(500).json({
-        message: "Error searching items",
-        error: error.message,
+      const { userMessage, errorCode } = handleApiError(error, {
+        operation: "searching",
+        resource: "items",
       });
+      res.status(500).json({ error: userMessage, code: errorCode });
     }
   } else {
     res.setHeader("Allow", ["GET"]);

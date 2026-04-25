@@ -132,11 +132,12 @@ const PricelistManager: React.FC<PricelistManagerProps> = ({
                                 items={selectedPricelist.items || []}
                                 pricelistItems={selectedPricelist.items || []}
                                 itemError=""
-                                setItems={() => { }} // Read-only for non-admin, controlled for admin
+                                setItems={() => { }}
                                 isBillingSection={false}
                                 isPricelistSection={true}
                                 isCategoryItemsSection={false}
-                                onItemPick={() => { }} // Read-only for non-admin, controlled for admin
+                                canEdit={false}
+                                onItemPick={() => { }}
                                 highlightedItemId={highlightedItemId}
                                 onHighlightClear={onHighlightClear}
                             />
