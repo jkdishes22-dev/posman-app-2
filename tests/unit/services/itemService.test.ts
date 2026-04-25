@@ -191,6 +191,78 @@ describe("ItemService", () => {
     });
   });
 
+  describe("updateItem", () => {
+    function makeTransactionalEntityManager(overrides: any = {}) {
+      const qb = createMockQueryBuilder();
+      return {
+        save: vi.fn().mockImplementation(async (_entity: any, data?: any) => data ?? {}),
+        findOne: vi.fn().mockResolvedValue({ id: 1, name: "Burger", category: { id: "1" } }),
+        getRepository: vi.fn().mockReturnValue({ findOne: vi.fn().mockResolvedValue(null) }),
+        createQueryBuilder: vi.fn().mockReturnValue(qb),
+        ...overrides,
+      };
+    }
+
+    it("updates price on existing pricelist item when pricelistItemId is provided", async () => {
+      const existingPricelistItem = {
+        id: 10,
+        price: 500,
+        item: { id: 1 },
+        pricelist: { id: 3 },
+        updated_by: null,
+      };
+      const txnQb = createMockQueryBuilder();
+      txnQb.getOne.mockResolvedValue(existingPricelistItem);
+      const txnManager = makeTransactionalEntityManager({
+        createQueryBuilder: vi.fn().mockReturnValue(txnQb),
+      });
+
+      mockItemRepo.manager.connection.transaction.mockImplementationOnce(
+        async (cb: any) => cb(txnManager)
+      );
+      mockItemRepo.findOne.mockResolvedValue({ id: 1, name: "Burger" });
+      mockPricelistItemRepo.createQueryBuilder.mockReturnValue(txnQb);
+
+      await service.updateItem(
+        { id: 1, name: "Burger", code: "BRG" },
+        { pricelistItemId: 10, price: 800 },
+        1,
+        3
+      );
+
+      expect(txnManager.save).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ price: 800 })
+      );
+    });
+
+    it("disables existing pricelist items and creates new one when pricelistItemId is absent", async () => {
+      const txnQb = createMockQueryBuilder();
+      txnQb.getOne.mockResolvedValue(null);
+      const txnManager = makeTransactionalEntityManager({
+        createQueryBuilder: vi.fn().mockReturnValue(txnQb),
+      });
+
+      mockItemRepo.manager.connection.transaction.mockImplementationOnce(
+        async (cb: any) => cb(txnManager)
+      );
+      mockItemRepo.findOne.mockResolvedValue({ id: 1, name: "Burger" });
+      mockPricelistItemRepo.createQueryBuilder.mockReturnValue(txnQb);
+      mockPricelistItemRepo.create.mockReturnValue({ price: 900 });
+
+      await service.updateItem(
+        { id: 1, name: "Burger", code: "BRG" },
+        { pricelistItemId: undefined, price: 900 },
+        1,
+        3
+      );
+
+      // The UPDATE ... SET is_enabled=false query must have been executed
+      expect(txnQb.update).toHaveBeenCalled();
+      expect(txnQb.execute).toHaveBeenCalled();
+    });
+  });
+
   describe("searchItemsByName", () => {
     it("applies LIKE filter with the search query", async () => {
       const qb = createMockQueryBuilder();
