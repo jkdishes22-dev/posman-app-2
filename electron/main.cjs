@@ -67,9 +67,27 @@ logToFile(`User data: ${app.getPath("userData")}`);
  */
 function startNextServer() {
     if (isDev) {
-        // In development, assume Next.js dev server is already running
-        logToFile("Development mode: Assuming Next.js dev server is running");
-        return Promise.resolve();
+        logToFile(`Development mode: waiting for Next.js dev server on port ${PORT}...`);
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 120; // 60 s
+            const checkServer = setInterval(() => {
+                attempts++;
+                const http = require("http");
+                const req = http.get(`http://${HOST}:${PORT}`, (res) => {
+                    clearInterval(checkServer);
+                    logToFile(`Dev server ready (HTTP ${res.statusCode})`);
+                    resolve();
+                });
+                req.on("error", () => {
+                    if (attempts >= maxAttempts) {
+                        clearInterval(checkServer);
+                        reject(new Error(`Next.js dev server not responding after 60 s.\nRun in a separate terminal: npm run dev`));
+                    }
+                });
+                req.setTimeout(1000, () => req.destroy());
+            }, 500);
+        });
     }
 
     return new Promise((resolve, reject) => {
