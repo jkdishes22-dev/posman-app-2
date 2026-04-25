@@ -63,13 +63,20 @@ export class ProductionIssueService {
 
         const savedIssue = await this.productionIssueRepository.save(productionIssue);
 
-        // Add produced items to inventory
-        await this.inventoryService.addInventoryFromProduction(
-            input.item_id,
-            input.quantity_produced,
-            savedIssue.id,
-            userId
-        );
+        // Add produced items to inventory — run outside the main save so a failure
+        // here does not leave the production issue record in an ambiguous state.
+        try {
+            await this.inventoryService.addInventoryFromProduction(
+                input.item_id,
+                input.quantity_produced,
+                savedIssue.id,
+                userId
+            );
+        } catch (inventoryError) {
+            console.error(`[ProductionIssueService] Inventory update failed for issue ${savedIssue.id}:`, inventoryError);
+            // Re-throw so the controller can surface the error, but the issue record is already saved
+            throw inventoryError;
+        }
 
         return savedIssue;
     }
