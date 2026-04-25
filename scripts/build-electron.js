@@ -80,7 +80,7 @@ if (isCrossCompilation) {
   console.log("   Note: For best results, build Windows packages on a Windows machine.");
 }
 
-let buildCommand = "npx electron-builder";
+let buildCommand = "npx electron-builder --config electron-builder.config.cjs";
 if (platform !== "all") {
   buildCommand += ` --${platform}`;
 }
