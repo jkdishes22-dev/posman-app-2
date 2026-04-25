@@ -36,7 +36,7 @@ async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot,
         }
     } catch { /* keep default */ }
 
-    const tarUrl = `https://github.com/WiseLibs/better-sqlite3/releases/download/v${bsq3Version}/better-sqlite3-v${bsq3Version}-electron-${abi}-win32-${arch}.tar.gz`;
+    const tarUrl = `https://github.com/WiseLibs/better-sqlite3/releases/download/v${bsq3Version}/better-sqlite3-v${bsq3Version}-electron-v${abi}-win32-${arch}.tar.gz`;
     log(`\n   🔄 Replacing macOS better_sqlite3.node with Windows (${arch}) version...`);
     log(`   📥 URL: ${tarUrl}`);
 
