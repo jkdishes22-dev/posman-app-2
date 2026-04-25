@@ -27,10 +27,14 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
   onSave,
 }) => {
   const [editedItem, setEditedItem] = useState<Item | null>(item);
-  const [error, setError] = useState<string | null>(null); // Error state
+  const [error, setError] = useState<string | null>(null);
   const [pricelists, setPricelists] = useState([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [pricelistId, setPricelistId] = useState<number | null>(
     item?.pricelistId || null,
+  );
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
+    String(item?.category?.id ?? ""),
   );
   const [loadingPricelists, setLoadingPricelists] = useState(true);
   const [addItemError, setAddItemError] = useState("");
@@ -54,15 +58,28 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
         setAddItemError("Network error occurred");
         setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       } finally {
-        setLoadingPricelists(false); // Set loading to false after fetching
+        setLoadingPricelists(false);
       }
     }
     fetchPricelists();
   }, [apiCall]);
 
   useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const result = await apiCall("/api/menu/categories");
+        if (result.status === 200) {
+          setCategories(Array.isArray(result.data) ? result.data : []);
+        }
+      } catch {
+        // non-critical, leave categories empty
+      }
+    }
+    fetchCategories();
+  }, [apiCall]);
+
+  useEffect(() => {
     if (item) {
-      // Ensure all boolean fields are properly initialized
       const itemWithDefaults = {
         ...item,
         isGroup: item.isGroup ?? false,
@@ -73,12 +90,13 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
       if (item.pricelistId) {
         setPricelistId(item.pricelistId);
       }
-      // Clear errors when item changes (modal opens with new item)
+      setSelectedCategoryId(String(item.category?.id ?? ""));
       setError(null);
       setErrorDetails(null);
     } else {
       setEditedItem(null);
       setPricelistId(null);
+      setSelectedCategoryId("");
     }
   }, [item]);
 
@@ -139,7 +157,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
           id: editedItem.id,
           name: editedItem.name,
           code: editedItem.code,
-          category: editedItem.category,
+          categoryId: selectedCategoryId ? parseInt(selectedCategoryId) : undefined,
           price: editedItem.price,
           isGroup: editedItem.isGroup ?? false,
           isStock: (editedItem as any).isStock ?? false,
@@ -235,6 +253,21 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
                   }}
                   required
                 />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Category</label>
+                <select
+                  className="form-control"
+                  value={selectedCategoryId}
+                  onChange={(e) => setSelectedCategoryId(e.target.value)}
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="mb-3">
                 <label className="form-label">Pricelist <span className="text-danger">*</span></label>

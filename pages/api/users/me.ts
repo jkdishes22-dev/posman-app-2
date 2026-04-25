@@ -64,7 +64,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             res.status(405).json({ error: "Method Not Allowed" });
         }
     } catch (error: any) {
-        res.status(500).json({ error: "Error fetching/updating user profile: " + error.message });
+        res.status(500).json({ error: "Some error occurred. Please try again." });
     }
 };
 

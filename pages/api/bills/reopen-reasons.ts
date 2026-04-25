@@ -33,7 +33,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 res.status(500).json({
                     success: false,
                     error: "Failed to fetch reopen reasons",
-                    details: error.message
+                    details: undefined
                 });
             }
         })(req, res);
@@ -79,7 +79,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     res.status(500).json({
                         success: false,
                         error: "Failed to create reopen reason",
-                        details: error.message
+                        details: undefined
                     });
                 }
             })
@@ -133,7 +133,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     res.status(500).json({
                         success: false,
                         error: "Failed to update reopen reason",
-                        details: error.message
+                        details: undefined
                     });
                 }
             })
@@ -169,7 +169,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     res.status(500).json({
                         success: false,
                         error: "Failed to delete reopen reason",
-                        details: error.message
+                        details: undefined
                     });
                 }
             })

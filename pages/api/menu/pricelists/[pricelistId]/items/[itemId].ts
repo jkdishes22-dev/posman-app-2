@@ -40,10 +40,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     });
                 } catch (error: any) {
                     console.error("Error removing item from pricelist:", error);
-                    res.status(500).json({
-                        message: "Failed to remove item from pricelist",
-                        error: error.message
-                    });
+                    res.status(500).json({ message: "Some error occurred. Please try again." });
                 }
             })
         )(req, res);

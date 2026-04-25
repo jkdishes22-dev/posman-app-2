@@ -43,10 +43,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       });
     } catch (error: any) {
       logger.error({ error: error.message, pricelistId: req.query.pricelistId }, "Failed to update pricelist status");
-      res.status(500).json({
-        message: "Error updating pricelist status",
-        error: error.message,
-      });
+      res.status(500).json({ message: "Some error occurred. Please try again." });
     }
   } else {
     res.setHeader("Allow", ["PATCH"]);

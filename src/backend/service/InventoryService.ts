@@ -1634,23 +1634,23 @@ export class InventoryService {
 
         const quantityDifference = newQuantity - inventory.quantity;
 
-        // Update inventory
+        // Use update() to bypass TypeORM topological sorter (cyclic dependency with minified class names)
+        await this.inventoryRepository.update(
+            { item_id: itemId },
+            { quantity: newQuantity, updated_by: userId }
+        );
         inventory.quantity = newQuantity;
-        inventory.updated_by = userId;
-        // updated_at is automatically managed by TypeORM's UpdateDateColumn
-        await this.inventoryRepository.save(inventory);
 
-        // Create transaction record
-        const transaction = this.inventoryTransactionRepository.create({
+        // Use insert() to bypass topological sorter for new transaction records
+        await this.inventoryTransactionRepository.insert({
             item_id: itemId,
             transaction_type: InventoryTransactionType.ADJUSTMENT,
-            quantity: quantityDifference, // Positive for increase, negative for decrease
+            quantity: quantityDifference,
             reference_type: InventoryReferenceType.MANUAL_ADJUSTMENT,
             reference_id: null,
             notes: reason,
             created_by: userId,
         });
-        await this.inventoryTransactionRepository.save(transaction);
 
         // Invalidate cache after inventory adjustment
         InventoryService.invalidateInventoryCache();
@@ -1687,22 +1687,22 @@ export class InventoryService {
             );
         }
 
-        // Reduce inventory quantity
-        inventory.quantity = inventory.quantity - quantity;
-        inventory.updated_by = userId;
-        await this.inventoryRepository.save(inventory);
+        const newQuantity = inventory.quantity - quantity;
+        await this.inventoryRepository.update(
+            { item_id: itemId },
+            { quantity: newQuantity, updated_by: userId }
+        );
+        inventory.quantity = newQuantity;
 
-        // Create disposal transaction record (negative quantity for deduction)
-        const transaction = this.inventoryTransactionRepository.create({
+        await this.inventoryTransactionRepository.insert({
             item_id: itemId,
             transaction_type: InventoryTransactionType.DISPOSAL,
-            quantity: -quantity, // Negative for disposal
+            quantity: -quantity,
             reference_type: InventoryReferenceType.MANUAL_ADJUSTMENT,
             reference_id: null,
             notes: reason,
             created_by: userId,
         });
-        await this.inventoryTransactionRepository.save(transaction);
 
         // Invalidate cache after inventory disposal
         InventoryService.invalidateInventoryCache();
@@ -1725,32 +1725,32 @@ export class InventoryService {
         });
 
         if (!inventory) {
-            inventory = this.inventoryRepository.create({
+            const result = await this.inventoryRepository.insert({
                 item_id: itemId,
-                quantity: 0,
+                quantity: quantity,
                 reserved_quantity: 0,
+                last_restocked_at: new Date(),
                 created_by: userId,
             });
+            inventory = await this.inventoryRepository.findOne({ where: { id: result.identifiers[0].id } });
+        } else {
+            const newQuantity = inventory.quantity + quantity;
+            await this.inventoryRepository.update(
+                { item_id: itemId },
+                { quantity: newQuantity, last_restocked_at: new Date(), updated_by: userId }
+            );
+            inventory.quantity = newQuantity;
         }
 
-        // Add quantity
-        inventory.quantity += quantity;
-        inventory.last_restocked_at = new Date();
-        inventory.updated_by = userId;
-        // updated_at is automatically managed by TypeORM's UpdateDateColumn
-        await this.inventoryRepository.save(inventory);
-
-        // Create transaction record
-        const transaction = this.inventoryTransactionRepository.create({
+        await this.inventoryTransactionRepository.insert({
             item_id: itemId,
             transaction_type: InventoryTransactionType.PURCHASE,
-            quantity: quantity, // Positive for addition
+            quantity: quantity,
             reference_type: InventoryReferenceType.PURCHASE_ORDER,
             reference_id: purchaseOrderId,
             notes: `Received from purchase order ${purchaseOrderId}`,
             created_by: userId,
         });
-        await this.inventoryTransactionRepository.save(transaction);
 
         return inventory;
     }
@@ -1771,32 +1771,32 @@ export class InventoryService {
         });
 
         if (!inventory) {
-            inventory = this.inventoryRepository.create({
+            const result = await this.inventoryRepository.insert({
                 item_id: itemId,
-                quantity: 0,
+                quantity: quantity,
                 reserved_quantity: 0,
+                last_restocked_at: new Date(),
                 created_by: userId,
             });
+            inventory = await this.inventoryRepository.findOne({ where: { id: result.identifiers[0].id } });
+        } else {
+            const newQuantity = inventory.quantity + quantity;
+            await this.inventoryRepository.update(
+                { item_id: itemId },
+                { quantity: newQuantity, last_restocked_at: new Date(), updated_by: userId }
+            );
+            inventory.quantity = newQuantity;
         }
 
-        // Add quantity
-        inventory.quantity += quantity;
-        inventory.last_restocked_at = new Date();
-        inventory.updated_by = userId;
-        // updated_at is automatically managed by TypeORM's UpdateDateColumn
-        await this.inventoryRepository.save(inventory);
-
-        // Create transaction record
-        const transaction = this.inventoryTransactionRepository.create({
+        await this.inventoryTransactionRepository.insert({
             item_id: itemId,
             transaction_type: InventoryTransactionType.PRODUCTION,
-            quantity: quantity, // Positive for addition
+            quantity: quantity,
             reference_type: InventoryReferenceType.PRODUCTION_ISSUE,
             reference_id: productionIssueId,
             notes: `Added from production issue ${productionIssueId}`,
             created_by: userId,
         });
-        await this.inventoryTransactionRepository.save(transaction);
 
         return inventory;
     }

@@ -84,10 +84,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return res.status(setupError.status).json(setupError.body);
     }
 
-    res.status(500).json({
-      message: "Internal Server Error: " + (error.message || "Unknown error"),
-      error: process.env.NODE_ENV === "development" ? error.stack : undefined
-    });
+    res.status(500).json({ message: "Some error occurred. Please try again." });
   }
 };
 

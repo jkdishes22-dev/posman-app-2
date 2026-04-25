@@ -34,11 +34,18 @@ export const validateUploadFileHandler = async (
     const validationResult = await uploadService.validateUploadData(rows);
     res.status(200).json(validationResult);
   } catch (error: any) {
+    // Parse/format errors are client-caused — return 400
+    const isParseError = error?.message && (
+      error.message.includes("parse") ||
+      error.message.includes("Invalid") ||
+      error.message.includes("format") ||
+      error.message.includes("CSV")
+    );
     const { userMessage, errorCode } = handleApiError(error, {
       operation: "validating",
       resource: "upload file",
     });
-    res.status(500).json({ error: userMessage, code: errorCode });
+    res.status(isParseError ? 400 : 500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -91,7 +98,10 @@ export const downloadTemplateHandler = async (
     }
 
     const pricelist = await uploadService.getPricelist(pricelistId);
-    const pricelistCode = pricelist?.code ?? "PRICELIST_CODE";
+    if (!pricelist) {
+      return res.status(404).json({ error: "Pricelist not found" });
+    }
+    const pricelistCode = pricelist.code;
     const csv = uploadService.generateTemplate(pricelistCode);
 
     res.setHeader("Content-Type", "text/csv");

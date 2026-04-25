@@ -29,10 +29,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         )(req, res);
     } catch (error: any) {
         console.error("Station API error:", error);
-        res.status(500).json({
-            message: "Internal server error",
-            error: error.message
-        });
+        res.status(500).json({ message: "Some error occurred. Please try again." });
     }
 };
 

@@ -30,7 +30,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         console.error("Error checking M-Pesa reference:", error);
         return res.status(500).json({
             error: "Internal server error",
-            details: error instanceof Error ? error.message : "Unknown error"
+            details: undefined
         });
     }
 };

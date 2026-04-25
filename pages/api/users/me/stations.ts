@@ -41,10 +41,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             res.status(200).json(response);
         } catch (error: any) {
             console.error("Error fetching user stations:", error);
-            res.status(500).json({
-                message: "Error fetching user stations",
-                error: error.message,
-            });
+            res.status(500).json({ message: "Some error occurred. Please try again." });
         }
     } else {
         res.setHeader("Allow", ["GET"]);

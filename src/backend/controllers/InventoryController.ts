@@ -195,11 +195,16 @@ export const disposeInventoryHandler = async (
         );
         res.status(200).json(inventory);
     } catch (error: any) {
+        const isValidationError = error?.message && (
+            error.message.includes("Cannot dispose") ||
+            error.message.includes("must be greater") ||
+            error.message.includes("not found")
+        );
         const { userMessage, errorCode } = handleApiError(error, {
             operation: "disposing",
             resource: "inventory"
         });
-        res.status(500).json({ error: userMessage, code: errorCode });
+        res.status(isValidationError ? 400 : 500).json({ error: userMessage, code: errorCode });
     }
 };
 

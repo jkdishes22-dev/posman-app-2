@@ -126,10 +126,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
   } catch (error: any) {
     console.error("Station pricelist management error:", error);
-    res.status(500).json({
-      message: "Internal server error",
-      error: error.message
-    });
+    res.status(500).json({ message: "Some error occurred. Please try again." });
   }
 };
 

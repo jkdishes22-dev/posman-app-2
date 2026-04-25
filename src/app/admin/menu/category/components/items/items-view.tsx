@@ -17,6 +17,7 @@ interface ViewItemsProps {
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
   isBillingSection?: boolean;
   isPricelistSection?: boolean;
+  canEdit?: boolean;
   isCategoryItemsSection?: boolean;
   onItemPick?: (item: Item) => void;
   highlightedItemId?: number | null;
@@ -38,6 +39,7 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
   setItems,
   isBillingSection = false,
   isPricelistSection = false,
+  canEdit = true,
   isCategoryItemsSection = false,
   onItemPick,
   highlightedItemId,
@@ -446,7 +448,7 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
                           )}
                         </div>
                       </td>
-                      {!isBillingSection && (
+                      {!isBillingSection && canEdit && (
                         <td>
                           <div className="d-flex gap-1">
                             <button

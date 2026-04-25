@@ -42,10 +42,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       });
     } catch (error: any) {
       logger.error({ error: error.message, stationId: req.query.stationId }, "Failed to update station status");
-      res.status(500).json({
-        message: "Error updating station status",
-        error: error.message,
-      });
+      res.status(500).json({ message: "Some error occurred. Please try again." });
     }
   } else {
     res.setHeader("Allow", ["PATCH"]);

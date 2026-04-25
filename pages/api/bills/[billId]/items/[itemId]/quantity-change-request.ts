@@ -42,7 +42,7 @@ const requestQuantityChange = async (req: NextApiRequest, res: NextApiResponse) 
         console.error("Error requesting quantity change:", error);
         return res.status(500).json({
             error: "Internal server error",
-            details: error instanceof Error ? error.message : "Unknown error"
+            details: undefined
         });
     }
 };

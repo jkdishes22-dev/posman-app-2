@@ -99,10 +99,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 });
             } catch (error: any) {
                 console.error("Error setting user default station:", error);
-                res.status(500).json({
-                    message: "Error setting default station",
-                    error: error.message,
-                });
+                res.status(500).json({ message: "Some error occurred. Please try again." });
             }
         })(req, res);
     } else {

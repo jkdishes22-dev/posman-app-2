@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Electron main process uses CommonJS (require) not ES modules
-const { app, BrowserWindow, shell, utilityProcess, dialog } = require("electron");
+const { app, BrowserWindow, shell, utilityProcess, dialog, ipcMain } = require("electron");
 // electron-updater is optional — excluded from ASAR to avoid packing duplicate node_modules.
 // The Next.js standalone bundle already contains its own node_modules.
 let autoUpdater = null;
@@ -15,7 +15,7 @@ const isProduction = !isDev;
 let mainWindow = null;
 let nextServer = null;
 // Use custom port 8817 to avoid conflicts with other services (like Metabase on 3000, Next.js dev on 3000, etc.)
-const PORT = process.env.PORT || 8817;
+const PORT = process.env.PORT || 2026;
 const HOST = "localhost";
 
 // Setup logging to file for Windows debugging
@@ -501,6 +501,64 @@ function createWindow() {
 }
 
 /**
+ * Database backup helpers
+ */
+function getBackupDir() {
+    return path.join(app.getPath("userData"), "backups");
+}
+
+function getDbPath() {
+    return path.join(app.getPath("userData"), "posman.db");
+}
+
+function performBackup() {
+    const dbPath = getDbPath();
+    const backupDir = getBackupDir();
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const backupPath = path.join(backupDir, `posman-backup-${today}.db`);
+
+    if (!fs.existsSync(dbPath)) {
+        logToFile("Backup skipped: DB file not found");
+        return null;
+    }
+
+    if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+    }
+
+    fs.copyFileSync(dbPath, backupPath);
+    logToFile(`Database backed up to: ${backupPath}`);
+    return backupPath;
+}
+
+function runDailyAutoBackup() {
+    try {
+        const backupDir = getBackupDir();
+        const today = new Date().toISOString().slice(0, 10);
+        const backupPath = path.join(backupDir, `posman-backup-${today}.db`);
+        if (fs.existsSync(backupPath)) {
+            logToFile("Auto-backup skipped: today's backup already exists");
+            return;
+        }
+        performBackup();
+    } catch (err) {
+        logToFile(`Auto-backup failed (non-fatal): ${err.message}`, "WARN");
+    }
+}
+
+// IPC: manual backup triggered from admin UI via Next.js API route
+ipcMain.handle("backup-database", async () => {
+    try {
+        const backupPath = performBackup();
+        if (!backupPath) return { success: false, error: "Database file not found" };
+        return { success: true, path: backupPath };
+    } catch (err) {
+        logToFile(`Manual backup failed: ${err.message}`, "ERROR");
+        return { success: false, error: err.message };
+    }
+});
+
+/**
  * App lifecycle handlers
  */
 app.whenReady().then(async () => {
@@ -546,6 +604,7 @@ border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
         logToFile("Starting Next.js server...");
         await startNextServer();
         await checkStartupBootstrapStatus();
+        runDailyAutoBackup();
         logToFile("Server ready, loading app URL...");
         mainWindow.loadURL(`http://${HOST}:${PORT}`);
         logToFile("App loaded successfully");

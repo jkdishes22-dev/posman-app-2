@@ -98,6 +98,7 @@ export const updateItemHandler = async (
       code,
       price,
       category,
+      categoryId,
       pricelistItemId,
       isGroup,
       isStock,
@@ -106,11 +107,18 @@ export const updateItemHandler = async (
     } = req.body;
     const user_id = parseInt(req.user.id, 10);
 
-    const itemData = {
+    // Prefer explicit categoryId (number) over legacy category object to avoid FK errors
+    const resolvedCategory = categoryId !== undefined
+      ? { id: parseInt(categoryId) }
+      : category !== undefined
+        ? { id: parseInt(category?.id ?? category) }
+        : undefined;
+
+    const itemData: any = {
       id,
       name,
       code,
-      category,
+      ...(resolvedCategory !== undefined ? { category: resolvedCategory } : {}),
       isGroup,
       isStock,
       allowNegativeInventory,

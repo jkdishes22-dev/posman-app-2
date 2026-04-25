@@ -61,6 +61,7 @@ export default function InventoryTransactionsPage() {
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [itemIdFilter, setItemIdFilter] = useState<string>("");
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
+    const [inventoryItems, setInventoryItems] = useState<{ id: number; name: string; code: string }[]>([]);
 
     // Add quantity modal state
     const [showAddQuantityModal, setShowAddQuantityModal] = useState(false);
@@ -82,6 +83,15 @@ export default function InventoryTransactionsPage() {
     useEffect(() => {
         fetchTransactions();
     }, [apiCall, page, itemIdFilter, debouncedSearchTerm]);
+
+    useEffect(() => {
+        apiCall("/api/menu/items").then((result) => {
+            if (result.status === 200) {
+                const items = Array.isArray(result.data) ? result.data : (result.data?.items || []);
+                setInventoryItems(items.map((i: any) => ({ id: i.id, name: i.name, code: i.code })));
+            }
+        }).catch(() => {});
+    }, [apiCall]);
 
     const fetchTransactions = async () => {
         setIsLoading(true);
@@ -277,16 +287,21 @@ export default function InventoryTransactionsPage() {
                             </Col>
                             <Col md={4}>
                                 <Form.Group>
-                                    <Form.Label>Filter by Item ID</Form.Label>
-                                    <Form.Control
-                                        type="number"
-                                        placeholder="Item ID (optional)"
+                                    <Form.Label>Filter by Item</Form.Label>
+                                    <Form.Select
                                         value={itemIdFilter}
                                         onChange={(e) => {
                                             setItemIdFilter(e.target.value);
                                             setPage(1);
                                         }}
-                                    />
+                                    >
+                                        <option value="">All Items</option>
+                                        {inventoryItems.map((item) => (
+                                            <option key={item.id} value={item.id}>
+                                                {item.name} ({item.code})
+                                            </option>
+                                        ))}
+                                    </Form.Select>
                                 </Form.Group>
                             </Col>
                             <Col md={2} className="d-flex align-items-end">
