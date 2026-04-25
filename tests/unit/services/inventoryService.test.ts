@@ -144,27 +144,25 @@ describe("InventoryService", () => {
 
   describe("addInventoryFromProduction", () => {
     it("creates new inventory record when none exists and adds quantity", async () => {
-      mockInventoryRepo.findOne.mockResolvedValue(null);
-      const newInventory = { item_id: 1, quantity: 0, reserved_quantity: 0 };
-      mockInventoryRepo.create.mockReturnValue(newInventory);
-      mockInventoryRepo.save.mockResolvedValue({ ...newInventory, quantity: 5 });
+      mockInventoryRepo.findOne.mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 1, item_id: 1, quantity: 5, reserved_quantity: 0 });
 
       await service.addInventoryFromProduction(1, 5, 10, 1);
 
-      expect(mockInventoryRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ quantity: 5 })
+      expect(mockInventoryRepo.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ item_id: 1, quantity: 5 })
       );
     });
 
     it("increments quantity on existing inventory record", async () => {
       const existing = { item_id: 1, quantity: 10, reserved_quantity: 2 };
       mockInventoryRepo.findOne.mockResolvedValue(existing);
-      mockInventoryRepo.save.mockResolvedValue({ ...existing, quantity: 15 });
 
       await service.addInventoryFromProduction(1, 5, 10, 1);
 
       expect(existing.quantity).toBe(15);
-      expect(mockInventoryRepo.save).toHaveBeenCalledWith(
+      expect(mockInventoryRepo.update).toHaveBeenCalledWith(
+        { item_id: 1 },
         expect.objectContaining({ quantity: 15 })
       );
     });
@@ -172,15 +170,12 @@ describe("InventoryService", () => {
     it("creates a PRODUCTION inventory transaction record", async () => {
       const existing = { item_id: 1, quantity: 10, reserved_quantity: 0 };
       mockInventoryRepo.findOne.mockResolvedValue(existing);
-      mockInventoryRepo.save.mockResolvedValue(existing);
-      mockTransactionRepo.save.mockResolvedValue({});
 
       await service.addInventoryFromProduction(1, 5, 10, 1);
 
-      expect(mockTransactionRepo.create).toHaveBeenCalledWith(
+      expect(mockTransactionRepo.insert).toHaveBeenCalledWith(
         expect.objectContaining({ item_id: 1, quantity: 5, reference_id: 10 })
       );
-      expect(mockTransactionRepo.save).toHaveBeenCalled();
     });
   });
 
