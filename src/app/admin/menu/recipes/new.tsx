@@ -65,7 +65,7 @@ function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem, addSubItem
       if (result.status === 200) {
         // Filter to only show stock items (isStock: true) for ingredients
         const allItems = result.data?.items || [];
-        const stockItems = allItems.filter((item: any) => item.isStock === true);
+        const stockItems = allItems.filter((item: any) => item.isStock === true || item.isGroup === true);
         setItems(Array.isArray(stockItems) ? stockItems : []);
         setError(null);
         setErrorDetails(null);
