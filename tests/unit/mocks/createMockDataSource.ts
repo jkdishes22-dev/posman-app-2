@@ -61,6 +61,7 @@ export function createMockRepository<T = any>() {
     find: vi.fn().mockResolvedValue([]),
     findOne: vi.fn().mockResolvedValue(null),
     findOneBy: vi.fn().mockResolvedValue(null),
+    insert: vi.fn().mockResolvedValue({ identifiers: [{ id: 1 }], generatedMaps: [] }),
     delete: vi.fn().mockResolvedValue({ affected: 1 }),
     update: vi.fn().mockResolvedValue({ affected: 1 }),
     count: vi.fn().mockResolvedValue(0),
