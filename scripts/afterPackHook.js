@@ -1,149 +1,200 @@
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
+const os = require("os");
+
+/**
+ * Downloads the Windows-native better_sqlite3.node prebuilt and replaces the macOS one.
+ * Required when cross-compiling from macOS → Windows because afterPackHook copies the
+ * macOS arm64/x64 binary verbatim, which is not a valid Win32 application.
+ */
+async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot, log, err) {
+    if (context.electronPlatformName !== "win32") return;
+
+    const archMap = { 0: "ia32", 1: "x64", 2: "armv7l", 3: "arm64", 4: "x64" };
+    const arch = archMap[context.arch] ?? "x64";
+
+    const bsq3PkgPath = path.join(destNodeModules, "better-sqlite3", "package.json");
+    if (!fs.existsSync(bsq3PkgPath)) {
+        log("   ℹ️  better-sqlite3 not in dest node_modules — skipping binary replacement");
+        return;
+    }
+    const bsq3Version = JSON.parse(fs.readFileSync(bsq3PkgPath, "utf8")).version;
+
+    // Look up the Electron → ABI mapping from node-abi (ships with prebuild-install)
+    let abi = "140"; // safe fallback for Electron 39
+    try {
+        const abiRegistryPath = path.join(projectRoot, "node_modules", "node-abi", "abi_registry.json");
+        if (fs.existsSync(abiRegistryPath)) {
+            const registry = JSON.parse(fs.readFileSync(abiRegistryPath, "utf8"));
+            const electronVersion = context.packager?.electronVersion ?? "";
+            const major = electronVersion.split(".")[0];
+            const entry = registry.find(
+                (e) => e.runtime === "electron" && e.target.startsWith(major + ".")
+            );
+            if (entry) abi = entry.abi;
+        }
+    } catch { /* keep default */ }
+
+    const tarUrl = `https://github.com/WiseLibs/better-sqlite3/releases/download/v${bsq3Version}/better-sqlite3-v${bsq3Version}-electron-${abi}-win32-${arch}.tar.gz`;
+    log(`\n   🔄 Replacing macOS better_sqlite3.node with Windows (${arch}) version...`);
+    log(`   📥 URL: ${tarUrl}`);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bsq3-win-"));
+    const tarPath = path.join(tmpDir, "archive.tar.gz");
+
+    try {
+        execSync(`curl -L --fail -o "${tarPath}" "${tarUrl}"`, { stdio: "pipe" });
+        execSync(`tar xzf "${tarPath}" -C "${tmpDir}"`);
+
+        const extractedBinary = path.join(tmpDir, "build", "Release", "better_sqlite3.node");
+        if (!fs.existsSync(extractedBinary)) {
+            err(`   ❌ Expected binary not found after extraction: ${extractedBinary}`);
+            return;
+        }
+
+        const destBinaryPath = path.join(
+            destNodeModules, "better-sqlite3", "build", "Release", "better_sqlite3.node"
+        );
+        fs.mkdirSync(path.dirname(destBinaryPath), { recursive: true });
+        fs.copyFileSync(extractedBinary, destBinaryPath);
+        log(`   ✅ Windows better_sqlite3.node installed: ${destBinaryPath}`);
+    } catch (e) {
+        err(`   ❌ Binary replacement failed: ${e.message}`);
+        err(`   💡 Check the release exists: ${tarUrl}`);
+    } finally {
+        try { execSync(`rm -rf "${tmpDir}"`); } catch { /* ignore cleanup errors */ }
+    }
+}
 
 /**
  * afterPack hook for electron-builder
- * This hook runs AFTER the app is packaged but BEFORE the installer is created
- * It copies .next/standalone to the unpacked directory so it's included in the installer
+ * Ensures .next/standalone (including node_modules) is fully copied to the packaged app.
+ * electron-builder's extraResources filter copies server.js but skips node_modules by default.
+ * This hook detects that and fills in the gap.
  */
 module.exports = async function (context) {
-    // Force output to stdout/stderr (electron-builder might suppress console.log)
-    process.stdout.write("\n🔧 afterPack hook executing (from separate file)...\n");
-    process.stdout.write(`   appOutDir: ${context.appOutDir || "NOT SET"}\n`);
-    process.stdout.write(`   outDir: ${context.outDir || "NOT SET"}\n`);
-    process.stdout.write(`   appDir: ${context.appDir || "NOT SET"}\n`);
-    process.stdout.write(`   electronPlatformName: ${context.electronPlatformName || "NOT SET"}\n`);
-    process.stdout.write(`   arch: ${context.arch || "NOT SET"}\n`);
+    const log = (msg) => { process.stdout.write(`${msg}\n`); console.log(msg); };
+    const err = (msg) => { process.stderr.write(`${msg}\n`); console.error(msg); };
 
-    // Also log to console for visibility
-    console.log("\n🔧 afterPack hook executing (from separate file)...");
-    console.log(`   appOutDir: ${context.appOutDir || "NOT SET"}`);
-    console.log(`   outDir: ${context.outDir || "NOT SET"}`);
-    console.log(`   appDir: ${context.appDir || "NOT SET"}`);
+    log("\n🔧 afterPack hook executing...");
+    log(`   appOutDir: ${context.appOutDir || "NOT SET"}`);
+    log(`   electronPlatformName: ${context.electronPlatformName || "NOT SET"}`);
+    log(`   arch: ${context.arch || "NOT SET"}`);
 
-    // Try multiple possible output directory locations
-    // Get project directory from context or fallback to cwd
     const projectDir = context.packager?.info?.projectDir || context.appDir || process.cwd();
-
-    const possibleOutDirs = [
-        context.appOutDir,
-        context.outDir,
-        path.join(process.cwd(), "dist", "win-unpacked"),
-        path.join(process.cwd(), "dist", "win-x64-unpacked"),
-        path.join(process.cwd(), "dist-electron", "win-unpacked"),
-        path.join(process.cwd(), "dist-electron", "win-x64-unpacked"),
-    ].filter(Boolean);
-
-    // Source path should be relative to project root
     const sourceStandalone = path.join(projectDir, ".next", "standalone");
-    process.stdout.write(`   Source standalone: ${sourceStandalone}\n`);
-    process.stdout.write(`   Source exists: ${fs.existsSync(sourceStandalone)}\n`);
-    console.log(`   Source standalone: ${sourceStandalone}`);
-    console.log(`   Source exists: ${fs.existsSync(sourceStandalone)}`);
+    const sourceNodeModules = path.join(sourceStandalone, "node_modules");
+
+    log(`   Source standalone: ${sourceStandalone}`);
+    log(`   Source exists: ${fs.existsSync(sourceStandalone)}`);
+    log(`   Source node_modules exists: ${fs.existsSync(sourceNodeModules)}`);
 
     if (!fs.existsSync(sourceStandalone)) {
-        console.error(`❌ Source .next/standalone not found at: ${sourceStandalone}`);
+        err(`❌ Source .next/standalone not found at: ${sourceStandalone}`);
         return;
     }
 
-    // Try to copy to each possible output directory
-    let copied = false;
-    for (const appOutDir of possibleOutDirs) {
-        if (!appOutDir || !fs.existsSync(appOutDir)) {
-            process.stdout.write(`   Skipping ${appOutDir} (does not exist)\n`);
-            console.log(`   Skipping ${appOutDir} (does not exist)`);
-            continue;
-        }
-
-        process.stdout.write(`\n   Processing output directory: ${appOutDir}\n`);
-        console.log(`\n   Processing output directory: ${appOutDir}`);
-
-        const targetExtraFiles = path.join(appOutDir, ".next", "standalone");
-        const targetExtraResources = path.join(appOutDir, "resources", ".next", "standalone");
-
-        // Check if already copied
-        const extraFilesExists = fs.existsSync(path.join(targetExtraFiles, "server.js"));
-        const extraResourcesExists = fs.existsSync(path.join(targetExtraResources, "server.js"));
-
-        if (extraFilesExists) {
-            process.stdout.write(`   ✅ .next/standalone already exists via extraFiles at: ${targetExtraFiles}\n`);
-            console.log(`   ✅ .next/standalone already exists via extraFiles at: ${targetExtraFiles}`);
-            copied = true;
-            continue;
-        }
-        if (extraResourcesExists) {
-            process.stdout.write(`   ✅ .next/standalone already exists via extraResources at: ${targetExtraResources}\n`);
-            console.log(`   ✅ .next/standalone already exists via extraResources at: ${targetExtraResources}`);
-            copied = true;
-            continue;
-        }
-        if (asarUnpackExists) {
-            process.stdout.write(`   ✅ .next/standalone already exists via asarUnpack at: ${targetAsarUnpack}\n`);
-            console.log(`   ✅ .next/standalone already exists via asarUnpack at: ${targetAsarUnpack}`);
-            copied = true;
-            continue;
-        }
-
-        // Manual copy to extraFiles location (app directory) - this is where the executable is
-        process.stdout.write(`   ⚠️ .next/standalone not found, manually copying to: ${targetExtraFiles}\n`);
-        console.log(`   ⚠️ .next/standalone not found, manually copying to: ${targetExtraFiles}`);
-        try {
-            // Ensure target directory exists
-            fs.mkdirSync(targetExtraFiles, { recursive: true });
-
-            // Copy files recursively
-            const copyRecursive = (src, dest) => {
-                const entries = fs.readdirSync(src, { withFileTypes: true });
-                let fileCount = 0;
-                let dirCount = 0;
-
-                for (const entry of entries) {
-                    const srcPath = path.join(src, entry.name);
-                    const destPath = path.join(dest, entry.name);
-
-                    if (entry.isDirectory()) {
-                        fs.mkdirSync(destPath, { recursive: true });
-                        dirCount++;
-                        const subCounts = copyRecursive(srcPath, destPath);
-                        fileCount += subCounts.files;
-                        dirCount += subCounts.dirs;
-                    } else {
-                        fs.copyFileSync(srcPath, destPath);
-                        fileCount++;
-                    }
-                }
-
-                return { files: fileCount, dirs: dirCount };
-            };
-
-            const counts = copyRecursive(sourceStandalone, targetExtraFiles);
-            process.stdout.write(`   ✅ Copied ${counts.files} files and ${counts.dirs} directories\n`);
-            console.log(`   ✅ Copied ${counts.files} files and ${counts.dirs} directories`);
-
-            // Verify copy
-            const verifyPath = path.join(targetExtraFiles, "server.js");
-            if (fs.existsSync(verifyPath)) {
-                process.stdout.write(`   ✅ Verification: server.js exists at: ${verifyPath}\n`);
-                console.log(`   ✅ Verification: server.js exists at: ${verifyPath}`);
-                copied = true;
-            } else {
-                process.stderr.write(`   ❌ Verification failed: server.js not found at: ${verifyPath}\n`);
-                console.error(`   ❌ Verification failed: server.js not found at: ${verifyPath}`);
+    // Recursive copy helper - only copies missing files (does not overwrite)
+    const copyDir = (src, dest) => {
+        if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+        const entries = fs.readdirSync(src, { withFileTypes: true });
+        let files = 0, dirs = 0;
+        for (const entry of entries) {
+            const srcPath = path.join(src, entry.name);
+            const destPath = path.join(dest, entry.name);
+            if (entry.isDirectory()) {
+                dirs++;
+                const sub = copyDir(srcPath, destPath);
+                files += sub.files; dirs += sub.dirs;
+            } else if (!fs.existsSync(destPath)) {
+                fs.copyFileSync(srcPath, destPath);
+                files++;
             }
-        } catch (error) {
-            process.stderr.write(`   ❌ Failed to copy: ${error.message}\n`);
-            process.stderr.write(`   Stack: ${error.stack}\n`);
-            console.error(`   ❌ Failed to copy: ${error.message}`);
-            console.error(`   Stack: ${error.stack}`);
+        }
+        return { files, dirs };
+    };
+
+    const appOutDir = context.appOutDir;
+    if (!appOutDir || !fs.existsSync(appOutDir)) {
+        err(`❌ appOutDir not found: ${appOutDir}`);
+        return;
+    }
+
+    // Possible locations electron-builder may have placed .next/standalone
+    const candidates = [
+        { label: "extraResources", path: path.join(appOutDir, "resources", ".next", "standalone") },
+        { label: "asarUnpack",     path: path.join(appOutDir, "resources", "app.asar.unpacked", ".next", "standalone") },
+        { label: "extraFiles",     path: path.join(appOutDir, ".next", "standalone") },
+    ];
+
+    let handledAny = false;
+
+    for (const candidate of candidates) {
+        const hasServerJs = fs.existsSync(path.join(candidate.path, "server.js"));
+        const hasNodeModules = fs.existsSync(path.join(candidate.path, "node_modules"));
+
+        if (!hasServerJs && !hasNodeModules) {
+            log(`   Skipping ${candidate.label} (standalone not present)`);
+            continue;
+        }
+
+        log(`\n   Found standalone at ${candidate.label}: ${candidate.path}`);
+        log(`   server.js present: ${hasServerJs}`);
+        log(`   node_modules present: ${hasNodeModules}`);
+
+        if (!hasServerJs) {
+            // Partial copy — fill in everything
+            log(`   ⚠️ server.js missing, doing full copy...`);
+            const counts = copyDir(sourceStandalone, candidate.path);
+            log(`   ✅ Full copy: ${counts.files} files, ${counts.dirs} dirs`);
+            handledAny = true;
+            continue;
+        }
+
+        if (!hasNodeModules && fs.existsSync(sourceNodeModules)) {
+            // electron-builder skipped node_modules — copy it now
+            log(`   ⚠️ node_modules missing (electron-builder excluded it) — copying now...`);
+            const targetNm = path.join(candidate.path, "node_modules");
+            const counts = copyDir(sourceNodeModules, targetNm);
+            log(`   ✅ node_modules copied: ${counts.files} files, ${counts.dirs} dirs`);
+            handledAny = true;
+        } else if (hasNodeModules) {
+            log(`   ✅ standalone complete (server.js + node_modules present)`);
+            handledAny = true;
+        } else {
+            log(`   ⚠️ server.js present but no source node_modules to copy`);
+            handledAny = true;
         }
     }
 
-    if (copied) {
-        process.stdout.write(`\n✅ afterPack hook completed - files copied successfully\n`);
-        console.log(`\n✅ afterPack hook completed - files copied successfully\n`);
+    if (!handledAny) {
+        // Nothing was placed by electron-builder — do full copy to extraResources location
+        const targetExtraResources = path.join(appOutDir, "resources", ".next", "standalone");
+        log(`\n   ⚠️ No standalone found in any candidate path — manually copying to extraResources...`);
+        const counts = copyDir(sourceStandalone, targetExtraResources);
+        log(`   ✅ Full copy: ${counts.files} files, ${counts.dirs} dirs`);
+        handledAny = true;
+    }
+
+    // For Windows builds: replace the macOS better_sqlite3.node with the Win32 prebuilt.
+    // We do this after all copying so the replacement always wins.
+    if (context.electronPlatformName === "win32") {
+        const destNm = path.join(candidates[0].path, "node_modules");
+        if (fs.existsSync(destNm)) {
+            await replaceWindowsSqliteBinary(context, destNm, projectDir, log, err);
+        } else {
+            log("   ℹ️  node_modules not yet in dest — skipping Windows binary replacement");
+        }
+    }
+
+    // Final verification
+    const verify = candidates[0]; // extraResources is what main.cjs prefers
+    const ok = fs.existsSync(path.join(verify.path, "server.js")) &&
+               fs.existsSync(path.join(verify.path, "node_modules"));
+    if (ok) {
+        log(`\n✅ afterPack hook completed — standalone ready at: ${verify.path}`);
     } else {
-        process.stderr.write(`\n⚠️ afterPack hook completed - no files were copied\n`);
-        console.error(`\n⚠️ afterPack hook completed - no files were copied\n`);
+        err(`\n⚠️ afterPack hook completed — verification incomplete at: ${verify.path}`);
     }
 };
-
