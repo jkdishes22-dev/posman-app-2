@@ -466,6 +466,7 @@ const LoginForm = () => {
                 height={500}
                 className="m-2"
                 alt="logo"
+                unoptimized
               />
               <span className="text-muted display-4">PosMan</span>
             </div>
