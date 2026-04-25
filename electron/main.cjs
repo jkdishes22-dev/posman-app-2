@@ -397,19 +397,25 @@ function checkStartupBootstrapStatus() {
  * Create the main application window
  */
 function createWindow() {
-    // Try to find icon file (Windows uses .ico, macOS/Linux use .png)
+    // Try to find icon file (Windows uses .ico, macOS/Linux use .png).
+    // In a packaged app main.cjs lives inside app.asar, so __dirname is a virtual asar
+    // path — fs calls resolve inside the archive, not the real filesystem. The icons are
+    // copied as extraFiles to {appDir}/public/icons (outside the asar), so we must use
+    // process.resourcesPath (= {appDir}/resources) to reach the app root.
     const fs = require("fs");
     let iconPath = null;
-    const iconDir = path.join(__dirname, "../public/icons");
+    const iconDir = app.isPackaged
+        ? path.join(process.resourcesPath, "..", "public", "icons")
+        : path.join(__dirname, "../public/icons");
 
     if (process.platform === "win32") {
-        // Windows: prefer .ico, fallback to .png
-        const icoPath = path.join(iconDir, "JKlogo-512.ico");
-        const pngPath = path.join(iconDir, "JKlogo-512.png");
+        // Windows: prefer .ico for best taskbar quality, fallback to .png
+        const icoPath = path.join(iconDir, "JK-icon.ico");
+        const pngPath = path.join(iconDir, "JK-icon.png");
         iconPath = fs.existsSync(icoPath) ? icoPath : (fs.existsSync(pngPath) ? pngPath : null);
     } else {
         // macOS/Linux: use .png
-        const pngPath = path.join(iconDir, "JKlogo-512.png");
+        const pngPath = path.join(iconDir, "JK-icon.png");
         iconPath = fs.existsSync(pngPath) ? pngPath : null;
     }
 

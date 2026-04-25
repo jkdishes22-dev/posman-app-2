@@ -7,7 +7,7 @@ module.exports = {
   productName: "JK PosMan",
   copyright: "Copyright © 2024 JK PosMan",
 
-  icon: "public/icons/JKlogo-512.png",
+  icon: "public/icons/JK-icon.png",
 
   directories: {
     output: "dist-electron",
@@ -51,7 +51,7 @@ module.exports = {
   // Windows configuration — x64 only (all supported Win 10+ machines are 64-bit)
   win: {
     target: [{ target: "nsis", arch: ["x64"] }],
-    icon: "public/icons/JKlogo-512.png",
+    icon: "public/icons/JK-icon.ico",
     requestedExecutionLevel: "asInvoker",
     signAndEditExecutable: false,
     // Signing of the NSIS installer is controlled via CSC_LINK / CSC_KEY_PASSWORD env vars.
@@ -79,7 +79,7 @@ module.exports = {
       { target: "dmg", arch: ["x64", "arm64"] },
       { target: "zip", arch: ["x64", "arm64"] },
     ],
-    icon: "public/icons/JKlogo-512.png",
+    icon: "public/icons/JK-icon.png",
     category: "public.app-category.business",
     hardenedRuntime: true,
     gatekeeperAssess: false,
@@ -93,7 +93,7 @@ module.exports = {
       { x: 130, y: 150, type: "file" },
     ],
     window: { width: 540, height: 380 },
-    icon: "public/icons/JKlogo-512.png",
+    icon: "public/icons/JK-icon.png",
   },
 
   // Linux configuration

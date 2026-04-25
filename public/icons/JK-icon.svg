@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- JK circular emblem — app icon (no utensils, no "Dishes" wordmark) -->
+
+  <!-- Dark charcoal circle (left) -->
+  <circle cx="190" cy="256" r="182" fill="#1C1C1C"/>
+
+  <!-- Gold amber circle (right) -->
+  <circle cx="320" cy="256" r="174" fill="#D4A020"/>
+
+  <!-- J — white, serif bold, centred in the dark circle -->
+  <text
+    x="176"
+    y="256"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="255"
+    font-weight="bold"
+    fill="#FFFFFF"
+    text-anchor="middle"
+    dominant-baseline="central">J</text>
+
+  <!-- K — white, serif bold, centred in the gold circle -->
+  <text
+    x="334"
+    y="256"
+    font-family="Georgia, 'Times New Roman', serif"
+    font-size="245"
+    font-weight="bold"
+    fill="#FFFFFF"
+    text-anchor="middle"
+    dominant-baseline="central">K</text>
+</svg>
