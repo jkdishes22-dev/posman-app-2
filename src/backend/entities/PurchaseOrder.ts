@@ -2,7 +2,6 @@ import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Index } from "typeorm
 import { BaseEntity } from "./BaseEntity";
 import { Supplier } from "./Supplier";
 import type { PurchaseOrderItem } from "./PurchaseOrderItem";
-import { EntityRef } from "./entity-refs";
 import { enumColType } from "./column-types";
 
 export enum PurchaseOrderStatus {
@@ -47,7 +46,8 @@ export class PurchaseOrder extends BaseEntity {
     @Column({ type: "text", nullable: true })
     notes: string;
 
-    @OneToMany(() => EntityRef.get("PurchaseOrderItem"), (poItem: any) => poItem.purchase_order)
+    // Resolved by table name to avoid class-reference fragility in webpack bundles.
+    @OneToMany("purchase_order_item", (poItem: PurchaseOrderItem) => poItem.purchase_order)
     items: PurchaseOrderItem[];
 }
 

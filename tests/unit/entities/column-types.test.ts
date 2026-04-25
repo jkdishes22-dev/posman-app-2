@@ -5,7 +5,7 @@ import { join } from "path";
 const ENTITY_DIR = join(process.cwd(), "src/backend/entities");
 
 // Helpers that don't contribute to the column-type mapping
-const EXCLUDED_FILES = new Set(["column-types.ts", "entity-refs.ts", "BaseEntity.ts"]);
+const EXCLUDED_FILES = new Set(["column-types.ts", "BaseEntity.ts"]);
 
 afterEach(() => {
   vi.resetModules();
