@@ -12,21 +12,19 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 
     try {
-        await authMiddleware(
-            authorize([permissions.CAN_VIEW_STATION])(async (req, res) => {
-                const stationService = new StationService(req.db);
-                const { status } = req.query;
+        await authorize([permissions.CAN_VIEW_STATION])(async (req, res) => {
+            const stationService = new StationService(req.db);
+            const { status } = req.query;
 
-                let stations;
-                if (status === "enabled") {
-                    stations = await stationService.getEnabledStations();
-                } else {
-                    stations = await stationService.getAllStations();
-                }
+            let stations;
+            if (status === "enabled") {
+                stations = await stationService.getEnabledStations();
+            } else {
+                stations = await stationService.getAllStations();
+            }
 
-                res.status(200).json(stations);
-            })
-        )(req, res);
+            res.status(200).json(stations);
+        })(req, res);
     } catch (error: any) {
         console.error("Station API error:", error);
         res.status(500).json({ message: "Some error occurred. Please try again." });

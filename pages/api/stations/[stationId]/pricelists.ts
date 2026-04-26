@@ -21,103 +21,97 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     switch (req.method) {
       case "GET":
         // Get all pricelists for a station
-        await authMiddleware(
-          authorize([permissions.CAN_VIEW_PRICELIST])(async (req, res) => {
-            // Check cache first (using shared cache utility)
-            const cacheKey = `api_station_pricelists_${stationId}`;
-            const cached = cache.get<any>(cacheKey);
-            if (cached !== null) {
-              // Set cache headers for browser caching (longer TTL for better performance)
-              res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-              res.setHeader("ETag", `"station-pricelists-${stationId}"`);
-              return res.status(200).json(cached);
-            }
-
-            const pricelistService = new PricelistService(req.db);
-            const stationService = new StationService(req.db);
-
-            // Fetch pricelists and station name in parallel
-            const [pricelists, station] = await Promise.all([
-              pricelistService.getPricelistsByStation(Number(stationId)),
-              stationService.getStationById(Number(stationId))
-            ]);
-
-            // Transform the data to match the expected format
-            const transformedPricelists = pricelists.map(pricelist => ({
-              id: pricelist.id,
-              name: pricelist.name,
-              status: pricelist.status,
-              is_default: pricelist.is_default,
-              description: pricelist.description || null,
-              station: {
-                id: stationId,
-                name: station?.name || `Station ${stationId}`
-              }
-            }));
-
-            const response = {
-              message: "Pricelists fetched successfully",
-              pricelists: transformedPricelists
-            };
-
-            // Cache the result (using shared cache utility)
-            cache.set(cacheKey, response);
-
-            // Set cache headers (longer TTL for better performance)
+        await authorize([permissions.CAN_VIEW_PRICELIST])(async (req, res) => {
+          // Check cache first (using shared cache utility)
+          const cacheKey = `api_station_pricelists_${stationId}`;
+          const cached = cache.get<any>(cacheKey);
+          if (cached !== null) {
+            // Set cache headers for browser caching (longer TTL for better performance)
             res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
             res.setHeader("ETag", `"station-pricelists-${stationId}"`);
+            return res.status(200).json(cached);
+          }
 
-            res.status(200).json(response);
-          })
-        )(req, res);
+          const pricelistService = new PricelistService(req.db);
+          const stationService = new StationService(req.db);
+
+          // Fetch pricelists and station name in parallel
+          const [pricelists, station] = await Promise.all([
+            pricelistService.getPricelistsByStation(Number(stationId)),
+            stationService.getStationById(Number(stationId))
+          ]);
+
+          // Transform the data to match the expected format
+          const transformedPricelists = pricelists.map(pricelist => ({
+            id: pricelist.id,
+            name: pricelist.name,
+            status: pricelist.status,
+            is_default: pricelist.is_default,
+            description: pricelist.description || null,
+            station: {
+              id: stationId,
+              name: station?.name || `Station ${stationId}`
+            }
+          }));
+
+          const response = {
+            message: "Pricelists fetched successfully",
+            pricelists: transformedPricelists
+          };
+
+          // Cache the result (using shared cache utility)
+          cache.set(cacheKey, response);
+
+          // Set cache headers (longer TTL for better performance)
+          res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+          res.setHeader("ETag", `"station-pricelists-${stationId}"`);
+
+          res.status(200).json(response);
+        })(req, res);
         break;
 
       case "POST":
         // Link a pricelist to a station
-        await authMiddleware(
-          authorize([permissions.CAN_EDIT_STATION_PRICELIST])(async (req, res) => {
-            const { pricelistId } = req.body;
+        await authorize([permissions.CAN_EDIT_STATION_PRICELIST])(async (req, res) => {
+          const { pricelistId } = req.body;
 
-            if (!pricelistId || isNaN(Number(pricelistId))) {
-              return res.status(400).json({ message: "Invalid pricelist ID" });
-            }
+          if (!pricelistId || isNaN(Number(pricelistId))) {
+            return res.status(400).json({ message: "Invalid pricelist ID" });
+          }
 
-            await stationService.linkPricelistToStation(Number(stationId), Number(pricelistId));
+          await stationService.linkPricelistToStation(Number(stationId), Number(pricelistId));
 
-            // Invalidate cache after linking pricelist
-            cache.invalidate(`api_station_pricelists_${stationId}`);
-            cache.invalidate(`station_pricelists_${stationId}`);
-            cache.invalidate(`station_${stationId}`);
+          // Invalidate cache after linking pricelist
+          cache.invalidate(`api_station_pricelists_${stationId}`);
+          cache.invalidate(`station_pricelists_${stationId}`);
+          cache.invalidate(`station_${stationId}`);
 
-            res.status(200).json({
-              message: "Pricelist linked to station successfully"
-            });
-          })
-        )(req, res);
+          res.status(200).json({
+            message: "Pricelist linked to station successfully"
+          });
+        })(req, res);
         break;
 
       case "DELETE":
         // Unlink a pricelist from a station
-        await authMiddleware(
-          authorize([permissions.CAN_EDIT_STATION_PRICELIST])(async (req, res) => {
-            const { pricelistId } = req.query;
+        await authorize([permissions.CAN_EDIT_STATION_PRICELIST])(async (req, res) => {
+          const { pricelistId } = req.query;
 
-            if (!pricelistId || isNaN(Number(pricelistId))) {
-              return res.status(400).json({ message: "Invalid pricelist ID" });
-            }
+          if (!pricelistId || isNaN(Number(pricelistId))) {
+            return res.status(400).json({ message: "Invalid pricelist ID" });
+          }
 
-            await stationService.unlinkPricelistFromStation(Number(stationId), Number(pricelistId));
+          await stationService.unlinkPricelistFromStation(Number(stationId), Number(pricelistId));
 
-            // Invalidate cache after unlinking pricelist
-            cache.invalidate(`api_station_pricelists_${stationId}`);
-            cache.invalidate(`station_pricelists_${stationId}`);
-            cache.invalidate(`station_${stationId}`);
+          // Invalidate cache after unlinking pricelist
+          cache.invalidate(`api_station_pricelists_${stationId}`);
+          cache.invalidate(`station_pricelists_${stationId}`);
+          cache.invalidate(`station_${stationId}`);
 
-            res.status(200).json({
-              message: "Pricelist unlinked from station successfully"
-            });
-          })
-        )(req, res);
+          res.status(200).json({
+            message: "Pricelist unlinked from station successfully"
+          });
+        })(req, res);
         break;
 
       default:

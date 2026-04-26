@@ -12,13 +12,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 
     try {
-        await authMiddleware(
-            authorize([permissions.CAN_VIEW_ITEM])(async (req, res) => {
-                const productionController = new ProductionController(req.db);
-                const items = await productionController.fetchProductionItems();
-                res.status(200).json(items);
-            })
-        )(req, res);
+        await authorize([permissions.CAN_VIEW_ITEM])(async (req, res) => {
+            const productionController = new ProductionController(req.db);
+            const items = await productionController.fetchProductionItems();
+            res.status(200).json(items);
+        })(req, res);
     } catch (error: any) {
         console.error("Items API error:", error);
         res.status(500).json({ message: "Some error occurred. Please try again." });

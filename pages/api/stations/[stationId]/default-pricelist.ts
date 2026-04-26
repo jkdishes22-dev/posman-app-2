@@ -18,32 +18,28 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         switch (req.method) {
             case "POST":
                 // Set a pricelist as default for a station
-                await authMiddleware(
-                    authorize([permissions.CAN_EDIT_STATION_PRICELIST])(async (req, res) => {
-                        const { pricelistId } = req.body;
+                await authorize([permissions.CAN_EDIT_STATION_PRICELIST])(async (req, res) => {
+                    const { pricelistId } = req.body;
 
-                        if (!pricelistId || isNaN(Number(pricelistId))) {
-                            return res.status(400).json({ message: "Invalid pricelist ID" });
-                        }
+                    if (!pricelistId || isNaN(Number(pricelistId))) {
+                        return res.status(400).json({ message: "Invalid pricelist ID" });
+                    }
 
-                        await stationService.setDefaultPricelist(Number(stationId), Number(pricelistId));
-                        res.status(200).json({
-                            message: "Default pricelist set successfully"
-                        });
-                    })
-                )(req, res);
+                    await stationService.setDefaultPricelist(Number(stationId), Number(pricelistId));
+                    res.status(200).json({
+                        message: "Default pricelist set successfully"
+                    });
+                })(req, res);
                 break;
 
             case "DELETE":
                 // Remove default pricelist for a station
-                await authMiddleware(
-                    authorize([permissions.CAN_EDIT_STATION_PRICELIST])(async (req, res) => {
-                        await stationService.removeDefaultPricelist(Number(stationId));
-                        res.status(200).json({
-                            message: "Default pricelist removed successfully"
-                        });
-                    })
-                )(req, res);
+                await authorize([permissions.CAN_EDIT_STATION_PRICELIST])(async (req, res) => {
+                    await stationService.removeDefaultPricelist(Number(stationId));
+                    res.status(200).json({
+                        message: "Default pricelist removed successfully"
+                    });
+                })(req, res);
                 break;
 
             default:

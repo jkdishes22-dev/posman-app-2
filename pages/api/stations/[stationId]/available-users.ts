@@ -18,15 +18,13 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         switch (req.method) {
             case "GET":
                 // Get available users (not yet linked to this station)
-                await authMiddleware(
-                    authorize([permissions.CAN_VIEW_STATION])(async (req, res) => {
-                        const availableUsers = await stationService.getAvailableUsers(Number(stationId));
-                        res.status(200).json({
-                            message: "Available users fetched successfully",
-                            users: availableUsers
-                        });
-                    })
-                )(req, res);
+                await authorize([permissions.CAN_VIEW_STATION])(async (req, res) => {
+                    const availableUsers = await stationService.getAvailableUsers(Number(stationId));
+                    res.status(200).json({
+                        message: "Available users fetched successfully",
+                        users: availableUsers
+                    });
+                })(req, res);
                 break;
 
             default:

@@ -18,86 +18,78 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     try {
         switch (req.method) {
             case "GET":
-                await authMiddleware(
-                    authorize([permissions.CAN_VIEW_STATION])(fetchStationUsersHandler),
-                )(req, res);
+                await authorize([permissions.CAN_VIEW_STATION])(fetchStationUsersHandler)(req, res);
                 break;
 
             case "POST":
                 // Add a user to a station
-                await authMiddleware(
-                    authorize([permissions.CAN_EDIT_USER_STATION])(async (req, res) => {
-                        const { userId } = req.body;
+                await authorize([permissions.CAN_EDIT_USER_STATION])(async (req, res) => {
+                    const { userId } = req.body;
 
-                        if (!userId || isNaN(Number(userId))) {
-                            return res.status(400).json({ message: "Invalid user ID" });
-                        }
+                    if (!userId || isNaN(Number(userId))) {
+                        return res.status(400).json({ message: "Invalid user ID" });
+                    }
 
-                        await stationService.addUserToStation(
-                            Number(stationId),
-                            Number(userId)
-                        );
+                    await stationService.addUserToStation(
+                        Number(stationId),
+                        Number(userId)
+                    );
 
-                        res.status(200).json({
-                            message: "User added to station successfully"
-                        });
-                    })
-                )(req, res);
+                    res.status(200).json({
+                        message: "User added to station successfully"
+                    });
+                })(req, res);
                 break;
 
             case "DELETE":
                 // Remove a user from a station
-                await authMiddleware(
-                    authorize([permissions.CAN_EDIT_USER_STATION])(async (req, res) => {
-                        const { userId } = req.query;
+                await authorize([permissions.CAN_EDIT_USER_STATION])(async (req, res) => {
+                    const { userId } = req.query;
 
-                        if (!userId || isNaN(Number(userId))) {
-                            return res.status(400).json({ message: "Invalid user ID" });
-                        }
+                    if (!userId || isNaN(Number(userId))) {
+                        return res.status(400).json({ message: "Invalid user ID" });
+                    }
 
-                        await stationService.removeUserFromStation(
-                            Number(stationId),
-                            Number(userId)
-                        );
+                    await stationService.removeUserFromStation(
+                        Number(stationId),
+                        Number(userId)
+                    );
 
-                        res.status(200).json({
-                            message: "User removed from station successfully"
-                        });
-                    })
-                )(req, res);
+                    res.status(200).json({
+                        message: "User removed from station successfully"
+                    });
+                })(req, res);
                 break;
 
             case "PATCH":
                 // Activate/Deactivate a user for a station
-                await authMiddleware(
-                    authorize([permissions.CAN_EDIT_USER_STATION])(async (req, res) => {
-                        const { userId, action } = req.body;
+                await authorize([permissions.CAN_EDIT_USER_STATION])(async (req, res) => {
+                    const { userId, action } = req.body;
 
-                        if (!userId || isNaN(Number(userId))) {
-                            return res.status(400).json({ message: "Invalid user ID" });
-                        }
+                    if (!userId || isNaN(Number(userId))) {
+                        return res.status(400).json({ message: "Invalid user ID" });
+                    }
 
-                        if (action === "deactivate") {
-                            await stationService.disableUserFromStation(
-                                Number(stationId),
-                                Number(userId)
-                            );
-                            res.status(200).json({
-                                message: "User deactivated for station successfully"
-                            });
-                        } else if (action === "activate") {
-                            await stationService.enableUserForStation(
-                                Number(stationId),
-                                Number(userId)
-                            );
-                            res.status(200).json({
-                                message: "User activated for station successfully"
-                            });
-                        } else {
-                            res.status(400).json({ message: "Invalid action. Use 'activate' or 'deactivate'" });
-                        }
-                    })
-                )(req, res);
+                    if (action === "deactivate") {
+                        await stationService.disableUserFromStation(
+                            Number(stationId),
+                            Number(userId)
+                        );
+                        res.status(200).json({
+                            message: "User deactivated for station successfully"
+                        });
+                    } else if (action === "activate") {
+                        await stationService.enableUserForStation(
+                            Number(stationId),
+                            Number(userId)
+                        );
+                        res.status(200).json({
+                            message: "User activated for station successfully"
+                        });
+                    } else {
+                        res.status(400).json({ message: "Invalid action. Use 'activate' or 'deactivate'" });
+                    }
+                })(req, res);
                 break;
 
             default:

@@ -48,7 +48,6 @@ export class NotificationService {
         const query = this.notificationRepository
             .createQueryBuilder("notification")
             .leftJoinAndSelect("notification.user", "user")
-            .leftJoinAndSelect("notification.createdBy", "createdBy")
             .where("notification.user_id = :userId", { userId })
             .orderBy("notification.created_at", "DESC")
             .limit(limit)
