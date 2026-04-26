@@ -18,6 +18,10 @@ const permissions = {
     CAN_DELETE_BILL_ITEM: "can_delete_bill_item",
     CAN_VIEW_BILL_ITEM: "can_view_bill_item",
 
+    // Approval actions (supervisor-only)
+    CAN_APPROVE_VOID: "can_approve_void",
+    CAN_APPROVE_CHANGE_REQUEST: "can_approve_change_request",
+
     // Bill Payment
     CAN_ADD_BILL_PAYMENT: "can_add_bill_payment",
     CAN_EDIT_BILL_PAYMENT: "can_edit_bill_payment",
@@ -35,6 +39,7 @@ const permissions = {
     CAN_EDIT_INVENTORY: "can_edit_inventory",
     CAN_DELETE_INVENTORY: "can_delete_inventory",
     CAN_VIEW_INVENTORY: "can_view_inventory",
+    CAN_ADJUST_INVENTORY: "can_adjust_inventory",
 
     // Item
     CAN_ADD_ITEM: "can_add_item",

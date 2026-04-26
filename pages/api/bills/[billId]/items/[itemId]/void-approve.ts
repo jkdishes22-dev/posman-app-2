@@ -51,7 +51,7 @@ const approveVoidRequest = async (req: NextApiRequest, res: NextApiResponse) => 
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "POST") {
-        return authMiddleware(authorize([permissions.CAN_EDIT_BILL, permissions.CAN_EDIT_BILL_ITEM])(approveVoidRequest))(
+        return authMiddleware(authorize([permissions.CAN_APPROVE_VOID])(approveVoidRequest))(
             req,
             res,
         );

@@ -13,7 +13,6 @@ interface DashboardSummary {
   pendingBills: number;
   closedBills: number;
   totalRevenue: number;
-  pendingVoidRequests: number;
   todayRevenue: number;
   averageBillValue: number;
 }
@@ -28,7 +27,6 @@ const CashierDashboard = () => {
     pendingBills: 0,
     closedBills: 0,
     totalRevenue: 0,
-    pendingVoidRequests: 0,
     todayRevenue: 0,
     averageBillValue: 0,
   });
@@ -61,9 +59,6 @@ const CashierDashboard = () => {
         const totalBills = bills.length;
         const pendingBills = bills.filter(bill => bill.status === "submitted" || bill.status === "reopened").length;
         const closedBills = bills.filter(bill => bill.status === "closed").length;
-        const pendingVoidRequests = bills.filter(bill =>
-          bill.bill_items?.some(item => item.status === "void_pending")
-        ).length;
 
         const totalRevenue = bills
           .filter(bill => bill.status === "closed")
@@ -80,7 +75,6 @@ const CashierDashboard = () => {
           pendingBills,
           closedBills,
           totalRevenue,
-          pendingVoidRequests,
           todayRevenue,
           averageBillValue,
         });
@@ -100,9 +94,6 @@ const CashierDashboard = () => {
     switch (action) {
       case "bills":
         router.push("/home/cashier/bills");
-        break;
-      case "void-requests":
-        router.push("/home/cashier/void-requests");
         break;
       default:
         break;
@@ -259,33 +250,6 @@ const CashierDashboard = () => {
           <Card
             className="h-100 border-0 shadow-sm"
             style={{ cursor: "pointer" }}
-            onClick={() => router.push("/home/cashier/void-requests")}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.15)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
-            }}
-            data-bs-toggle="tooltip"
-            data-bs-placement="top"
-            title="Review and process pending void requests"
-          >
-            <Card.Body className="text-center">
-              <div className="d-flex align-items-center justify-content-center mb-2">
-                <i className="bi bi-exclamation-triangle text-danger fs-1"></i>
-              </div>
-              <h3 className="text-danger mb-1">{summary.pendingVoidRequests}</h3>
-              <p className="text-muted mb-0">Pending Void Requests</p>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col md={4} className="mb-3">
-          <Card
-            className="h-100 border-0 shadow-sm"
-            style={{ cursor: "pointer" }}
             onClick={() => router.push("/home/cashier/bills?status=closed")}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = "translateY(-2px)";
@@ -362,21 +326,6 @@ const CashierDashboard = () => {
                     </Badge>
                   </Button>
                 </Col>
-
-                <Col md={6} className="mb-3">
-                  <Button
-                    variant="warning"
-                    size="lg"
-                    className="w-100 d-flex align-items-center justify-content-center gap-2"
-                    onClick={() => handleQuickAction("void-requests")}
-                  >
-                    <i className="bi bi-exclamation-triangle"></i>
-                    Void Requests
-                    <Badge bg="light" text="dark" className="ms-2">
-                      {summary.pendingVoidRequests}
-                    </Badge>
-                  </Button>
-                </Col>
               </Row>
             </Card.Body>
           </Card>
@@ -384,26 +333,6 @@ const CashierDashboard = () => {
       </Row>
 
       {/* Alerts for Important Information */}
-      {summary.pendingVoidRequests > 0 && (
-        <Alert variant="warning" className="mt-4">
-          <Alert.Heading>
-            <i className="bi bi-exclamation-triangle me-2"></i>
-            Action Required
-          </Alert.Heading>
-          <p className="mb-0">
-            You have <strong>{summary.pendingVoidRequests}</strong> pending void request{summary.pendingVoidRequests > 1 ? "s" : ""} that need your attention.
-            <Button
-              variant="outline-warning"
-              size="sm"
-              className="ms-2"
-              onClick={() => handleQuickAction("void-requests")}
-            >
-              Review Now
-            </Button>
-          </p>
-        </Alert>
-      )}
-
       {summary.pendingBills > 0 && (
         <Alert variant="info" className="mt-3">
           <Alert.Heading>

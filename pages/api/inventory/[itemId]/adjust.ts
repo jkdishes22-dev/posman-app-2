@@ -8,7 +8,7 @@ import { withMiddleware } from "@backend/middleware/middleware-util";
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
     return authMiddleware(
-      authorize([permissions.CAN_EDIT_INVENTORY])(adjustInventoryHandler),
+      authorize([permissions.CAN_ADJUST_INVENTORY])(adjustInventoryHandler),
     )(req, res);
   } else {
     res.setHeader("Allow", ["POST"]);
