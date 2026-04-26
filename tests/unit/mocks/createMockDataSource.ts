@@ -58,6 +58,7 @@ export function createMockRepository<T = any>() {
   const repo: any = {
     create: vi.fn().mockImplementation((data: any) => ({ ...data })),
     save: vi.fn().mockResolvedValue({}),
+    insert: vi.fn().mockResolvedValue({ identifiers: [{ id: 1 }] }),
     find: vi.fn().mockResolvedValue([]),
     findOne: vi.fn().mockResolvedValue(null),
     findOneBy: vi.fn().mockResolvedValue(null),

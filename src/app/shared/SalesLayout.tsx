@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
+import AppVersion from "../components/AppVersion";
 import StationSwitcher from "../components/StationSwitcher";
 import HelpMenu from "../components/HelpMenu";
 import { AuthError } from "../types/types";
@@ -178,8 +179,11 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
 
 
                 {/* Logout */}
-                <div className="p-3 border-top">
-                    <LogoutButton />
+                <div className="border-top">
+                    <AppVersion isCollapsed={isCollapsed} />
+                    <div className="p-3">
+                        <LogoutButton />
+                    </div>
                 </div>
             </div>
 

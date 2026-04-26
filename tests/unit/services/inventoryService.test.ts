@@ -144,10 +144,8 @@ describe("InventoryService", () => {
 
   describe("addInventoryFromProduction", () => {
     it("creates new inventory record when none exists and adds quantity", async () => {
-      const newInventory = { id: 1, item_id: 1, quantity: 5, reserved_quantity: 0 };
-      mockInventoryRepo.findOne
-        .mockResolvedValueOnce(null) // initial lookup → not found
-        .mockResolvedValueOnce(newInventory); // lookup after insert
+      mockInventoryRepo.findOne.mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 1, item_id: 1, quantity: 5, reserved_quantity: 0 });
 
       await service.addInventoryFromProduction(1, 5, 10, 1);
 
