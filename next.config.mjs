@@ -24,6 +24,10 @@ const nextConfig = {
     // "p", "q", etc. and can no longer be matched by name or constructor reference).
     // Externalising these packages ensures a single shared module instance and intact names.
     serverExternalPackages: ['typeorm', 'better-sqlite3', 'reflect-metadata'],
+    experimental: {
+        // Prevent server bundle class-name mangling that breaks TypeORM targetName lookups.
+        serverMinification: false,
+    },
     // Include SQLite migration files in standalone output so TypeORM can find them at runtime.
     // Must be top-level (not under experimental) in Next.js 15+.
     outputFileTracingIncludes: {
