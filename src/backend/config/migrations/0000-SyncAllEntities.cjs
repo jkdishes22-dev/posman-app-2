@@ -363,6 +363,7 @@ module.exports = class SyncAllEntitiesConsolidated1700000000000 {
                 \`status\` enum('unread','read','archived') NOT NULL DEFAULT 'unread',
                 \`user_id\` int unsigned NOT NULL,
                 \`created_by\` int unsigned DEFAULT NULL,
+                \`updated_by\` int unsigned DEFAULT NULL,
                 \`created_at\` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 \`updated_at\` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (\`id\`),
@@ -792,6 +793,9 @@ module.exports = class SyncAllEntitiesConsolidated1700000000000 {
     if (!(await cx("reopen_reasons", "updated_by"))) {
       await queryRunner.query(`ALTER TABLE \`reopen_reasons\` ADD COLUMN \`updated_by\` int unsigned DEFAULT NULL`);
     }
+    if (!(await cx("notifications", "updated_by"))) {
+      await queryRunner.query(`ALTER TABLE \`notifications\` ADD COLUMN \`updated_by\` int unsigned DEFAULT NULL`);
+    }
 
     await queryRunner.query(
       `ALTER TABLE \`payment\` MODIFY COLUMN \`reference\` varchar(255) DEFAULT NULL`,
@@ -845,6 +849,11 @@ module.exports = class SyncAllEntitiesConsolidated1700000000000 {
     if (!(await ix("inventory", "IDX_inventory_quantity_composite"))) {
       await queryRunner.query(
         `CREATE INDEX \`IDX_inventory_quantity_composite\` ON \`inventory\` (\`quantity\`, \`reserved_quantity\`)`,
+      );
+    }
+    if (!(await ix("notifications", "IDX_notifications_user_status"))) {
+      await queryRunner.query(
+        `CREATE INDEX \`IDX_notifications_user_status\` ON \`notifications\` (\`user_id\`, \`status\`)`,
       );
     }
 

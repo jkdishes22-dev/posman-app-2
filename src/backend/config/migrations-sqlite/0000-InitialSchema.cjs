@@ -331,6 +331,7 @@ module.exports = class InitialSchemaSqlite1700000000000 {
         "status" TEXT NOT NULL DEFAULT 'unread',
         "user_id" INTEGER NOT NULL,
         "created_by" INTEGER DEFAULT NULL,
+        "updated_by" INTEGER DEFAULT NULL,
         "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updated_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY ("user_id") REFERENCES "user" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
@@ -673,6 +674,7 @@ module.exports = class InitialSchemaSqlite1700000000000 {
 
     // notifications
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "FK_notifications_user" ON "notifications" ("user_id")`);
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_notifications_user_status" ON "notifications" ("user_id", "status")`);
   }
 
   async down(queryRunner) {
