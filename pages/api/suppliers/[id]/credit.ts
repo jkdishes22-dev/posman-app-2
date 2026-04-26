@@ -7,12 +7,10 @@ import { withMiddleware } from "@backend/middleware/middleware-util";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "POST") {
-        return authMiddleware(
-            authorize([permissions.CAN_ADD_SUPPLIER_PAYMENT])(recordSupplierCreditHandler),
-        )(req, res);
+        return authorize([permissions.CAN_ADD_SUPPLIER_PAYMENT])(recordSupplierCreditHandler)(req, res);
     }
     res.setHeader("Allow", ["POST"]);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

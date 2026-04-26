@@ -19,7 +19,6 @@ const requestVoidItem = async (req: NextApiRequest, res: NextApiResponse) => {
         const billService = new BillService(req.db);
         const userId = parseInt(req.user?.id as string);
 
-        // Request void for the item
         const result = await billService.requestVoidItem(
             parseInt(billId as string),
             parseInt(itemId as string),
@@ -43,14 +42,11 @@ const requestVoidItem = async (req: NextApiRequest, res: NextApiResponse) => {
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "POST") {
-        return authMiddleware(authorize([permissions.CAN_EDIT_BILL])(requestVoidItem))(
-            req,
-            res,
-        );
+        return authorize([permissions.CAN_EDIT_BILL])(requestVoidItem)(req, res);
     } else {
         res.setHeader("Allow", ["POST"]);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
+        res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

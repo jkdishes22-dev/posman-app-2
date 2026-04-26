@@ -10,7 +10,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     return authorize([permissions.CAN_ADD_BILL_PAYMENT])(submitBill)(req, res);
   }
   res.setHeader("Allow", ["POST"]);
-  return res.status(405).end(`Method ${req.method} Not Allowed`);
+  return res.status(405).json({ error: `Method ${req.method} not allowed` });
 };
 
 export default withMiddleware(dbMiddleware, authMiddleware)(handler);

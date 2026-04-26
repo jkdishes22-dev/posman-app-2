@@ -9,19 +9,18 @@ import path from "path";
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method !== "POST") {
         res.setHeader("Allow", ["POST"]);
-        return res.status(405).end(`Method ${req.method} Not Allowed`);
+        return res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 
-    return authMiddleware(
-        authorize([permissions.CAN_VIEW_PERMISSION])(async (req: NextApiRequest, res: NextApiResponse) => {
+    return authorize([permissions.CAN_VIEW_PERMISSION])(async (request: NextApiRequest, response: NextApiResponse) => {
             try {
                 const dbPath = process.env.SQLITE_DB_PATH;
                 if (!dbPath) {
-                    return res.status(400).json({ error: "Backup is only available in SQLite mode" });
+                    return response.status(400).json({ error: "Backup is only available in SQLite mode" });
                 }
 
                 if (!fs.existsSync(dbPath)) {
-                    return res.status(404).json({ error: "Database file not found" });
+                    return response.status(404).json({ error: "Database file not found" });
                 }
 
                 const backupDir = path.join(path.dirname(dbPath), "backups");
@@ -41,7 +40,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     fs.copyFileSync(walPath, backupPath + "-wal");
                 }
 
-                return res.status(200).json({
+                return response.status(200).json({
                     success: true,
                     path: backupPath,
                     date: today,
@@ -49,10 +48,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 });
             } catch (error: any) {
                 console.error("[backup] Failed:", error.message);
-                return res.status(500).json({ error: "Some error occurred. Please try again." });
+                return response.status(500).json({ error: "Some error occurred. Please try again." });
             }
-        })
-    )(req, res);
+        })(req, res);
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

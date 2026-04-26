@@ -12,37 +12,25 @@ import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
-    return authMiddleware(authorize([permissions.CAN_ADD_BILL])(createBill))(
-      req,
-      res,
-    );
+    return authorize([permissions.CAN_ADD_BILL])(createBill)(req, res);
   }
 
   if (req.method === "GET") {
-    return authMiddleware(authorize([permissions.CAN_VIEW_BILL])(fetchBills))(
-      req,
-      res,
-    );
+    return authorize([permissions.CAN_VIEW_BILL])(fetchBills)(req, res);
   }
 
   if (req.method === "PATCH") {
     const { action } = req.query;
     if (action === "cancel") {
-      return authMiddleware(authorize([permissions.CAN_CANCEL_BILL])(cancelBill))(
-        req,
-        res,
-      );
+      return authorize([permissions.CAN_CANCEL_BILL])(cancelBill)(req, res);
     }
     if (action === "voidItem") {
-      return authMiddleware(
-        authorize([permissions.CAN_EDIT_BILL])(voidBillItem),
-      )(req, res);
+      return authorize([permissions.CAN_EDIT_BILL])(voidBillItem)(req, res);
     }
   }
 
-  // Method not allowed
   res.setHeader("Allow", ["GET", "POST", "PATCH"]);
-  return res.status(405).end(`Method ${req.method} Not Allowed`);
+  return res.status(405).json({ error: `Method ${req.method} not allowed` });
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

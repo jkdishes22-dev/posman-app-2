@@ -9,10 +9,11 @@ import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   // await ensureMetadata("Item");
   if (req.method === "PATCH") {
-    await authMiddleware(
-      authorize([permissions.CAN_EDIT_ITEM])(updateItemHandler),
-    )(req, res);
+    await authorize([permissions.CAN_EDIT_ITEM])(updateItemHandler)(req, res);
+  } else {
+    res.setHeader("Allow", ["PATCH"]);
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

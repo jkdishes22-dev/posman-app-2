@@ -10,18 +10,14 @@ import { withMiddleware } from "@backend/middleware/middleware-util";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "GET") {
-        return authMiddleware(
-            authorize([permissions.CAN_VIEW_SUPPLIER])(fetchSuppliersHandler),
-        )(req, res);
+        return authorize([permissions.CAN_VIEW_SUPPLIER])(fetchSuppliersHandler)(req, res);
     } else if (req.method === "POST") {
-        return authMiddleware(
-            authorize([permissions.CAN_ADD_SUPPLIER])(createSupplierHandler),
-        )(req, res);
+        return authorize([permissions.CAN_ADD_SUPPLIER])(createSupplierHandler)(req, res);
     } else {
         res.setHeader("Allow", ["GET", "POST"]);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
+        res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);
 

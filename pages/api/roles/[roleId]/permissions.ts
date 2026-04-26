@@ -14,11 +14,7 @@ import { cache } from "@backend/utils/cache";
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   // await ensureMetadata("Permission");
   if (req.method === "GET") {
-    await authMiddleware(
-      authorize([permissions.CAN_VIEW_PERMISSION])(
-        fetchPermissionsByRoleHandler,
-      ),
-    )(req, res);
+    await authorize([permissions.CAN_VIEW_PERMISSION])(fetchPermissionsByRoleHandler)(req, res);
   } else if (req.method === "POST") {
     // Invalidate cache when adding permission to role
     const { roleId } = req.body;
@@ -27,9 +23,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       cache.invalidate("roles");
       cache.invalidate("api_roles");
     }
-    await authMiddleware(
-      authorize([permissions.CAN_ADD_PERMISSION])(addPermissionToRoleHandler),
-    )(req, res);
+    await authorize([permissions.CAN_ADD_PERMISSION])(addPermissionToRoleHandler)(req, res);
   } else if (req.method === "DELETE") {
     // Invalidate cache when removing permission from role
     const { roleId } = req.body;
@@ -38,13 +32,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       cache.invalidate("roles");
       cache.invalidate("api_roles");
     }
-    await authMiddleware(
-      authorize([permissions.CAN_DELETE_PERMISSION])(removePermissionFromRoleHandler),
-    )(req, res);
+    await authorize([permissions.CAN_DELETE_PERMISSION])(removePermissionFromRoleHandler)(req, res);
   } else {
     res.setHeader("Allow", ["GET", "POST", "DELETE"]);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

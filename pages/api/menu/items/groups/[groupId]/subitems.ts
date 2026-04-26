@@ -7,13 +7,11 @@ import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "GET") {
-        await authMiddleware(
-            authorize([permissions.CAN_VIEW_ITEM])(getSubItemsForPlatterHandler),
-        )(req, res);
+        await authorize([permissions.CAN_VIEW_ITEM])(getSubItemsForPlatterHandler)(req, res);
     } else {
         res.setHeader("Allow", ["GET"]);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
+        res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

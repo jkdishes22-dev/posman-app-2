@@ -8,17 +8,16 @@ import permissions from "@backend/config/permissions";
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== "GET") {
     res.setHeader("Allow", ["GET"]);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
+    return res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 
   try {
-    await authMiddleware(
-      authorize([permissions.CAN_VIEW_VOIDED_ITEMS_REPORT])(async (req, res) => {
-        const reportService = new ReportService(req.db);
-        const { startDate, endDate, itemId, userId } = req.query;
+    await authorize([permissions.CAN_VIEW_VOIDED_ITEMS_REPORT])(async (request, response) => {
+        const reportService = new ReportService(request.db);
+        const { startDate, endDate, itemId, userId } = request.query;
 
         if (!startDate || !endDate) {
-          return res.status(400).json({
+          return response.status(400).json({
             message: "Start date and end date are required",
           });
         }
@@ -31,9 +30,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         };
 
         const report = await reportService.getVoidedItemsReport(filters);
-        res.status(200).json({ reports: report });
-      })
-    )(req, res);
+        response.status(200).json({ reports: report });
+      })(req, res);
   } catch (error: any) {
     console.error("Voided Items Report API error:", error);
     res.status(500).json({
@@ -43,5 +41,5 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);
 

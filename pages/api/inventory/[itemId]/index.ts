@@ -10,18 +10,13 @@ import { withMiddleware } from "@backend/middleware/middleware-util";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "GET") {
-    return authMiddleware(
-      authorize([permissions.CAN_VIEW_INVENTORY])(fetchInventoryItemHandler),
-    )(req, res);
+    return authorize([permissions.CAN_VIEW_INVENTORY])(fetchInventoryItemHandler)(req, res);
   } else if (req.method === "PATCH") {
-    return authMiddleware(
-      authorize([permissions.CAN_EDIT_INVENTORY])(updateInventoryHandler),
-    )(req, res);
+    return authorize([permissions.CAN_EDIT_INVENTORY])(updateInventoryHandler)(req, res);
   } else {
     res.setHeader("Allow", ["GET", "PATCH"]);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
-
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

@@ -1,13 +1,15 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { authMiddleware } from "@backend/middleware/auth";
+import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { Item } from "@backend/entities/Item";
 import { ItemStatus } from "@backend/entities/Item";
 import { getConnection } from "@backend/config/data-source";
+import permissions from "@backend/config/permissions";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "GET") {
+        return authorize([permissions.CAN_VIEW_ITEM])(async (request, response) => {
         try {
             const { q, limit = "20" } = req.query;
             const db = await getConnection();
@@ -42,21 +44,22 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 isStock: item.isStock,
             }));
 
-            res.status(200).json({
+            response.status(200).json({
                 items: formattedItems,
                 query: q || "",
                 total: formattedItems.length,
             });
         } catch (error: any) {
             console.error("Error fetching sellable items:", error);
-            res.status(500).json({
+            response.status(500).json({
                 message: "Error fetching sellable items",
                 error: error.message,
             });
         }
+        })(req, res);
     } else {
         res.setHeader("Allow", ["GET"]);
-        res.status(405).json({ message: `Method ${req.method} not allowed` });
+        res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 };
 

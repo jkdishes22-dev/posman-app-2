@@ -16,31 +16,21 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         const { action } = req.query;
 
         if (action === "balance") {
-            return authMiddleware(
-                authorize([permissions.CAN_VIEW_SUPPLIER])(getSupplierBalanceHandler),
-            )(req, res);
+            return authorize([permissions.CAN_VIEW_SUPPLIER])(getSupplierBalanceHandler)(req, res);
         } else if (action === "transactions") {
-            return authMiddleware(
-                authorize([permissions.CAN_VIEW_SUPPLIER])(getSupplierTransactionsHandler),
-            )(req, res);
+            return authorize([permissions.CAN_VIEW_SUPPLIER])(getSupplierTransactionsHandler)(req, res);
         } else {
-            return authMiddleware(
-                authorize([permissions.CAN_VIEW_SUPPLIER])(fetchSupplierHandler),
-            )(req, res);
+            return authorize([permissions.CAN_VIEW_SUPPLIER])(fetchSupplierHandler)(req, res);
         }
     } else if (req.method === "PATCH") {
-        return authMiddleware(
-            authorize([permissions.CAN_EDIT_SUPPLIER])(updateSupplierHandler),
-        )(req, res);
+        return authorize([permissions.CAN_EDIT_SUPPLIER])(updateSupplierHandler)(req, res);
     } else if (req.method === "DELETE") {
-        return authMiddleware(
-            authorize([permissions.CAN_DELETE_SUPPLIER])(deleteSupplierHandler),
-        )(req, res);
+        return authorize([permissions.CAN_DELETE_SUPPLIER])(deleteSupplierHandler)(req, res);
     } else {
         res.setHeader("Allow", ["GET", "PATCH", "DELETE"]);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
+        res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);
 

@@ -5,11 +5,7 @@ import { authMiddleware, authorize } from "../../../../src/backend/middleware/au
 import permissions from "@backend/config/permissions";
 import { withMiddleware } from "../../../../src/backend/middleware/middleware-util";
 
-const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-    if (req.method !== "POST") {
-        return res.status(405).json({ error: "Method not allowed" });
-    }
-
+const addPayment = async (req: NextApiRequest, res: NextApiResponse) => {
     try {
         const { billId } = req.query;
         const { paymentType, creditAmount, reference } = req.body;
@@ -22,7 +18,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
         const paymentService = new PaymentService(req.db);
 
-        // Create the payment
         const payment = await paymentService.createPayment({
             paymentType,
             creditAmount: parseFloat(creditAmount),
@@ -32,7 +27,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             created_by: parseInt(req.user.id, 10),
         });
 
-        // Create the bill payment relationship
         const billPayment = await paymentService.createBillPayment({
             bill: { id: parseInt(billId as string) },
             payment: payment,
@@ -55,4 +49,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 };
 
-export default withMiddleware(dbMiddleware)(authMiddleware(authorize([permissions.CAN_ADD_BILL_PAYMENT])(handler)));
+const handler = async (req: NextApiRequest, res: NextApiResponse) => {
+    if (req.method !== "POST") {
+        return res.status(405).json({ error: "Method not allowed" });
+    }
+    return authorize([permissions.CAN_ADD_BILL_PAYMENT])(addPayment)(req, res);
+};
+
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

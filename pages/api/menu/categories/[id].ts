@@ -7,10 +7,11 @@ import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "DELETE") {
-    await authMiddleware(
-      authorize([permissions.CAN_DELETE_CATEGORY])(deleteCategoryHandler),
-    )(req, res);
+    await authorize([permissions.CAN_DELETE_CATEGORY])(deleteCategoryHandler)(req, res);
+  } else {
+    res.setHeader("Allow", ["DELETE"]);
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);
