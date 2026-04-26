@@ -81,7 +81,8 @@ export class ItemService {
       .addSelect([
         "pi.price AS price",
         "pi.is_enabled AS pricelist_item_isEnabled",
-        "pi.id AS pricelistId",
+        "pi.id AS pricelistItemId",
+        "pricelist.id AS pricelistId",
         "pricelist.name AS pricelistName",
         "s.name as stationName",
       ]);
@@ -109,6 +110,7 @@ export class ItemService {
         name: item.category_name,
       },
       price: item.price,
+      pricelistItemId: item.pricelistItemId,
       pricelistId: item.pricelistId,
       pricelistName: item.pricelistName,
     }));
@@ -168,6 +170,7 @@ export class ItemService {
         name: pi.item.category?.name,
       },
       price: pi.price,
+      pricelistItemId: pi.id,
       pricelistId: pi.pricelist.id,
       pricelistName: pi.pricelist.name,
     }));
@@ -432,6 +435,13 @@ export class ItemService {
             pricelistItemToUpdate,
           );
         } else {
+          await transactionalEntityManager
+            .createQueryBuilder()
+            .update(PricelistItem)
+            .set({ is_enabled: false })
+            .where("item_id = :itemId", { itemId: itemData.id })
+            .andWhere("pricelist_id = :pricelistId", { pricelistId })
+            .execute();
           await this.createNewPricelistItem(
             price,
             user_id,

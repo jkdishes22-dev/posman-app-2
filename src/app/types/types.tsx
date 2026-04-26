@@ -17,6 +17,7 @@ export type Item = {
   code: string;
   price: number;
   category: Category;
+  pricelistItemId?: number;
   pricelistId: number;
   isGroup: boolean;
   isStock?: boolean;
