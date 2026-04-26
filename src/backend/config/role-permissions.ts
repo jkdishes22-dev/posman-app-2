@@ -299,6 +299,17 @@ export const PERMISSION_CATEGORIES = {
         "can_add_pricelist",
         "can_edit_pricelist",
         "can_delete_pricelist"
+    ],
+    reports: [
+        "can_view_sales_revenue_report",
+        "can_view_production_stock_revenue_report",
+        "can_view_items_sold_count_report",
+        "can_view_voided_items_report",
+        "can_view_expenditure_report",
+        "can_view_invoices_pending_bills_report",
+        "can_view_purchase_orders_report",
+        "can_view_pnl_report",
+        "can_view_production_sales_reconciliation_report"
     ]
 };
 
