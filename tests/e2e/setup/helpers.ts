@@ -6,6 +6,9 @@ async function getLoginHandler() {
 }
 
 let _adminToken: string | null = null;
+let _salesToken: string | null = null;
+let _storekeeperToken: string | null = null;
+let _cashierToken: string | null = null;
 
 /**
  * Log in with the given credentials and return a JWT.
@@ -40,6 +43,36 @@ export async function getAdminToken(): Promise<string> {
   if (_adminToken) return _adminToken;
   _adminToken = await login("admin", "admin123");
   return _adminToken!;
+}
+
+/**
+ * Log in as the seeded sales user and return a JWT.
+ * Token is cached for the lifetime of the test process.
+ */
+export async function getSalesToken(): Promise<string> {
+  if (_salesToken) return _salesToken;
+  _salesToken = await login("e2e_sales", "sales123");
+  return _salesToken!;
+}
+
+/**
+ * Log in as the seeded storekeeper user and return a JWT.
+ * Token is cached for the lifetime of the test process.
+ */
+export async function getStorekeeperToken(): Promise<string> {
+  if (_storekeeperToken) return _storekeeperToken;
+  _storekeeperToken = await login("e2e_storekeeper", "storekeeper123");
+  return _storekeeperToken!;
+}
+
+/**
+ * Log in as the seeded cashier user and return a JWT.
+ * Token is cached for the lifetime of the test process.
+ */
+export async function getCashierToken(): Promise<string> {
+  if (_cashierToken) return _cashierToken;
+  _cashierToken = await login("e2e_cashier", "cashier123");
+  return _cashierToken!;
 }
 
 /** Returns an Authorization header object for use in fetch calls. */

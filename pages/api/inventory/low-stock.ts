@@ -7,14 +7,11 @@ import { withMiddleware } from "@backend/middleware/middleware-util";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "GET") {
-    return authMiddleware(
-      authorize([permissions.CAN_VIEW_INVENTORY])(getLowStockHandler),
-    )(req, res);
+    return authorize([permissions.CAN_VIEW_INVENTORY])(getLowStockHandler)(req, res);
   } else {
     res.setHeader("Allow", ["GET"]);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
-
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

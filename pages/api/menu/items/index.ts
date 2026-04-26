@@ -13,22 +13,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "GET") {
     const { search } = req.query;
     if (req.query && search) {
-      await authMiddleware(
-        authorize([permissions.CAN_VIEW_ITEM])(filterItemsHandler),
-      )(req, res);
+      await authorize([permissions.CAN_VIEW_ITEM])(filterItemsHandler)(req, res);
     } else {
-      await authMiddleware(
-        authorize([permissions.CAN_VIEW_ITEM])(fetchItemsHandler),
-      )(req, res);
+      await authorize([permissions.CAN_VIEW_ITEM])(fetchItemsHandler)(req, res);
     }
   } else if (req.method === "POST") {
-    await authMiddleware(
-      authorize([permissions.CAN_ADD_ITEM])(createItemHandler),
-    )(req, res);
+    await authorize([permissions.CAN_ADD_ITEM])(createItemHandler)(req, res);
   } else {
     res.setHeader("Allow", ["GET", "POST"]);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

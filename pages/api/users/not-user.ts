@@ -2,6 +2,8 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { UserService } from "@services/UserService";
 import permissions from "@backend/config/permissions";
+import { dbMiddleware } from "@backend/middleware/dbMiddleware";
+import { withMiddleware } from "@backend/middleware/middleware-util";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const reqDb = {
@@ -13,4 +15,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   res.status(200).json(users);
 };
 
-export default authMiddleware(authorize([permissions.CAN_VIEW_USER])(handler));
+export default withMiddleware(dbMiddleware, authMiddleware)(
+  authorize([permissions.CAN_VIEW_USER])(handler),
+);

@@ -38,7 +38,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         return authMiddleware(authorize([permissions.CAN_VIEW_ITEM])(getItemsForStation))(req, res);
     } else {
         res.setHeader("Allow", ["GET"]);
-        res.status(405).end(`Method ${req.method} Not Allowed`);
+        res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 };
 

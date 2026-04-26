@@ -49,11 +49,11 @@ const updatePricelistStatus = async (req: NextApiRequest, res: NextApiResponse) 
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "PATCH") {
-    return authMiddleware(authorize([permissions.CAN_EDIT_PRICELIST])(updatePricelistStatus))(req, res);
+    return authorize([permissions.CAN_EDIT_PRICELIST])(updatePricelistStatus)(req, res);
   } else {
     res.setHeader("Allow", ["PATCH"]);
-    res.status(405).json({ message: `Method ${req.method} not allowed` });
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);

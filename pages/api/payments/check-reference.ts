@@ -1,10 +1,13 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { PaymentService } from "../../../src/backend/service/PaymentService";
+import permissions from "../../../src/backend/config/permissions";
+import { authMiddleware, authorize } from "../../../src/backend/middleware/auth";
 import { dbMiddleware } from "../../../src/backend/middleware/dbMiddleware";
+import { withMiddleware } from "../../../src/backend/middleware/middleware-util";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method !== "POST") {
-        return res.status(405).json({ error: "Method not allowed" });
+        return res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 
     try {
@@ -35,4 +38,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 };
 
-export default dbMiddleware(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(
+    authorize([permissions.CAN_ADD_BILL])(handler),
+);

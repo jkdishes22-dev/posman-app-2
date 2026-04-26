@@ -44,7 +44,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
             default:
                 res.setHeader("Allow", ["POST", "DELETE"]);
-                res.status(405).end(`Method ${req.method} Not Allowed`);
+                res.status(405).json({ error: `Method ${req.method} not allowed` });
         }
     } catch (error: any) {
         console.error("Default pricelist management error:", error);

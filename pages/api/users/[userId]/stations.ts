@@ -59,7 +59,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   // Method not allowed
   res.setHeader("Allow", ["GET", "POST", "PATCH", "DELETE"]);
-  res.status(405).end(`Method ${req.method} Not Allowed`);
+  res.status(405).json({ error: `Method ${req.method} not allowed` });
 };
 
 export default withMiddleware(dbMiddleware, authMiddleware)(handler);

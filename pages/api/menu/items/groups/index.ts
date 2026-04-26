@@ -9,17 +9,13 @@ import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   // await ensureMetadata("Item");
   if (req.method === "GET") {
-    await authMiddleware(
-      authorize([permissions.CAN_VIEW_ITEM])(fetchGroupedItemsHandler),
-    )(req, res);
+    await authorize([permissions.CAN_VIEW_ITEM])(fetchGroupedItemsHandler)(req, res);
   } else if (req.method === "POST") {
-    await authMiddleware(
-      authorize([permissions.CAN_ADD_ITEM])(createGroupItemHandler),
-    )(req, res);
+    await authorize([permissions.CAN_ADD_ITEM])(createGroupItemHandler)(req, res);
   } else {
     res.setHeader("Allow", ["GET", "POST"]);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+    res.status(405).json({ error: `Method ${req.method} not allowed` });
   }
 };
 
-export default withMiddleware(dbMiddleware)(handler);
+export default withMiddleware(dbMiddleware, authMiddleware)(handler);
