@@ -4,7 +4,14 @@ import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 
-function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem, addSubItemError, setAddSubItemError }) {
+function AddSubItemModal({
+  isModalOpen,
+  closeModal,
+  addSubItemToItem,
+  addSubItemError,
+  setAddSubItemError,
+  selectedGroupItemId,
+}) {
   const [pricelists, setPricelists] = useState([]);
   const [selectedPricelistId, setSelectedPricelistId] = useState("");
   const [items, setItems] = useState([]);
@@ -43,7 +50,9 @@ function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem, addSubItem
       const result = await apiCall("/api/menu/pricelists");
       if (result.status === 200) {
         const pricelistsData = result.data || [];
-        setPricelists(Array.isArray(pricelistsData) ? pricelistsData : []);
+        const normalizedPricelists = Array.isArray(pricelistsData) ? pricelistsData : [];
+        setPricelists(normalizedPricelists);
+        await setPricelistForSelectedGroupItem(normalizedPricelists);
         setError(null);
         setErrorDetails(null);
       } else {
@@ -58,15 +67,39 @@ function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem, addSubItem
     }
   };
 
+  const setPricelistForSelectedGroupItem = async (availablePricelists: any[]) => {
+    if (!selectedGroupItemId || availablePricelists.length === 0) {
+      setSelectedPricelistId("");
+      return;
+    }
+
+    for (const pricelist of availablePricelists) {
+      const result = await apiCall(`/api/menu/items/pricelist?pricelistId=${pricelist.id}`);
+      if (result.status === 200) {
+        const pricelistItems = result.data?.items || [];
+        const hasSelectedGroupItem = pricelistItems.some((item: any) => item.id === selectedGroupItemId);
+
+        if (hasSelectedGroupItem) {
+          setSelectedPricelistId(String(pricelist.id));
+          return;
+        }
+      }
+    }
+
+    setSelectedPricelistId("");
+  };
+
   const fetchItemsFromPricelist = async (pricelistId: string) => {
     setLoadingItems(true);
     try {
       const result = await apiCall(`/api/menu/items/pricelist?pricelistId=${pricelistId}`);
       if (result.status === 200) {
-        // Filter to only show stock items (isStock: true) for ingredients
+        // Ingredients should be sellable leaf items (non-group) from this pricelist
         const allItems = result.data?.items || [];
-        const stockItems = allItems.filter((item: any) => item.isStock === true || item.isGroup === true);
-        setItems(Array.isArray(stockItems) ? stockItems : []);
+        const sellableItems = allItems.filter(
+          (item: any) => item.isGroup !== true && item.id !== selectedGroupItemId,
+        );
+        setItems(Array.isArray(sellableItems) ? sellableItems : []);
         setError(null);
         setErrorDetails(null);
       } else {
@@ -112,11 +145,12 @@ function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem, addSubItem
         />
         <Form onSubmit={handleSubmit}>
           <Form.Group controlId="formPricelistId" className="mb-3">
-            <Form.Label>Pricelist <span className="text-muted small">(Select pricelist to view items)</span></Form.Label>
+            <Form.Label>Pricelist <span className="text-muted small">(Auto-selected from the composite item)</span></Form.Label>
             <Form.Control
               as="select"
               value={selectedPricelistId}
               onChange={(e) => setSelectedPricelistId(e.target.value)}
+              disabled
             >
               <option value="">Select Pricelist</option>
               {pricelists.map((pricelist: any) => (
@@ -128,7 +162,7 @@ function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem, addSubItem
           </Form.Group>
 
           <Form.Group controlId="formSubItemId">
-            <Form.Label>Stock Item (Ingredient) <span className="text-muted small">(Only stock items from pricelist can be ingredients)</span></Form.Label>
+            <Form.Label>Ingredient Item <span className="text-muted small">(Any sellable non-group item in this pricelist)</span></Form.Label>
             {loadingItems ? (
               <div className="text-center py-3">
                 <div className="spinner-border spinner-border-sm" role="status">
@@ -144,10 +178,10 @@ function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem, addSubItem
               >
                 <option value="">
                   {!selectedPricelistId
-                    ? "Select a pricelist first"
+                    ? "No pricelist linked to selected composite item"
                     : items.length === 0
-                    ? "No stock items in this pricelist"
-                    : "Select Stock Item (Ingredient)"}
+                    ? "No eligible sellable items in this pricelist"
+                    : "Select Ingredient Item"}
                 </option>
                 {items.map((item: any) => (
                   <option key={item.id} value={item.id}>
@@ -169,7 +203,7 @@ function AddSubItemModal({ isModalOpen, closeModal, addSubItemToItem, addSubItem
               onChange={(e) => setDeductiblePortion(e.target.value)}
             />
             <Form.Text className="text-muted">
-              When 1 unit of this composite item is sold, this amount will be deducted from the stock item inventory.
+              When 1 unit of this composite item is sold, this amount will be deducted from each selected ingredient item.
             </Form.Text>
           </Form.Group>
           <Button variant="primary" type="submit">

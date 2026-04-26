@@ -600,10 +600,18 @@ export class ItemService {
         throw new Error("Item or SubItem not found.");
       }
 
+      if (item.id === subItem.id) {
+        throw new Error("A composite item cannot include itself as an ingredient.");
+      }
+
       if (!item.isGroup) {
         throw new Error(
           "The selected item is not a valid group (is_group should be true).",
         );
+      }
+
+      if (subItem.isGroup) {
+        throw new Error("Group/composite items cannot be used as ingredients.");
       }
 
       const newItemGroup = new ItemGroup();

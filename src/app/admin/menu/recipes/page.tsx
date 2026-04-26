@@ -505,7 +505,7 @@ function RecipesPage() {
                             <td colSpan={3} className="text-center py-4">
                               <i className="bi bi-inbox text-muted" style={{ fontSize: "2rem" }}></i>
                               <p className="text-muted mt-2 mb-0">No ingredients defined</p>
-                              <p className="text-muted small mt-1">Add stock items (ingredients) that will be deducted when this item is sold</p>
+                              <p className="text-muted small mt-1">Add sellable menu items (ingredients) that will be deducted when this item is sold</p>
                             </td>
                           </tr>
                         )}
@@ -516,7 +516,7 @@ function RecipesPage() {
                   <div className="text-center py-4">
                     <i className="bi bi-cursor text-muted" style={{ fontSize: "3rem" }}></i>
                     <p className="text-muted mt-3 mb-0">Select a composite item to view or edit its recipe</p>
-                    <p className="text-muted small mt-2">Define which stock items (ingredients) are used and how much is deducted per unit sold</p>
+                    <p className="text-muted small mt-2">Define which sellable ingredient items are used and how much is deducted per unit sold</p>
                   </div>
                 )}
               </div>
@@ -531,6 +531,7 @@ function RecipesPage() {
         addSubItemToItem={addSubItemToItem}
         addSubItemError={addSubItemError}
         setAddSubItemError={setAddSubItemError}
+        selectedGroupItemId={selectedItem}
       />
 
       <Modal show={showConfirmation} onHide={() => setShowConfirmation(false)}>
