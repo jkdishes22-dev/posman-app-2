@@ -50,7 +50,7 @@ const approveQuantityChange = async (req: NextApiRequest, res: NextApiResponse) 
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "POST") {
-        return authMiddleware(authorize([permissions.CAN_EDIT_BILL])(approveQuantityChange))(
+        return authMiddleware(authorize([permissions.CAN_APPROVE_CHANGE_REQUEST])(approveQuantityChange))(
             req,
             res,
         );

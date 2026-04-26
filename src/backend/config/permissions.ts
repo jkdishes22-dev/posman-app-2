@@ -18,6 +18,10 @@ const permissions = {
     CAN_DELETE_BILL_ITEM: "can_delete_bill_item",
     CAN_VIEW_BILL_ITEM: "can_view_bill_item",
 
+    // Approval actions (supervisor-only)
+    CAN_APPROVE_VOID: "can_approve_void",
+    CAN_APPROVE_CHANGE_REQUEST: "can_approve_change_request",
+
     // Bill Payment
     CAN_ADD_BILL_PAYMENT: "can_add_bill_payment",
     CAN_EDIT_BILL_PAYMENT: "can_edit_bill_payment",

@@ -82,6 +82,9 @@ export const ROLE_PERMISSIONS = {
         "can_view_item",
         "can_view_station",
         "can_view_user_station",
+        // Approval permissions (supervisor only — cashier must not have these)
+        "can_approve_void",
+        "can_approve_change_request",
         // Cashier permissions
         "can_delete_bill_payment",
         "can_delete_payment",
@@ -237,7 +240,9 @@ export const PERMISSION_CATEGORIES = {
         "can_view_bill_payment",
         "can_add_bill_payment",
         "can_edit_bill_payment",
-        "can_delete_bill_payment"
+        "can_delete_bill_payment",
+        "can_approve_void",
+        "can_approve_change_request"
     ],
     financial: [
         "can_view_payment",
