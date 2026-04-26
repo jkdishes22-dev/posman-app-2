@@ -93,6 +93,90 @@ export async function setup() {
     }
   }
 
+  // Seed a sales user for auth coverage tests.
+  const salesHashedPw = await bcrypt.hash("sales123", 10);
+  const salesRows = await AppDataSource.query(
+    `SELECT id FROM "user" WHERE username = ?`,
+    ["e2e_sales"],
+  );
+  if (salesRows.length === 0) {
+    const insertResult = await AppDataSource.query(
+      `INSERT INTO "user" (username, firstName, lastName, password, status, is_locked, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'ACTIVE', 0, CURRENT_TIMESTAMP, NULL)`,
+      ["e2e_sales", "E2E", "Sales", salesHashedPw],
+    );
+    const salesUserId: number =
+      typeof insertResult === "object" && insertResult !== null && "insertId" in insertResult
+        ? (insertResult as any).insertId
+        : Number(insertResult);
+    const salesRoleRows = await AppDataSource.query(
+      `SELECT id FROM "roles" WHERE name = ?`,
+      ["sales"],
+    );
+    if (salesRoleRows.length > 0 && salesUserId) {
+      await AppDataSource.query(
+        `INSERT INTO "user_roles" (user_id, role_id, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, NULL)`,
+        [salesUserId, salesRoleRows[0].id],
+      );
+    }
+  }
+
+  // Seed a storekeeper user for auth coverage tests.
+  const storekeeperHashedPw = await bcrypt.hash("storekeeper123", 10);
+  const storekeeperRows = await AppDataSource.query(
+    `SELECT id FROM "user" WHERE username = ?`,
+    ["e2e_storekeeper"],
+  );
+  if (storekeeperRows.length === 0) {
+    const insertResult = await AppDataSource.query(
+      `INSERT INTO "user" (username, firstName, lastName, password, status, is_locked, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'ACTIVE', 0, CURRENT_TIMESTAMP, NULL)`,
+      ["e2e_storekeeper", "E2E", "Storekeeper", storekeeperHashedPw],
+    );
+    const storekeeperUserId: number =
+      typeof insertResult === "object" && insertResult !== null && "insertId" in insertResult
+        ? (insertResult as any).insertId
+        : Number(insertResult);
+    const storekeeperRoleRows = await AppDataSource.query(
+      `SELECT id FROM "roles" WHERE name = ?`,
+      ["storekeeper"],
+    );
+    if (storekeeperRoleRows.length > 0 && storekeeperUserId) {
+      await AppDataSource.query(
+        `INSERT INTO "user_roles" (user_id, role_id, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, NULL)`,
+        [storekeeperUserId, storekeeperRoleRows[0].id],
+      );
+    }
+  }
+
+  // Seed a cashier user for report auth coverage tests.
+  const cashierHashedPw = await bcrypt.hash("cashier123", 10);
+  const cashierRows = await AppDataSource.query(
+    `SELECT id FROM "user" WHERE username = ?`,
+    ["e2e_cashier"],
+  );
+  if (cashierRows.length === 0) {
+    const insertResult = await AppDataSource.query(
+      `INSERT INTO "user" (username, firstName, lastName, password, status, is_locked, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'ACTIVE', 0, CURRENT_TIMESTAMP, NULL)`,
+      ["e2e_cashier", "E2E", "Cashier", cashierHashedPw],
+    );
+    const cashierUserId: number =
+      typeof insertResult === "object" && insertResult !== null && "insertId" in insertResult
+        ? (insertResult as any).insertId
+        : Number(insertResult);
+    const cashierRoleRows = await AppDataSource.query(
+      `SELECT id FROM "roles" WHERE name = ?`,
+      ["cashier"],
+    );
+    if (cashierRoleRows.length > 0 && cashierUserId) {
+      await AppDataSource.query(
+        `INSERT INTO "user_roles" (user_id, role_id, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, NULL)`,
+        [cashierUserId, cashierRoleRows[0].id],
+      );
+    }
+  }
+
   await AppDataSource.destroy();
 
   console.log("\n✅ E2E test database ready:", TEST_DB_PATH);
