@@ -20,6 +20,8 @@ import PricelistSwitcher from "../components/PricelistSwitcher";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 
+const INVENTORY_TTL_MS = 15000;
+
 const BillingSection = () => {
   // Auth context
   const { isAuthenticated, logout, user, isLoading: authLoading } = useAuth();
@@ -39,7 +41,6 @@ const BillingSection = () => {
   const [items, setItems] = useState([]);
   const [allPricelistItems, setAllPricelistItems] = useState<Item[]>([]); // All items for current pricelist
   const [itemsPreloaded, setItemsPreloaded] = useState(false); // Track if all items are preloaded
-  const [inventoryPreloaded, setInventoryPreloaded] = useState(false); // Track if inventory is preloaded
   const [fetchCategoryError, setFetchCategoryError] = useState("");
   const [itemError, setItemError] = useState("");
   const [selectedItems, setSelectedItems] = useState([]);
@@ -59,6 +60,9 @@ const BillingSection = () => {
   const [missingConstituents, setMissingConstituents] = useState<Record<number, Array<{ itemId: number; itemName: string; available: number; required: number }>>>({});
   const [hasExpandedItems, setHasExpandedItems] = useState<boolean>(false);
   const [showAvailableItemsHeader, setShowAvailableItemsHeader] = useState<boolean>(false);
+  const inventoryRefreshInFlightRef = useRef<string | null>(null);
+  const inventorySnapshotRef = useRef<Record<number, number>>({});
+  const inventoryFetchedAtRef = useRef<Record<number, number>>({});
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -115,9 +119,28 @@ const BillingSection = () => {
       const result = await apiCall(url);
 
       if (result.status === 200) {
-        setItemInventory(result.data.available || {});
+        const available = result.data.available || {};
+        const now = Date.now();
+
+        // Update in-memory snapshot for instant category switches.
+        inventorySnapshotRef.current = {
+          ...inventorySnapshotRef.current,
+          ...available,
+        };
+        Object.keys(available).forEach((itemId) => {
+          inventoryFetchedAtRef.current[Number(itemId)] = now;
+        });
+
+        setItemInventory((prev) => ({
+          ...prev,
+          ...available,
+        }));
+
         if (includeDetails && result.data.missingConstituents) {
-          setMissingConstituents(result.data.missingConstituents || {});
+          setMissingConstituents((prev) => ({
+            ...prev,
+            ...result.data.missingConstituents,
+          }));
         }
       }
     } catch (error) {
@@ -125,6 +148,83 @@ const BillingSection = () => {
       console.error("Error fetching item inventory:", error);
     }
   }, [apiCall]);
+
+  const applyCachedInventory = useCallback((itemIds: number[]) => {
+    if (itemIds.length === 0) {
+      return;
+    }
+
+    const cachedSubset: Record<number, number> = {};
+    for (const itemId of itemIds) {
+      if (itemId in inventorySnapshotRef.current) {
+        cachedSubset[itemId] = inventorySnapshotRef.current[itemId];
+      }
+    }
+
+    if (Object.keys(cachedSubset).length > 0) {
+      setItemInventory((prev) => ({
+        ...prev,
+        ...cachedSubset,
+      }));
+    }
+  }, []);
+
+  const refreshAvailability = useCallback(async (
+    scope: "visible" | "all" | "custom" = "visible",
+    customItemIds: number[] = [],
+    options: { force?: boolean; background?: boolean } = {}
+  ) => {
+    let targetIds: number[] = [];
+
+    if (scope === "all") {
+      targetIds = allPricelistItems.map((item: Item) => item.id);
+    } else if (scope === "custom") {
+      targetIds = customItemIds;
+    } else {
+      targetIds = items.map((item: Item) => item.id);
+    }
+
+    // Normalize/unique to avoid duplicate API calls for equivalent sets.
+    const uniqueSortedIds = Array.from(new Set(targetIds)).sort((a, b) => a - b);
+    if (uniqueSortedIds.length === 0) {
+      return;
+    }
+
+    const now = Date.now();
+    const staleIds = uniqueSortedIds.filter((id) => {
+      const fetchedAt = inventoryFetchedAtRef.current[id];
+      if (!fetchedAt) return true;
+      return (now - fetchedAt) > INVENTORY_TTL_MS;
+    });
+
+    const idsToFetch = options.force ? uniqueSortedIds : staleIds;
+    if (idsToFetch.length === 0) {
+      return;
+    }
+
+    const requestKey = idsToFetch.join(",");
+    if (inventoryRefreshInFlightRef.current === requestKey) {
+      return;
+    }
+
+    inventoryRefreshInFlightRef.current = requestKey;
+    const runFetch = async () => {
+      try {
+        await fetchItemInventory(idsToFetch, true);
+      } finally {
+        if (inventoryRefreshInFlightRef.current === requestKey) {
+          inventoryRefreshInFlightRef.current = null;
+        }
+      }
+    };
+
+    if (options.background) {
+      runFetch();
+      return;
+    }
+
+    await runFetch();
+  }, [allPricelistItems, items, fetchItemInventory]);
 
   // Preload all items and inventory for the pricelist when available
   useEffect(() => {
@@ -146,7 +246,6 @@ const BillingSection = () => {
           if (allItems.length > 0) {
             const itemIds = allItems.map((item: Item) => item.id);
             await fetchItemInventory(itemIds, true);
-            setInventoryPreloaded(true);
           }
         }
       } catch (error) {
@@ -160,7 +259,10 @@ const BillingSection = () => {
   }, [currentPricelist, itemsPreloaded, apiCall, fetchItemInventory]);
 
   // Memoized fetchItems - uses preloaded data if available, otherwise fetches from API
-  const fetchItems = useCallback(async (categoryId: string) => {
+  const fetchItems = useCallback(async (
+    categoryId: string,
+    options: { preferCache?: boolean } = {}
+  ) => {
     if (!currentPricelist) {
       setItemError("No pricelist selected. Please select a pricelist first.");
       return;
@@ -173,7 +275,17 @@ const BillingSection = () => {
       );
       setItems(filteredItems);
       setItemError(""); // Clear any previous errors
-      // Inventory is already preloaded, no need to fetch again
+
+      // Category switching can imply a new bill attempt. Revalidate visible availability.
+      if (filteredItems.length > 0) {
+        const itemIds = filteredItems.map((item: Item) => item.id);
+        if (options.preferCache) {
+          applyCachedInventory(itemIds);
+          refreshAvailability("custom", itemIds, { background: true });
+        } else {
+          refreshAvailability("custom", itemIds);
+        }
+      }
       return;
     }
 
@@ -188,9 +300,15 @@ const BillingSection = () => {
         setItems(fetchedItems);
         setItemError(""); // Clear any previous errors
 
-        // Fetch available inventory for all items (if not already preloaded)
-        if (fetchedItems.length > 0 && !inventoryPreloaded) {
-          fetchItemInventory(fetchedItems.map((item: Item) => item.id));
+        // Refresh visible inventory when category is loaded.
+        if (fetchedItems.length > 0) {
+          const itemIds = fetchedItems.map((item: Item) => item.id);
+          if (options.preferCache) {
+            applyCachedInventory(itemIds);
+            refreshAvailability("custom", itemIds, { background: true });
+          } else {
+            refreshAvailability("custom", itemIds);
+          }
         }
       } else {
         setItemError(result.error || "Failed to fetch items for this pricelist");
@@ -201,7 +319,7 @@ const BillingSection = () => {
       setItemError(errorMessage);
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
-  }, [currentPricelist, apiCall, fetchItemInventory, itemsPreloaded, allPricelistItems, inventoryPreloaded]);
+  }, [currentPricelist, apiCall, itemsPreloaded, allPricelistItems, refreshAvailability, applyCachedInventory]);
 
   // Refetch items when pricelist or category changes
   useEffect(() => {
@@ -216,7 +334,6 @@ const BillingSection = () => {
   // Reset preload state when pricelist changes
   useEffect(() => {
     setItemsPreloaded(false);
-    setInventoryPreloaded(false);
     setAllPricelistItems([]);
     setItems([]);
   }, [currentPricelist?.id]);
@@ -298,10 +415,8 @@ const BillingSection = () => {
     });
 
     // Refresh inventory after adding item to bill to show updated availability
-    if (items.length > 0) {
-      fetchItemInventory(items.map((item: Item) => item.id));
-    }
-  }, [currentItem, itemInventory, selectedItems, items, fetchItemInventory]);
+    refreshAvailability("visible", [], { background: true });
+  }, [currentItem, itemInventory, selectedItems, refreshAvailability]);
 
   const handleRemoveItem = useCallback((itemId: string) => {
     setSelectedItems((prev) => prev.filter((item) => item.id !== itemId));
@@ -384,23 +499,17 @@ const BillingSection = () => {
             currency: "KES",
           });
 
-          // Refresh inventory after bill creation in the background (non-blocking)
-          // Keep items visible but refresh their inventory
-          if (items.length > 0) {
-            // Use setTimeout to make this non-blocking
-            setTimeout(() => {
-              fetchItemInventory(items.map((item: Item) => item.id));
-            }, 0);
-          }
+          // Refresh inventory after bill creation in the background.
+          // Revalidate all pricelist items so category switching stays fresh.
+          setTimeout(() => {
+            refreshAvailability("all", [], { force: true, background: true });
+          }, 0);
         } else {
           setBillError(result.error || "Failed to submit picked items");
           setErrorDetails(result.errorDetails);
 
-          // Refresh inventory after bill creation failure to show updated availability
-          // This ensures users see the correct stock levels after inventory reservation fails
-          if (items.length > 0) {
-            fetchItemInventory(items.map((item: Item) => item.id));
-          }
+          // Refresh inventory after failure to show current stock levels.
+          refreshAvailability("all", [], { force: true, background: true });
         }
       } catch (error: any) {
         // Show the actual error message from the API
@@ -408,10 +517,8 @@ const BillingSection = () => {
         setBillError(errorMessage);
         setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
 
-        // Refresh inventory after bill creation failure to show updated availability
-        if (items.length > 0) {
-          fetchItemInventory(items.map((item: Item) => item.id));
-        }
+        // Refresh inventory after failure to show current stock levels.
+        refreshAvailability("all", [], { force: true, background: true });
       }
     } catch (error: any) {
       console.error("Error in bill submission:", error);
@@ -469,7 +576,7 @@ const BillingSection = () => {
     setBillError(""); // Clear bill errors
   }, []);
 
-  const handleNewBill = useCallback(() => {
+  const resetForNewBill = useCallback(() => {
     // Reset all bill-related state without reloading the page
     setCreatedBill(null);
     setSelectedItems([]);
@@ -480,12 +587,13 @@ const BillingSection = () => {
     setItemError("");
     setFetchCategoryError("");
     setBillError(""); // Clear bill errors
+  }, []);
 
-    // Refresh inventory for current items to show updated availability
-    if (items.length > 0) {
-      fetchItemInventory(items.map((item: Item) => item.id));
-    }
-  }, [items, fetchItemInventory]);
+  const handleNewBill = useCallback(() => {
+    resetForNewBill();
+    applyCachedInventory(allPricelistItems.map((item: Item) => item.id));
+    refreshAvailability("all", [], { force: true, background: true });
+  }, [resetForNewBill, refreshAvailability, applyCachedInventory, allPricelistItems]);
 
   // Memoized total amount calculation to prevent recalculation on every render
   const totalAmount = useMemo(() => {
@@ -870,8 +978,13 @@ const BillingSection = () => {
                 <Categories
                   categories={categories}
                   onCategoryClick={(category) => {
+                    // Treat category switch as "start new bill" when no active bill is available.
+                    if (createdBill) {
+                      resetForNewBill();
+                    }
                     setSelectedCategory(category);
-                    fetchItems(category.id);
+                    const noInFlightSelections = selectedItems.length === 0;
+                    fetchItems(category.id, { preferCache: noInFlightSelections });
                   }}
                   fetchError={fetchCategoryError}
                   showHeader={false}
