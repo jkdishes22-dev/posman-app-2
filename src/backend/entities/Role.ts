@@ -2,17 +2,17 @@ import { Entity, Column, ManyToMany, JoinTable } from "typeorm";
 import type { User } from "./User";
 import type { Permission } from "./Permission";
 import { BaseEntity } from "./BaseEntity";
-import { EntityRef } from "./entity-refs";
 
 @Entity("roles")
 export class Role extends BaseEntity {
   @Column({ type: "varchar", length: 255 })
   name: string;
 
-  @ManyToMany(() => EntityRef.get("User"), (user: any) => user.roles)
+  // Resolved by table name to avoid class-reference fragility in webpack bundles.
+  @ManyToMany("user", (user: User) => user.roles)
   users: User[];
 
-  @ManyToMany(() => EntityRef.get("Permission"), (permission: any) => permission.roles)
+  @ManyToMany("permissions", (permission: Permission) => permission.roles)
   @JoinTable({
     name: "role_permissions",
     joinColumn: {

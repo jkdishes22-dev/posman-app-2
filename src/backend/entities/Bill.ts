@@ -12,7 +12,6 @@ import type { BillItem } from "./BillItem";
 import type { BillPayment } from "./BillPayment";
 import { Station } from "./Station";
 import { BaseEntity } from "./BaseEntity";
-import { EntityRef } from "./entity-refs";
 import { enumColType } from "./column-types";
 
 export enum BillStatus {
@@ -63,10 +62,11 @@ export class Bill extends BaseEntity {
   @JoinColumn({ name: "station_id" })
   station: Station;
 
-  @OneToMany(() => EntityRef.get("BillItem"), (billItem: any) => billItem.bill, { eager: true })
+  // Resolved by table name to avoid class-reference fragility in webpack bundles.
+  @OneToMany("bill_item", (billItem: BillItem) => billItem.bill, { eager: true })
   bill_items: BillItem[];
 
-  @OneToMany(() => EntityRef.get("BillPayment"), (billPayment: any) => billPayment.bill)
+  @OneToMany("bill_payment", (billPayment: BillPayment) => billPayment.bill)
   bill_payments: BillPayment[];
 
   // Reopening tracking columns (Rule 4.1)
