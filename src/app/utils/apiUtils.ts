@@ -81,7 +81,6 @@ async function executeRequest<T = any>(
         } else {
             // If not JSON, try to get text and create error response
             const text = await response.text();
-            console.error("Non-JSON response from server:", text.substring(0, 200));
             data = {
                 message: `Server error (${response.status}): ${response.statusText}`,
                 error: text.substring(0, 500)

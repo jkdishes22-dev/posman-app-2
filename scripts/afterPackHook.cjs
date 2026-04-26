@@ -1,5 +1,71 @@
 const fs = require("fs");
 const path = require("path");
+const { execSync } = require("child_process");
+const os = require("os");
+
+/**
+ * Downloads the Windows-native better_sqlite3.node prebuilt and replaces the macOS one.
+ * Required when cross-compiling from macOS → Windows because the afterPack copy brings
+ * the macOS arm64/x64 binary verbatim, which is not a valid Win32 application.
+ */
+async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot, log, err) {
+    if (context.electronPlatformName !== "win32") return;
+
+    const archMap = { 0: "ia32", 1: "x64", 2: "armv7l", 3: "arm64", 4: "x64" };
+    const arch = archMap[context.arch] ?? "x64";
+
+    const bsq3PkgPath = path.join(destNodeModules, "better-sqlite3", "package.json");
+    if (!fs.existsSync(bsq3PkgPath)) {
+        log("   ℹ️  better-sqlite3 not in dest node_modules — skipping binary replacement");
+        return;
+    }
+    const bsq3Version = JSON.parse(fs.readFileSync(bsq3PkgPath, "utf8")).version;
+
+    // Look up the Electron → ABI mapping from node-abi (ships with prebuild-install)
+    let abi = "140"; // safe fallback for Electron 39
+    try {
+        const abiRegistryPath = path.join(projectRoot, "node_modules", "node-abi", "abi_registry.json");
+        if (fs.existsSync(abiRegistryPath)) {
+            const registry = JSON.parse(fs.readFileSync(abiRegistryPath, "utf8"));
+            const electronVersion = context.packager?.electronVersion ?? "";
+            const major = electronVersion.split(".")[0];
+            const entry = registry.find(
+                (e) => e.runtime === "electron" && e.target.startsWith(major + ".")
+            );
+            if (entry) abi = entry.abi;
+        }
+    } catch { /* keep default */ }
+
+    const tarUrl = `https://github.com/WiseLibs/better-sqlite3/releases/download/v${bsq3Version}/better-sqlite3-v${bsq3Version}-electron-v${abi}-win32-${arch}.tar.gz`;
+    log(`\n   🔄 Replacing macOS better_sqlite3.node with Windows (${arch}) version...`);
+    log(`   📥 URL: ${tarUrl}`);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bsq3-win-"));
+    const tarPath = path.join(tmpDir, "archive.tar.gz");
+
+    try {
+        execSync(`curl -L --fail -o "${tarPath}" "${tarUrl}"`, { stdio: "pipe" });
+        execSync(`tar xzf "${tarPath}" -C "${tmpDir}"`);
+
+        const extractedBinary = path.join(tmpDir, "build", "Release", "better_sqlite3.node");
+        if (!fs.existsSync(extractedBinary)) {
+            err(`   ❌ Expected binary not found after extraction: ${extractedBinary}`);
+            return;
+        }
+
+        const destBinaryPath = path.join(
+            destNodeModules, "better-sqlite3", "build", "Release", "better_sqlite3.node"
+        );
+        fs.mkdirSync(path.dirname(destBinaryPath), { recursive: true });
+        fs.copyFileSync(extractedBinary, destBinaryPath);
+        log(`   ✅ Windows better_sqlite3.node installed: ${destBinaryPath}`);
+    } catch (e) {
+        err(`   ❌ Binary replacement failed: ${e.message}`);
+        err(`   💡 Check the release exists: ${tarUrl}`);
+    } finally {
+        try { execSync(`rm -rf "${tmpDir}"`); } catch { /* ignore */ }
+    }
+}
 
 /**
  * afterPack hook for electron-builder
@@ -130,6 +196,17 @@ module.exports = async function (context) {
         const counts = copyDir(sourceStandalone, targetExtraResources);
         log(`   ✅ Full copy: ${counts.files} files, ${counts.dirs} dirs`);
         handledAny = true;
+    }
+
+    // For Windows builds: replace the macOS better_sqlite3.node with the Win32 prebuilt.
+    // Must run after the node_modules copy so the replacement always wins.
+    if (context.electronPlatformName === "win32") {
+        const destNm = path.join(candidates[0].path, "node_modules");
+        if (fs.existsSync(destNm)) {
+            await replaceWindowsSqliteBinary(context, destNm, projectDir, log, err);
+        } else {
+            log("   ℹ️  node_modules not yet in dest — skipping Windows binary replacement");
+        }
     }
 
     // Final verification

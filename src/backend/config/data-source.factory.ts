@@ -34,14 +34,10 @@ import { ProductionIssue } from "@backend/entities/ProductionIssue";
 import { ProductionPreparation } from "@backend/entities/ProductionPreparation";
 import { PricelistItemAudit } from "@backend/entities/PricelistItemAudit";
 import { ItemAudit } from "@backend/entities/ItemAudit";
-import { EntityRef } from "@entities/entity-refs";
 
-EntityRef.set("StationPricelist", StationPricelist);
-EntityRef.set("User", User);
-EntityRef.set("Permission", Permission);
-EntityRef.set("BillItem", BillItem);
-EntityRef.set("BillPayment", BillPayment);
-EntityRef.set("PurchaseOrderItem", PurchaseOrderItem);
+// Note: previously used EntityRef.get() in entity relation decorators to defer
+// circular class lookups. We now resolve inverse relations by table-name string
+// (more robust against webpack class-name minification in the standalone build).
 
 const entities = [
   User,

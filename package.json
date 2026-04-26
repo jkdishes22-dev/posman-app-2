@@ -1,6 +1,6 @@
 {
   "name": "posman-app",
-  "version": "0.1.17",
+  "version": "0.1.22",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,8 +13,8 @@
     "migration:run": "NODE_OPTIONS=\"--loader ts-node/esm\" node src/backend/config/run-migrations.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/backend/config/data-source.ts",
     "migration:show": "typeorm-ts-node-commonjs migration:show -d src/backend/config/data-source.ts",
-    "electron:dev": "electron electron/main.cjs",
-    "electron:dev:sqlite": "DB_MODE=sqlite electron electron/main.cjs",
+    "electron:dev": "PORT=3000 electron electron/main.cjs",
+    "electron:dev:sqlite": "PORT=3000 DB_MODE=sqlite electron electron/main.cjs",
     "electron:build": "node scripts/build-electron.js",
     "electron:build:win": "node scripts/build-electron.js win",
     "electron:build:mac": "node scripts/build-electron.js mac",

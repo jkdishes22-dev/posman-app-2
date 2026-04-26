@@ -49,24 +49,8 @@ for (const pkgPath of problematicPackages) {
   }
 }
 
-// Also remove the problematic packages entirely since they're excluded from the build anyway
-const packagesToRemove = [
-  "node_modules/@swagger-api",
-  "node_modules/swagger-client",
-  "node_modules/swagger-ui-react",
-];
-
-console.log("\n🗑️  Removing excluded packages from node_modules...");
-for (const pkgPath of packagesToRemove) {
-  const fullPath = path.join(process.cwd(), pkgPath);
-  if (fs.existsSync(fullPath)) {
-    try {
-      fs.rmSync(fullPath, { recursive: true, force: true });
-      console.log(`  ✓ Removed ${path.basename(pkgPath)}`);
-    } catch (error) {
-      console.warn(`  ⚠ Could not remove ${pkgPath}: ${error.message}`);
-    }
-  }
-}
-
+// Also remove only nested problematic packages that are not direct app dependencies.
+// Keep direct dependencies (e.g. swagger-ui-react) on disk so electron-builder's
+// dependency graph resolution does not encounter missing-path entries.
+console.log("\n🛡️  Keeping declared packages installed for electron-builder dependency graph.");
 console.log("✅ Done fixing dependencies\n");

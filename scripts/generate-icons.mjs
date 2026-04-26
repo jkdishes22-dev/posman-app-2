@@ -1,57 +1,80 @@
 /**
- * Generates a multi-resolution Windows ICO file from the source PNG.
- * Uses sharp to resize to ICO-compatible dimensions, then png-to-ico to bundle.
- * Output: public/icons/JKlogo-512.ico
+ * Generates icon files for the Electron desktop app.
+ *
+ * Outputs:
+ *   public/icons/JK-icon.png   — 512×512 PNG rendered from JK-icon.svg
+ *   public/icons/JK-icon.ico   — multi-resolution Windows ICO (16…256 px)
+ *   public/icons/JKlogo-512.ico — ICO from the full JKlogo-512.png (kept for reference)
  *
  * Usage: node scripts/generate-icons.mjs
  */
 
-import { writeFileSync, mkdirSync } from "fs";
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { createRequire } from "module";
 import sharp from "sharp";
 
-const require = createRequire(import.meta.url);
 const pngToIco = (await import("png-to-ico")).default;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
-
-const sourcePng = join(root, "public", "icons", "JKlogo-512.png");
-const outputIco = join(root, "public", "icons", "JKlogo-512.ico");
+const iconsDir = join(root, "public", "icons");
 const tmpDir = join(root, ".ico-tmp");
 
-// Standard Windows ICO sizes
-const sizes = [16, 32, 48, 64, 128, 256];
+const ICO_SIZES = [16, 32, 48, 64, 128, 256];
 
-console.log("🖼️  Generating Windows ICO file...");
-console.log(`   Source: ${sourcePng}`);
+async function generateIco(sourcePng, outputIco, label) {
+  console.log(`\n🖼️  ${label}`);
+  console.log(`   Source: ${sourcePng}`);
 
-try {
   mkdirSync(tmpDir, { recursive: true });
 
-  // Resize source PNG to each required ICO size
   const resizedPaths = [];
-  for (const size of sizes) {
-    const outPath = join(tmpDir, `icon-${size}.png`);
+  for (const size of ICO_SIZES) {
+    const outPath = join(tmpDir, `${size}.png`);
     await sharp(sourcePng)
       .resize(size, size, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toFile(outPath);
     resizedPaths.push(outPath);
-    console.log(`   Resized to ${size}x${size}`);
+    process.stdout.write(`   ${size}px `);
   }
+  console.log();
 
-  // Bundle all sizes into one ICO
   const buf = await pngToIco(resizedPaths);
   writeFileSync(outputIco, buf);
-  console.log(`✅ ICO generated: ${outputIco} (${(buf.length / 1024).toFixed(1)} KB)`);
+  console.log(`   ✅ ICO: ${outputIco} (${(buf.length / 1024).toFixed(1)} KB)`);
+}
 
-  // Clean up temp files
-  const { rmSync } = await import("fs");
-  rmSync(tmpDir, { recursive: true, force: true });
-} catch (error) {
-  console.error("❌ Failed to generate ICO:", error.message);
+// 1. Render JK-icon.svg → JK-icon.png
+const svgSource = join(iconsDir, "JK-icon.svg");
+const appIconPng = join(iconsDir, "JK-icon.png");
+const appIconIco = join(iconsDir, "JK-icon.ico");
+
+if (!existsSync(svgSource)) {
+  console.error(`❌ SVG source not found: ${svgSource}`);
   process.exit(1);
 }
+
+console.log("🎨 Rendering JK-icon.svg → JK-icon.png …");
+await sharp(readFileSync(svgSource))
+  .resize(512, 512)
+  .png()
+  .toFile(appIconPng);
+console.log(`   ✅ PNG: ${appIconPng}`);
+
+await generateIco(appIconPng, appIconIco, "Building JK-icon.ico (app icon)");
+
+// 2. Also regenerate JKlogo-512.ico from the original full logo PNG
+const fullLogoPng = join(iconsDir, "JKlogo-512.png");
+const fullLogoIco = join(iconsDir, "JKlogo-512.ico");
+
+if (existsSync(fullLogoPng)) {
+  await generateIco(fullLogoPng, fullLogoIco, "Building JKlogo-512.ico (full logo — kept for reference)");
+}
+
+// Clean up temp files
+const { rmSync } = await import("fs");
+try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+
+console.log("\n✅ Icon generation complete.");

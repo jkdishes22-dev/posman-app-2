@@ -1,7 +1,6 @@
 import { Column, Entity, OneToMany, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import type { StationPricelist } from "./StationPricelist";
-import { EntityRef } from "./entity-refs";
 import { enumColType } from "./column-types";
 
 export enum PriceListStatus {
@@ -33,8 +32,11 @@ export class Pricelist extends BaseEntity {
   @Column({ type: "varchar", length: 255, nullable: true })
   description: string;
 
-  // Relationship to stations through junction table
-  @OneToMany(() => EntityRef.get("StationPricelist"), (sp: any) => sp.pricelist)
+  // Relationship to stations through junction table.
+  // Resolved by table name to avoid class-reference fragility in webpack bundles
+  // (minified class names break TypeORM's `m.target === relation.type` lookup,
+  // surfacing as: "Entity metadata for <minified>#stationPricelists was not found").
+  @OneToMany("station_pricelist", (sp: StationPricelist) => sp.pricelist)
   stationPricelists: StationPricelist[];
 
   // @OneToMany(() => PricelistItem, (pricelistItem) => pricelistItem.pricelist)

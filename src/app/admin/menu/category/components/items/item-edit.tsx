@@ -71,20 +71,6 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
   }, [apiCall]);
 
   useEffect(() => {
-    async function fetchCategories() {
-      try {
-        const result = await apiCall("/api/menu/categories");
-        if (result.status === 200) {
-          setCategories(Array.isArray(result.data) ? result.data : []);
-        }
-      } catch {
-        // non-critical, leave categories empty
-      }
-    }
-    fetchCategories();
-  }, [apiCall]);
-
-  useEffect(() => {
     if (item) {
       const itemWithDefaults = {
         ...item,

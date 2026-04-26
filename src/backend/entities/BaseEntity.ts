@@ -1,12 +1,15 @@
 import {
-  Entity,
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
 } from "typeorm";
 
-@Entity()
+// Abstract base — no @Entity() here. TypeORM inherits these column decorators
+// into each concrete child entity. Adding @Entity() on an abstract base causes
+// TypeORM to register a phantom entity whose class name is minified to a single
+// letter in production webpack bundles, triggering "Cyclic dependency: s" in
+// SubjectTopologicalSorter when those phantom metadata objects appear in a save.
 export abstract class BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;

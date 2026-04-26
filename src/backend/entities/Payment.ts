@@ -1,7 +1,6 @@
 import { Entity, Column, OneToMany } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import type { BillPayment } from "./BillPayment";
-import { EntityRef } from "./entity-refs";
 import { enumColType } from "./column-types";
 
 export enum PaymentType {
@@ -36,6 +35,7 @@ export class Payment extends BaseEntity {
   @Column({ type: "varchar", length: 255, nullable: true })
   reference: string | null;
 
-  @OneToMany(() => EntityRef.get("BillPayment"), (billPayment: any) => billPayment.payment)
+  // Resolved by table name to avoid class-reference fragility in webpack bundles.
+  @OneToMany("bill_payment", (billPayment: BillPayment) => billPayment.payment)
   bill_payments: Promise<BillPayment[]>;
 }
