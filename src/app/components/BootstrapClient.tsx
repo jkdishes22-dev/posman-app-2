@@ -4,6 +4,16 @@ import { useEffect } from "react";
 
 function BootstrapClient() {
   useEffect(() => {
+    // Unregister stale service workers in development so cached HTML pages
+    // from a prior production build don't interfere with API calls.
+    if (process.env.NODE_ENV === "development" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((reg) => reg.unregister());
+      });
+    }
+  }, []);
+
+  useEffect(() => {
     import("bootstrap/dist/js/bootstrap.bundle.min.js")
       .then((bootstrap) => {
         // Initialize tooltips globally
