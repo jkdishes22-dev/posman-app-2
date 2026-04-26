@@ -11,6 +11,10 @@ const os = require("os");
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const isProduction = !isDev;
+/** Set JK_POSMAN_DEBUG_STARTUP=1 for verbose path probes, resources listing, and per-tick readiness logs. */
+const verboseStartup =
+    process.env.JK_POSMAN_DEBUG_STARTUP === "1" ||
+    process.env.JK_POSMAN_DEBUG_STARTUP === "true";
 
 let mainWindow = null;
 let nextServer = null;
@@ -125,17 +129,19 @@ function startNextServer() {
             const altUnpackedPath = extraResourcesPath;
             const altUnpackedServerPath = extraResourcesServerPath;
 
-            logToFile(`Checking unpacked path: ${unpackedPath}`);
-            logToFile(`Unpacked server.js exists: ${fs.existsSync(unpackedServerPath)}`);
-            logToFile(`Checking alt unpacked path: ${altUnpackedPath}`);
-            logToFile(`Alt unpacked server.js exists: ${fs.existsSync(altUnpackedServerPath)}`);
-            logToFile(`Checking extraResources path: ${extraResourcesPath}`);
-            logToFile(`ExtraResources server.js exists: ${fs.existsSync(extraResourcesServerPath)}`);
-            logToFile(`Checking extraFiles path: ${extraFilesPath}`);
-            logToFile(`ExtraFiles server.js exists: ${fs.existsSync(extraFilesServerPath)}`);
+            if (verboseStartup) {
+                logToFile(`Checking unpacked path: ${unpackedPath}`);
+                logToFile(`Unpacked server.js exists: ${fs.existsSync(unpackedServerPath)}`);
+                logToFile(`Checking alt unpacked path: ${altUnpackedPath}`);
+                logToFile(`Alt unpacked server.js exists: ${fs.existsSync(altUnpackedServerPath)}`);
+                logToFile(`Checking extraResources path: ${extraResourcesPath}`);
+                logToFile(`ExtraResources server.js exists: ${fs.existsSync(extraResourcesServerPath)}`);
+                logToFile(`Checking extraFiles path: ${extraFilesPath}`);
+                logToFile(`ExtraFiles server.js exists: ${fs.existsSync(extraFilesServerPath)}`);
+            }
 
-            // Debug: list resourcesDir contents so failures are easy to diagnose
-            if (fs.existsSync(resourcesDir)) {
+            // Full resources listing is expensive; enable with JK_POSMAN_DEBUG_STARTUP=1
+            if (verboseStartup && fs.existsSync(resourcesDir)) {
                 try {
                     logToFile(`Listing ALL contents of resources directory: ${resourcesDir}`);
                     const resourcesContents = fs.readdirSync(resourcesDir, { withFileTypes: true });
@@ -144,7 +150,6 @@ function startNextServer() {
                         const itemPath = path.join(resourcesDir, item.name);
                         if (item.isDirectory()) {
                             logToFile(`  [DIR]  ${item.name}/`);
-                            // List first-level contents of directories
                             try {
                                 const subContents = fs.readdirSync(itemPath, { withFileTypes: true });
                                 logToFile(`         Contains: ${subContents.map(d => d.name).join(", ")}`);
@@ -159,7 +164,7 @@ function startNextServer() {
                 } catch (err) {
                     logToFile(`Could not list resources directory: ${err.message}`, "ERROR");
                 }
-            } else {
+            } else if (!fs.existsSync(resourcesDir)) {
                 logToFile(`Resources directory does not exist: ${resourcesDir}`, "ERROR");
             }
 
@@ -193,18 +198,24 @@ function startNextServer() {
                 return;
             }
 
-            logToFile(`App path: ${appPath}`);
-            logToFile(`__dirname: ${__dirname}`);
-            logToFile(`Electron dir: ${electronDir}`);
+            if (verboseStartup) {
+                logToFile(`App path: ${appPath}`);
+                logToFile(`__dirname: ${__dirname}`);
+                logToFile(`Electron dir: ${electronDir}`);
+            } else {
+                logToFile(`Next standalone: ${serverPath}`);
+            }
         } else {
             // In development, use normal paths
             nextPath = path.join(__dirname, "../.next/standalone");
             serverPath = path.join(nextPath, "server.js");
         }
 
-        logToFile(`Looking for Next.js server at: ${serverPath}`);
-        logToFile(`Next.js path exists: ${fs.existsSync(nextPath)}`);
-        logToFile(`Server.js exists: ${fs.existsSync(serverPath)}`);
+        if (verboseStartup) {
+            logToFile(`Looking for Next.js server at: ${serverPath}`);
+            logToFile(`Next.js path exists: ${fs.existsSync(nextPath)}`);
+            logToFile(`Server.js exists: ${fs.existsSync(serverPath)}`);
+        }
 
         // Check if standalone build exists
         if (!fs.existsSync(serverPath)) {
@@ -231,16 +242,14 @@ function startNextServer() {
         // Set NODE_PATH to ensure modules are found
         env.NODE_PATH = path.join(nextPath, "node_modules");
 
-        logToFile(`Server script path: ${serverPath}`);
-        logToFile(`Working directory: ${nextPath}`);
-        logToFile(`Using utilityProcess API (Electron's recommended approach)`);
-
-        // Use Electron's utilityProcess API instead of child_process.fork()
-        // utilityProcess is designed for this use case and uses Electron's embedded Node.js automatically
-        // CRITICAL: serverPath MUST be outside ASAR archive (in app.asar.unpacked)
-        logToFile(`Attempting to fork server at: ${serverPath}`);
-        logToFile(`Server path exists: ${fs.existsSync(serverPath)}`);
-        logToFile(`Server path is absolute: ${path.isAbsolute(serverPath)}`);
+        if (verboseStartup) {
+            logToFile(`Server script path: ${serverPath}`);
+            logToFile(`Working directory: ${nextPath}`);
+            logToFile(`Using utilityProcess API (Electron's recommended approach)`);
+            logToFile(`Attempting to fork server at: ${serverPath}`);
+            logToFile(`Server path exists: ${fs.existsSync(serverPath)}`);
+            logToFile(`Server path is absolute: ${path.isAbsolute(serverPath)}`);
+        }
 
         // Verify the path is NOT inside ASAR
         if (serverPath.includes("app.asar") && !serverPath.includes("app.asar.unpacked")) {
@@ -285,7 +294,9 @@ function startNextServer() {
         // utilityProcess uses message ports for IPC instead of stdio
         // Listen for messages from the child process
         nextServer.on("message", (message) => {
-            logToFile(`Next.js server message: ${JSON.stringify(message)}`);
+            if (verboseStartup) {
+                logToFile(`Next.js server message: ${JSON.stringify(message)}`);
+            }
         });
 
         // Handle utilityProcess lifecycle events
@@ -329,16 +340,21 @@ function startNextServer() {
         const checkServer = setInterval(() => {
             attempts++;
             const http = require("http");
-            logToFile(`Checking server readiness (attempt ${attempts}/${maxAttempts}) at http://${HOST}:${PORT}...`);
+            if (verboseStartup || attempts === 1 || attempts % 20 === 0) {
+                logToFile(`Checking server readiness (attempt ${attempts}/${maxAttempts}) at http://${HOST}:${PORT}...`);
+            }
             const req = http.get(`http://${HOST}:${PORT}`, (res) => {
-                logToFile(`Server responded with status ${res.statusCode}`);
-                // Check response headers to verify it's our Next.js server, not another service
+                if (verboseStartup) {
+                    logToFile(`Server responded with status ${res.statusCode}`);
+                }
                 const contentType = res.headers["content-type"] || "";
                 const serverHeader = res.headers["server"] || "";
                 const xPoweredBy = res.headers["x-powered-by"] || "";
-                logToFile(`Response Content-Type: ${contentType}`);
-                logToFile(`Response Server header: ${serverHeader}`);
-                logToFile(`Response X-Powered-By: ${xPoweredBy}`);
+                if (verboseStartup) {
+                    logToFile(`Response Content-Type: ${contentType}`);
+                    logToFile(`Response Server header: ${serverHeader}`);
+                    logToFile(`Response X-Powered-By: ${xPoweredBy}`);
+                }
 
                 // Next.js typically sets x-powered-by: Next.js
                 if (xPoweredBy.includes("Next.js") || contentType.includes("text/html")) {
@@ -346,7 +362,7 @@ function startNextServer() {
                         clearInterval(checkServer);
                         logToFile("Next.js server started successfully!");
                         resolve();
-                    } else {
+                    } else if (verboseStartup) {
                         logToFile(`Server responded with status ${res.statusCode} (expected 200)`);
                     }
                 } else {
@@ -355,8 +371,7 @@ function startNextServer() {
                 }
             });
             req.on("error", (error) => {
-                // Server not ready yet, keep waiting
-                if (attempts % 10 === 0) {
+                if (verboseStartup || attempts % 20 === 0) {
                     logToFile(`Server not ready yet: ${error.message}`);
                 }
             });
@@ -474,30 +489,31 @@ function createWindow() {
 
     logToFile(`Loading URL: ${url}`);
 
-    // Add navigation logging to debug what's actually being loaded
-    mainWindow.webContents.on("did-start-loading", () => {
-        const currentUrl = mainWindow.webContents.getURL();
-        logToFile(`Window started loading: ${currentUrl}`);
-    });
+    if (verboseStartup) {
+        mainWindow.webContents.on("did-start-loading", () => {
+            const currentUrl = mainWindow.webContents.getURL();
+            logToFile(`Window started loading: ${currentUrl}`);
+        });
 
-    mainWindow.webContents.on("did-finish-load", () => {
-        const currentUrl = mainWindow.webContents.getURL();
-        logToFile(`Window finished loading: ${currentUrl}`);
-        const title = mainWindow.webContents.getTitle();
-        logToFile(`Page title: ${title}`);
-    });
+        mainWindow.webContents.on("did-finish-load", () => {
+            const currentUrl = mainWindow.webContents.getURL();
+            logToFile(`Window finished loading: ${currentUrl}`);
+            const title = mainWindow.webContents.getTitle();
+            logToFile(`Page title: ${title}`);
+        });
+
+        mainWindow.webContents.on("did-navigate", (event, navigationUrl) => {
+            logToFile(`Window navigated to: ${navigationUrl}`);
+        });
+
+        mainWindow.webContents.on("did-navigate-in-page", (event, navigationUrl) => {
+            logToFile(`Window navigated in-page to: ${navigationUrl}`);
+        });
+    }
 
     mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL) => {
         logToFile(`Window failed to load: ${validatedURL}`, "ERROR");
         logToFile(`Error code: ${errorCode}, Description: ${errorDescription}`, "ERROR");
-    });
-
-    mainWindow.webContents.on("did-navigate", (event, navigationUrl) => {
-        logToFile(`Window navigated to: ${navigationUrl}`);
-    });
-
-    mainWindow.webContents.on("did-navigate-in-page", (event, navigationUrl) => {
-        logToFile(`Window navigated in-page to: ${navigationUrl}`);
     });
 
     mainWindow.loadURL(url);
@@ -627,18 +643,24 @@ border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
     try {
         logToFile("Starting Next.js server...");
         await startNextServer();
-        await checkStartupBootstrapStatus();
-        runDailyAutoBackup();
         logToFile("Server ready, loading app URL...");
         mainWindow.loadURL(`http://${HOST}:${PORT}`);
-        logToFile("App loaded successfully");
+        logToFile("App URL load initiated");
 
-        // Auto-updater: check for updates in production only
+        // Warm bootstrap + backup without blocking first paint
+        void (async () => {
+            await checkStartupBootstrapStatus();
+            runDailyAutoBackup();
+        })();
+
+        // Auto-updater: defer so first window is not competing on startup I/O
         if (isProduction && autoUpdater) {
-            logToFile("Checking for updates...");
-            autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-                logToFile(`Auto-updater error: ${err.message}`, "ERROR");
-            });
+            setTimeout(() => {
+                logToFile("Checking for updates (deferred)...");
+                autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+                    logToFile(`Auto-updater error: ${err.message}`, "ERROR");
+                });
+            }, 5000);
         }
     } catch (error) {
         logToFile(`Failed to start application: ${error.message}`, "ERROR");
