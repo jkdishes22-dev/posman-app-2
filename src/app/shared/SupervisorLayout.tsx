@@ -47,7 +47,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             { path: "/supervisor/menu/category", item: "menu-category" },
             { path: "/supervisor/menu/pricelist", item: "menu-pricelist" },
             { path: "/supervisor/menu/recipes", item: "menu-recipes" },
-            { path: "/supervisor/production/issue", item: "production-issuing" },
+            { path: "/supervisor/production", item: "production-issuing" },
             { path: "/supervisor/station", item: "stations-overview" },
             { path: "/supervisor/station/user", item: "station-users" },
             // Also handle admin paths when accessed by supervisor
@@ -330,7 +330,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     id: "production-issuing",
                     label: "Issue Production",
                     icon: "bi-arrow-up-circle",
-                    path: "/supervisor/production/issue",
+                    path: "/supervisor/production",
                 },
             ],
         },
