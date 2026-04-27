@@ -8,9 +8,9 @@ on:
   workflow_dispatch: # Allow manual triggering
     inputs:
       artifact_name:
-        description: "Artifact name to test (default: windows-installer-x64)"
+        description: "Artifact name to test (default: windows-app-x64)"
         required: false
-        default: "windows-installer-x64"
+        default: "windows-app-x64"
       workflow_run_id:
         description: "Workflow run ID to download artifact from (for manual triggers)"
         required: false
@@ -36,7 +36,7 @@ jobs:
         id: download-artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ github.event.inputs.artifact_name || 'windows-installer-x64' }}
+          name: ${{ github.event.inputs.artifact_name || 'windows-app-x64' }}
           path: ./installer
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id || github.event.inputs.workflow_run_id }}
@@ -51,7 +51,7 @@ jobs:
             Write-Host ""
             Write-Host "Troubleshooting:"
             Write-Host "  1. Check if the build workflow completed successfully"
-            Write-Host "  2. Verify artifact name: ${{ github.event.inputs.artifact_name || 'windows-installer-x64' }}"
+            Write-Host "  2. Verify artifact name: ${{ github.event.inputs.artifact_name || 'windows-app-x64' }}"
             Write-Host "  3. Check workflow run ID: ${{ github.event.workflow_run.id || github.event.inputs.workflow_run_id }}"
             Write-Host "  4. Repository: ${{ github.repository }}"
             exit 1
@@ -74,6 +74,23 @@ jobs:
             Write-Host "  $($_.FullName)"
           }
 
+      - name: Extract zip artifacts
+        run: |
+          # The x64 CI build produces a .zip portable app (not an NSIS installer).
+          # Extract any zip files so subsequent steps can find the .exe inside.
+          $zips = Get-ChildItem -Path ./installer -Filter *.zip -Recurse
+          if ($zips.Count -gt 0) {
+            Write-Host "Found $($zips.Count) zip file(s) — extracting..."
+            foreach ($zip in $zips) {
+              $dest = Join-Path "./installer/extracted" ([System.IO.Path]::GetFileNameWithoutExtension($zip.Name))
+              Write-Host "  Extracting $($zip.Name) → $dest"
+              Expand-Archive -Path $zip.FullName -DestinationPath $dest -Force
+            }
+            Write-Host "✅ Extraction complete"
+          } else {
+            Write-Host "No zip files found — assuming direct .exe artifact"
+          }
+
       - name: Find installer executable
         id: find-installer
         run: |
@@ -94,12 +111,12 @@ jobs:
           Get-ChildItem -Path ./installer | ForEach-Object { Write-Host "  $($_.Name)" }
           Write-Host ""
 
-          # Search for .exe files
+          # Search for .exe files (includes extracted zip contents)
           Write-Host "Searching for .exe files recursively..."
           $installers = Get-ChildItem -Path ./installer -Filter *.exe -Recurse
 
           if ($installers.Count -eq 0) {
-            Write-Error "❌ No .exe installer found in artifacts"
+            Write-Error "❌ No .exe found in artifacts (checked both direct and extracted zip contents)"
             Write-Host "Searched in: ./installer"
             Write-Host "Full directory structure:"
             Get-ChildItem -Path ./installer -Recurse | ForEach-Object {

@@ -1,30 +1,9 @@
 {
-  "version": 2,
-  "name": "posman-app",
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
+  "framework": "nextjs",
+  "regions": ["iad1"],
   "functions": {
     "pages/api/**/*.ts": {
       "maxDuration": 30
     }
-  },
-  "regions": ["iad1"],
-  "framework": "nextjs"
+  }
 }
