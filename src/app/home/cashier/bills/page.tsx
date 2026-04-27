@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { formatISO } from "date-fns";
@@ -16,6 +17,7 @@ import SubmitBillModal from "../../my-sales/submit-bill";
 
 const CashierBillsPage = () => {
   const apiCall = useApiCall();
+  const pathname = usePathname();
 
   // Component mounted
   useEffect(() => {
@@ -72,6 +74,17 @@ const CashierBillsPage = () => {
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [showBillItems, setShowBillItems] = useState(false);
 
+  const cleanupModalArtifacts = () => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    document.body.classList.remove("modal-open");
+    document.body.style.removeProperty("padding-right");
+    document.body.style.removeProperty("overflow");
+    document.querySelectorAll(".modal-backdrop").forEach((backdrop) => backdrop.remove());
+  };
+
   // Get user role and ID from token
   let userRole = "";
   let currentUserId: number | null = null;
@@ -104,6 +117,22 @@ const CashierBillsPage = () => {
   useEffect(() => {
     fetchSalesPersons();
     fetchReopenReasons();
+  }, []);
+
+  useEffect(() => {
+    setShowCloseBillModal(false);
+    setShowCloseBillSuccessModal(false);
+    setShowBulkCloseModal(false);
+    setShowBulkSubmitModal(false);
+    setShowReopenModal(false);
+    setShowSubmitModal(false);
+    cleanupModalArtifacts();
+  }, [pathname]);
+
+  useEffect(() => {
+    return () => {
+      cleanupModalArtifacts();
+    };
   }, []);
 
   // Reset bill items view when selected bill changes

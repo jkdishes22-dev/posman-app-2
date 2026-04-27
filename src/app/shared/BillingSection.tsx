@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from "react";
+import { usePathname } from "next/navigation";
 import { Item } from "../types/types";
 import QuantityModal from "./QuantityModal";
 import { Button, Modal, Alert, Row, Col, Spinner } from "react-bootstrap";
@@ -23,6 +24,7 @@ import { ApiErrorResponse } from "../utils/errorUtils";
 const INVENTORY_TTL_MS = 15000;
 
 const BillingSection = () => {
+  const pathname = usePathname();
   // Auth context
   const { isAuthenticated, logout, user, isLoading: authLoading } = useAuth();
 
@@ -64,6 +66,19 @@ const BillingSection = () => {
   const inventorySnapshotRef = useRef<Record<number, number>>({});
   const inventoryFetchedAtRef = useRef<Record<number, number>>({});
 
+  const cleanupModalArtifacts = useCallback(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    document.body.classList.remove("modal-open");
+    document.body.style.removeProperty("padding-right");
+    document.body.style.removeProperty("overflow");
+    document.querySelectorAll(".modal-backdrop").forEach((backdrop) => {
+      backdrop.remove();
+    });
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) {
       logout();
@@ -78,6 +93,20 @@ const BillingSection = () => {
     // Note: Stations and pricelists are already loaded by their respective contexts on mount
     // No need to call loadStationsIfNeeded/loadPricelistsIfNeeded here as contexts handle it
   }, [isAuthenticated, user]);
+
+  // Defensive cleanup to prevent stale modal backdrops from blocking navigation.
+  useEffect(() => {
+    setShowSubmitModal(false);
+    setShowCancelModal(false);
+    setShowQuantityModal(false);
+    cleanupModalArtifacts();
+  }, [pathname, cleanupModalArtifacts]);
+
+  useEffect(() => {
+    return () => {
+      cleanupModalArtifacts();
+    };
+  }, [cleanupModalArtifacts]);
 
   // Prefetch categories when station is available (optimized loading)
   useEffect(() => {
