@@ -50,6 +50,10 @@ export class ProductionPreparationService {
             throw new Error(`Item ${input.item_id} not found`);
         }
 
+        if (item.isGroup) {
+            throw new Error("Grouped/composite items cannot be issued directly. Please issue recipe components instead.");
+        }
+
         // Validate quantity
         if (input.quantity_prepared <= 0) {
             throw new Error("Quantity prepared must be greater than 0");
@@ -177,6 +181,10 @@ export class ProductionPreparationService {
 
         if (!item) {
             throw new Error(`Item ${input.item_id} not found`);
+        }
+
+        if (item.isGroup) {
+            throw new Error("Grouped/composite items cannot be issued directly. Please issue recipe components instead.");
         }
 
         // Validate quantity

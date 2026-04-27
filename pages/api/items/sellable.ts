@@ -20,6 +20,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 .createQueryBuilder("item")
                 .leftJoinAndSelect("item.category", "category")
                 .where("item.is_stock = :isStock", { isStock: false })
+                .andWhere("item.is_group = :isGroup", { isGroup: false })
                 .andWhere("item.status = :status", { status: ItemStatus.ACTIVE });
 
             // Add search filter if query provided
@@ -42,6 +43,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 code: item.code,
                 category: item.category?.name || "N/A",
                 isStock: item.isStock,
+                isGroup: item.isGroup,
             }));
 
             response.status(200).json({
