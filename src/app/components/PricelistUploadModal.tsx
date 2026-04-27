@@ -48,6 +48,19 @@ export default function PricelistUploadModal({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const apiCall = useApiCall();
 
+  const getNetworkErrorDetails = (message?: string): ApiErrorResponse => ({
+    message: message || "Network error occurred",
+    networkError: true,
+    status: 0,
+  });
+
+  const getSafeErrorMessage = (fallback: string, error?: unknown): string => {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+    return fallback;
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -97,9 +110,10 @@ export default function PricelistUploadModal({
         setError(result.error || "Failed to validate file");
         setErrorDetails(result.errorDetails);
       }
-    } catch {
-      setError("Network error occurred");
-      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    } catch (error: unknown) {
+      const message = getSafeErrorMessage("Network error occurred", error);
+      setError(message);
+      setErrorDetails(getNetworkErrorDetails(message));
     } finally {
       setValidating(false);
     }
@@ -144,9 +158,12 @@ export default function PricelistUploadModal({
         onUploadComplete();
       } else {
         setUploadError(result.error || "Upload failed — no items were saved");
+        setErrorDetails(result.errorDetails || null);
       }
-    } catch {
-      setUploadError("Network error — no items were saved");
+    } catch (error: unknown) {
+      const message = getSafeErrorMessage("Network error — no items were saved", error);
+      setUploadError(message);
+      setErrorDetails(getNetworkErrorDetails(message));
     } finally {
       setUploading(false);
     }
@@ -154,21 +171,46 @@ export default function PricelistUploadModal({
 
   const handleDownloadTemplate = async () => {
     setDownloadingTemplate(true);
+    setError(null);
+    setErrorDetails(null);
     try {
-      const response = await fetch(`/api/menu/pricelists/${pricelistId}/upload/template`, {
+      const result = await apiCall(`/api/menu/pricelists/${pricelistId}/upload/template`, {
         method: "GET",
-        credentials: "include",
+        headers: {
+          Accept: "text/csv",
+        },
       });
-      if (!response.ok) throw new Error("Failed to download template");
-      const blob = await response.blob();
+
+      if (result.status !== 200) {
+        setError(result.error || "Failed to download template");
+        setErrorDetails(result.errorDetails || null);
+        return;
+      }
+
+      const templateContent =
+        typeof result.data === "string"
+          ? result.data
+          : typeof result.data?.error === "string"
+            ? result.data.error
+            : null;
+
+      if (!templateContent) {
+        setError("Template content was empty");
+        setErrorDetails({ message: "Template content was empty", status: 500 });
+        return;
+      }
+
+      const blob = new Blob([templateContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = "pricelist-upload-template.csv";
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      setError("Failed to download template");
+    } catch (error: unknown) {
+      const message = getSafeErrorMessage("Failed to download template", error);
+      setError(message);
+      setErrorDetails(getNetworkErrorDetails(message));
     } finally {
       setDownloadingTemplate(false);
     }
