@@ -60,21 +60,19 @@ export default function SupervisorPage() {
             const today = new Date();
             const todayStr = today.toISOString().split("T")[0];
 
-            // Load void request stats
-            const voidStatsResult = await apiCall("/api/bills/void-requests/stats");
-            let pendingVoidRequests = 0;
+            const [voidStatsResult, billsResult, recentBillsResult, lowStockResult] = await Promise.all([
+                apiCall("/api/bills/void-requests/stats"),
+                apiCall(`/api/bills?date=${todayStr}&page=1&pageSize=1000`),
+                apiCall("/api/bills?page=1&pageSize=20"),
+                apiCall("/api/inventory/low-stock"),
+            ]);
 
+            let pendingVoidRequests = 0;
             if (voidStatsResult.status === 200) {
                 pendingVoidRequests = voidStatsResult.data.stats?.pending || 0;
             } else {
                 console.warn("Failed to load void request stats:", voidStatsResult.error);
             }
-
-            // Fetch today's bills to calculate sales
-            const billsResult = await apiCall(`/api/bills?date=${todayStr}&page=1&pageSize=1000`);
-            
-            // Fetch recent bills (last 24 hours) for activity feed
-            const recentBillsResult = await apiCall("/api/bills?page=1&pageSize=20");
 
             let totalSales = 0;
             let activeBills = 0;
@@ -95,8 +93,6 @@ export default function SupervisorPage() {
                 console.warn("Failed to load today's bills:", billsResult.error);
             }
 
-            // Fetch low stock items
-            const lowStockResult = await apiCall("/api/inventory/low-stock");
             let lowStockItems = 0;
             let lowStockItemsList: any[] = [];
 

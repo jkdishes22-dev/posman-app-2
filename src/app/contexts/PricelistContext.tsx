@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { useStation } from "./StationContext";
 import { useApiCall } from "../utils/apiUtils";
@@ -44,7 +44,6 @@ export const PricelistProvider: React.FC<PricelistProviderProps> = ({ children }
     const [error, setError] = useState<string | null>(null);
     const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const hasInitiallyLoaded = useRef(false);
 
     const apiCall = useApiCall();
 
@@ -58,7 +57,7 @@ export const PricelistProvider: React.FC<PricelistProviderProps> = ({ children }
             return [];
         }
 
-        const result = await apiCall(`/api/stations/${currentStation.id}/pricelists?t=${Date.now()}`);
+        const result = await apiCall(`/api/stations/${currentStation.id}/pricelists`);
         if (result.status === 200) {
             const pricelists = result.data?.pricelists || [];
             return pricelists;
@@ -124,26 +123,17 @@ export const PricelistProvider: React.FC<PricelistProviderProps> = ({ children }
 
     // Load pricelists if needed (when user is authenticated and pricelists not loaded)
     const loadPricelistsIfNeeded = useCallback(async (): Promise<void> => {
-        const token = localStorage.getItem("token");
-        if (token && availablePricelists.length === 0 && !isLoading && !isRefreshing) {
+        if (currentStation && availablePricelists.length === 0 && !isLoading && !isRefreshing) {
             await refreshPricelists();
         }
-    }, [availablePricelists.length, isLoading, isRefreshing]);
+    }, [currentStation, availablePricelists.length, isLoading, isRefreshing, refreshPricelists]);
 
     // Load pricelists when station changes
     useEffect(() => {
         if (currentStation && isAuthenticated) {
             refreshPricelists();
         }
-    }, [currentStation, isAuthenticated]);
-
-    // Load pricelists on mount (only if user is authenticated)
-    useEffect(() => {
-        if (isAuthenticated && !hasInitiallyLoaded.current) {
-            hasInitiallyLoaded.current = true;
-            loadPricelistsIfNeeded();
-        }
-    }, [isAuthenticated]);
+    }, [currentStation, isAuthenticated, refreshPricelists]);
 
     const contextValue: PricelistContextType = {
         currentPricelist,
