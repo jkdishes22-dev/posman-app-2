@@ -150,30 +150,17 @@ export class UserService {
       }
     }
 
-    // Optimized query: select only needed fields
-    const query = this.userRepository
-      .createQueryBuilder("user")
-      .leftJoinAndSelect("user.roles", "role")
-      .where("user.username = :username", { username })
-      .select([
-        "user.id",
-        "user.username",
-        "user.firstName",
-        "user.lastName",
-        "user.status",
-        "user.created_at",
-        "user.updated_at",
-        "user.refreshToken",
-        "role.id",
-        "role.name"
-      ]);
+    // Avoid partial-select query builder path here because it can fail on
+    // SQLite/bundled builds (observed in production login with TypeORM internals).
+    const result = await this.userRepository.findOne({
+      where: { username },
+      relations: ["roles"],
+    });
 
-    // Only include password if explicitly requested (for login)
-    if (includePassword) {
-      query.addSelect("user.password");
+    // Keep behavior: callers that don't request password should not receive it.
+    if (result && !includePassword) {
+      delete (result as Partial<User>).password;
     }
-
-    const result = await query.getOne();
 
     // Cache the result (but exclude password from cache for security)
     if (result && !includePassword) {

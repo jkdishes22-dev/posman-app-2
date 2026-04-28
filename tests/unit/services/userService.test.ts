@@ -68,8 +68,7 @@ describe("UserService", () => {
 
   describe("getUserByUsername", () => {
     it("returns null when user not found", async () => {
-      const qb = mockUserRepo.createQueryBuilder();
-      qb.getOne.mockResolvedValue(null);
+      mockUserRepo.findOne.mockResolvedValue(null);
 
       const result = await service.getUserByUsername("nobody");
 
@@ -78,13 +77,12 @@ describe("UserService", () => {
 
     it("caches result on second call when includePassword is false", async () => {
       const user = { id: 1, username: "admin", password: "hashed" };
-      const qb = mockUserRepo.createQueryBuilder();
-      qb.getOne.mockResolvedValue(user);
+      mockUserRepo.findOne.mockResolvedValue(user);
 
       await service.getUserByUsername("admin", false);
       await service.getUserByUsername("admin", false);
 
-      expect(qb.getOne).toHaveBeenCalledTimes(1);
+      expect(mockUserRepo.findOne).toHaveBeenCalledTimes(1);
     });
   });
 
