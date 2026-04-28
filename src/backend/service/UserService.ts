@@ -150,16 +150,59 @@ export class UserService {
       }
     }
 
-    // Avoid partial-select query builder path here because it can fail on
-    // SQLite/bundled builds (observed in production login with TypeORM internals).
-    const result = await this.userRepository.findOne({
-      where: { username },
-      relations: ["roles"],
-    });
+    // Use raw SQL here to avoid TypeORM relation-query edge cases in bundled
+    // production builds (observed around SelectQueryBuilder internals).
+    const users: any[] =
+      (await this.userRepository.manager.query(
+        `SELECT
+           u.id,
+           u.username,
+           u.firstName,
+           u.lastName,
+           u.password,
+           u.status,
+           u.refreshToken,
+           u.created_at,
+           u.updated_at
+         FROM user u
+         WHERE u.username = ?
+         LIMIT 1`,
+        [username],
+      )) ?? [];
 
-    // Keep behavior: callers that don't request password should not receive it.
-    if (result && !includePassword) {
-      delete (result as Partial<User>).password;
+    const userRow = users[0];
+    let result: User | null = null;
+
+    if (userRow) {
+      const roleRows: any[] =
+        (await this.userRepository.manager.query(
+          `SELECT r.id, r.name
+           FROM roles r
+           INNER JOIN user_roles ur ON ur.role_id = r.id
+           WHERE ur.user_id = ?`,
+          [userRow.id],
+        )) ?? [];
+
+      result = {
+        id: userRow.id,
+        username: userRow.username,
+        firstName: userRow.firstName,
+        lastName: userRow.lastName,
+        password: userRow.password,
+        status: userRow.status,
+        refreshToken: userRow.refreshToken,
+        created_at: userRow.created_at,
+        updated_at: userRow.updated_at,
+        roles: roleRows.map((role) => ({
+          id: role.id,
+          name: role.name,
+        })) as Role[],
+      } as User;
+
+      // Keep behavior: callers that don't request password should not receive it.
+      if (!includePassword) {
+        delete (result as Partial<User>).password;
+      }
     }
 
     // Cache the result (but exclude password from cache for security)

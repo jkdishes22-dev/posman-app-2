@@ -186,6 +186,15 @@ const LoginForm = () => {
           }
         }
       } else {
+        if (result.status === 428 || result.status === 503) {
+          // Ensure setup actions are visible when backend blocks login on setup state.
+          await readSetupStatus(true);
+          setError(result.error || "System setup is required before login.");
+          setErrorDetails(result.errorDetails || { status: result.status });
+          setIsSubmitting(false);
+          return;
+        }
+
         // Show specific error message for invalid credentials
         if (result.status === 401) {
           setError("Invalid username or password");
