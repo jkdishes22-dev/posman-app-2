@@ -60,6 +60,7 @@ module.exports = {
 
   nsis: {
     oneClick: false,
+    license: "LICENSE_TERMS.txt",
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
