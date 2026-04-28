@@ -3,6 +3,8 @@ import { User } from "@entities/User";
 import jwt from "jsonwebtoken";
 import { getConnection } from "@backend/config/data-source";
 import { v4 as uuidv4 } from "uuid";
+import { licenseService } from "@backend/licensing/LicenseService";
+import { formatSetupErrorResponse } from "@backend/config/startup-bootstrap";
 
 const secret =
     process.env.JWT_SECRET ||
@@ -14,6 +16,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     
     try {
+        const licenseStatus = await licenseService.getStatus();
+        if (licenseStatus.state !== "ready") {
+            const statusCode =
+                licenseStatus.state === "license_required" || licenseStatus.state === "license_expired"
+                    ? 402
+                    : 403;
+            return res.status(statusCode).json({ message: licenseStatus.message, code: licenseStatus.code });
+        }
+
         const db = await getConnection();
         const refreshToken = req.cookies["refreshToken"];
         if (!refreshToken) {
@@ -54,6 +65,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ token });
     } catch (error: any) {
         console.error("Error refreshing token:", error);
+        const setupError = formatSetupErrorResponse(error);
+        if (setupError.body.code !== "SETUP_FAILED" || error?.name === "StartupBootstrapError") {
+            return res.status(setupError.status).json(setupError.body);
+        }
         return res.status(500).json({ message: "Some error occurred. Please try again." });
     }
 } 

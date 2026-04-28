@@ -5,6 +5,9 @@ type SetupState =
   | "ready"
   | "db_server_unavailable"
   | "initialization_required"
+  | "license_required"
+  | "license_invalid"
+  | "license_expired"
   | "initializing"
   | "failed";
 
@@ -20,10 +23,17 @@ export interface SetupStatusPayload {
     | "SETUP_READY"
     | "DB_SERVER_UNAVAILABLE"
     | "DB_INITIALIZATION_REQUIRED"
+    | "LICENSE_REQUIRED"
+    | "LICENSE_INVALID"
+    | "LICENSE_EXPIRED"
     | "SETUP_INITIALIZING"
     | "SETUP_FAILED";
   guidance?: SetupGuidance;
   diagnostics?: {
+    /** Resolved DB mode: sqlite when DB_MODE=sqlite, otherwise mysql (see data-source.factory). */
+    effectiveDbMode?: "sqlite" | "mysql";
+    /** Raw process.env.DB_MODE when set (empty string is a distinct value from unset). */
+    dbModeEnv?: string;
     dbHost?: string;
     dbPort?: number;
     dbName?: string;
@@ -45,6 +55,17 @@ export class StartupBootstrapError extends Error {
 
 const isSqliteMode = (): boolean => process.env.DB_MODE === "sqlite";
 
+function getEffectiveDbMode(): "sqlite" | "mysql" {
+  return isSqliteMode() ? "sqlite" : "mysql";
+}
+
+function modeDiagnostics(): NonNullable<SetupStatusPayload["diagnostics"]> {
+  return {
+    effectiveDbMode: getEffectiveDbMode(),
+    ...(process.env.DB_MODE !== undefined ? { dbModeEnv: process.env.DB_MODE } : {}),
+  };
+}
+
 type MySqlConfig = {
   host: string;
   port: number;
@@ -64,6 +85,7 @@ const bootstrapState: BootstrapState = {
     state: "initializing",
     message: "Checking database setup status...",
     code: "SETUP_INITIALIZING",
+    diagnostics: modeDiagnostics(),
   },
   checkPromise: null,
   initPromise: null,
@@ -128,6 +150,7 @@ function getUnavailableStatus(error: any): SetupStatusPayload {
       ],
     },
     diagnostics: {
+      ...modeDiagnostics(),
       dbHost: config.host,
       dbPort: config.port,
       dbName: config.database,
@@ -151,6 +174,7 @@ function getInitializationRequiredStatus(): SetupStatusPayload {
           "Migrations will run automatically (roles, permissions, and admin seed included).",
         ],
       },
+      diagnostics: modeDiagnostics(),
     };
   }
 
@@ -169,6 +193,7 @@ function getInitializationRequiredStatus(): SetupStatusPayload {
       ],
     },
     diagnostics: {
+      ...modeDiagnostics(),
       dbHost: config.host,
       dbPort: config.port,
       dbName: config.database,
@@ -181,6 +206,55 @@ function getReadyStatus(): SetupStatusPayload {
     state: "ready",
     message: "Database is ready.",
     code: "SETUP_READY",
+    diagnostics: modeDiagnostics(),
+  };
+}
+
+function getLicenseRequiredStatus(message: string): SetupStatusPayload {
+  return {
+    state: "license_required",
+    message,
+    code: "LICENSE_REQUIRED",
+    guidance: {
+      title: "License activation required",
+      steps: [
+        "Enter a valid license code on the login screen.",
+        "If your trial expired, request a renewal code from the author.",
+      ],
+    },
+    diagnostics: modeDiagnostics(),
+  };
+}
+
+function getLicenseInvalidStatus(message: string): SetupStatusPayload {
+  return {
+    state: "license_invalid",
+    message,
+    code: "LICENSE_INVALID",
+    guidance: {
+      title: "License validation failed",
+      steps: [
+        "Use a valid signed license code issued by the author.",
+        "If this machine changed, request a replacement license.",
+      ],
+    },
+    diagnostics: modeDiagnostics(),
+  };
+}
+
+function getLicenseExpiredStatus(message: string): SetupStatusPayload {
+  return {
+    state: "license_expired",
+    message,
+    code: "LICENSE_EXPIRED",
+    guidance: {
+      title: "License expired",
+      steps: [
+        "Enter a new active license code to continue.",
+        "Contact the author for your replacement or lifetime license.",
+      ],
+    },
+    diagnostics: modeDiagnostics(),
   };
 }
 
@@ -191,6 +265,7 @@ function getFailedStatus(error: any): SetupStatusPayload {
       message: `Database setup failed: ${error?.message || "Unknown error"}`,
       code: "SETUP_FAILED",
       diagnostics: {
+        ...modeDiagnostics(),
         dbName: process.env.SQLITE_DB_PATH || "posman.db",
         originalCode: error?.code,
       },
@@ -203,6 +278,7 @@ function getFailedStatus(error: any): SetupStatusPayload {
     message: `Database setup failed: ${error?.message || "Unknown error"}`,
     code: "SETUP_FAILED",
     diagnostics: {
+      ...modeDiagnostics(),
       dbHost: config.host,
       dbPort: config.port,
       dbName: config.database,
@@ -217,6 +293,12 @@ function mapToBootstrapError(status: SetupStatusPayload): StartupBootstrapError 
   }
   if (status.state === "initialization_required") {
     return new StartupBootstrapError(status, 428);
+  }
+  if (status.state === "license_required" || status.state === "license_expired") {
+    return new StartupBootstrapError(status, 402);
+  }
+  if (status.state === "license_invalid") {
+    return new StartupBootstrapError(status, 403);
   }
   return new StartupBootstrapError(status, 500);
 }
@@ -372,8 +454,23 @@ async function ensureSchemaAndMigrations(): Promise<void> {
 }
 
 async function checkStatusInternal(): Promise<SetupStatusPayload> {
+  const { licenseService } = await import("@backend/licensing/LicenseService");
   if (isSqliteMode()) {
-    return checkSqliteStatus();
+    const dbStatus = await checkSqliteStatus();
+    if (dbStatus.state !== "ready") {
+      return dbStatus;
+    }
+    const licenseStatus = await licenseService.getStatus();
+    if (licenseStatus.state === "ready") {
+      return dbStatus;
+    }
+    if (licenseStatus.state === "license_required") {
+      return getLicenseRequiredStatus(licenseStatus.message);
+    }
+    if (licenseStatus.state === "license_expired") {
+      return getLicenseExpiredStatus(licenseStatus.message);
+    }
+    return getLicenseInvalidStatus(licenseStatus.message);
   }
 
   try {
@@ -387,7 +484,17 @@ async function checkStatusInternal(): Promise<SetupStatusPayload> {
       return getInitializationRequiredStatus();
     }
 
-    return getReadyStatus();
+    const licenseStatus = await licenseService.getStatus();
+    if (licenseStatus.state === "ready") {
+      return getReadyStatus();
+    }
+    if (licenseStatus.state === "license_required") {
+      return getLicenseRequiredStatus(licenseStatus.message);
+    }
+    if (licenseStatus.state === "license_expired") {
+      return getLicenseExpiredStatus(licenseStatus.message);
+    }
+    return getLicenseInvalidStatus(licenseStatus.message);
   } catch (error: any) {
     if (isDatabaseMissingError(error)) {
       return getInitializationRequiredStatus();
@@ -404,7 +511,10 @@ export async function getStartupSetupStatus(forceRefresh = false): Promise<Setup
     !forceRefresh &&
     (bootstrapState.current.state === "ready" ||
       bootstrapState.current.state === "db_server_unavailable" ||
-      bootstrapState.current.state === "initialization_required")
+      bootstrapState.current.state === "initialization_required" ||
+      bootstrapState.current.state === "license_required" ||
+      bootstrapState.current.state === "license_invalid" ||
+      bootstrapState.current.state === "license_expired")
   ) {
     return bootstrapState.current;
   }
@@ -446,6 +556,7 @@ export async function runStartupInitialization(): Promise<SetupStatusPayload> {
     state: "initializing",
     message: "Initializing database setup...",
     code: "SETUP_INITIALIZING",
+    diagnostics: modeDiagnostics(),
   };
 
   bootstrapState.initPromise = (async () => {
