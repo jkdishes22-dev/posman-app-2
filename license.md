@@ -59,6 +59,62 @@ Checklist:
 
 ---
 
+## Environment Variables by Platform
+
+Required variables:
+
+- `LICENSE_PUBLIC_KEY` (public key PEM content used to verify signed licenses)
+- `LICENSE_ENFORCEMENT` (`1` to force enable, `0` to force disable)
+
+### Important PEM Formatting Note
+
+`LICENSE_PUBLIC_KEY` is multiline PEM text. Use one of these methods:
+
+1. **Escaped newlines** in env value (replace actual line breaks with `\n`), or
+2. **Base64 wrapper approach** (recommended for scripts/CI): store base64 of the PEM and decode before assignment.
+
+If using escaped newlines, ensure the app receives:
+
+`-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----`
+
+### macOS / Linux (Temporary for current shell)
+
+```bash
+export LICENSE_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\nYOUR_KEY_CONTENT\n-----END PUBLIC KEY-----"
+export LICENSE_ENFORCEMENT=1
+```
+
+### macOS / Linux (Project `.env.local`)
+
+```env
+LICENSE_PUBLIC_KEY=-----BEGIN PUBLIC KEY-----\nYOUR_KEY_CONTENT\n-----END PUBLIC KEY-----
+LICENSE_ENFORCEMENT=1
+```
+
+### Windows PowerShell (Temporary for current session)
+
+```powershell
+$env:LICENSE_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----`nYOUR_KEY_CONTENT`n-----END PUBLIC KEY-----"
+$env:LICENSE_ENFORCEMENT="1"
+```
+
+### Windows Persistent User Environment Variable
+
+```powershell
+[Environment]::SetEnvironmentVariable("LICENSE_PUBLIC_KEY","-----BEGIN PUBLIC KEY-----`nYOUR_KEY_CONTENT`n-----END PUBLIC KEY-----","User")
+[Environment]::SetEnvironmentVariable("LICENSE_ENFORCEMENT","1","User")
+```
+
+Then restart terminal/app to pick up the new values.
+
+### Electron Packaged App Guidance
+
+- Ensure the packaged app process receives the same env vars used in development.
+- For desktop deployment, prefer a controlled launcher/start script or installer-time env setup.
+- Keep `LICENSE_PUBLIC_KEY` as public material only. Never distribute `license-private.pem`.
+
+---
+
 ## Standard Issuance Workflow
 
 ### A. Prepare Batch
