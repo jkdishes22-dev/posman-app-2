@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testApiHandler } from "next-test-api-route-handler";
+import jwt from "jsonwebtoken";
 import loginHandler from "../../pages/api/auth/login.js";
 import refreshHandler from "../../pages/api/auth/refresh.js";
 import licenseStatusHandler from "../../pages/api/system/license-status.js";
@@ -104,7 +105,7 @@ describe("Licensing API and auth enforcement", () => {
     });
   });
 
-  it("denies non-admin license diagnostics", async () => {
+  it("denies valid non-admin user on license diagnostics with 403", async () => {
     vi.spyOn(licenseService, "getStatus").mockResolvedValue({
       state: "ready",
       code: "LICENSE_READY",
@@ -112,16 +113,26 @@ describe("Licensing API and auth enforcement", () => {
       expiresAt: null,
       planType: "lifetime",
     });
+    const token = jwt.sign(
+      {
+        id: "123",
+        user: { firstname: "Sales", lastname: "User" },
+        roles: ["sales"],
+      },
+      process.env.JWT_SECRET || "e2e-test-jwt-secret",
+      { expiresIn: "15m" },
+    );
 
     await testApiHandler({
       pagesHandler: licenseDiagnosticsHandler,
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "GET",
-          headers: { Authorization: "Bearer invalid" },
+          headers: { Authorization: `Bearer ${token}` },
         });
-        // Request fails auth middleware before role check in this no-token context.
-        expect([401, 402, 403]).toContain(res.status);
+        expect(res.status).toBe(403);
+        const body = await res.json();
+        expect(body.message).toBe("Admin access required.");
       },
     });
   });
