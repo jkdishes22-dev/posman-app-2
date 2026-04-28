@@ -65,7 +65,6 @@ export default function AdminProductionPage() {
     const [selectedItemForDisposal, setSelectedItemForDisposal] = useState<{ id: number; name: string; code: string } | null>(null);
 
     // History state
-    const [preparations, setPreparations] = useState<ProductionPreparation[]>([]);
     const [filteredPreparations, setFilteredPreparations] = useState<ProductionPreparation[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(true);
     const [historyError, setHistoryError] = useState<string | null>(null);
@@ -84,11 +83,7 @@ export default function AdminProductionPage() {
 
     useEffect(() => {
         fetchPreparations();
-    }, [apiCall, page, pageSize, statusFilter, startDate, endDate]);
-
-    useEffect(() => {
-        filterPreparations();
-    }, [preparations, statusFilter, searchTerm, startDate, endDate]);
+    }, [apiCall, page, pageSize, statusFilter, startDate, endDate, searchTerm]);
 
     useEffect(() => {
         // Reset to page 1 when filters change
@@ -126,20 +121,17 @@ export default function AdminProductionPage() {
             if (result.status >= 200 && result.status < 300) {
                 const data = result.data?.preparations || [];
                 const totalCount = result.data?.total || 0;
-                setPreparations(data);
                 // Apply client-side filtering for search term
                 filterPreparationsWithData(data, totalCount);
             } else {
                 setHistoryError(result.error || "Failed to fetch production history");
                 setHistoryErrorDetails(result.errorDetails);
-                setPreparations([]);
                 setFilteredPreparations([]);
                 setTotal(0);
             }
         } catch (error: any) {
             setHistoryError("Network error occurred");
             setHistoryErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
-            setPreparations([]);
             setFilteredPreparations([]);
             setTotal(0);
         } finally {
@@ -175,14 +167,6 @@ export default function AdminProductionPage() {
 
         setFilteredPreparations(paginatedData);
         setTotal(displayTotal);
-    };
-
-    const filterPreparations = () => {
-        // This is called when filters change, but we need to refetch from server
-        // Only apply client-side search filter if we have data
-        if (preparations.length > 0) {
-            filterPreparationsWithData(preparations, total);
-        }
     };
 
     const handleIssueSuccess = () => {

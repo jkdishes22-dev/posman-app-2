@@ -43,6 +43,8 @@ export default function SupervisorPricelistPage() {
   const [showPricelistModal, setShowPricelistModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
   const [selectedPricelist, setSelectedPricelist] = useState<Pricelist | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchPricelists();
@@ -225,6 +227,16 @@ export default function SupervisorPricelistPage() {
     }
   };
 
+  const filteredPricelists = pricelists.filter((pricelist) => {
+    const statusMatches = statusFilter === "all" || pricelist.status === statusFilter;
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const searchMatches =
+      normalizedSearch.length === 0 ||
+      pricelist.name.toLowerCase().includes(normalizedSearch) ||
+      (pricelist.description || "").toLowerCase().includes(normalizedSearch);
+    return statusMatches && searchMatches;
+  });
+
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
@@ -268,6 +280,30 @@ export default function SupervisorPricelistPage() {
                 </div>
               </div>
               <div className="card-body p-0">
+                <div className="p-3 border-bottom">
+                  <div className="row g-2">
+                    <div className="col-md-5">
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="Search pricelists..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    <div className="col-md-4">
+                      <select
+                        className="form-select form-select-sm"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
+                      >
+                        <option value="all">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
                 {formError && (
                   <div className="alert alert-danger m-3 mb-0" role="alert">
                     <i className="bi bi-exclamation-triangle me-2"></i>
@@ -300,7 +336,7 @@ export default function SupervisorPricelistPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {pricelists.map((pricelist, index) => (
+                        {filteredPricelists.map((pricelist, index) => (
                           <tr
                             key={pricelist.id}
                             onClick={() => setSelectedPricelist(pricelist)}

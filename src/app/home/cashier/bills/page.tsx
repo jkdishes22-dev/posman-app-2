@@ -15,6 +15,8 @@ import ErrorDisplay from "../../../components/ErrorDisplay";
 import BillActions from "../../../components/BillActions";
 import SubmitBillModal from "../../my-sales/submit-bill";
 
+type BillStatusFilter = "submitted" | "closed" | "voided" | "reopened" | "all";
+
 const CashierBillsPage = () => {
   const apiCall = useApiCall();
   const pathname = usePathname();
@@ -24,28 +26,51 @@ const CashierBillsPage = () => {
     // Component initialization
   }, []);
 
+  const validStatuses: BillStatusFilter[] = ["submitted", "closed", "voided", "reopened", "all"];
+
+  const parseStatusQueryParam = (statusParam: string | null): BillStatusFilter[] => {
+    if (!statusParam) {
+      return [];
+    }
+
+    const parsed = statusParam
+      .split(",")
+      .map((status) => status.trim())
+      .filter((status): status is BillStatusFilter => validStatuses.includes(status as BillStatusFilter))
+      .filter((status) => status !== "all");
+
+    return Array.from(new Set(parsed));
+  };
+
   // Initialize filters from URL params if present
   const getInitialFilters = () => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
-      const statusParam = urlParams.get("status");
-      const validStatuses = ["submitted", "closed", "voided", "reopened", "all"];
-      const status = statusParam && validStatuses.includes(statusParam) ? statusParam : "submitted";
+      const parsedStatuses = parseStatusQueryParam(urlParams.get("status"));
+      const status: BillStatusFilter = parsedStatuses.length === 1 ? parsedStatuses[0] : "all";
 
       return {
         billingDate: null,
         selectedWaitress: "",
         status: status,
+        statusQuery: parsedStatuses,
       };
     }
     return {
       billingDate: null,
       selectedWaitress: "",
-      status: "submitted",
+      status: "submitted" as BillStatusFilter,
+      statusQuery: [],
     };
   };
 
-  const [filters, setFilters] = useState(getInitialFilters());
+  const [initialFilters] = useState(getInitialFilters());
+  const [filters, setFilters] = useState({
+    billingDate: initialFilters.billingDate,
+    selectedWaitress: initialFilters.selectedWaitress,
+    status: initialFilters.status,
+  });
+  const [statusQuery, setStatusQuery] = useState<BillStatusFilter[]>(initialFilters.statusQuery);
   const [waitresses, setWaitresses] = useState<User[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
@@ -185,8 +210,9 @@ const CashierBillsPage = () => {
     let url = "/api/bills";
     const params = [];
 
-    if (status && status !== "all") {
-      params.push(`status=${status}`);
+    const effectiveStatuses = statusQuery.length > 0 ? statusQuery : status !== "all" ? [status] : [];
+    if (effectiveStatuses.length > 0) {
+      params.push(`status=${effectiveStatuses.join(",")}`);
     }
     if (billingDate) {
       const formattedDate = formatISO(billingDate, { representation: "date" });
@@ -384,6 +410,7 @@ const CashierBillsPage = () => {
         url.searchParams.delete("billId");
         // Update status in URL
         if (key === "status") {
+          setStatusQuery([]);
           if (value && value !== "submitted") {
             url.searchParams.set("status", value);
           } else {
@@ -412,6 +439,7 @@ const CashierBillsPage = () => {
       setSelectedBills([]);
       setPage(1);
       setFilters((prev) => ({ ...prev, status: "all" }));
+      setStatusQuery([]);
       // Clear URL parameter
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
@@ -846,8 +874,9 @@ const CashierBillsPage = () => {
                           setFilters({
                             billingDate: null,
                             selectedWaitress: "",
-                            status: "all",
+                            status: "all" as BillStatusFilter,
                           });
+                          setStatusQuery([]);
                           // Clear URL parameter
                           if (typeof window !== "undefined") {
                             const url = new URL(window.location.href);

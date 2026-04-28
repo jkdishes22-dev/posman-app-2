@@ -222,7 +222,7 @@ const MySales = () => {
       if (filter === "") {
         fetchBills(selectedDate, statusFilter);
       } else {
-        fetchBills(null, statusFilter, filter);
+        fetchBills(selectedDate, statusFilter, filter);
       }
     }, 300);
   }, [selectedDate, statusFilter, fetchBills]);

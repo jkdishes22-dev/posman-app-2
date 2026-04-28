@@ -15,19 +15,45 @@ interface InventoryItem {
   status: string;
 }
 
+type ItemTypeFilter = "all" | "stock" | "sellable";
+
 export default function SupervisorProductionItemsPage() {
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [itemTypeFilter, setItemTypeFilter] = useState<ItemTypeFilter>("all");
 
   const apiCall = useApiCall();
 
   useEffect(() => {
     fetchInventoryItems();
   }, []);
+
+  useEffect(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    let nextItems = [...inventoryItems];
+
+    if (itemTypeFilter === "stock") {
+      nextItems = nextItems.filter((item) => item.isStock);
+    } else if (itemTypeFilter === "sellable") {
+      nextItems = nextItems.filter((item) => !item.isStock);
+    }
+
+    if (normalizedSearch.length > 0) {
+      nextItems = nextItems.filter(
+        (item) =>
+          item.name.toLowerCase().includes(normalizedSearch) ||
+          item.code.toLowerCase().includes(normalizedSearch)
+      );
+    }
+
+    setFilteredItems(nextItems);
+  }, [inventoryItems, searchTerm, itemTypeFilter]);
 
   const fetchInventoryItems = async () => {
     try {
@@ -37,7 +63,9 @@ export default function SupervisorProductionItemsPage() {
 
       const result = await apiCall("/api/production/items");
       if (result.status === 200) {
-        setInventoryItems(result.data.items || []);
+        const items = result.data.items || [];
+        setInventoryItems(items);
+        setFilteredItems(items);
       } else {
         setError(result.error || "Failed to fetch inventory items");
         setErrorDetails(result.errorDetails);
@@ -122,7 +150,38 @@ export default function SupervisorProductionItemsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="table-responsive">
+                  <>
+                    <div className="row g-3 mb-3">
+                      <div className="col-md-6">
+                        <label className="form-label mb-1" htmlFor="itemSearch">
+                          Search
+                        </label>
+                        <input
+                          id="itemSearch"
+                          type="text"
+                          className="form-control"
+                          placeholder="Search by name or code..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                      </div>
+                      <div className="col-md-4">
+                        <label className="form-label mb-1" htmlFor="itemTypeFilter">
+                          Item Type
+                        </label>
+                        <select
+                          id="itemTypeFilter"
+                          className="form-select"
+                          value={itemTypeFilter}
+                          onChange={(e) => setItemTypeFilter(e.target.value as ItemTypeFilter)}
+                        >
+                          <option value="all">All Types</option>
+                          <option value="stock">Stock Items</option>
+                          <option value="sellable">Sellable Items</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="table-responsive">
                     <table className="table table-striped">
                       <thead>
                         <tr>
@@ -134,7 +193,7 @@ export default function SupervisorProductionItemsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {inventoryItems.map((item) => (
+                        {filteredItems.map((item) => (
                           <tr key={item.id}>
                             <td>{item.id}</td>
                             <td>{item.name}</td>
@@ -144,7 +203,7 @@ export default function SupervisorProductionItemsPage() {
                                 className={`badge ${item.isStock ? "bg-success" : "bg-secondary"
                                   }`}
                               >
-                                {item.isStock ? "Active" : "Inactive"}
+                                {item.isStock ? "Stock" : "Sellable"}
                               </span>
                             </td>
                             <td>
@@ -163,6 +222,7 @@ export default function SupervisorProductionItemsPage() {
                       </tbody>
                     </table>
                   </div>
+                  </>
                 )}
               </div>
             </div>
