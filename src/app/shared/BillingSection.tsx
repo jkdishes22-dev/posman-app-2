@@ -65,6 +65,7 @@ const BillingSection = () => {
   const inventoryRefreshInFlightRef = useRef<string | null>(null);
   const inventorySnapshotRef = useRef<Record<number, number>>({});
   const inventoryFetchedAtRef = useRef<Record<number, number>>({});
+  const visibleItemIdsRef = useRef<number[]>([]);
 
   const cleanupModalArtifacts = useCallback(() => {
     if (typeof document === "undefined") {
@@ -210,7 +211,7 @@ const BillingSection = () => {
     } else if (scope === "custom") {
       targetIds = customItemIds;
     } else {
-      targetIds = items.map((item: Item) => item.id);
+      targetIds = visibleItemIdsRef.current;
     }
 
     // Normalize/unique to avoid duplicate API calls for equivalent sets.
@@ -253,7 +254,7 @@ const BillingSection = () => {
     }
 
     await runFetch();
-  }, [allPricelistItems, items, fetchItemInventory]);
+  }, [allPricelistItems, fetchItemInventory]);
 
   // Preload all items and inventory for the pricelist when available
   useEffect(() => {
@@ -351,6 +352,10 @@ const BillingSection = () => {
   }, [currentPricelist, apiCall, itemsPreloaded, allPricelistItems, refreshAvailability, applyCachedInventory]);
 
   // Refetch items when pricelist or category changes
+  useEffect(() => {
+    visibleItemIdsRef.current = items.map((item: Item) => item.id);
+  }, [items]);
+
   useEffect(() => {
     if (currentPricelist && selectedCategory) {
       fetchItems(selectedCategory.id);

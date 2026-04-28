@@ -47,9 +47,6 @@ const CategoriesComponent = ({
     setShowAll(!showAll);
   };
 
-  // Debug: Log what we're receiving
-  console.log("Categories component received:", { categories, type: typeof categories, isArray: Array.isArray(categories) });
-
   // Ensure categories is always an array
   const safeCategories = Array.isArray(categories) ? categories : [];
 
