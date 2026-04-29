@@ -55,6 +55,7 @@ vi.mock("@backend/config/timezone", () => ({
 import { BillService } from "@backend/service/BillService";
 import { BillStatus } from "@backend/entities/Bill";
 import { BillItemStatus } from "@backend/entities/BillItem";
+import { AppDataSource } from "@backend/config/data-source";
 
 describe("BillService", () => {
   let mockBillRepo: ReturnType<typeof createMockRepository>;
@@ -136,6 +137,46 @@ describe("BillService", () => {
       });
 
       expect(result).toEqual(existingBill);
+    });
+  });
+
+  describe("submitBill", () => {
+    it("rejects duplicate MPESA references after normalization", async () => {
+      const mockPaymentRepo = createMockRepository();
+      const mockBillPaymentRepo = createMockRepository();
+      const mockDs = createMockDataSource({
+        Bill: mockBillRepo,
+        BillItem: mockBillItemRepo,
+        Payment: mockPaymentRepo,
+        BillPayment: mockBillPaymentRepo,
+      });
+      service = new BillService(mockDs as any);
+
+      const billQueryBuilder: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue({
+          id: 10,
+          total: 100,
+          user_id: 5,
+          status: BillStatus.PENDING,
+        }),
+      };
+
+      (AppDataSource.createQueryBuilder as any).mockReturnValueOnce(billQueryBuilder);
+      mockPaymentRepo.createQueryBuilder().getCount.mockResolvedValue(1);
+
+      await expect(
+        service.submitBill({
+          billId: 10,
+          userId: 5,
+          paymentMethod: "mpesa",
+          mpesaAmount: 100,
+          mpesaCode: "  abC123 ",
+        } as any)
+      ).rejects.toThrow("M-Pesa reference code already exists");
+
+      expect(AppDataSource.transaction).not.toHaveBeenCalled();
     });
   });
 });
