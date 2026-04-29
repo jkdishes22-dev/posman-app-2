@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { testApiHandler } from "next-test-api-route-handler";
 import billPaymentsHandler from "../../pages/api/bills/[billId]/payments.js";
+import checkReferenceHandler from "../../pages/api/payments/check-reference.js";
 import billsHandler from "../../pages/api/bills/index.js";
 import stationsHandler from "../../pages/api/stations/index.js";
 import pricelistsHandler from "../../pages/api/menu/pricelists/index.js";
@@ -126,6 +127,22 @@ describe("POST /api/bills/[billId]/payments", () => {
         const data = await res.json();
         expect(data.payment).toBeDefined();
         expect(data.payment.id).toBeDefined();
+      },
+    });
+  });
+});
+
+describe("POST /api/payments/check-reference", () => {
+  it("returns 400 when billId is missing", async () => {
+    await testApiHandler({
+      pagesHandler: checkReferenceHandler,
+      test: async ({ fetch }) => {
+        const res = await fetch({
+          method: "POST",
+          headers: { ...bearer(supervisorToken), "Content-Type": "application/json" },
+          body: JSON.stringify({ reference: "MPESA-E2E-REF-001" }),
+        });
+        expect(res.status).toBe(400);
       },
     });
   });

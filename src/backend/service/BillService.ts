@@ -34,6 +34,14 @@ export class BillService {
   private inventoryService: InventoryService;
   private notificationService: NotificationService;
 
+  private normalizePaymentReference(reference: string | null | undefined): string | null {
+    if (!reference) {
+      return null;
+    }
+    const normalized = reference.trim().toUpperCase();
+    return normalized.length > 0 ? normalized : null;
+  }
+
   constructor(dataSource: DataSource) {
     this.billRepository = dataSource.getRepository(Bill);
     this.billItemRepository = dataSource.getRepository(BillItem);
@@ -607,6 +615,8 @@ export class BillService {
       throw new Error("No payment payloads generated");
     }
 
+    await this.ensureUniqueMpesaReferences(paymentPayloads);
+
     try {
       const result = await AppDataSource.transaction(
         async (transactionalEntityManager) => {
@@ -707,8 +717,33 @@ export class BillService {
 
     return (paymentMap[paymentMethod] || []).map((payment: any) => ({
       ...payment,
+      reference: this.normalizePaymentReference(payment.reference),
       created_by: userId,
     }));
+  }
+
+  private async ensureUniqueMpesaReferences(paymentPayloads: Payment[]): Promise<void> {
+    const mpesaReferences = paymentPayloads
+      .filter((payment) => payment.paymentType === PaymentType.MPESA)
+      .map((payment) => this.normalizePaymentReference(payment.reference))
+      .filter((reference): reference is string => Boolean(reference));
+
+    if (mpesaReferences.length === 0) {
+      return;
+    }
+
+    const uniqueReferences = Array.from(new Set(mpesaReferences));
+    const duplicateCount = await this.paymentRepository
+      .createQueryBuilder("payment")
+      .where("payment.payment_type = :paymentType", { paymentType: PaymentType.MPESA })
+      .andWhere("UPPER(TRIM(payment.reference)) IN (:...references)", {
+        references: uniqueReferences,
+      })
+      .getCount();
+
+    if (duplicateCount > 0) {
+      throw new Error("M-Pesa reference code already exists. Please use a different code.");
+    }
   }
 
   async closeBill(billId: number) {

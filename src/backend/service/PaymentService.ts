@@ -27,22 +27,28 @@ export class PaymentService {
     return billPayment;
   }
 
-  async checkMpesaReferenceExists(reference: string, billId: number): Promise<boolean> {
-    // Check if reference already exists for M-Pesa payments
-    const existingPayment = await this.paymentRepository.findOne({
-      where: {
-        reference: reference.trim(),
-        paymentType: PaymentType.MPESA
-      },
-      relations: ["bill_payments", "bill_payments.bill"]
-    });
+  private normalizeReference(reference: string | null | undefined): string | null {
+    if (!reference) {
+      return null;
+    }
+    const normalized = reference.trim().toUpperCase();
+    return normalized.length > 0 ? normalized : null;
+  }
 
-    if (!existingPayment) {
+  async checkMpesaReferenceExists(reference: string, _billId?: number): Promise<boolean> {
+    const normalizedReference = this.normalizeReference(reference);
+    if (!normalizedReference) {
       return false;
     }
 
-    // Check if this reference is used in a different bill
-    const billPayments = await existingPayment.bill_payments;
-    return billPayments.some(bp => bp.bill && bp.bill.id !== billId);
+    const existingCount = await this.paymentRepository
+      .createQueryBuilder("payment")
+      .where("payment.payment_type = :paymentType", { paymentType: PaymentType.MPESA })
+      .andWhere("UPPER(TRIM(payment.reference)) = :normalizedReference", {
+        normalizedReference,
+      })
+      .getCount();
+
+    return existingCount > 0;
   }
 }

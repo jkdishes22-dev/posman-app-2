@@ -1,4 +1,4 @@
-import { Entity, Column, OneToMany } from "typeorm";
+import { Entity, Column, OneToMany, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import type { BillPayment } from "./BillPayment";
 import { enumColType } from "./column-types";
@@ -8,6 +8,7 @@ export enum PaymentType {
   MPESA = "MPESA",
 }
 
+@Index("UQ_payment_type_reference", ["paymentType", "reference"], { unique: true })
 @Entity("payment")
 export class Payment extends BaseEntity {
   @Column({ type: "double", default: 0.0, name: "debit_amount" })
