@@ -346,11 +346,11 @@ const LoginForm = () => {
                 <label className="form-label" htmlFor="username">
                   User name / code
                 </label>
-                <div className="input-group">
+                <div className="d-flex align-items-stretch gap-2">
                   <input
                     type="text"
                     id="username"
-                    className="form-control"
+                    className="form-control flex-grow-1"
                     autoComplete="username"
                     enterKeyHint="next"
                     value={username}
@@ -358,7 +358,7 @@ const LoginForm = () => {
                     onClick={() => handleInputClick("username")}
                     onKeyDown={handleUsernameKeyDown}
                   />
-                  <button type="button" className="btn btn-primary" onClick={focusPasswordField}>
+                  <button type="button" className="btn btn-primary px-4" onClick={focusPasswordField}>
                     Next
                   </button>
                 </div>
@@ -385,8 +385,8 @@ const LoginForm = () => {
                 disabled={
                   isSubmitting ||
                   isRedirecting ||
-                  isCheckingSetup ||
-                  isRunningSetup ||
+                  !username ||
+                  !password ||
                   (setupStatus !== null && setupStatus.state !== "ready")
                 }
               >
