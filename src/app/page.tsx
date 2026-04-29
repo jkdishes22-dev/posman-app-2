@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import React from "react";
 import Image from "next/image";
@@ -37,6 +37,7 @@ const LoginForm = () => {
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
   const [isCheckingSetup, setIsCheckingSetup] = useState(true);
   const [isRunningSetup, setIsRunningSetup] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
   const apiCall = useApiCall();
@@ -244,6 +245,18 @@ const LoginForm = () => {
     setActiveField(field);
   };
 
+  const focusPasswordField = useCallback(() => {
+    setActiveField("password");
+    passwordInputRef.current?.focus();
+  }, []);
+
+  const handleUsernameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      focusPasswordField();
+    }
+  };
+
   const KeyPadWrite = (value: string | number) => {
     if (value === -1) {
       if (activeField === "username") {
@@ -337,19 +350,30 @@ const LoginForm = () => {
                   type="text"
                   id="username"
                   className="form-control"
+                  autoComplete="username"
+                  enterKeyHint="next"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   onClick={() => handleInputClick("username")}
+                  onKeyDown={handleUsernameKeyDown}
                 />
+                <div className="d-flex justify-content-end mt-2">
+                  <button type="button" className="btn btn-outline-secondary btn-sm" onClick={focusPasswordField}>
+                    Next
+                  </button>
+                </div>
               </div>
               <div className="form-outline mb-4">
                 <label className="form-label" htmlFor="password">
                   Password
                 </label>
                 <input
+                  ref={passwordInputRef}
                   type="password"
                   id="password"
                   className="form-control lg-4"
+                  autoComplete="current-password"
+                  enterKeyHint="go"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onClick={() => handleInputClick("password")}
