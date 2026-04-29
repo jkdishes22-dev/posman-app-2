@@ -346,19 +346,19 @@ const LoginForm = () => {
                 <label className="form-label" htmlFor="username">
                   User name / code
                 </label>
-                <input
-                  type="text"
-                  id="username"
-                  className="form-control"
-                  autoComplete="username"
-                  enterKeyHint="next"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  onClick={() => handleInputClick("username")}
-                  onKeyDown={handleUsernameKeyDown}
-                />
-                <div className="d-flex justify-content-end mt-2">
-                  <button type="button" className="btn btn-outline-secondary btn-sm" onClick={focusPasswordField}>
+                <div className="input-group">
+                  <input
+                    type="text"
+                    id="username"
+                    className="form-control"
+                    autoComplete="username"
+                    enterKeyHint="next"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    onClick={() => handleInputClick("username")}
+                    onKeyDown={handleUsernameKeyDown}
+                  />
+                  <button type="button" className="btn btn-primary" onClick={focusPasswordField}>
                     Next
                   </button>
                 </div>
