@@ -1,5 +1,4 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { licenseService } from "@backend/licensing/LicenseService";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -8,6 +7,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const { licenseService } = await import("@backend/licensing/LicenseService");
     const licenseCode = String(req.body?.licenseCode || "");
     const status = await licenseService.activateFromCode(licenseCode);
     return res.status(200).json(status);

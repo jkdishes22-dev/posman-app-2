@@ -187,12 +187,14 @@ Steps:
 
 ## Release Checklist
 
+- [ ] Windows installers are produced on a Windows host/CI runner (x64)
 - [ ] public key configured
 - [ ] enforcement enabled
 - [ ] blocked states verified
 - [ ] diagnostics protected
 - [ ] support notified of policy changes
 - [ ] installer terms file updated (`LICENSE_TERMS.txt`) when legal text changes
+- [ ] packaged app contains valid Windows `keytar.node` at `.next/standalone/node_modules/keytar/build/Release/keytar.node`
 
 ---
 

@@ -3,7 +3,6 @@ import { User } from "@entities/User";
 import jwt from "jsonwebtoken";
 import { getConnection } from "@backend/config/data-source";
 import { v4 as uuidv4 } from "uuid";
-import { licenseService } from "@backend/licensing/LicenseService";
 import { formatSetupErrorResponse } from "@backend/config/startup-bootstrap";
 
 const secret =
@@ -16,6 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     
     try {
+        const { licenseService } = await import("@backend/licensing/LicenseService");
         const licenseStatus = await licenseService.getStatus();
         if (licenseStatus.state !== "ready") {
             const statusCode =

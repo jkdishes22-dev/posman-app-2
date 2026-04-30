@@ -7,7 +7,11 @@ import {
   LicenseValidationResult,
   SignedLicenseCertificate,
 } from "./types";
-const keytar = require("keytar") as typeof import("keytar");
+
+type KeytarClient = {
+  getPassword: (service: string, account: string) => Promise<string | null>;
+  setPassword: (service: string, account: string, password: string) => Promise<void>;
+};
 
 const KEYTAR_SERVICE = "jk-posman-license";
 const STORAGE_KEY_ACCOUNT = "license-storage-key";
@@ -37,6 +41,7 @@ export class LicenseValidationError extends Error {
 
 class LicenseService {
   private cache: { at: number; result: LicenseValidationResult } | null = null;
+  private keytarClient: KeytarClient | null = null;
 
   private enforcementEnabled(): boolean {
     if (process.env.LICENSE_ENFORCEMENT === "0") return false;
@@ -59,13 +64,48 @@ class LicenseService {
     return path.join(process.cwd(), ".license", "license.dat");
   }
 
-  private async getOrCreateStorageKey(): Promise<Buffer> {
-    let key = await keytar.getPassword(KEYTAR_SERVICE, STORAGE_KEY_ACCOUNT);
-    if (!key) {
-      key = crypto.randomBytes(32).toString("base64");
-      await keytar.setPassword(KEYTAR_SERVICE, STORAGE_KEY_ACCOUNT, key);
+  private async getKeytarClient(): Promise<KeytarClient> {
+    if (this.keytarClient) {
+      return this.keytarClient;
     }
-    return Buffer.from(key, "base64");
+
+    try {
+      // Lazy-load to avoid module-load crashes when native binary is missing/incompatible.
+      const loaded = (await import("keytar")) as any;
+      const client = (loaded?.default || loaded) as KeytarClient;
+      if (
+        !client ||
+        typeof client.getPassword !== "function" ||
+        typeof client.setPassword !== "function"
+      ) {
+        throw new Error("keytar module loaded without expected API.");
+      }
+      this.keytarClient = client;
+      return client;
+    } catch (error: any) {
+      throw new LicenseValidationError(
+        "LICENSE_INVALID",
+        `Secure license storage is unavailable (${error?.message || "keytar load failure"}). ` +
+          "Use a Windows x64-compatible build and verify native module packaging.",
+      );
+    }
+  }
+
+  private async getOrCreateStorageKey(): Promise<Buffer> {
+    try {
+      const keytarClient = await this.getKeytarClient();
+      let key = await keytarClient.getPassword(KEYTAR_SERVICE, STORAGE_KEY_ACCOUNT);
+      if (!key) {
+        key = crypto.randomBytes(32).toString("base64");
+        await keytarClient.setPassword(KEYTAR_SERVICE, STORAGE_KEY_ACCOUNT, key);
+      }
+      return Buffer.from(key, "base64");
+    } catch (error: any) {
+      throw new LicenseValidationError(
+        "LICENSE_INVALID",
+        `Secure license storage is unavailable (${error?.message || "keytar access failure"}).`,
+      );
+    }
   }
 
   private getMachineFingerprintHash(): string {
@@ -80,11 +120,34 @@ class LicenseService {
   }
 
   private async getStoredMachineBinding(): Promise<string | null> {
-    return keytar.getPassword(KEYTAR_SERVICE, MACHINE_BINDING_ACCOUNT);
+    try {
+      const keytarClient = await this.getKeytarClient();
+      return await keytarClient.getPassword(
+        KEYTAR_SERVICE,
+        MACHINE_BINDING_ACCOUNT,
+      );
+    } catch (error: any) {
+      throw new LicenseValidationError(
+        "LICENSE_INVALID",
+        `Secure license storage is unavailable (${error?.message || "keytar access failure"}).`,
+      );
+    }
   }
 
   private async setMachineBinding(hash: string): Promise<void> {
-    await keytar.setPassword(KEYTAR_SERVICE, MACHINE_BINDING_ACCOUNT, hash);
+    try {
+      const keytarClient = await this.getKeytarClient();
+      await keytarClient.setPassword(
+        KEYTAR_SERVICE,
+        MACHINE_BINDING_ACCOUNT,
+        hash,
+      );
+    } catch (error: any) {
+      throw new LicenseValidationError(
+        "LICENSE_INVALID",
+        `Secure license storage is unavailable (${error?.message || "keytar access failure"}).`,
+      );
+    }
   }
 
   private verifyCertificate(certificate: SignedLicenseCertificate): void {
@@ -239,7 +302,20 @@ async getStatus(forceRefresh = false): Promise<LicenseValidationResult> {
       return this.cache.result;
     }
 
-    const rawCode = await this.readEncryptedCertificate();
+    let rawCode: string | null;
+    try {
+      rawCode = await this.readEncryptedCertificate();
+    } catch (error: any) {
+      const failure: LicenseValidationResult = {
+        state: "license_invalid",
+        message: error?.message || "License validation failed.",
+        code: "LICENSE_INVALID",
+        expiresAt: null,
+        planType: null,
+      };
+      this.cache = { at: Date.now(), result: failure };
+      return failure;
+    }
     if (!rawCode) {
       const required: LicenseValidationResult = {
         state: "license_required",

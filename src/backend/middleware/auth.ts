@@ -3,7 +3,6 @@ import NodeCache from "node-cache";
 import { UserService } from "@backend/service/UserService";
 import * as process from "process";
 import jwt from "jsonwebtoken";
-import { licenseService } from "@backend/licensing/LicenseService";
 
 interface AuthUser {
   id: string;
@@ -30,6 +29,7 @@ const userCache = new NodeCache({ stdTTL: 60 * 60 }); // 30 minutes
 export const authMiddleware = (handler) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     try {
+      const { licenseService } = await import("@backend/licensing/LicenseService");
       const licenseStatus = await licenseService.getStatus();
       if (licenseStatus.state !== "ready") {
         const statusCode =

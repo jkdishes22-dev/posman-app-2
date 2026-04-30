@@ -8,21 +8,19 @@ import { licenseService } from "@backend/licensing/LicenseService";
 const keytarStore = new Map<string, string>();
 
 vi.mock("keytar", () => {
+  const getPassword = vi.fn(async (service: string, account: string) => {
+    return keytarStore.get(`${service}:${account}`) ?? null;
+  });
+  const setPassword = vi.fn(async (service: string, account: string, value: string) => {
+    keytarStore.set(`${service}:${account}`, value);
+  });
   return {
     default: {
-      getPassword: vi.fn(async (service: string, account: string) =>
-        keytarStore.get(`${service}:${account}`) ?? null,
-      ),
-      setPassword: vi.fn(async (service: string, account: string, value: string) => {
-        keytarStore.set(`${service}:${account}`, value);
-      }),
+      getPassword,
+      setPassword,
     },
-    getPassword: vi.fn(async (service: string, account: string) =>
-      keytarStore.get(`${service}:${account}`) ?? null,
-    ),
-    setPassword: vi.fn(async (service: string, account: string, value: string) => {
-      keytarStore.set(`${service}:${account}`, value);
-    }),
+    getPassword,
+    setPassword,
   };
 });
 
@@ -139,5 +137,27 @@ describe("LicenseService", () => {
     const status = await licenseService.getStatus(true);
     expect(status.state).toBe("license_invalid");
     expect(status.code).toBe("LICENSE_INVALID");
+  });
+
+  it("returns license_invalid when secure key storage access fails", async () => {
+    fs.mkdirSync(path.dirname(licensePath), { recursive: true });
+    fs.writeFileSync(
+      licensePath,
+      JSON.stringify({
+        v: 1,
+        iv: Buffer.alloc(12).toString("base64"),
+        tag: Buffer.alloc(16).toString("base64"),
+        data: Buffer.from("placeholder").toString("base64"),
+      }),
+      "utf8",
+    );
+    vi.spyOn(licenseService as any, "getOrCreateStorageKey").mockRejectedValue(
+      new Error("keytar access failure"),
+    );
+
+    const status = await licenseService.getStatus(true);
+    expect(status.state).toBe("license_invalid");
+    expect(status.code).toBe("LICENSE_INVALID");
+    expect(status.message).toContain("keytar access failure");
   });
 });

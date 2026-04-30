@@ -460,17 +460,23 @@ async function checkStatusInternal(): Promise<SetupStatusPayload> {
     if (dbStatus.state !== "ready") {
       return dbStatus;
     }
-    const licenseStatus = await licenseService.getStatus();
-    if (licenseStatus.state === "ready") {
-      return dbStatus;
+    try {
+      const licenseStatus = await licenseService.getStatus();
+      if (licenseStatus.state === "ready") {
+        return dbStatus;
+      }
+      if (licenseStatus.state === "license_required") {
+        return getLicenseRequiredStatus(licenseStatus.message);
+      }
+      if (licenseStatus.state === "license_expired") {
+        return getLicenseExpiredStatus(licenseStatus.message);
+      }
+      return getLicenseInvalidStatus(licenseStatus.message);
+    } catch (error: any) {
+      return getLicenseInvalidStatus(
+        error?.message || "License backend is unavailable in this environment.",
+      );
     }
-    if (licenseStatus.state === "license_required") {
-      return getLicenseRequiredStatus(licenseStatus.message);
-    }
-    if (licenseStatus.state === "license_expired") {
-      return getLicenseExpiredStatus(licenseStatus.message);
-    }
-    return getLicenseInvalidStatus(licenseStatus.message);
   }
 
   try {

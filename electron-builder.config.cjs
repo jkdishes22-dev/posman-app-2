@@ -107,6 +107,8 @@ module.exports = {
   compression: "normal",
   buildVersion: process.env.BUILD_VERSION || "1.0.0",
   npmRebuild: false,
+  // Native modules are patched in afterPack (better-sqlite3 + keytar for Windows).
+  // Keep npmRebuild disabled to avoid non-deterministic cross-platform rebuild behavior.
   publish: null,
 
   beforePack: async (context) => {

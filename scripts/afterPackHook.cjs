@@ -67,6 +67,80 @@ async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot,
     }
 }
 
+function hasWindowsPeHeader(binaryPath) {
+    if (!fs.existsSync(binaryPath)) return false;
+    try {
+        const fd = fs.openSync(binaryPath, "r");
+        const buf = Buffer.alloc(2);
+        fs.readSync(fd, buf, 0, 2, 0);
+        fs.closeSync(fd);
+        return buf[0] === 0x4d && buf[1] === 0x5a; // "MZ"
+    } catch {
+        return false;
+    }
+}
+
+async function replaceWindowsKeytarBinary(context, destNodeModules, log, err) {
+    if (context.electronPlatformName !== "win32") return;
+
+    const archMap = { 0: "ia32", 1: "x64", 2: "armv7l", 3: "arm64", 4: "x64" };
+    const arch = archMap[context.arch] ?? "x64";
+    let electronVersion = context.packager?.electronVersion ?? "";
+    const keytarDir = path.join(destNodeModules, "keytar");
+    const keytarPkgPath = path.join(keytarDir, "package.json");
+    const keytarBinaryPath = path.join(
+        keytarDir,
+        "build",
+        "Release",
+        "keytar.node",
+    );
+
+    if (!fs.existsSync(keytarPkgPath)) {
+        log("   ℹ️  keytar not in dest node_modules — skipping keytar binary replacement");
+        return;
+    }
+
+    if (hasWindowsPeHeader(keytarBinaryPath)) {
+        log(`   ✅ keytar binary already looks Windows-compatible: ${keytarBinaryPath}`);
+        return;
+    }
+
+    if (!electronVersion) {
+        try {
+            const electronPkgPath = path.join(process.cwd(), "node_modules", "electron", "package.json");
+            if (fs.existsSync(electronPkgPath)) {
+                electronVersion = JSON.parse(fs.readFileSync(electronPkgPath, "utf8")).version || "";
+            }
+        } catch {
+            // fallback handled below
+        }
+    }
+
+    if (!electronVersion) {
+        throw new Error(
+            "Electron version missing in afterPack context and local electron package; cannot resolve keytar prebuild.",
+        );
+    }
+
+    log(`\n   🔄 Replacing keytar.node with Windows Electron prebuild (${arch}, electron ${electronVersion})...`);
+    try {
+        execSync(
+            `npx --yes prebuild-install --runtime electron --target ${electronVersion} --arch ${arch} --platform win32`,
+            { cwd: keytarDir, stdio: "pipe" },
+        );
+    } catch (e) {
+        err(`   ❌ keytar prebuild-install failed: ${e.message}`);
+    }
+
+    if (!hasWindowsPeHeader(keytarBinaryPath)) {
+        throw new Error(
+            `keytar binary replacement failed or incompatible. Expected Windows PE binary at ${keytarBinaryPath}`,
+        );
+    }
+
+    log(`   ✅ Windows keytar.node installed: ${keytarBinaryPath}`);
+}
+
 /**
  * afterPack hook for electron-builder
  * Ensures .next/standalone (including node_modules) is fully copied to the packaged app.
@@ -204,6 +278,7 @@ module.exports = async function (context) {
         const destNm = path.join(candidates[0].path, "node_modules");
         if (fs.existsSync(destNm)) {
             await replaceWindowsSqliteBinary(context, destNm, projectDir, log, err);
+            await replaceWindowsKeytarBinary(context, destNm, log, err);
         } else {
             log("   ℹ️  node_modules not yet in dest — skipping Windows binary replacement");
         }

@@ -78,6 +78,10 @@ const isCrossCompilation =
 if (isCrossCompilation) {
   console.log("⚠️  Cross-compilation detected. Skipping native module rebuild...");
   console.log("   Note: For best results, build Windows packages on a Windows machine.");
+  if (platform === "win") {
+    console.log("   Native modules like keytar may fail if cross-compiled without valid prebuilds.");
+    console.log("   Recommended: run Windows release builds on a Windows CI/host.");
+  }
 }
 
 let buildCommand = "npx electron-builder --config electron-builder.config.cjs";
@@ -133,7 +137,7 @@ try {
   if (isCrossCompilation) {
     console.error("\n💡 Tip: Cross-compilation can be problematic with native modules.");
     console.error("   Consider building on a Windows machine for best results.");
-    console.error("   Or try: SKIP_REBUILD=true node scripts/build-electron.js win");
+    console.error("   Ensure keytar/better-sqlite3 Electron prebuilds are successfully patched in afterPack.");
   }
   process.exit(1);
 }

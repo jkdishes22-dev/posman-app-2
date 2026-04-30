@@ -34,6 +34,23 @@ describe("Licensing API and auth enforcement", () => {
     });
   });
 
+  it("returns deterministic error payload when license backend throws on status endpoint", async () => {
+    vi.spyOn(licenseService, "getStatus").mockRejectedValue(
+      new Error("Secure license storage is unavailable (keytar load failure)"),
+    );
+
+    await testApiHandler({
+      pagesHandler: licenseStatusHandler,
+      test: async ({ fetch }) => {
+        const res = await fetch({ method: "GET" });
+        expect(res.status).toBe(500);
+        const body = await res.json();
+        expect(body.code).toBe("LICENSE_INVALID");
+        expect(body.state).toBe("license_invalid");
+      },
+    });
+  });
+
   it("activates license via activate endpoint", async () => {
     vi.spyOn(licenseService, "activateFromCode").mockResolvedValue({
       state: "ready",
@@ -78,6 +95,26 @@ describe("Licensing API and auth enforcement", () => {
         expect(res.status).toBe(402);
         const body = await res.json();
         expect(body.code).toBe("LICENSE_EXPIRED");
+      },
+    });
+  });
+
+  it("returns deterministic setup error when license backend throws during login", async () => {
+    vi.spyOn(licenseService, "getStatus").mockRejectedValue(
+      new Error("Secure license storage is unavailable (keytar load failure)"),
+    );
+
+    await testApiHandler({
+      pagesHandler: loginHandler,
+      test: async ({ fetch }) => {
+        const res = await fetch({
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: "admin", password: "admin123" }),
+        });
+        expect(res.status).toBe(500);
+        const body = await res.json();
+        expect(body.message).toBe("Some error occurred. Please try again.");
       },
     });
   });

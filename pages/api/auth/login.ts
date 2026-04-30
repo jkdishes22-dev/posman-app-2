@@ -11,7 +11,6 @@ import { User } from "@backend/entities/User";
 import { getConnection } from "@backend/config/data-source";
 import { formatSetupErrorResponse } from "@backend/config/startup-bootstrap";
 import { cache } from "@backend/utils/cache";
-import { licenseService } from "@backend/licensing/LicenseService";
 config();
 const secret =
   process.env.JWT_SECRET ||
@@ -25,6 +24,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return res.status(400).json({ message: "Username and password are required" });
     }
 
+    const { licenseService } = await import("@backend/licensing/LicenseService");
     const licenseStatus = await licenseService.getStatus();
     if (licenseStatus.state !== "ready") {
       const statusCode =
