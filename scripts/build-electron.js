@@ -24,9 +24,14 @@ console.log("🚀 Starting Electron build process...\n");
 // --publish flag triggers electron-builder --publish always (for GitHub Releases)
 const args = process.argv.slice(2); // e.g. ["win", "--publish"] or ["win", "sqlite"]
 const shouldPublish = args.includes("--publish");
+const archArg = args.find((a) => a.startsWith("--arch="));
+const targetArch = archArg ? archArg.split("=")[1] : "";
 const nonFlagArgs = args.filter((a) => !a.startsWith("--"));
 const dbMode = process.env.DB_MODE || nonFlagArgs[1] || "mysql";
 console.log(`🗄️  Database mode: ${dbMode}\n`);
+if (targetArch) {
+  console.log(`🧱 Target architecture override: ${targetArch}\n`);
+}
 
 // Step 1: Build Next.js in standalone mode
 console.log("📦 Step 1: Building Next.js in standalone mode...");
@@ -88,6 +93,9 @@ let buildCommand = "npx electron-builder --config electron-builder.config.cjs";
 if (platform !== "all") {
   buildCommand += ` --${platform}`;
 }
+if (targetArch === "ia32" || targetArch === "x64" || targetArch === "arm64") {
+  buildCommand += ` --${targetArch}`;
+}
 
 // Skip native module rebuilding for cross-compilation
 // Use --config.npmRebuild=false to prevent electron-builder from rebuilding native modules
@@ -106,6 +114,7 @@ const buildEnv = {
   ...process.env,
   NODE_ENV: "production",
   DB_MODE: dbMode,
+  ...(targetArch ? { WIN_ARCH: targetArch } : {}),
 };
 
 try {

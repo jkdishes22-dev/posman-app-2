@@ -37,7 +37,9 @@
     "test:e2e:coverage": "vitest run --config vitest.config.e2e.ts --coverage",
     "test:unit": "vitest run --config vitest.config.unit.ts",
     "test:unit:watch": "vitest --config vitest.config.unit.ts",
-    "test:unit:coverage": "vitest run --config vitest.config.unit.ts --coverage"
+    "test:unit:coverage": "vitest run --config vitest.config.unit.ts --coverage",
+    "electron:build:win:x86": "node scripts/build-electron.js win --arch=ia32",
+    "electron:build:sqlite:win:x86": "DB_MODE=sqlite node scripts/build-electron.js win --arch=ia32"
   },
   "dependencies": {
     "@types/formidable": "^3.4.6",
