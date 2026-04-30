@@ -42,7 +42,9 @@ async function executeRequest<T = any>(
         const publicEndpoints = [
             "/api/auth/login",
             "/api/system/setup-status",
-            "/api/system/setup-initialize"
+            "/api/system/setup-initialize",
+            "/api/system/license-status",
+            "/api/system/license-activate"
         ];
         const isPublicRequest = publicEndpoints.some(endpoint => url.includes(endpoint));
 

@@ -62,6 +62,13 @@ export default function AdminPage() {
       path: "/admin/bill"
     },
     {
+      title: "License Diagnostics",
+      description: "Check current license state, expiry, and validation health",
+      icon: "bi-key",
+      color: "primary",
+      path: "/admin/license"
+    },
+    {
       title: "Reports & Analytics",
       description: "View reports and system analytics",
       icon: "bi-graph-up",

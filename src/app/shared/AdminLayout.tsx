@@ -235,6 +235,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         ];
       }
     }
+    // License diagnostics
+    else if (path.includes("/admin/license")) {
+      activeItemId = "license-diagnostics";
+      breadcrumbItems = [
+        { label: "Dashboard", path: "/admin" },
+        { label: "License Diagnostics", path: "/admin/license" }
+      ];
+    }
 
     setActiveItem(activeItemId);
     setBreadcrumbs(breadcrumbItems);
@@ -375,6 +383,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       ],
     },
     {
+      id: "license-diagnostics",
+      label: "License Diagnostics",
+      icon: "bi-key",
+      path: "/admin/license",
+    },
+    {
       id: "reports",
       label: "Reports",
       icon: "bi-bar-chart",
@@ -461,6 +475,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       "Inventory List": "View all inventory items and their current levels",
       "Transactions": "View all inventory movement transactions",
       "Reports": "View reports and system analytics",
+      "License Diagnostics": "View license health status and expiry details",
     };
     return tooltips[label] || `Navigate to ${label}`;
   };

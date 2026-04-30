@@ -29,6 +29,19 @@ const userCache = new NodeCache({ stdTTL: 60 * 60 }); // 30 minutes
 export const authMiddleware = (handler) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     try {
+      const { licenseService } = await import("@backend/licensing/LicenseService");
+      const licenseStatus = await licenseService.getStatus();
+      if (licenseStatus.state !== "ready") {
+        const statusCode =
+          licenseStatus.state === "license_required" || licenseStatus.state === "license_expired"
+            ? 402
+            : 403;
+        return res.status(statusCode).json({
+          message: licenseStatus.message,
+          code: licenseStatus.code,
+        });
+      }
+
       const token = req.headers.authorization?.split(" ")[1];
       if (!token || token === "null" || token === "undefined") {
         return res.status(401).json({ message: "No token provided" });

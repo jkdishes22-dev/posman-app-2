@@ -24,6 +24,19 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return res.status(400).json({ message: "Username and password are required" });
     }
 
+    const { licenseService } = await import("@backend/licensing/LicenseService");
+    const licenseStatus = await licenseService.getStatus();
+    if (licenseStatus.state !== "ready") {
+      const statusCode =
+        licenseStatus.state === "license_required" || licenseStatus.state === "license_expired"
+          ? 402
+          : 403;
+      return res.status(statusCode).json({
+        message: licenseStatus.message,
+        code: licenseStatus.code,
+      });
+    }
+
     const db = await getConnection();
     const userService = new UserService(db);
 
