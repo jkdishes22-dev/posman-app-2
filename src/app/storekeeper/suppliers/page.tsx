@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
@@ -20,6 +21,12 @@ import ErrorDisplay from "../../components/ErrorDisplay";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { AuthError } from "../../types/types";
 import { useAuth } from "../../contexts/AuthContext";
+
+function formatSupplierTransactionLabel(type: string): string {
+  if (type === "adjustment") return "Partial payment";
+  if (type === "payment") return "Payment";
+  return type.replace(/_/g, " ");
+}
 
 interface Supplier {
   id: number;
@@ -208,7 +215,7 @@ export default function SuppliersPage() {
       }
 
       // Fetch transactions
-      const transactionsResult = await apiCall(`/api/suppliers/${supplierId}?action=transactions&limit=50`);
+      const transactionsResult = await apiCall(`/api/suppliers/${supplierId}?action=transactions&limit=5`);
       if (transactionsResult.status === 200) {
         setSupplierTransactions(Array.isArray(transactionsResult.data) ? transactionsResult.data : []);
       }
@@ -248,7 +255,7 @@ export default function SuppliersPage() {
     }
 
     if (creditKind === "adjustment" && !creditNotes.trim()) {
-      setCreditError("Reason is required for adjustments");
+      setCreditError("Reason is required for partial payments");
       return;
     }
 
@@ -397,15 +404,21 @@ export default function SuppliersPage() {
       <div className="container-fluid">
         {/* Header */}
         <div className="bg-primary text-white p-3 mb-4">
-          <div className="d-flex justify-content-between align-items-center">
+          <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h1 className="h4 mb-0 fw-bold">
               <i className="bi bi-truck me-2"></i>
               Supplier Management
             </h1>
-            <Button variant="light" onClick={handleAdd}>
-              <i className="bi bi-plus-circle me-1"></i>
-              Add Supplier
-            </Button>
+            <div className="d-flex flex-wrap gap-2">
+              <Link href="/storekeeper/suppliers/transactions" className="btn btn-outline-light btn-sm">
+                <i className="bi bi-cash-coin me-1"></i>
+                Supplier payments
+              </Link>
+              <Button variant="light" onClick={handleAdd}>
+                <i className="bi bi-plus-circle me-1"></i>
+                Add Supplier
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -907,7 +920,7 @@ export default function SuppliersPage() {
                             variant="outline-secondary"
                             onClick={() => openCreditModal("adjustment")}
                           >
-                            Adjust balance
+                            Partial payment
                           </Button>
                         </div>
                       )}
@@ -956,8 +969,16 @@ export default function SuppliersPage() {
 
                 {/* Recent Transactions */}
                 <Card>
-                  <Card.Header className="bg-light">
-                    <h6 className="mb-0">Recent Transactions</h6>
+                  <Card.Header className="bg-light d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h6 className="mb-0">Recent transactions (last 5)</h6>
+                    {selectedSupplier && (
+                      <Link
+                        href={`/storekeeper/suppliers/transactions?supplierId=${selectedSupplier.id}`}
+                        className="btn btn-sm btn-outline-primary"
+                      >
+                        View all payments
+                      </Link>
+                    )}
                   </Card.Header>
                   <Card.Body>
                     {loadingTransactions ? (
@@ -976,11 +997,11 @@ export default function SuppliersPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {supplierTransactions.map((transaction: any, index: number) => (
+                          {supplierTransactions.slice(0, 5).map((transaction: any, index: number) => (
                             <tr key={transaction.id ?? index}>
                               <td>{new Date(transaction.created_at).toLocaleDateString()}</td>
                               <td>
-                                <Badge bg="info">{transaction.transaction_type}</Badge>
+                                <Badge bg="info">{formatSupplierTransactionLabel(transaction.transaction_type)}</Badge>
                               </td>
                               <td className={transaction.debit_amount > 0 ? "text-danger" : ""}>
                                 {transaction.debit_amount > 0 ? `$${(Number(transaction.debit_amount) || 0).toFixed(2)}` : "-"}
@@ -1011,7 +1032,7 @@ export default function SuppliersPage() {
         <Modal show={showCreditModal} onHide={() => !creditSubmitting && setShowCreditModal(false)}>
           <Modal.Header closeButton>
             <Modal.Title>
-              {creditKind === "payment" ? "Record payment" : "Adjust balance"}
+              {creditKind === "payment" ? "Record payment" : "Partial payment"}
             </Modal.Title>
           </Modal.Header>
           <Form onSubmit={handleCreditSubmit}>
@@ -1061,7 +1082,7 @@ export default function SuppliersPage() {
                   onChange={e => setCreditNotes(e.target.value)}
                   placeholder={
                     creditKind === "adjustment"
-                      ? "Describe why this adjustment is recorded"
+                      ? "Describe why this partial payment is recorded"
                       : "Optional notes"
                   }
                   required={creditKind === "adjustment"}
@@ -1086,7 +1107,7 @@ export default function SuppliersPage() {
                 ) : creditKind === "payment" ? (
                   "Record payment"
                 ) : (
-                  "Save adjustment"
+                  "Save partial payment"
                 )}
               </Button>
             </Modal.Footer>

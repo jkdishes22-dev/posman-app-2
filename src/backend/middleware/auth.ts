@@ -26,6 +26,16 @@ interface CachedUserDetails {
 
 const userCache = new NodeCache({ stdTTL: 60 * 60 }); // 30 minutes
 
+/** Drop cached roles/permissions for one user (e.g. after role assignment). */
+export function invalidateAuthUserDetailsCacheForUser(userId: number): void {
+  userCache.del(`user_${userId}`);
+}
+
+/** Drop all cached roles/permissions (e.g. after role–permission matrix changes). */
+export function invalidateAuthUserDetailsCache(): void {
+  userCache.flushAll();
+}
+
 export const authMiddleware = (handler) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     try {

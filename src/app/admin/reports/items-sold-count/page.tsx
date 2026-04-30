@@ -43,29 +43,40 @@ export default function ItemsSoldCountReportPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loadingFilters, setLoadingFilters] = useState(false);
+  const [filterError, setFilterError] = useState<string | null>(null);
+  const [filterErrorDetails, setFilterErrorDetails] = useState<ApiErrorResponse | null>(null);
   const apiCall = useApiCall();
 
   useEffect(() => {
     const fetchFilters = async () => {
       setLoadingFilters(true);
+      setFilterError(null);
+      setFilterErrorDetails(null);
       try {
         const itemsResult = await apiCall("/api/production");
         if (itemsResult.status === 200) {
           setItems(Array.isArray(itemsResult.data) ? itemsResult.data : []);
+        } else {
+          setFilterError(itemsResult.error || "Failed to load items for filter");
+          setFilterErrorDetails(itemsResult.errorDetails || null);
         }
-        const usersResult = await apiCall("/api/users?page=1&pageSize=1000");
+        const usersResult = await apiCall("/api/reports/items-sold-count-users");
         if (usersResult.status === 200) {
           const usersArray = Array.isArray(usersResult.data?.users) ? usersResult.data.users : [];
           setUsers(usersArray);
+        } else {
+          setFilterError(usersResult.error || "Failed to load sales users for filter");
+          setFilterErrorDetails(usersResult.errorDetails || null);
         }
-      } catch (error) {
-        console.error("Error fetching filters:", error);
+      } catch {
+        setFilterError("Network error while loading report filters");
+        setFilterErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
       } finally {
         setLoadingFilters(false);
       }
     };
     fetchFilters();
-  }, []);
+  }, [apiCall]);
 
   const fetchReport = async () => {
     try {
@@ -101,6 +112,7 @@ export default function ItemsSoldCountReportPage() {
     <RoleAwareLayout>
       <div className="container-fluid">
         <div className="row mb-4"><div className="col-12"><h1 className="h3 mb-0">Items Sold Count Report</h1><p className="text-muted">Count of items sold</p></div></div>
+        <ErrorDisplay error={filterError} errorDetails={filterErrorDetails} onDismiss={() => { setFilterError(null); setFilterErrorDetails(null); }} />
         <ErrorDisplay error={error} errorDetails={errorDetails} onDismiss={() => { setError(null); setErrorDetails(null); }} />
         <div className="row mb-4">
           <div className="col-12">

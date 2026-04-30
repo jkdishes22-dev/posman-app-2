@@ -702,7 +702,7 @@ const CashierBillsPage = () => {
       <div className="bg-primary text-white p-3 mb-4">
         <h1 className="h4 mb-0 fw-bold">
           <i className="bi bi-receipt me-2"></i>
-          Cashier Bills Management
+          Bills Management
         </h1>
       </div>
 
@@ -976,9 +976,11 @@ const CashierBillsPage = () => {
               </div>
             </div>
             <div className="card-body">
-              <div className="border p-3" style={{ maxHeight: "400px", overflowY: "auto", overflowX: "auto" }}>
-                {bills.length > 0 ? (
-                  <div className="table-responsive" style={{ maxHeight: "400px", overflowY: "auto" }}>
+              {bills.length > 0 ? (
+                <div
+                  className="table-responsive border rounded"
+                  style={{ maxHeight: "min(70vh, 640px)", overflowY: "auto" }}
+                >
                     <table className="table table-striped table-sm">
                       <thead>
                         <tr>
@@ -1118,11 +1120,10 @@ const CashierBillsPage = () => {
                         ))}
                       </tbody>
                     </table>
-                  </div>
-                ) : (
-                  <p className="text-center text-muted">No bills found.</p>
-                )}
-              </div>
+                </div>
+              ) : (
+                <p className="text-center text-muted py-3">No bills found.</p>
+              )}
               <div className="mt-3">
                 <Pagination
                   page={page}

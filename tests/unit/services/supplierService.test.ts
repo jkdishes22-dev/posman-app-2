@@ -146,4 +146,23 @@ describe("SupplierService", () => {
       ).rejects.toThrow("No outstanding debit balance");
     });
   });
+
+  describe("listSupplierTransactionsPaginated", () => {
+    it("returns total count and paginated rows", async () => {
+      const qb: any = mockTransactionRepo.createQueryBuilder();
+      qb.clone = vi.fn().mockImplementation(() => qb);
+      qb.getCount.mockResolvedValue(42);
+      qb.getMany.mockResolvedValue([{ id: 2 }]);
+
+      const result = await service.listSupplierTransactionsPaginated({
+        page: 2,
+        pageSize: 10,
+      });
+
+      expect(result.total).toBe(42);
+      expect(result.items).toEqual([{ id: 2 }]);
+      expect(qb.skip).toHaveBeenCalledWith(10);
+      expect(qb.take).toHaveBeenCalledWith(10);
+    });
+  });
 });

@@ -315,5 +315,52 @@ export class SupplierService {
         cache.set(cacheKey, result);
         return result;
     }
+
+    /**
+     * Paginated supplier transaction ledger (all suppliers or filtered).
+     * Not cached — filter combinations are unbounded.
+     */
+    public async listSupplierTransactionsPaginated(options: {
+        supplierId?: number;
+        transactionType?: SupplierTransactionType;
+        startDate?: Date;
+        endDate?: Date;
+        page: number;
+        pageSize: number;
+    }): Promise<{ items: SupplierTransaction[]; total: number }> {
+        const page = Math.max(1, Math.floor(options.page));
+        const pageSize = Math.min(100, Math.max(1, Math.floor(options.pageSize)));
+        const skip = (page - 1) * pageSize;
+
+        const qb = this.supplierTransactionRepository
+            .createQueryBuilder("transaction")
+            .leftJoinAndSelect("transaction.supplier", "supplier");
+
+        if (options.supplierId != null && Number.isFinite(options.supplierId)) {
+            qb.andWhere("transaction.supplier_id = :supplierId", { supplierId: options.supplierId });
+        }
+
+        if (options.transactionType) {
+            qb.andWhere("transaction.transaction_type = :tt", { tt: options.transactionType });
+        }
+
+        if (options.startDate) {
+            qb.andWhere("transaction.created_at >= :startDate", { startDate: options.startDate });
+        }
+
+        if (options.endDate) {
+            qb.andWhere("transaction.created_at <= :endDate", { endDate: options.endDate });
+        }
+
+        const total = await qb.clone().getCount();
+
+        const items = await qb
+            .orderBy("transaction.created_at", "DESC")
+            .skip(skip)
+            .take(pageSize)
+            .getMany();
+
+        return { items, total };
+    }
 }
 

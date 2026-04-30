@@ -2,6 +2,7 @@ import { beforeAll, describe, it } from "vitest";
 import salesRevenueHandler from "../../../pages/api/reports/sales-revenue.js";
 import productionStockRevenueHandler from "../../../pages/api/reports/production-stock-revenue.js";
 import itemsSoldCountHandler from "../../../pages/api/reports/items-sold-count.js";
+import itemsSoldCountUsersHandler from "../../../pages/api/reports/items-sold-count-users.js";
 import voidedItemsHandler from "../../../pages/api/reports/voided-items.js";
 import expenditureHandler from "../../../pages/api/reports/expenditure.js";
 import invoicesPendingHandler from "../../../pages/api/reports/invoices-pending-bills.js";
@@ -23,6 +24,7 @@ const reportCases = [
   { name: "GET /api/reports/sales-revenue", method: "GET", handler: salesRevenueHandler, wrong: () => salesToken, ok: () => cashierToken, forbiddenMode: "auth-gated" as const },
   { name: "GET /api/reports/production-stock-revenue", method: "GET", handler: productionStockRevenueHandler, wrong: () => salesToken, ok: () => cashierToken },
   { name: "GET /api/reports/items-sold-count", method: "GET", handler: itemsSoldCountHandler, wrong: () => salesToken, ok: () => cashierToken, forbiddenMode: "auth-gated" as const },
+  { name: "GET /api/reports/items-sold-count-users", method: "GET", handler: itemsSoldCountUsersHandler, wrong: () => salesToken, ok: () => cashierToken, forbiddenMode: "auth-gated" as const },
   { name: "GET /api/reports/voided-items", method: "GET", handler: voidedItemsHandler, wrong: () => salesToken, ok: () => cashierToken, forbiddenMode: "auth-gated" as const },
   { name: "GET /api/reports/expenditure", method: "GET", handler: expenditureHandler, wrong: () => salesToken, ok: () => cashierToken },
   { name: "GET /api/reports/invoices-pending-bills", method: "GET", handler: invoicesPendingHandler, wrong: () => salesToken, ok: () => cashierToken },

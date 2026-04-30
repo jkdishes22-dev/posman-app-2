@@ -9,6 +9,7 @@ import { Button, Modal, Alert, Row, Col, Spinner } from "react-bootstrap";
 // Lazy load heavy components for code splitting (reduces initial bundle size)
 const ViewItems = lazy(() => import("../admin/menu/category/components/items/items-view"));
 const Categories = lazy(() => import("../admin/menu/category/components/category/categories"));
+const CategoryDeleteModal = lazy(() => import("../admin/menu/category/components/category/category-delete"));
 import ReceiptPrint, { CaptainOrderPrint, CustomerCopyPrint } from "./ReceiptPrint";
 import { printReceiptWithTimestamp, downloadReceiptAsFile } from "./printUtils";
 import ReactDOM from "react-dom/client";
@@ -20,6 +21,7 @@ import StationSelector from "../components/StationSelector";
 import PricelistSwitcher from "../components/PricelistSwitcher";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
+import { hasPermission } from "../../backend/config/role-permissions";
 
 const INVENTORY_TTL_MS = 15000;
 
@@ -66,6 +68,17 @@ const BillingSection = () => {
   const inventorySnapshotRef = useRef<Record<number, number>>({});
   const inventoryFetchedAtRef = useRef<Record<number, number>>({});
   const visibleItemIdsRef = useRef<number[]>([]);
+
+  const [categoryToDelete, setCategoryToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [showCategoryDeleteModal, setShowCategoryDeleteModal] = useState(false);
+  const [categoryDeleteError, setCategoryDeleteError] = useState<string | null>(null);
+  const [categoryDeleteErrorDetails, setCategoryDeleteErrorDetails] = useState<ApiErrorResponse | null>(null);
+
+  const userRoleNames = useMemo(
+    () => (user?.roles || []).map((r: { name?: string } | string) => (typeof r === "string" ? r : r?.name)).filter(Boolean) as string[],
+    [user?.roles],
+  );
+  const canDeleteCategoryOnBill = hasPermission(userRoleNames, "can_delete_category");
 
   const cleanupModalArtifacts = useCallback(() => {
     if (typeof document === "undefined") {
@@ -455,6 +468,39 @@ const BillingSection = () => {
   const handleRemoveItem = useCallback((itemId: string) => {
     setSelectedItems((prev) => prev.filter((item) => item.id !== itemId));
   }, []);
+
+  const openBillingCategoryDelete = useCallback((category: { id: string; name: string }) => {
+    setCategoryDeleteError(null);
+    setCategoryDeleteErrorDetails(null);
+    setCategoryToDelete(category);
+    setShowCategoryDeleteModal(true);
+  }, []);
+
+  const handleConfirmBillingCategoryDelete = useCallback(async () => {
+    if (!categoryToDelete) return;
+    setCategoryDeleteError(null);
+    setCategoryDeleteErrorDetails(null);
+    try {
+      const result = await apiCall(`/api/menu/categories/${categoryToDelete.id}`, {
+        method: "DELETE",
+      });
+      if (result.status >= 200 && result.status < 300) {
+        setCategories((prev) => (Array.isArray(prev) ? prev.filter((c: { id: string }) => c.id !== categoryToDelete.id) : []));
+        if (selectedCategory && (selectedCategory as { id: string }).id === categoryToDelete.id) {
+          setSelectedCategory(null);
+          setItems([]);
+        }
+        setShowCategoryDeleteModal(false);
+        setCategoryToDelete(null);
+      } else {
+        setCategoryDeleteError(result.error || "Failed to delete category");
+        setCategoryDeleteErrorDetails(result.errorDetails ?? null);
+      }
+    } catch {
+      setCategoryDeleteError("Network error occurred");
+      setCategoryDeleteErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    }
+  }, [apiCall, categoryToDelete, selectedCategory]);
 
   const handleShowSubmitModal = useCallback(() => setShowSubmitModal(true), []);
   const handleCloseSubmitModal = useCallback(() => {
@@ -1020,6 +1066,7 @@ const BillingSection = () => {
                     const noInFlightSelections = selectedItems.length === 0;
                     fetchItems(category.id, { preferCache: noInFlightSelections });
                   }}
+                  onDeleteCategory={canDeleteCategoryOnBill ? openBillingCategoryDelete : undefined}
                   fetchError={fetchCategoryError}
                   showHeader={false}
                   billingMode={true}
@@ -1037,6 +1084,7 @@ const BillingSection = () => {
 
       {/* Quantity Modal */}
       <QuantityModal
+        key={currentItem ? String(currentItem.id) : "qty-modal"}
         item={showQuantityModal ? currentItem : null}
         onClose={() => {
           setShowQuantityModal(false);
@@ -1050,6 +1098,32 @@ const BillingSection = () => {
             : 0
         }
       />
+
+      <Suspense fallback={null}>
+        <CategoryDeleteModal
+          show={Boolean(showCategoryDeleteModal && categoryToDelete)}
+          categoryName={categoryToDelete?.name ?? ""}
+          onCancel={() => {
+            setShowCategoryDeleteModal(false);
+            setCategoryToDelete(null);
+            setCategoryDeleteError(null);
+            setCategoryDeleteErrorDetails(null);
+          }}
+          onConfirm={handleConfirmBillingCategoryDelete}
+        />
+      </Suspense>
+      {categoryDeleteError && (
+        <div className="position-fixed bottom-0 start-0 end-0 p-3" style={{ zIndex: 1080 }}>
+          <ErrorDisplay
+            error={categoryDeleteError}
+            errorDetails={categoryDeleteErrorDetails}
+            onDismiss={() => {
+              setCategoryDeleteError(null);
+              setCategoryDeleteErrorDetails(null);
+            }}
+          />
+        </div>
+      )}
 
       {/* Submit Confirmation Modal - Simple Bill Creation */}
       <Modal show={showSubmitModal} onHide={handleCloseSubmitModal} centered backdrop="static" keyboard={false}>
