@@ -28,6 +28,9 @@ interface SetupStatus {
   };
 }
 
+const isLicenseBlockedState = (state: SetupState) =>
+  state === "license_required" || state === "license_expired" || state === "license_invalid";
+
 const LoginForm = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -350,15 +353,32 @@ const LoginForm = () => {
               )}
               {!isCheckingSetup && setupStatus && setupStatus.state !== "ready" && (
                 <div className={`alert ${setupStatus.state === "initialization_required" ? "alert-warning" : "alert-danger"}`}>
-                  <h6 className="mb-2">{setupStatus.guidance?.title || "System setup required"}</h6>
-                  <p className="mb-2">{setupStatus.message}</p>
-                  {setupStatus.guidance?.steps && setupStatus.guidance.steps.length > 0 && (
+                  <h6 className="mb-2">
+                    {isLicenseBlockedState(setupStatus.state)
+                      ? "License activation required"
+                      : setupStatus.guidance?.title || "System setup required"}
+                  </h6>
+                  {isLicenseBlockedState(setupStatus.state) ? (
+                    <>
+                      <p className="mb-2">A valid license is required to use this application.</p>
+                      <p className="mb-2">
+                        Enter a valid license code on the login screen.
+                        <br />
+                        If your trial expired, request a renewal code from the author.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mb-2">{setupStatus.message}</p>
+                  )}
+                  {!isLicenseBlockedState(setupStatus.state) &&
+                    setupStatus.guidance?.steps &&
+                    setupStatus.guidance.steps.length > 0 && (
                     <ul className="mb-3">
                       {setupStatus.guidance.steps.map((step) => (
                         <li key={step}>{step}</li>
                       ))}
                     </ul>
-                  )}
+                    )}
                   <div className="d-flex gap-2">
                     {setupStatus.state === "initialization_required" && (
                       <button
@@ -379,9 +399,7 @@ const LoginForm = () => {
                       Retry Check
                     </button>
                   </div>
-                  {(setupStatus.state === "license_required" ||
-                    setupStatus.state === "license_expired" ||
-                    setupStatus.state === "license_invalid") && (
+                  {isLicenseBlockedState(setupStatus.state) && (
                     <div className="mt-3">
                       <label htmlFor="licenseCode" className="form-label fw-semibold">
                         License Code

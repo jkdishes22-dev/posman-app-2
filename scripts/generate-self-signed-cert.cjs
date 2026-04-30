@@ -18,6 +18,7 @@
  * Usage:
  *   node scripts/generate-self-signed-cert.cjs
  *   node scripts/generate-self-signed-cert.cjs --password mypassword
+ *   node scripts/generate-self-signed-cert.cjs --outDir=~/posman-signing
  *
  * Requires: openssl in PATH (comes with macOS/Linux; install Git for Windows on Windows)
  */
@@ -25,9 +26,27 @@
 const { execSync } = require("child_process");
 const { existsSync, mkdirSync, rmSync } = require("fs");
 const path = require("path");
+const os = require("os");
+
+function readArg(name, fallback = "") {
+  const prefixed = `--${name}=`;
+  const match = process.argv.find((arg) => arg.startsWith(prefixed));
+  if (!match) return fallback;
+  return match.slice(prefixed.length);
+}
+
+function resolvePath(inputPath) {
+  if (!inputPath) return inputPath;
+  if (inputPath === "~") return os.homedir();
+  if (inputPath.startsWith(`~${path.sep}`) || inputPath.startsWith("~/")) {
+    return path.resolve(os.homedir(), inputPath.slice(2));
+  }
+  return path.resolve(inputPath);
+}
 
 const root = path.join(__dirname, "..");
-const signingDir = path.join(root, "build", "signing");
+const outDirArg = readArg("outDir", "");
+const signingDir = outDirArg ? resolvePath(outDirArg) : path.join(root, "build", "signing");
 const pfxPath = path.join(signingDir, "cert.pfx");
 const keyPath = path.join(signingDir, "cert.key.pem");
 const certPath = path.join(signingDir, "cert.pem");

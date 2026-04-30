@@ -63,7 +63,11 @@ async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot,
         err(`   ❌ Binary replacement failed: ${e.message}`);
         err(`   💡 Check the release exists: ${tarUrl}`);
     } finally {
-        try { execSync(`rm -rf "${tmpDir}"`); } catch { /* ignore */ }
+        try {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        } catch {
+            /* ignore */
+        }
     }
 }
 
