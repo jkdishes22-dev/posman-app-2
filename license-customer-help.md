@@ -1,52 +1,41 @@
-# POSMan License Help (Customer Guide)
+# JK PosMan Customer License Help
 
-## What is a license code?
+This guide is for customers installing the app and activating a license code.
 
-A license code is a special activation code that unlocks POSMan on your machine.
+## What You Need
 
-## When do I enter it?
+- `JK PosMan Setup 0.1.28.exe`
+- A license code from the app author
+- (If requested by author) the public key file: `license-public.pem`
 
-- First time you use the app
-- After your trial expires
-- After support gives you a replacement code
+## Install the App
 
-## How to activate
+1. Run the installer.
+2. Launch JK PosMan.
+3. On first launch, open the login screen license box.
 
-1. Open POSMan login screen.
-2. Paste the license code in the License box.
-3. Click **Activate License**.
-4. Sign in normally after activation succeeds.
+## If Public Key Setup Is Required
 
-## Why can activation fail?
+Run PowerShell as the same Windows user who launches the app:
 
-Common reasons:
+```powershell
+$pub = Get-Content "C:\Users\Administrator\posman-license-keys\license-public.pem" -Raw
+[Environment]::SetEnvironmentVariable("LICENSE_PUBLIC_KEY", $pub, "User")
+```
 
-- Code was copied with missing characters
-- Trial code has expired
-- Code belongs to a different machine
-- Your computer time/date is incorrect
+Then sign out/in (or reboot) and launch JK PosMan again.
 
-## What to do if it fails
+## Activate License
 
-1. Copy/paste the code again exactly.
-2. Confirm your system date/time is correct.
-3. If still failing, contact support with:
-   - your customer reference
-   - screenshot of the error
-   - app version
+1. Paste the full license code exactly as received.
+2. Submit activation.
+3. Log in normally after activation succeeds.
 
-## Device changes
+## Common Errors
 
-Licenses are machine-bound.  
-If you change computer or reinstall OS, you may need a replacement code from support.
-
-## Trial and lifetime
-
-- Trial licenses run for the agreed period.
-- Lifetime licenses do not expire.
-
-## Security note
-
-Never share private key files or internal JSON files.  
-Only enter the code support sends you.
-
+- **License signature verification failed**  
+  Usually key mismatch or app still running with old environment values. Fully close app and retry.
+- **License is bound to a different machine**  
+  Ask the author for a replacement code.
+- **License has expired**  
+  Ask the author for a renewal code.

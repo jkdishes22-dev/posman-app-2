@@ -16,6 +16,19 @@ type LicenseDiagnostics = {
   checkedAt: string;
 };
 
+function formatDateYmd(value: string | null): string {
+  if (!value) return "Never";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Invalid date";
+  return date.toISOString().slice(0, 10);
+}
+
+function statusBadgeClass(state: string): string {
+  if (state === "ready") return "bg-success-subtle text-success-emphasis border border-success-subtle";
+  if (state === "license_expired") return "bg-warning-subtle text-warning-emphasis border border-warning-subtle";
+  return "bg-danger-subtle text-danger-emphasis border border-danger-subtle";
+}
+
 export default function AdminLicenseDiagnosticsPage() {
   const apiCall = useApiCall();
   const [data, setData] = useState<LicenseDiagnostics | null>(null);
@@ -80,30 +93,34 @@ export default function AdminLicenseDiagnosticsPage() {
           {!error && data && (
             <div className="card shadow-sm">
               <div className="card-body">
-                <div className="row g-3">
+                <div className="row g-3 align-items-stretch">
                   <div className="col-md-4">
-                    <div className="small text-muted">State</div>
-                    <div className="fw-semibold">{data.state}</div>
+                    <div className="small text-muted mb-1">State</div>
+                    <span className={`badge rounded-pill px-3 py-2 ${statusBadgeClass(data.state)}`}>
+                      {data.state}
+                    </span>
                   </div>
                   <div className="col-md-4">
-                    <div className="small text-muted">Code</div>
-                    <div className="fw-semibold">{data.code}</div>
+                    <div className="small text-muted mb-1">Code</div>
+                    <span className="badge rounded-pill px-3 py-2 bg-secondary-subtle text-secondary-emphasis border border-secondary-subtle">
+                      {data.code}
+                    </span>
                   </div>
                   <div className="col-md-4">
-                    <div className="small text-muted">Plan</div>
-                    <div className="fw-semibold">{data.planType || "n/a"}</div>
+                    <div className="small text-muted mb-1">Plan</div>
+                    <div className="fw-semibold text-capitalize">{data.planType || "n/a"}</div>
                   </div>
                   <div className="col-md-6">
-                    <div className="small text-muted">Expires</div>
-                    <div className="fw-semibold">{data.expiresAt ? new Date(data.expiresAt).toLocaleString() : "Never"}</div>
+                    <div className="small text-muted mb-1">Expires</div>
+                    <div className="fw-semibold">{formatDateYmd(data.expiresAt)}</div>
                   </div>
                   <div className="col-md-6">
-                    <div className="small text-muted">Checked At</div>
-                    <div className="fw-semibold">{new Date(data.checkedAt).toLocaleString()}</div>
+                    <div className="small text-muted mb-1">Checked At</div>
+                    <div className="fw-semibold">{formatDateYmd(data.checkedAt)}</div>
                   </div>
                   <div className="col-12">
-                    <div className="small text-muted">Message</div>
-                    <div className="fw-semibold">{data.message}</div>
+                    <div className="small text-muted mb-1">Message</div>
+                    <div className="p-2 rounded bg-light border fw-semibold">{data.message}</div>
                   </div>
                 </div>
               </div>

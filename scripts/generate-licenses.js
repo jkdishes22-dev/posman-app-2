@@ -3,12 +3,25 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import os from "os";
 
 function readArg(name, fallback = "") {
   const prefixed = `--${name}=`;
   const match = process.argv.find((arg) => arg.startsWith(prefixed));
   if (!match) return fallback;
   return match.slice(prefixed.length);
+}
+
+function stripWrappingQuotes(value) {
+  if (!value) return value;
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
 }
 
 function asInt(value, fallback) {
@@ -29,7 +42,23 @@ if (!privateKeyPath) {
   process.exit(1);
 }
 
-const privateKey = fs.readFileSync(privateKeyPath, "utf8");
+function resolvePath(inputPath) {
+  if (!inputPath) return inputPath;
+  const normalized = stripWrappingQuotes(inputPath);
+  if (normalized === "~") return os.homedir();
+  if (/^~(?=$|[\\/])/.test(normalized)) {
+    return path.resolve(os.homedir(), normalized.slice(2));
+  }
+  return path.resolve(normalized);
+}
+
+const resolvedPrivateKeyPath = resolvePath(privateKeyPath);
+if (!fs.existsSync(resolvedPrivateKeyPath)) {
+  console.error(`Private key file not found: ${resolvedPrivateKeyPath}`);
+  console.error("Tip: On Windows, prefer an absolute path or quoted ~/path.");
+  process.exit(1);
+}
+const privateKey = fs.readFileSync(resolvedPrivateKeyPath, "utf8");
 const issuedAt = new Date();
 
 function encodeCertificate(payload) {
