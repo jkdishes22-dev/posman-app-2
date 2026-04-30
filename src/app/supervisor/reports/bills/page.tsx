@@ -253,7 +253,7 @@ export default function SupervisorBillsReportsPage() {
                     onClick={() => window.open("/home/cashier/bills", "_blank")}
                   >
                     <i className="bi bi-cash-stack me-1"></i>
-                    View Cashier Bills
+                    View bills
                   </Button>
                   <Button
                     variant="outline-success"

@@ -64,14 +64,24 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
         ];
       }
     }
-    // Suppliers
+    // Supplier payments ledger (must be before generic /storekeeper/suppliers match)
+    else if (path.includes("/storekeeper/suppliers/transactions")) {
+      expandedMenuIds.push("suppliers");
+      activeItemId = "suppliers-transactions";
+      breadcrumbItems = [
+        { label: "Dashboard", path: "/storekeeper" },
+        { label: "Suppliers", path: "/storekeeper/suppliers" },
+        { label: "Supplier payments", path: "/storekeeper/suppliers/transactions" },
+      ];
+    }
+    // Suppliers directory
     else if (path.includes("/storekeeper/suppliers")) {
       expandedMenuIds.push("suppliers");
       activeItemId = "suppliers-list";
       breadcrumbItems = [
         { label: "Dashboard", path: "/storekeeper" },
         { label: "Suppliers", path: "/storekeeper/suppliers" },
-        { label: "Suppliers", path: "/storekeeper/suppliers" }
+        { label: "Suppliers", path: "/storekeeper/suppliers" },
       ];
     }
     // Purchase Orders
@@ -108,6 +118,14 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
           { label: "Production", path: "/storekeeper/production" }
         ];
       }
+    }
+    else if (path.includes("/storekeeper/reports")) {
+      expandedMenuIds.push("reports");
+      activeItemId = "reports";
+      breadcrumbItems = [
+        { label: "Dashboard", path: "/storekeeper" },
+        { label: "Reports", path: "/storekeeper/reports" },
+      ];
     }
 
     setActiveItem(activeItemId);
@@ -178,6 +196,12 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
           path: "/storekeeper/suppliers",
         },
         {
+          id: "suppliers-transactions",
+          label: "Supplier payments",
+          icon: "bi-cash-coin",
+          path: "/storekeeper/suppliers/transactions",
+        },
+        {
           id: "suppliers-purchase-orders",
           label: "Purchase Orders",
           icon: "bi-cart-check",
@@ -237,6 +261,7 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
       "Inventory List": "View all inventory items and their current levels",
       "Transactions": "View all inventory movement transactions",
       "Suppliers": "Manage suppliers and purchase orders",
+      "Supplier payments": "Full ledger of supplier payments and balance transactions",
       "Purchase Orders": "Create and manage purchase orders",
       "Production": "Manage production and inventory",
       "Issue Production": "Create a new production issue record",

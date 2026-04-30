@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import React from "react";
-import Image from "next/image";
 import { decodeJwt, DecodedToken } from "./utils/tokenUtils";
 import { useAuth } from "./contexts/AuthContext";
 import { useApiCall } from "./utils/apiUtils";
@@ -560,13 +559,13 @@ const LoginForm = () => {
         <div className="col d-flex flex-column">
           <div className="p-3 border bg-light mb-3">
             <div className="p-3 border bg-light h-100 d-flex flex-column justify-content-center align-items-center">
-              <Image
+              <img
                 src="/images/jk-big.png"
                 width={300}
                 height={500}
                 className="m-2"
-                alt="logo"
-                unoptimized
+                alt="JK PosMan"
+                style={{ maxWidth: "100%", height: "auto", objectFit: "contain" }}
               />
               <span className="text-muted display-4">PosMan</span>
             </div>

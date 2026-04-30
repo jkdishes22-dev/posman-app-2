@@ -392,19 +392,27 @@ export class ReportService {
     const reportMap = new Map<string, ItemsSoldCountReportItem>();
 
     billItems.forEach(billItem => {
-      if (!billItem.item) return;
+      if (!billItem.item || !billItem.bill) return;
 
       const date = new Date(billItem.bill.created_at).toISOString().split("T")[0];
-      const key = `${date}_${billItem.item.id}${userId ? `_${billItem.bill.user_id}` : ""}`;
+      const uid = billItem.bill.user_id;
+      const key = `${date}_${billItem.item.id}_${uid ?? 0}`;
 
       if (!reportMap.has(key)) {
+        const u = billItem.bill.user;
+        const displayName = u
+          ? `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.username || `User #${uid}`
+          : uid != null
+            ? `User #${uid}`
+            : "Unknown";
+
         reportMap.set(key, {
           date,
           itemId: billItem.item.id,
           itemName: billItem.item.name,
           quantity: 0,
-          userId: userId ? billItem.bill.user_id : undefined,
-          userName: userId && billItem.bill.user ? `${billItem.bill.user.firstName || ""} ${billItem.bill.user.lastName || ""}`.trim() : undefined
+          userId: uid ?? undefined,
+          userName: displayName,
         });
       }
 
@@ -415,8 +423,34 @@ export class ReportService {
     return Array.from(reportMap.values()).sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       if (a.itemId !== b.itemId) return a.itemId - b.itemId;
-      return 0;
+      return (a.userId ?? 0) - (b.userId ?? 0);
     });
+  }
+
+  /**
+   * Distinct bill creators who have at least one closed bill — for Items Sold Count filter dropdown.
+   * Scoped to report permission instead of full user directory (can_view_user).
+   */
+  async getItemsSoldCountBillUserOptions(): Promise<
+    Array<{ id: number; firstName: string; lastName: string; username: string }>
+  > {
+    const users = await this.userRepository
+      .createQueryBuilder("user")
+      .innerJoin(Bill, "bill", "bill.user_id = user.id")
+      .where("bill.status = :closed", { closed: BillStatus.CLOSED })
+      .select(["user.id", "user.firstName", "user.lastName", "user.username"])
+      .distinct(true)
+      .orderBy("user.firstName", "ASC")
+      .addOrderBy("user.lastName", "ASC")
+      .addOrderBy("user.username", "ASC")
+      .getMany();
+
+    return users.map((u) => ({
+      id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      username: u.username,
+    }));
   }
 
   async getVoidedItemsReport(filters: ReportFilters): Promise<VoidedItemsReportItem[]> {

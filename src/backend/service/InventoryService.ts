@@ -159,6 +159,7 @@ export class InventoryService {
                 name: string;
                 code: string;
                 isStock: boolean;
+                isGroup?: boolean;
                 category?: {
                     id: number;
                     name: string;
@@ -231,6 +232,7 @@ export class InventoryService {
                     name: inventory.item.name,
                     code: inventory.item.code,
                     isStock: Boolean(inventory.item.isStock) || Number(inventory.item.isStock) === 1,
+                    isGroup: Boolean(inventory.item.isGroup),
                     category: inventory.item.category ? {
                         id: inventory.item.category.id,
                         name: inventory.item.category.name,

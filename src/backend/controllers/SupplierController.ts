@@ -1,6 +1,8 @@
 import { SupplierService } from "@backend/service/SupplierService";
 import { NextApiRequest, NextApiResponse } from "next";
 import { handleApiError } from "@backend/utils/errorHandler";
+import { startOfDay, endOfDay } from "date-fns";
+import { SupplierTransactionType } from "@backend/entities/SupplierTransaction";
 
 export const createSupplierHandler = async (
     req: NextApiRequest,
@@ -216,6 +218,67 @@ export const recordSupplierCreditHandler = async (
         const { userMessage, errorCode } = handleApiError(error, {
             operation: "recording",
             resource: "supplier credit transaction",
+        });
+        res.status(500).json({ error: userMessage, code: errorCode });
+    }
+};
+
+/** GET /api/suppliers/transactions — paginated ledger across suppliers (filters optional). */
+export const listAllSupplierTransactionsHandler = async (
+    req: NextApiRequest,
+    res: NextApiResponse,
+) => {
+    const supplierService = new SupplierService(req.db);
+    try {
+        const pageRaw = req.query.page ? parseInt(String(req.query.page), 10) : 1;
+        const pageSizeRaw = req.query.pageSize ? parseInt(String(req.query.pageSize), 10) : 25;
+        const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+        const pageSize = Number.isFinite(pageSizeRaw) && pageSizeRaw > 0 ? pageSizeRaw : 25;
+
+        const supplierIdRaw = req.query.supplierId;
+        const supplierIdParsed =
+            supplierIdRaw != null && String(supplierIdRaw).trim() !== ""
+                ? parseInt(String(supplierIdRaw), 10)
+                : NaN;
+        const supplierId = Number.isFinite(supplierIdParsed) ? supplierIdParsed : undefined;
+
+        let transactionType: SupplierTransactionType | undefined;
+        const ttRaw = req.query.transactionType;
+        if (typeof ttRaw === "string" && ttRaw.trim() !== "" && ttRaw !== "all") {
+            const allowed = Object.values(SupplierTransactionType) as string[];
+            if (allowed.includes(ttRaw)) {
+                transactionType = ttRaw as SupplierTransactionType;
+            }
+        }
+
+        let startDate: Date | undefined;
+        let endDate: Date | undefined;
+        if (typeof req.query.startDate === "string" && req.query.startDate.trim()) {
+            startDate = startOfDay(new Date(req.query.startDate));
+        }
+        if (typeof req.query.endDate === "string" && req.query.endDate.trim()) {
+            endDate = endOfDay(new Date(req.query.endDate));
+        }
+
+        const { items, total } = await supplierService.listSupplierTransactionsPaginated({
+            supplierId,
+            transactionType,
+            startDate,
+            endDate,
+            page,
+            pageSize,
+        });
+
+        res.status(200).json({
+            transactions: items,
+            total,
+            page,
+            pageSize,
+        });
+    } catch (error: any) {
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "supplier transactions"
         });
         res.status(500).json({ error: userMessage, code: errorCode });
     }

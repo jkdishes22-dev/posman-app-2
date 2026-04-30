@@ -6,9 +6,18 @@ interface PaginationProps {
     total: number;
     onPageChange: (page: number) => void;
     showInfo?: boolean;
+    /** Plural noun shown after the total count (default: bills). */
+    recordLabel?: string;
 }
 
-const Pagination: React.FC<PaginationProps> = ({ page, pageSize, total, onPageChange, showInfo = true }) => {
+const Pagination: React.FC<PaginationProps> = ({
+    page,
+    pageSize,
+    total,
+    onPageChange,
+    showInfo = true,
+    recordLabel = "bills",
+}) => {
     const totalPages = Math.ceil(total / pageSize);
     
     // Don't show pagination if there are no items
@@ -45,7 +54,8 @@ const Pagination: React.FC<PaginationProps> = ({ page, pageSize, total, onPageCh
         <div className="d-flex flex-column align-items-center my-4">
             {showInfo && (
                 <div className="mb-2 text-muted small">
-                    Showing <strong>{startItem}</strong> to <strong>{endItem}</strong> of <strong>{total}</strong> bills
+                    Showing <strong>{startItem}</strong> to <strong>{endItem}</strong> of <strong>{total}</strong>{" "}
+                    {recordLabel}
                 </div>
             )}
             {totalPages > 1 && (

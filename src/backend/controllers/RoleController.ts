@@ -2,6 +2,10 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { RoleService } from "@services/RoleService";
 import { PermissionService } from "@services/PermissionService";
 import { handleApiError } from "@backend/utils/errorHandler";
+import {
+  invalidateAuthUserDetailsCache,
+  invalidateAuthUserDetailsCacheForUser,
+} from "@backend/middleware/auth";
 
 export const fetchRolesHandler = async (
   req: NextApiRequest,
@@ -46,6 +50,7 @@ export const addPermissionToRoleHandler = async (
   try {
     const { roleId, permissionId } = req.body;
     await roleService.addPermissionToRole(roleId, permissionId);
+    invalidateAuthUserDetailsCache();
     res.status(200).json({ message: "Permission added to role" });
   } catch (error: any) {
     const { userMessage, errorCode } = handleApiError(error, {
@@ -64,6 +69,7 @@ export const assignRoleToUserHandler = async (
   try {
     const { userId, roleId } = req.body;
     await roleService.assignRoleToUser(userId, roleId);
+    invalidateAuthUserDetailsCacheForUser(Number(userId));
     res.status(200).json({ message: "Role assigned to user" });
   } catch (error: any) {
     const { userMessage, errorCode } = handleApiError(error, {
@@ -100,6 +106,7 @@ export const removePermissionFromRoleHandler = async (
   try {
     const { roleId, permissionId } = req.body;
     await roleService.removePermissionFromRole(roleId, permissionId);
+    invalidateAuthUserDetailsCache();
     res.status(200).json({ message: "Permission removed from role" });
   } catch (error: any) {
     const { userMessage, errorCode } = handleApiError(error, {

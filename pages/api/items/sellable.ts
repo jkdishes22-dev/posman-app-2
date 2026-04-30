@@ -11,9 +11,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "GET") {
         return authorize([permissions.CAN_VIEW_ITEM])(async (request, response) => {
         try {
-            const { q, limit = "20" } = req.query;
+            const { q, limit } = req.query;
             const db = await getConnection();
             const itemRepository = db.getRepository(Item);
+
+            const qTrimmed = q && typeof q === "string" ? q.trim() : "";
+            const defaultLimit = qTrimmed.length > 0 ? 20 : 500;
+            const parsedLimit = parseInt((limit as string) || String(defaultLimit), 10);
+            const limitNum = Number.isFinite(parsedLimit)
+                ? Math.min(Math.max(1, parsedLimit), 2000)
+                : defaultLimit;
 
             // Build query for sellable items (isStock === false)
             const queryBuilder = itemRepository
@@ -24,16 +31,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 .andWhere("item.status = :status", { status: ItemStatus.ACTIVE });
 
             // Add search filter if query provided
-            if (q && typeof q === "string" && q.trim().length > 0) {
+            if (qTrimmed.length > 0) {
                 queryBuilder.andWhere(
                     "(item.name LIKE :search OR item.code LIKE :search)",
-                    { search: `%${q.trim()}%` }
+                    { search: `%${qTrimmed}%` }
                 );
             }
 
             queryBuilder
                 .orderBy("item.name", "ASC")
-                .limit(parseInt(limit as string, 10));
+                .limit(limitNum);
 
             const items = await queryBuilder.getMany();
 
