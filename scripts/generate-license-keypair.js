@@ -3,9 +3,19 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import os from "os";
+
+function resolvePath(inputPath) {
+  if (!inputPath) return inputPath;
+  if (inputPath === "~") return os.homedir();
+  if (inputPath.startsWith(`~${path.sep}`) || inputPath.startsWith("~/")) {
+    return path.resolve(os.homedir(), inputPath.slice(2));
+  }
+  return path.resolve(inputPath);
+}
 
 const outDir = process.argv[2]
-  ? path.resolve(process.argv[2])
+  ? resolvePath(process.argv[2])
   : path.join(process.cwd(), "build", "licenses");
 
 fs.mkdirSync(outDir, { recursive: true });
