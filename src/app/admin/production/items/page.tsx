@@ -11,7 +11,7 @@ import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import { useTooltips } from "../../../hooks/useTooltips";
 
-type ItemFilter = "all" | "stock" | "sellable" | "both";
+type ItemFilter = "all" | "stock" | "sellable";
 
 export default function InventoryPage() {
   const [showModal, setShowModal] = useState(false);
@@ -22,6 +22,7 @@ export default function InventoryPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [itemFilter, setItemFilter] = useState<ItemFilter>("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const apiCall = useApiCall();
   useTooltips();
@@ -56,7 +57,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     filterItems();
-  }, [inventoryItems, itemFilter]);
+  }, [inventoryItems, itemFilter, searchTerm]);
 
   const filterItems = () => {
     let filtered = [...inventoryItems];
@@ -65,12 +66,15 @@ export default function InventoryPage() {
       filtered = filtered.filter((item) => item.isStock === true);
     } else if (itemFilter === "sellable") {
       filtered = filtered.filter((item) => item.isStock === false);
-    } else if (itemFilter === "both") {
-      // Items that are both stock and sellable would need a different check
-      // For now, show all items (no filtering needed)
-      // filtered already contains all items
     }
-    // "all" shows everything
+
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+    if (normalizedSearchTerm.length > 0) {
+      filtered = filtered.filter((item) =>
+        item.name.toLowerCase().includes(normalizedSearchTerm) ||
+        item.code.toLowerCase().includes(normalizedSearchTerm)
+      );
+    }
 
     setFilteredItems(filtered);
   };
@@ -146,8 +150,16 @@ export default function InventoryPage() {
                     <option value="all">All Items</option>
                     <option value="stock">Stock Items Only</option>
                     <option value="sellable">Sellable Items Only</option>
-                    <option value="both">Both Types</option>
                   </Form.Select>
+                </Form.Group>
+                <Form.Group className="mb-1">
+                  <Form.Label>Search</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder="Search by item name or code..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </Form.Group>
               </Card.Body>
             </Card>

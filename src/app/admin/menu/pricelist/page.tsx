@@ -38,10 +38,12 @@ export default function PricelistPage() {
     status: string;
   }
   const [pricelists, setPricelists] = useState<Pricelist[]>([]);
+  const [stationScopedPricelists, setStationScopedPricelists] = useState<Pricelist[]>([]);
   const [filteredPricelists, setFilteredPricelists] = useState<Pricelist[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: "activate" | "deactivate", pricelistId: number, pricelistName: string } | null>(null);
   const [pricelistItems, setPricelistItems] = useState([]);
@@ -101,13 +103,7 @@ export default function PricelistPage() {
     try {
       const result = await apiCall(`/api/stations/${stationId}/pricelists`);
       if (result.status >= 200 && result.status < 300) {
-        // Success - apiCall handles all 2XX codes
-        let filtered = result.data?.pricelists || [];
-        // Apply status filter to station-specific pricelists
-        if (statusFilter !== "all") {
-          filtered = filtered.filter(pricelist => pricelist.status === statusFilter);
-        }
-        setFilteredPricelists(filtered);
+        setStationScopedPricelists(result.data?.pricelists || []);
         setFetchPricelistError(null);
       } else {
         // Error - apiCall already standardizes all non-2XX errors
@@ -119,7 +115,7 @@ export default function PricelistPage() {
       setFetchPricelistError("Failed to fetch pricelists for station: " + error.message);
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
-  }, [statusFilter, apiCall]);
+  }, [apiCall]);
 
   useEffect(() => {
     if (selectedPricelistId) {
@@ -128,43 +124,39 @@ export default function PricelistPage() {
     }
   }, [selectedPricelistId]);
 
-  // Filter pricelists when station filter changes
+  // Refresh station-scoped dataset when station filter changes
   useEffect(() => {
-    if (!Array.isArray(pricelists)) {
-      setFilteredPricelists([]);
-      return;
-    }
-
-    // Clear selected pricelist and items when station changes
     setSelectedPricelistId(null);
     setPricelistItems([]);
     setItemError("");
 
     if (selectedStationId === null) {
-      // Show all pricelists when no filter is selected
-      setFilteredPricelists(pricelists);
+      setStationScopedPricelists([]);
     } else {
-      // Filter pricelists by selected station
-      // In the new M:M architecture, we need to fetch pricelists for the specific station
       fetchPricelistsForStation(selectedStationId);
     }
-  }, [selectedStationId, pricelists]);
+  }, [selectedStationId, fetchPricelistsForStation]);
 
-  // Filter pricelists by status
+  // Apply status + search filters on whichever dataset is active
   useEffect(() => {
-    if (!Array.isArray(pricelists)) {
-      return;
-    }
+    const sourcePricelists =
+      selectedStationId === null ? pricelists : stationScopedPricelists;
+    let filtered = Array.isArray(sourcePricelists) ? [...sourcePricelists] : [];
 
-    let filtered = pricelists;
-
-    // Apply status filter
     if (statusFilter !== "all") {
       filtered = filtered.filter(pricelist => pricelist.status === statusFilter);
     }
 
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+    if (normalizedSearchTerm.length > 0) {
+      filtered = filtered.filter((pricelist) =>
+        pricelist.name.toLowerCase().includes(normalizedSearchTerm) ||
+        (pricelist.description || "").toLowerCase().includes(normalizedSearchTerm)
+      );
+    }
+
     setFilteredPricelists(filtered);
-  }, [pricelists, statusFilter]);
+  }, [pricelists, stationScopedPricelists, selectedStationId, statusFilter, searchTerm]);
 
   const fetchPricelistItems = async (pricelistId: number, forceRefresh = false) => {
     if (forceRefresh) {
@@ -463,19 +455,37 @@ export default function PricelistPage() {
                     </div>
                     <div className="col-md-3">
                       <div className="d-flex align-items-center justify-content-end gap-3">
-                        {(selectedStationId || statusFilter !== "all") && (
+                        {(selectedStationId || statusFilter !== "all" || searchTerm.trim().length > 0) && (
                           <Button
                             variant="outline-secondary"
                             size="sm"
                             onClick={() => {
                               setSelectedStationId(null);
                               setStatusFilter("all");
+                              setSearchTerm("");
                             }}
                           >
                             <i className="bi bi-x-circle me-1"></i>
                             Clear Filters
                           </Button>
                         )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="row mt-2">
+                    <div className="col-md-6">
+                      <div className="d-flex align-items-center gap-2">
+                        <Form.Label className="fw-semibold mb-0 text-nowrap">
+                          <i className="bi bi-search me-1 text-primary"></i>
+                          Search:
+                        </Form.Label>
+                        <Form.Control
+                          type="text"
+                          size="sm"
+                          placeholder="Search pricelist name or description..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                       </div>
                     </div>
                   </div>

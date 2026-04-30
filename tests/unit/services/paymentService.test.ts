@@ -54,38 +54,38 @@ describe("PaymentService", () => {
   });
 
   describe("checkMpesaReferenceExists", () => {
-    it("returns false when no payment with that reference exists", async () => {
-      mockPaymentRepo.findOne.mockResolvedValue(null);
+    it("returns false when normalized reference does not exist", async () => {
+      const qb = mockPaymentRepo.createQueryBuilder();
+      qb.getCount.mockResolvedValue(0);
 
       const result = await service.checkMpesaReferenceExists("ABC123", 1);
 
       expect(result).toBe(false);
+      expect(mockPaymentRepo.createQueryBuilder).toHaveBeenCalledWith("payment");
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        "UPPER(TRIM(payment.reference)) = :normalizedReference",
+        { normalizedReference: "ABC123" }
+      );
     });
 
-    it("returns false when reference exists but only for the same bill", async () => {
-      const billPayments = [{ bill: { id: 1 } }];
-      mockPaymentRepo.findOne.mockResolvedValue({
-        id: 99,
-        paymentType: PaymentType.MPESA,
-        bill_payments: Promise.resolve(billPayments),
-      });
+    it("returns true when normalized reference already exists", async () => {
+      const qb = mockPaymentRepo.createQueryBuilder();
+      qb.getCount.mockResolvedValue(1);
 
-      const result = await service.checkMpesaReferenceExists("ABC123", 1);
-
-      expect(result).toBe(false);
-    });
-
-    it("returns true when reference is used in a different bill", async () => {
-      const billPayments = [{ bill: { id: 99 } }];
-      mockPaymentRepo.findOne.mockResolvedValue({
-        id: 10,
-        paymentType: PaymentType.MPESA,
-        bill_payments: Promise.resolve(billPayments),
-      });
-
-      const result = await service.checkMpesaReferenceExists("ABC123", 1);
+      const result = await service.checkMpesaReferenceExists("  abc123  ", 1);
 
       expect(result).toBe(true);
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        "UPPER(TRIM(payment.reference)) = :normalizedReference",
+        { normalizedReference: "ABC123" }
+      );
+    });
+
+    it("returns false for empty/blank reference", async () => {
+      const result = await service.checkMpesaReferenceExists("   ", 1);
+
+      expect(result).toBe(false);
+      expect(mockPaymentRepo.createQueryBuilder).not.toHaveBeenCalled();
     });
   });
 });

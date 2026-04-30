@@ -150,30 +150,60 @@ export class UserService {
       }
     }
 
-    // Optimized query: select only needed fields
-    const query = this.userRepository
-      .createQueryBuilder("user")
-      .leftJoinAndSelect("user.roles", "role")
-      .where("user.username = :username", { username })
-      .select([
-        "user.id",
-        "user.username",
-        "user.firstName",
-        "user.lastName",
-        "user.status",
-        "user.created_at",
-        "user.updated_at",
-        "user.refreshToken",
-        "role.id",
-        "role.name"
-      ]);
+    // Use raw SQL here to avoid TypeORM relation-query edge cases in bundled
+    // production builds (observed around SelectQueryBuilder internals).
+    const users: any[] =
+      (await this.userRepository.manager.query(
+        `SELECT
+           u.id,
+           u.username,
+           u.firstName,
+           u.lastName,
+           u.password,
+           u.status,
+           u.refreshToken,
+           u.created_at,
+           u.updated_at
+         FROM user u
+         WHERE u.username = ?
+         LIMIT 1`,
+        [username],
+      )) ?? [];
 
-    // Only include password if explicitly requested (for login)
-    if (includePassword) {
-      query.addSelect("user.password");
+    const userRow = users[0];
+    let result: User | null = null;
+
+    if (userRow) {
+      const roleRows: any[] =
+        (await this.userRepository.manager.query(
+          `SELECT r.id, r.name
+           FROM roles r
+           INNER JOIN user_roles ur ON ur.role_id = r.id
+           WHERE ur.user_id = ?`,
+          [userRow.id],
+        )) ?? [];
+
+      result = {
+        id: userRow.id,
+        username: userRow.username,
+        firstName: userRow.firstName,
+        lastName: userRow.lastName,
+        password: userRow.password,
+        status: userRow.status,
+        refreshToken: userRow.refreshToken,
+        created_at: userRow.created_at,
+        updated_at: userRow.updated_at,
+        roles: roleRows.map((role) => ({
+          id: role.id,
+          name: role.name,
+        })) as Role[],
+      } as User;
+
+      // Keep behavior: callers that don't request password should not receive it.
+      if (!includePassword) {
+        delete (result as Partial<User>).password;
+      }
     }
-
-    const result = await query.getOne();
 
     // Cache the result (but exclude password from cache for security)
     if (result && !includePassword) {

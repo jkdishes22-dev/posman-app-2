@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { Bill } from "../../../src/backend/entities/Bill";
 import { PaymentService } from "../../../src/backend/service/PaymentService";
 import permissions from "../../../src/backend/config/permissions";
 import { authMiddleware, authorize } from "../../../src/backend/middleware/auth";
@@ -17,10 +18,21 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             return res.status(400).json({ error: "Reference and billId are required" });
         }
 
+        const parsedBillId = Number(billId);
+        if (Number.isNaN(parsedBillId) || parsedBillId <= 0) {
+            return res.status(400).json({ error: "Invalid billId" });
+        }
+
+        const billRepository = req.db.getRepository(Bill);
+        const bill = await billRepository.findOne({ where: { id: parsedBillId } });
+        if (!bill) {
+            return res.status(404).json({ error: "Bill not found" });
+        }
+
         const paymentService = new PaymentService(req.db);
 
-        // Check if M-Pesa reference already exists in another bill
-        const exists = await paymentService.checkMpesaReferenceExists(reference, parseInt(billId));
+        // Check if M-Pesa reference already exists
+        const exists = await paymentService.checkMpesaReferenceExists(reference, parsedBillId);
 
         return res.status(200).json({
             exists: exists,

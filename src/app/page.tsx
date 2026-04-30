@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import React from "react";
 import Image from "next/image";
@@ -40,6 +40,7 @@ const LoginForm = () => {
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
   const [isCheckingSetup, setIsCheckingSetup] = useState(true);
   const [isRunningSetup, setIsRunningSetup] = useState(false);
+  const passwordInputRef = useRef<HTMLInputElement | null>(null);
   const [licenseCode, setLicenseCode] = useState("");
   const [isActivatingLicense, setIsActivatingLicense] = useState(false);
   const router = useRouter();
@@ -191,6 +192,15 @@ const LoginForm = () => {
           }
         }
       } else {
+        if (result.status === 428 || result.status === 503) {
+          // Ensure setup actions are visible when backend blocks login on setup state.
+          await readSetupStatus(true);
+          setError(result.error || "System setup is required before login.");
+          setErrorDetails(result.errorDetails || { status: result.status });
+          setIsSubmitting(false);
+          return;
+        }
+
         // Show specific error message for invalid credentials
         if (result.status === 401) {
           setError("Invalid username or password");
@@ -238,6 +248,18 @@ const LoginForm = () => {
 
   const handleInputClick = (field: React.SetStateAction<string>) => {
     setActiveField(field);
+  };
+
+  const focusPasswordField = useCallback(() => {
+    setActiveField("password");
+    passwordInputRef.current?.focus();
+  }, []);
+
+  const handleUsernameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      focusPasswordField();
+    }
   };
 
   const handleActivateLicense = async () => {
@@ -390,23 +412,34 @@ const LoginForm = () => {
                 <label className="form-label" htmlFor="username">
                   User name / code
                 </label>
-                <input
-                  type="text"
-                  id="username"
-                  className="form-control"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  onClick={() => handleInputClick("username")}
-                />
+                <div className="d-flex align-items-stretch gap-2">
+                  <input
+                    type="text"
+                    id="username"
+                    className="form-control flex-grow-1"
+                    autoComplete="username"
+                    enterKeyHint="next"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    onClick={() => handleInputClick("username")}
+                    onKeyDown={handleUsernameKeyDown}
+                  />
+                  <button type="button" className="btn btn-primary px-4" onClick={focusPasswordField}>
+                    Next
+                  </button>
+                </div>
               </div>
               <div className="form-outline mb-4">
                 <label className="form-label" htmlFor="password">
                   Password
                 </label>
                 <input
+                  ref={passwordInputRef}
                   type="password"
                   id="password"
                   className="form-control lg-4"
+                  autoComplete="current-password"
+                  enterKeyHint="go"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onClick={() => handleInputClick("password")}
@@ -418,8 +451,8 @@ const LoginForm = () => {
                 disabled={
                   isSubmitting ||
                   isRedirecting ||
-                  isCheckingSetup ||
-                  isRunningSetup ||
+                  !username ||
+                  !password ||
                   isActivatingLicense ||
                   (setupStatus !== null && setupStatus.state !== "ready")
                 }
