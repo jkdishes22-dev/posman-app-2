@@ -2,6 +2,14 @@
 const path = require("path");
 const fs = require("fs");
 
+const winArchEnv = (process.env.WIN_ARCH || "").toLowerCase();
+const resolvedWinArch =
+  winArchEnv === "ia32" || winArchEnv === "x86"
+    ? "ia32"
+    : winArchEnv === "x64"
+      ? "x64"
+      : "x64";
+
 module.exports = {
   appId: "com.jk.posman",
   productName: "JK PosMan",
@@ -48,9 +56,10 @@ module.exports = {
     },
   ],
 
-  // Windows configuration — x64 only (all supported Win 10+ machines are 64-bit)
+  // Windows configuration
+  // Use WIN_ARCH=ia32 to produce a separate x86 installer when explicitly needed.
   win: {
-    target: [{ target: "nsis", arch: ["x64"] }],
+    target: [{ target: "nsis", arch: [resolvedWinArch] }],
     icon: "public/icons/JK-icon.ico",
     requestedExecutionLevel: "asInvoker",
     signAndEditExecutable: false,
@@ -60,6 +69,7 @@ module.exports = {
 
   nsis: {
     oneClick: false,
+    license: "LICENSE_TERMS.txt",
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
@@ -106,6 +116,8 @@ module.exports = {
   compression: "normal",
   buildVersion: process.env.BUILD_VERSION || "1.0.0",
   npmRebuild: false,
+  // Native modules are patched in afterPack (better-sqlite3 + keytar for Windows).
+  // Keep npmRebuild disabled to avoid non-deterministic cross-platform rebuild behavior.
   publish: null,
 
   beforePack: async (context) => {

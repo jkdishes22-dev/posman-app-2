@@ -1,0 +1,61 @@
+JK POSMAN END USER LICENSE AGREEMENT (EULA)
+
+Last Updated: 2026-04-28
+
+IMPORTANT: PLEASE READ THIS AGREEMENT CAREFULLY BEFORE INSTALLING OR USING JK POSMAN.
+BY CLICKING "I AGREE", INSTALLING, OR USING THE SOFTWARE, YOU AGREE TO BE BOUND BY THESE TERMS.
+IF YOU DO NOT AGREE, CLICK "I DO NOT AGREE" AND DO NOT INSTALL OR USE THE SOFTWARE.
+
+1. LICENSE GRANT
+Subject to your compliance with this Agreement and payment of applicable fees, JK PosMan grants you a limited,
+non-exclusive, non-transferable, revocable license to install and use the software on the number of devices
+authorized by your purchased license.
+
+2. MACHINE-BOUND LICENSE
+The software uses machine-bound activation. A license key may be restricted to a specific installation or device.
+Changing hardware, reinstalling the operating system, or tampering with system/security storage may require
+re-activation or issuance of a replacement key under provider policy.
+
+3. ACTIVATION AND EXPIRY
+Some licenses are time-limited (trial/term). Access may be blocked when the license expires, is invalid,
+or cannot be verified. Continued use requires a valid active license.
+
+4. RESTRICTIONS
+You may not:
+- Copy, sublicense, rent, lease, sell, distribute, or transfer the software except as expressly permitted.
+- Reverse engineer, decompile, or disassemble the software, except to the extent such restriction is prohibited by law.
+- Bypass, disable, or tamper with licensing, activation, or security mechanisms.
+- Use the software in violation of applicable law.
+
+5. OWNERSHIP
+The software is licensed, not sold. All rights, title, and interest in and to JK PosMan, including all intellectual
+property rights, remain with JK PosMan and its licensors.
+
+6. DATA AND BACKUPS
+You are responsible for maintaining backups and protecting your operational data.
+JK PosMan is not liable for data loss resulting from misuse, device failure, or unauthorized modification.
+
+7. UPDATES AND CHANGES
+JK PosMan may provide updates, patches, or new versions. Some updates may require a valid active license.
+Terms may be updated in future releases.
+
+8. DISCLAIMER OF WARRANTIES
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE",
+WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+AND NON-INFRINGEMENT.
+
+9. LIMITATION OF LIABILITY
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, JK POSMAN SHALL NOT BE LIABLE FOR INDIRECT, INCIDENTAL, SPECIAL,
+CONSEQUENTIAL, OR EXEMPLARY DAMAGES, OR FOR LOSS OF PROFITS, REVENUE, DATA, OR BUSINESS INTERRUPTION,
+ARISING FROM USE OR INABILITY TO USE THE SOFTWARE.
+
+10. TERMINATION
+This Agreement terminates automatically if you breach its terms. Upon termination, you must cease use and uninstall
+the software. Provisions intended to survive termination shall survive.
+
+11. GOVERNING LAW
+This Agreement is governed by applicable local law unless otherwise agreed in writing.
+
+12. CONTACT
+For support, licensing, and key replacement requests, contact your authorized JK PosMan support channel.
+

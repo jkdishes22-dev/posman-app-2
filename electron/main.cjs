@@ -426,6 +426,38 @@ function checkStartupBootstrapStatus() {
     });
 }
 
+function checkLicenseStatus() {
+    return new Promise((resolve) => {
+        const http = require("http");
+        const req = http.get(`http://${HOST}:${PORT}/api/system/license-status?refresh=1`, (res) => {
+            let body = "";
+            res.on("data", (chunk) => {
+                body += chunk;
+            });
+            res.on("end", () => {
+                try {
+                    const parsed = JSON.parse(body || "{}");
+                    logToFile(`License status: ${parsed.state || "unknown"} (${parsed.code || "n/a"})`);
+                } catch (error) {
+                    logToFile(`License status parse failed: ${error.message}`);
+                }
+                resolve();
+            });
+        });
+
+        req.on("error", (error) => {
+            logToFile(`License status check failed: ${error.message}`, "ERROR");
+            resolve();
+        });
+
+        req.setTimeout(8000, () => {
+            req.destroy();
+            logToFile("License status check timed out", "ERROR");
+            resolve();
+        });
+    });
+}
+
 /**
  * Create the main application window
  */
@@ -650,6 +682,7 @@ border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
         // Warm bootstrap + backup without blocking first paint
         void (async () => {
             await checkStartupBootstrapStatus();
+            await checkLicenseStatus();
             runDailyAutoBackup();
         })();
 

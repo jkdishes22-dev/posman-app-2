@@ -24,9 +24,14 @@ console.log("🚀 Starting Electron build process...\n");
 // --publish flag triggers electron-builder --publish always (for GitHub Releases)
 const args = process.argv.slice(2); // e.g. ["win", "--publish"] or ["win", "sqlite"]
 const shouldPublish = args.includes("--publish");
+const archArg = args.find((a) => a.startsWith("--arch="));
+const targetArch = archArg ? archArg.split("=")[1] : "";
 const nonFlagArgs = args.filter((a) => !a.startsWith("--"));
 const dbMode = process.env.DB_MODE || nonFlagArgs[1] || "mysql";
 console.log(`🗄️  Database mode: ${dbMode}\n`);
+if (targetArch) {
+  console.log(`🧱 Target architecture override: ${targetArch}\n`);
+}
 
 // Step 1: Build Next.js in standalone mode
 console.log("📦 Step 1: Building Next.js in standalone mode...");
@@ -78,11 +83,18 @@ const isCrossCompilation =
 if (isCrossCompilation) {
   console.log("⚠️  Cross-compilation detected. Skipping native module rebuild...");
   console.log("   Note: For best results, build Windows packages on a Windows machine.");
+  if (platform === "win") {
+    console.log("   Native modules like keytar may fail if cross-compiled without valid prebuilds.");
+    console.log("   Recommended: run Windows release builds on a Windows CI/host.");
+  }
 }
 
 let buildCommand = "npx electron-builder --config electron-builder.config.cjs";
 if (platform !== "all") {
   buildCommand += ` --${platform}`;
+}
+if (targetArch === "ia32" || targetArch === "x64" || targetArch === "arm64") {
+  buildCommand += ` --${targetArch}`;
 }
 
 // Skip native module rebuilding for cross-compilation
@@ -102,6 +114,7 @@ const buildEnv = {
   ...process.env,
   NODE_ENV: "production",
   DB_MODE: dbMode,
+  ...(targetArch ? { WIN_ARCH: targetArch } : {}),
 };
 
 try {
@@ -133,7 +146,7 @@ try {
   if (isCrossCompilation) {
     console.error("\n💡 Tip: Cross-compilation can be problematic with native modules.");
     console.error("   Consider building on a Windows machine for best results.");
-    console.error("   Or try: SKIP_REBUILD=true node scripts/build-electron.js win");
+    console.error("   Ensure keytar/better-sqlite3 Electron prebuilds are successfully patched in afterPack.");
   }
   process.exit(1);
 }

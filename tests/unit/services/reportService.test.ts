@@ -128,6 +128,47 @@ describe("ReportService", () => {
 
       expect(result).toEqual([]);
     });
+
+    it("aggregates quantity per date, item, and sales user and sets userName without userId filter", async () => {
+      const qb = createMockQueryBuilder();
+      const billBase = {
+        created_at: new Date("2026-01-15T12:00:00Z"),
+        user_id: 5,
+        user: { firstName: "Ann", lastName: "Lee", username: "ann" },
+      };
+      qb.getMany.mockResolvedValue([
+        { quantity: 2, item: { id: 10, name: "Coffee" }, bill: billBase },
+        { quantity: 1, item: { id: 10, name: "Coffee" }, bill: billBase },
+      ]);
+      mockBillItemRepo.createQueryBuilder.mockReturnValue(qb);
+
+      const result = await service.getItemsSoldCountReport({
+        startDate: new Date("2026-01-01"),
+        endDate: new Date("2026-01-31"),
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        date: "2026-01-15",
+        itemId: 10,
+        itemName: "Coffee",
+        quantity: 3,
+        userId: 5,
+        userName: "Ann Lee",
+      });
+    });
+  });
+
+  describe("getItemsSoldCountBillUserOptions", () => {
+    it("returns mapped users from query", async () => {
+      const qb = createMockQueryBuilder();
+      qb.getMany.mockResolvedValue([{ id: 1, firstName: "A", lastName: "B", username: "ab" }]);
+      mockUserRepo.createQueryBuilder.mockReturnValue(qb);
+
+      const result = await service.getItemsSoldCountBillUserOptions();
+
+      expect(result).toEqual([{ id: 1, firstName: "A", lastName: "B", username: "ab" }]);
+    });
   });
 
   describe("getVoidedItemsReport", () => {

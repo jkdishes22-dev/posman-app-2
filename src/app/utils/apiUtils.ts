@@ -42,7 +42,9 @@ async function executeRequest<T = any>(
         const publicEndpoints = [
             "/api/auth/login",
             "/api/system/setup-status",
-            "/api/system/setup-initialize"
+            "/api/system/setup-initialize",
+            "/api/system/license-status",
+            "/api/system/license-activate"
         ];
         const isPublicRequest = publicEndpoints.some(endpoint => url.includes(endpoint));
 
@@ -57,11 +59,16 @@ async function executeRequest<T = any>(
             };
         }
 
-        // Build headers - only add Authorization if token is valid (not null, undefined, or empty)
-        const headers: Record<string, string> = {
-            "Content-Type": "application/json",
-            ...(options.headers as Record<string, string> || {}),
-        };
+        // Build headers — omit default Content-Type for FormData so the browser sets multipart boundary
+        const isFormData =
+            typeof FormData !== "undefined" && options.body instanceof FormData;
+        const merged = (options.headers as Record<string, string> | undefined) || {};
+        const headers: Record<string, string> = isFormData
+            ? { ...merged }
+            : {
+                "Content-Type": "application/json",
+                ...merged,
+            };
 
         // Only add Authorization header if token exists and is valid
         if (token && token !== "null" && token !== "undefined" && token.trim() !== "") {

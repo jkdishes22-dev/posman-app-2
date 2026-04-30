@@ -512,7 +512,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             "Dashboard": "View supervisor dashboard and system overview",
             "Bills Management": "Manage bills, payments, void requests, and reopened bills",
             "Create Bill": "Simple billing interface for creating new bills",
-            "Process Bills": "Full bill management interface with payments, closing, and bulk operations",
+            "Process Bills": "Bills management: payments, closing, and bulk operations",
             "Bills Overview": "Comprehensive bill management dashboard with analytics and oversight",
             "Void Requests": "Approve or reject void requests from sales team",
             "Reopened Bills": "View and manage bills that have been reopened",

@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import React from "react";
-import Image from "next/image";
 import { decodeJwt, DecodedToken } from "./utils/tokenUtils";
 import { useAuth } from "./contexts/AuthContext";
 import { useApiCall } from "./utils/apiUtils";
@@ -13,6 +12,9 @@ type SetupState =
   | "ready"
   | "db_server_unavailable"
   | "initialization_required"
+  | "license_required"
+  | "license_invalid"
+  | "license_expired"
   | "initializing"
   | "failed";
 
@@ -38,6 +40,8 @@ const LoginForm = () => {
   const [isCheckingSetup, setIsCheckingSetup] = useState(true);
   const [isRunningSetup, setIsRunningSetup] = useState(false);
   const passwordInputRef = useRef<HTMLInputElement | null>(null);
+  const [licenseCode, setLicenseCode] = useState("");
+  const [isActivatingLicense, setIsActivatingLicense] = useState(false);
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
   const apiCall = useApiCall();
@@ -257,6 +261,41 @@ const LoginForm = () => {
     }
   };
 
+  const handleActivateLicense = async () => {
+    if (!licenseCode.trim()) {
+      setError("Please enter a valid license code.");
+      setErrorDetails({ message: "Please enter a valid license code.", status: 400 });
+      return;
+    }
+
+    setIsActivatingLicense(true);
+    clearErrors();
+    try {
+      const result = await apiCall("/api/system/license-activate", {
+        method: "POST",
+        body: JSON.stringify({ licenseCode: licenseCode.trim() }),
+      });
+
+      if (result.status === 200) {
+        setLicenseCode("");
+        await readSetupStatus(true);
+        clearErrors();
+      } else {
+        setError(result.error || "License activation failed.");
+        setErrorDetails(result.errorDetails || { status: result.status });
+      }
+    } catch (_error) {
+      setError("Network error during license activation.");
+      setErrorDetails({
+        message: "Network error during license activation.",
+        networkError: true,
+        status: 0,
+      });
+    } finally {
+      setIsActivatingLicense(false);
+    }
+  };
+
   const KeyPadWrite = (value: string | number) => {
     if (value === -1) {
       if (activeField === "username") {
@@ -335,11 +374,37 @@ const LoginForm = () => {
                       type="button"
                       className="btn btn-outline-secondary btn-sm"
                       onClick={() => readSetupStatus(true)}
-                      disabled={isRunningSetup}
+                      disabled={isRunningSetup || isActivatingLicense}
                     >
                       Retry Check
                     </button>
                   </div>
+                  {(setupStatus.state === "license_required" ||
+                    setupStatus.state === "license_expired" ||
+                    setupStatus.state === "license_invalid") && (
+                    <div className="mt-3">
+                      <label htmlFor="licenseCode" className="form-label fw-semibold">
+                        License Code
+                      </label>
+                      <textarea
+                        id="licenseCode"
+                        className="form-control mb-2"
+                        rows={3}
+                        value={licenseCode}
+                        onChange={(e) => setLicenseCode(e.target.value)}
+                        placeholder="Paste signed license code"
+                        disabled={isActivatingLicense}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={handleActivateLicense}
+                        disabled={isActivatingLicense || !licenseCode.trim()}
+                      >
+                        {isActivatingLicense ? "Activating..." : "Activate License"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="form-outline mb-4 col-xs-3">
@@ -387,6 +452,7 @@ const LoginForm = () => {
                   isRedirecting ||
                   !username ||
                   !password ||
+                  isActivatingLicense ||
                   (setupStatus !== null && setupStatus.state !== "ready")
                 }
               >
@@ -493,13 +559,13 @@ const LoginForm = () => {
         <div className="col d-flex flex-column">
           <div className="p-3 border bg-light mb-3">
             <div className="p-3 border bg-light h-100 d-flex flex-column justify-content-center align-items-center">
-              <Image
+              <img
                 src="/images/jk-big.png"
                 width={300}
                 height={500}
                 className="m-2"
-                alt="logo"
-                unoptimized
+                alt="JK PosMan"
+                style={{ maxWidth: "100%", height: "auto", objectFit: "contain" }}
               />
               <span className="text-muted display-4">PosMan</span>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Modal, Button } from "react-bootstrap";
 import { Item } from "../types/types";
 
@@ -19,6 +19,11 @@ const QuantityModal: React.FC<QuantityModalProps> = ({
 }) => {
   const [quantity, setQuantity] = useState<string>("");
   const [quantityError, setQuantityError] = useState<string>("");
+
+  useEffect(() => {
+    setQuantity("");
+    setQuantityError("");
+  }, [item?.id]);
 
   const maxAvailable = availableQuantity !== undefined
     ? availableQuantity - alreadyInBill
