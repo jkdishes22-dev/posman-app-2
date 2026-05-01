@@ -3,12 +3,15 @@ const path = require("path");
 const fs = require("fs");
 
 const winArchEnv = (process.env.WIN_ARCH || "").toLowerCase();
-const resolvedWinArch =
-  winArchEnv === "ia32" || winArchEnv === "x86"
-    ? "ia32"
-    : winArchEnv === "x64"
-      ? "x64"
-      : "x64";
+/** One NSIS per entry; `all` emits both x64 and ia32 installers in dist-electron (names differ by ${arch}). */
+const winArchs =
+  winArchEnv === "all" || winArchEnv === "both" || winArchEnv === "x64+ia32" || winArchEnv === "ia32+x64"
+    ? ["x64", "ia32"]
+    : winArchEnv === "ia32" || winArchEnv === "x86"
+      ? ["ia32"]
+      : winArchEnv === "arm64"
+        ? ["arm64"]
+        : ["x64"];
 
 module.exports = {
   appId: "com.jk.posman",
@@ -57,9 +60,11 @@ module.exports = {
   ],
 
   // Windows configuration
-  // Use WIN_ARCH=ia32 to produce a separate x86 installer when explicitly needed.
+  // WIN_ARCH=ia32 | x64 | arm64 | all (x64+ia32 NSIS in one run). Default when unset: x64 only.
   win: {
-    target: [{ target: "nsis", arch: [resolvedWinArch] }],
+    target: [{ target: "nsis", arch: winArchs }],
+    // ${arch} is ia32 | x64 | arm64 so x86 and x64 installers do not overwrite each other in dist-electron.
+    artifactName: "${productName} Setup ${version}-${arch}.${ext}",
     icon: "public/icons/JK-icon.ico",
     requestedExecutionLevel: "asInvoker",
     signAndEditExecutable: false,

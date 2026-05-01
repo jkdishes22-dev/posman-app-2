@@ -6,9 +6,16 @@ const os = require("os");
 /** electron-builder may pass arch as a number (enum) or string; WIN_ARCH must match electron-builder.config.cjs. */
 function resolveTargetArch(context) {
     const winArchEnv = (process.env.WIN_ARCH || "").toLowerCase();
-    if (winArchEnv === "ia32" || winArchEnv === "x86") return "ia32";
-    if (winArchEnv === "x64" || winArchEnv === "amd64") return "x64";
-    if (winArchEnv === "arm64") return "arm64";
+    const winArchMulti =
+        winArchEnv === "all" ||
+        winArchEnv === "both" ||
+        winArchEnv === "x64+ia32" ||
+        winArchEnv === "ia32+x64";
+    if (!winArchMulti) {
+        if (winArchEnv === "ia32" || winArchEnv === "x86") return "ia32";
+        if (winArchEnv === "x64" || winArchEnv === "amd64") return "x64";
+        if (winArchEnv === "arm64") return "arm64";
+    }
 
     const raw = context.arch;
     if (typeof raw === "string") {

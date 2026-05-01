@@ -77,6 +77,26 @@ try {
 console.log("⚡ Step 2: Building Electron application...");
 const platform = nonFlagArgs[0] || "all"; // 'win', 'mac', 'linux', or 'all'
 
+const archLower = (targetArch || "").toLowerCase();
+const envWinArch = (process.env.WIN_ARCH || "").toLowerCase();
+const singleArchCli =
+  archLower === "ia32" || archLower === "x64" || archLower === "arm64";
+const dualWindowsNsis =
+  platform === "win" &&
+  !singleArchCli &&
+  (archLower === "all" ||
+    archLower === "both" ||
+    archLower === "x64+ia32" ||
+    archLower === "ia32+x64" ||
+    envWinArch === "all" ||
+    envWinArch === "both" ||
+    envWinArch === "x64+ia32" ||
+    envWinArch === "ia32+x64");
+
+if (dualWindowsNsis) {
+  console.log("🧱 Windows: dual NSIS (x64 + ia32) in one electron-builder run\n");
+}
+
 // Detect cross-compilation (building for different platform than current)
 const currentPlatform = process.platform;
 const isCrossCompilation =
@@ -97,7 +117,8 @@ let buildCommand = "npx electron-builder --config electron-builder.config.cjs";
 if (platform !== "all") {
   buildCommand += ` --${platform}`;
 }
-if (targetArch === "ia32" || targetArch === "x64" || targetArch === "arm64") {
+// Dual NSIS (x64 + ia32): arch list comes from electron-builder.config (WIN_ARCH=all); do not pass a single --arch.
+if (!dualWindowsNsis && (targetArch === "ia32" || targetArch === "x64" || targetArch === "arm64")) {
   buildCommand += ` --${targetArch}`;
 }
 
@@ -118,7 +139,13 @@ const buildEnv = {
   ...process.env,
   NODE_ENV: "production",
   DB_MODE: dbMode,
-  ...(targetArch ? { WIN_ARCH: targetArch } : {}),
+  ...(singleArchCli
+    ? { WIN_ARCH: targetArch }
+    : dualWindowsNsis
+      ? { WIN_ARCH: "all" }
+      : targetArch
+        ? { WIN_ARCH: targetArch }
+        : {}),
 };
 
 try {
@@ -128,6 +155,31 @@ try {
   });
   console.log("\n✅ Electron build completed successfully!");
   console.log("📦 Installers are in the dist-electron directory");
+  if (platform === "win") {
+    let version = "";
+    try {
+      version = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")).version || "";
+    } catch {
+      /* ignore */
+    }
+    if (dualWindowsNsis) {
+      const v = version || "<version>";
+      console.log("\n🪟 Windows NSIS (x64 + ia32) — two installers in dist-electron root:");
+      console.log(`   dist-electron/JK PosMan Setup ${v}-x64.exe   (64-bit Electron)`);
+      console.log(`   dist-electron/JK PosMan Setup ${v}-ia32.exe (32-bit / x86 Electron)`);
+      console.log("   Unpacked: dist-electron/win-unpacked, dist-electron/win-ia32-unpacked");
+    } else {
+      const winArch = targetArch || "x64";
+      const setupName = version
+        ? `JK PosMan Setup ${version}-${winArch}.exe`
+        : `JK PosMan Setup <version>-${winArch}.exe`;
+      console.log(`\n🪟 Windows ${winArch} (x86 build = ia32, 64-bit PC = x64):`);
+      console.log(`   NSIS: dist-electron/${setupName}`);
+      console.log(
+        `   Unpacked: dist-electron/${winArch === "ia32" ? "win-ia32-unpacked" : winArch === "arm64" ? "win-arm64-unpacked" : "win-unpacked"}`,
+      );
+    }
+  }
   
   // Verify runtime standalone payload exists at the paths used by our packaging config/hooks.
   console.log("\n🔍 Verifying packaged standalone payload...");
@@ -141,20 +193,30 @@ try {
     arm64: "win-arm64-unpacked",
     x64: "win-unpacked",
   };
-  const expectedWinDir =
-    platform === "win" ? expectedDirNameByTarget[targetArch || "x64"] || "win-unpacked" : "";
-  const unpackedDirs =
-    platform === "win"
-      ? allUnpackedDirs.filter((dirPath) => path.basename(dirPath) === expectedWinDir)
-      : allUnpackedDirs;
-
-  if (platform === "win" && unpackedDirs.length === 0) {
-    console.warn(`⚠️  WARNING: Expected Windows unpacked output not found: ${expectedWinDir}`);
-    console.warn("   Falling back to scanning all unpacked directories.");
+  let unpackedDirs = allUnpackedDirs;
+  if (platform === "win") {
+    if (dualWindowsNsis) {
+      unpackedDirs = allUnpackedDirs.filter((dirPath) => {
+        const b = path.basename(dirPath);
+        return b === "win-unpacked" || b === "win-ia32-unpacked";
+      });
+      if (unpackedDirs.length < 2) {
+        console.warn("⚠️  WARNING: Expected both win-unpacked and win-ia32-unpacked for dual NSIS build.");
+        console.warn("   Falling back to scanning all unpacked directories.");
+        unpackedDirs = allUnpackedDirs;
+      }
+    } else {
+      const expectedWinDir = expectedDirNameByTarget[targetArch || "x64"] || "win-unpacked";
+      unpackedDirs = allUnpackedDirs.filter((dirPath) => path.basename(dirPath) === expectedWinDir);
+      if (unpackedDirs.length === 0) {
+        console.warn(`⚠️  WARNING: Expected Windows unpacked output not found: ${expectedWinDir}`);
+        console.warn("   Falling back to scanning all unpacked directories.");
+        unpackedDirs = allUnpackedDirs;
+      }
+    }
   }
 
-  const dirsToVerify =
-    platform === "win" && unpackedDirs.length === 0 ? allUnpackedDirs : unpackedDirs;
+  const dirsToVerify = unpackedDirs;
   
   for (const unpackedDir of dirsToVerify) {
     const candidates = [
