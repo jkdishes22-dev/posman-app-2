@@ -2,6 +2,7 @@
 
 import React from "react";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
+import SecureRoute from "../../components/SecureRoute";
 import UserJourney from "../../components/UserJourney";
 import { Container, Row, Col, Card, Accordion } from "react-bootstrap";
 import { useTooltips } from "../../hooks/useTooltips";
@@ -328,6 +329,7 @@ export default function SupervisorHelpPage() {
   ];
 
   return (
+    <SecureRoute roleRequired="supervisor">
     <RoleAwareLayout>
       <Container fluid className="py-4">
         {/* Header */}
@@ -394,7 +396,7 @@ export default function SupervisorHelpPage() {
               <Col md={6}>
                 <ul className="list-unstyled">
                   <li className="mb-2">
-                    <a href="/supervisor/billing" className="text-decoration-none">
+                    <a href="/home/cashier/bills" className="text-decoration-none">
                       <i className="bi bi-cash-stack me-2"></i>
                       Process Bills
                     </a>
@@ -452,5 +454,6 @@ export default function SupervisorHelpPage() {
         </Card>
       </Container>
     </RoleAwareLayout>
+    </SecureRoute>
   );
 }
