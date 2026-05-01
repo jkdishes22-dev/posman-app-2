@@ -36,10 +36,14 @@ if (targetArch) {
 // Step 1: Build Next.js in standalone mode
 console.log("📦 Step 1: Building Next.js in standalone mode...");
 try {
+  const nodeOptions = process.env.NODE_OPTIONS
+    ? `${process.env.NODE_OPTIONS} --max-old-space-size=8192`
+    : "--max-old-space-size=8192";
   execSync("npm run build", {
     stdio: "inherit",
     env: {
       ...process.env,
+      NODE_OPTIONS: nodeOptions,
       ELECTRON_BUILD: "true",
       NODE_ENV: "production",
       DB_MODE: dbMode,
@@ -125,20 +129,52 @@ try {
   console.log("\n✅ Electron build completed successfully!");
   console.log("📦 Installers are in the dist-electron directory");
   
-  // Verify unpacked files exist (critical for utilityProcess)
-  console.log("\n🔍 Verifying unpacked files...");
+  // Verify runtime standalone payload exists at the paths used by our packaging config/hooks.
+  console.log("\n🔍 Verifying packaged standalone payload...");
   const distPath = path.join(process.cwd(), "dist-electron");
-  const unpackedDirs = fs.readdirSync(distPath, { withFileTypes: true })
+  const allUnpackedDirs = fs.readdirSync(distPath, { withFileTypes: true })
     .filter(dirent => dirent.isDirectory() && dirent.name.includes("unpacked"))
     .map(dirent => path.join(distPath, dirent.name));
+
+  const expectedDirNameByTarget = {
+    ia32: "win-ia32-unpacked",
+    arm64: "win-arm64-unpacked",
+    x64: "win-unpacked",
+  };
+  const expectedWinDir =
+    platform === "win" ? expectedDirNameByTarget[targetArch || "x64"] || "win-unpacked" : "";
+  const unpackedDirs =
+    platform === "win"
+      ? allUnpackedDirs.filter((dirPath) => path.basename(dirPath) === expectedWinDir)
+      : allUnpackedDirs;
+
+  if (platform === "win" && unpackedDirs.length === 0) {
+    console.warn(`⚠️  WARNING: Expected Windows unpacked output not found: ${expectedWinDir}`);
+    console.warn("   Falling back to scanning all unpacked directories.");
+  }
+
+  const dirsToVerify =
+    platform === "win" && unpackedDirs.length === 0 ? allUnpackedDirs : unpackedDirs;
   
-  for (const unpackedDir of unpackedDirs) {
-    const unpackedStandalone = path.join(unpackedDir, "resources", "app.asar.unpacked", ".next", "standalone", "server.js");
-    if (fs.existsSync(unpackedStandalone)) {
-      console.log(`✅ Found unpacked server.js in: ${unpackedDir}`);
+  for (const unpackedDir of dirsToVerify) {
+    const candidates = [
+      path.join(unpackedDir, "resources", ".next", "standalone"),
+      path.join(unpackedDir, "resources", "app.asar.unpacked", ".next", "standalone"),
+      path.join(unpackedDir, ".next", "standalone"),
+    ];
+    const resolved = candidates.find((candidate) =>
+      fs.existsSync(path.join(candidate, "server.js"))
+    );
+
+    if (resolved) {
+      const hasNodeModules = fs.existsSync(path.join(resolved, "node_modules"));
+      console.log(`✅ Found standalone payload in: ${resolved}`);
+      if (!hasNodeModules) {
+        console.warn(`⚠️  WARNING: node_modules missing in standalone payload: ${resolved}`);
+      }
     } else {
-      console.warn(`⚠️  WARNING: Unpacked server.js not found in: ${unpackedDir}`);
-      console.warn(`   This may cause the app to fail to start. Check electron-builder.config.js asarUnpack configuration.`);
+      console.warn(`⚠️  WARNING: standalone server.js not found for: ${unpackedDir}`);
+      console.warn("   This may cause the app to fail to start. Check extraResources/afterPack output.");
     }
   }
 } catch (error) {

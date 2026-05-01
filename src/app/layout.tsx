@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import "./styles/improved-pos.css";
@@ -20,11 +20,14 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#000000",
+};
+
 export const metadata: Metadata = {
   title: "JK PosMan",
   description: "Sales retail app",
   manifest: "/manifest.json",
-  themeColor: "#000000",
   icons: {
     icon: [
       { url: "/icons/JKlogo-192.png", sizes: "192x192", type: "image/png" },

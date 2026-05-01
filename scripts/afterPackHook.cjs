@@ -3,6 +3,59 @@ const path = require("path");
 const { execSync } = require("child_process");
 const os = require("os");
 
+/** electron-builder may pass arch as a number (enum) or string; WIN_ARCH must match electron-builder.config.cjs. */
+function resolveTargetArch(context) {
+    const winArchEnv = (process.env.WIN_ARCH || "").toLowerCase();
+    if (winArchEnv === "ia32" || winArchEnv === "x86") return "ia32";
+    if (winArchEnv === "x64" || winArchEnv === "amd64") return "x64";
+    if (winArchEnv === "arm64") return "arm64";
+
+    const raw = context.arch;
+    if (typeof raw === "string") {
+        const lower = raw.toLowerCase();
+        if (lower === "ia32" || lower === "x86" || lower === "i386") return "ia32";
+        if (lower === "arm64") return "arm64";
+        if (lower === "x64" || lower === "amd64" || lower === "x86_64") return "x64";
+        return "x64";
+    }
+    const archMap = { 0: "ia32", 1: "x64", 2: "armv7l", 3: "arm64", 4: "x64" };
+    return archMap[raw] ?? "x64";
+}
+
+const PE_MACHINE_I386 = 0x014c;
+const PE_MACHINE_AMD64 = 0x8664;
+const PE_MACHINE_ARM64 = 0xaa64;
+
+function readPeMachine(binaryPath) {
+    if (!fs.existsSync(binaryPath)) return null;
+    try {
+        const fd = fs.openSync(binaryPath, "r");
+        try {
+            const mz = Buffer.alloc(2);
+            fs.readSync(fd, mz, 0, 2, 0);
+            if (mz[0] !== 0x4d || mz[1] !== 0x5a) return null;
+            const peOffBuf = Buffer.alloc(4);
+            fs.readSync(fd, peOffBuf, 0, 4, 0x3c);
+            const peOffset = peOffBuf.readUInt32LE(0);
+            const machine = Buffer.alloc(2);
+            fs.readSync(fd, machine, 0, 2, peOffset + 4);
+            return machine.readUInt16LE(0);
+        } finally {
+            fs.closeSync(fd);
+        }
+    } catch {
+        return null;
+    }
+}
+
+function peMachineMatchesTargetArch(machine, targetArch) {
+    if (machine == null) return false;
+    if (targetArch === "ia32") return machine === PE_MACHINE_I386;
+    if (targetArch === "x64") return machine === PE_MACHINE_AMD64;
+    if (targetArch === "arm64") return machine === PE_MACHINE_ARM64;
+    return false;
+}
+
 /**
  * Downloads the Windows-native better_sqlite3.node prebuilt and replaces the macOS one.
  * Required when cross-compiling from macOS → Windows because the afterPack copy brings
@@ -11,8 +64,7 @@ const os = require("os");
 async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot, log, err) {
     if (context.electronPlatformName !== "win32") return;
 
-    const archMap = { 0: "ia32", 1: "x64", 2: "armv7l", 3: "arm64", 4: "x64" };
-    const arch = archMap[context.arch] ?? "x64";
+    const arch = resolveTargetArch(context);
 
     const bsq3PkgPath = path.join(destNodeModules, "better-sqlite3", "package.json");
     if (!fs.existsSync(bsq3PkgPath)) {
@@ -63,7 +115,11 @@ async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot,
         err(`   ❌ Binary replacement failed: ${e.message}`);
         err(`   💡 Check the release exists: ${tarUrl}`);
     } finally {
-        try { execSync(`rm -rf "${tmpDir}"`); } catch { /* ignore */ }
+        try {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        } catch {
+            /* ignore */
+        }
     }
 }
 
@@ -83,8 +139,7 @@ function hasWindowsPeHeader(binaryPath) {
 async function replaceWindowsKeytarBinary(context, destNodeModules, log, err) {
     if (context.electronPlatformName !== "win32") return;
 
-    const archMap = { 0: "ia32", 1: "x64", 2: "armv7l", 3: "arm64", 4: "x64" };
-    const arch = archMap[context.arch] ?? "x64";
+    const arch = resolveTargetArch(context);
     let electronVersion = context.packager?.electronVersion ?? "";
     const keytarDir = path.join(destNodeModules, "keytar");
     const keytarPkgPath = path.join(keytarDir, "package.json");
@@ -100,9 +155,13 @@ async function replaceWindowsKeytarBinary(context, destNodeModules, log, err) {
         return;
     }
 
-    if (hasWindowsPeHeader(keytarBinaryPath)) {
-        log(`   ✅ keytar binary already looks Windows-compatible: ${keytarBinaryPath}`);
+    const machine = readPeMachine(keytarBinaryPath);
+    if (machine != null && peMachineMatchesTargetArch(machine, arch)) {
+        log(`   ✅ keytar binary already matches target arch (${arch}): ${keytarBinaryPath}`);
         return;
+    }
+    if (machine != null && !peMachineMatchesTargetArch(machine, arch)) {
+        log(`   ⚠️ keytar.node PE machine 0x${machine.toString(16)} does not match target ${arch} — rebuilding...`);
     }
 
     if (!electronVersion) {
@@ -137,6 +196,12 @@ async function replaceWindowsKeytarBinary(context, destNodeModules, log, err) {
             `keytar binary replacement failed or incompatible. Expected Windows PE binary at ${keytarBinaryPath}`,
         );
     }
+    const afterMachine = readPeMachine(keytarBinaryPath);
+    if (!peMachineMatchesTargetArch(afterMachine, arch)) {
+        throw new Error(
+            `keytar.node after prebuild does not match target arch ${arch} (PE machine 0x${(afterMachine ?? 0).toString(16)}): ${keytarBinaryPath}`,
+        );
+    }
 
     log(`   ✅ Windows keytar.node installed: ${keytarBinaryPath}`);
 }
@@ -154,7 +219,7 @@ module.exports = async function (context) {
     log("\n🔧 afterPack hook executing...");
     log(`   appOutDir: ${context.appOutDir || "NOT SET"}`);
     log(`   electronPlatformName: ${context.electronPlatformName || "NOT SET"}`);
-    log(`   arch: ${context.arch || "NOT SET"}`);
+    log(`   arch (raw): ${context.arch ?? "NOT SET"}  → resolved: ${resolveTargetArch(context)}`);
 
     const projectDir = context.packager?.info?.projectDir || context.appDir || process.cwd();
     const sourceStandalone = path.join(projectDir, ".next", "standalone");
@@ -272,15 +337,17 @@ module.exports = async function (context) {
         handledAny = true;
     }
 
-    // For Windows builds: replace the macOS better_sqlite3.node with the Win32 prebuilt.
+    // For Windows builds: replace native .node binaries for the *packager* CPU arch.
     // Must run after the node_modules copy so the replacement always wins.
     if (context.electronPlatformName === "win32") {
-        const destNm = path.join(candidates[0].path, "node_modules");
-        if (fs.existsSync(destNm)) {
+        for (const candidate of candidates) {
+            const standaloneRoot = candidate.path;
+            const destNm = path.join(standaloneRoot, "node_modules");
+            const hasServer = fs.existsSync(path.join(standaloneRoot, "server.js"));
+            if (!hasServer || !fs.existsSync(destNm)) continue;
+            log(`\n   🪟 Windows native modules (${candidate.label}) → ${standaloneRoot}`);
             await replaceWindowsSqliteBinary(context, destNm, projectDir, log, err);
             await replaceWindowsKeytarBinary(context, destNm, log, err);
-        } else {
-            log("   ℹ️  node_modules not yet in dest — skipping Windows binary replacement");
         }
     }
 

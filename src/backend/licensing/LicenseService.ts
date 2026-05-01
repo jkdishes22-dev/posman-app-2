@@ -86,7 +86,8 @@ class LicenseService {
       throw new LicenseValidationError(
         "LICENSE_INVALID",
         `Secure license storage is unavailable (${error?.message || "keytar load failure"}). ` +
-          "Use a Windows x64-compatible build and verify native module packaging.",
+          `Install a build that matches this system (Node/Electron process arch: ${process.platform} ${process.arch}). ` +
+          "If you use the 32-bit (x86) installer, rebuild with the ia32 target so keytar matches; 64-bit Windows normally uses the x64 installer.",
       );
     }
   }
@@ -100,10 +101,14 @@ class LicenseService {
         await keytarClient.setPassword(KEYTAR_SERVICE, STORAGE_KEY_ACCOUNT, key);
       }
       return Buffer.from(key, "base64");
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof LicenseValidationError) {
+        throw error;
+      }
+      const msg = error instanceof Error ? error.message : "keytar access failure";
       throw new LicenseValidationError(
         "LICENSE_INVALID",
-        `Secure license storage is unavailable (${error?.message || "keytar access failure"}).`,
+        `Secure license storage is unavailable (${msg}).`,
       );
     }
   }
@@ -126,10 +131,14 @@ class LicenseService {
         KEYTAR_SERVICE,
         MACHINE_BINDING_ACCOUNT,
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof LicenseValidationError) {
+        throw error;
+      }
+      const msg = error instanceof Error ? error.message : "keytar access failure";
       throw new LicenseValidationError(
         "LICENSE_INVALID",
-        `Secure license storage is unavailable (${error?.message || "keytar access failure"}).`,
+        `Secure license storage is unavailable (${msg}).`,
       );
     }
   }
@@ -142,10 +151,14 @@ class LicenseService {
         MACHINE_BINDING_ACCOUNT,
         hash,
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      if (error instanceof LicenseValidationError) {
+        throw error;
+      }
+      const msg = error instanceof Error ? error.message : "keytar access failure";
       throw new LicenseValidationError(
         "LICENSE_INVALID",
-        `Secure license storage is unavailable (${error?.message || "keytar access failure"}).`,
+        `Secure license storage is unavailable (${msg}).`,
       );
     }
   }
