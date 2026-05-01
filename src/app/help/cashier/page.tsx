@@ -2,6 +2,7 @@
 
 import React from "react";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
+import SecureRoute from "../../components/SecureRoute";
 import UserJourney from "../../components/UserJourney";
 import { Container, Row, Col, Card, Accordion } from "react-bootstrap";
 import { useTooltips } from "../../hooks/useTooltips";
@@ -166,6 +167,7 @@ export default function CashierHelpPage() {
   ];
 
   return (
+    <SecureRoute roleRequired="cashier">
     <RoleAwareLayout>
       <Container fluid className="py-4">
         {/* Header */}
@@ -252,5 +254,6 @@ export default function CashierHelpPage() {
         </Card>
       </Container>
     </RoleAwareLayout>
+    </SecureRoute>
   );
 }
