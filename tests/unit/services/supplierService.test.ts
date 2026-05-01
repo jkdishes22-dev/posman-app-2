@@ -132,7 +132,7 @@ describe("SupplierService", () => {
       mockSupplierRepo.findOne.mockResolvedValue({ id: 1, credit_limit: 5000 });
 
       await expect(
-        service.recordSupplierCreditTransaction(1, "payment", 9999, 1)
+        service.recordSupplierCreditTransaction(1, "adjustment", 9999, 1, { notes: "test" })
       ).rejects.toThrow("Amount exceeds outstanding debit balance");
     });
 
@@ -142,7 +142,7 @@ describe("SupplierService", () => {
       mockSupplierRepo.findOne.mockResolvedValue({ id: 1, credit_limit: 5000 });
 
       await expect(
-        service.recordSupplierCreditTransaction(1, "payment", 100, 1)
+        service.recordSupplierCreditTransaction(1, "adjustment", 100, 1, { notes: "test" })
       ).rejects.toThrow("No outstanding debit balance");
     });
   });

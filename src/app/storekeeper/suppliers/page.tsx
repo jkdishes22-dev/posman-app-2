@@ -89,6 +89,10 @@ export default function SuppliersPage() {
 
   const [showCreditModal, setShowCreditModal] = useState(false);
   const [creditKind, setCreditKind] = useState<"payment" | "adjustment">("payment");
+  const [creditPaymentType, setCreditPaymentType] = useState<"CASH" | "MPESA">("CASH");
+  const [creditAction, setCreditAction] = useState<"purchase_order" | "expense" | "advance" | "refund">("expense");
+  const [creditActionRefId, setCreditActionRefId] = useState("");
+  const [creditPOs, setCreditPOs] = useState<{ id: number; order_number: string; total_amount: number }[]>([]);
   const [creditAmount, setCreditAmount] = useState("");
   const [creditReference, setCreditReference] = useState("");
   const [creditNotes, setCreditNotes] = useState("");
@@ -229,6 +233,10 @@ export default function SuppliersPage() {
 
   const openCreditModal = (kind: "payment" | "adjustment") => {
     setCreditKind(kind);
+    setCreditPaymentType("CASH");
+    setCreditAction("expense");
+    setCreditActionRefId("");
+    setCreditPOs([]);
     setCreditError(null);
     setCreditErrorDetails(null);
     const def =
@@ -239,6 +247,18 @@ export default function SuppliersPage() {
     setCreditReference("");
     setCreditNotes("");
     setShowCreditModal(true);
+  };
+
+  const loadPOsForSupplier = async (supplierId: number) => {
+    try {
+      const result = await apiCall(`/api/purchase-orders?supplier_id=${supplierId}`);
+      if (result.status === 200) {
+        const pos = Array.isArray(result.data) ? result.data : [];
+        setCreditPOs(pos.filter((p: any) => p.status !== "cancelled" && p.status !== "received"));
+      }
+    } catch {
+      setCreditPOs([]);
+    }
   };
 
   const handleCreditSubmit = async (e: React.FormEvent) => {
@@ -254,28 +274,45 @@ export default function SuppliersPage() {
       return;
     }
 
-    if (creditKind === "adjustment" && !creditNotes.trim()) {
-      setCreditError("Reason is required for partial payments");
+    if (!creditNotes.trim()) {
+      setCreditError("Notes are required");
+      return;
+    }
+
+    if (creditKind === "payment" && creditAction === "purchase_order" && !creditActionRefId) {
+      setCreditError("Select a purchase order");
       return;
     }
 
     setCreditSubmitting(true);
     try {
+      const body =
+        creditKind === "adjustment"
+          ? {
+              transaction_type: "adjustment",
+              amount,
+              notes: creditNotes.trim(),
+              reference: creditReference.trim() || undefined,
+            }
+          : {
+              payment_type: creditPaymentType,
+              amount,
+              action: creditAction,
+              action_reference_id: creditAction === "purchase_order" && creditActionRefId ? Number(creditActionRefId) : undefined,
+              notes: creditNotes.trim(),
+              reference: creditReference.trim() || undefined,
+            };
+
       const result = await apiCall(`/api/suppliers/${selectedSupplier.id}/credit`, {
         method: "POST",
-        body: JSON.stringify({
-          transaction_type: creditKind,
-          amount,
-          notes: creditNotes.trim() || undefined,
-          reference: creditReference.trim() || undefined,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (result.status === 200) {
         setShowCreditModal(false);
         await fetchSupplierDetails(selectedSupplier.id);
       } else {
-        setCreditError(result.error || "Operation failed");
+        setCreditError(result.error || (result.data as any)?.message || "Operation failed");
         setCreditErrorDetails(result.errorDetails ?? null);
       }
     } catch {
@@ -1032,7 +1069,7 @@ export default function SuppliersPage() {
         <Modal show={showCreditModal} onHide={() => !creditSubmitting && setShowCreditModal(false)}>
           <Modal.Header closeButton>
             <Modal.Title>
-              {creditKind === "payment" ? "Record payment" : "Partial payment"}
+              {creditKind === "payment" ? "Record payment" : "Record adjustment"}
             </Modal.Title>
           </Modal.Header>
           <Form onSubmit={handleCreditSubmit}>
@@ -1047,13 +1084,62 @@ export default function SuppliersPage() {
                   }}
                 />
               )}
-              <p className="text-muted small">
-                Applies a credit to this supplier&apos;s account up to the current debit balance.
-              </p>
+              {creditKind === "payment" && (
+                <>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Payment method</Form.Label>
+                    <Form.Select
+                      value={creditPaymentType}
+                      onChange={e => setCreditPaymentType(e.target.value as "CASH" | "MPESA")}
+                      required
+                    >
+                      <option value="CASH">Cash</option>
+                      <option value="MPESA">M-Pesa</option>
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Payment for</Form.Label>
+                    <Form.Select
+                      value={creditAction}
+                      onChange={e => {
+                        const a = e.target.value as typeof creditAction;
+                        setCreditAction(a);
+                        setCreditActionRefId("");
+                        if (a === "purchase_order" && selectedSupplier) {
+                          loadPOsForSupplier(selectedSupplier.id);
+                        }
+                      }}
+                      required
+                    >
+                      <option value="purchase_order">Purchase Order</option>
+                      <option value="expense">Expense / Service</option>
+                      <option value="advance">Advance</option>
+                      <option value="refund">Refund (supplier refunds us)</option>
+                    </Form.Select>
+                  </Form.Group>
+                  {creditAction === "purchase_order" && (
+                    <Form.Group className="mb-3">
+                      <Form.Label>Purchase order</Form.Label>
+                      <Form.Select
+                        value={creditActionRefId}
+                        onChange={e => setCreditActionRefId(e.target.value)}
+                        required
+                      >
+                        <option value="">— Select PO —</option>
+                        {creditPOs.map(po => (
+                          <option key={po.id} value={po.id}>
+                            {po.order_number} (KES {Number(po.total_amount).toFixed(2)})
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  )}
+                </>
+              )}
               <Form.Group className="mb-3">
                 <Form.Label>Amount</Form.Label>
                 <InputGroup>
-                  <InputGroup.Text>$</InputGroup.Text>
+                  <InputGroup.Text>KES</InputGroup.Text>
                   <Form.Control
                     type="number"
                     step="0.01"
@@ -1070,22 +1156,18 @@ export default function SuppliersPage() {
                   type="text"
                   value={creditReference}
                   onChange={e => setCreditReference(e.target.value)}
-                  placeholder="Check #, transfer id, etc."
+                  placeholder={creditPaymentType === "MPESA" ? "M-Pesa confirmation code" : "Cheque #, transfer id, etc."}
                 />
               </Form.Group>
               <Form.Group className="mb-0">
-                <Form.Label>{creditKind === "adjustment" ? "Reason (required)" : "Notes (optional)"}</Form.Label>
+                <Form.Label>Notes <span className="text-danger">*</span></Form.Label>
                 <Form.Control
                   as="textarea"
                   rows={2}
                   value={creditNotes}
                   onChange={e => setCreditNotes(e.target.value)}
-                  placeholder={
-                    creditKind === "adjustment"
-                      ? "Describe why this partial payment is recorded"
-                      : "Optional notes"
-                  }
-                  required={creditKind === "adjustment"}
+                  placeholder="Describe what this payment is for"
+                  required
                 />
               </Form.Group>
             </Modal.Body>
@@ -1107,7 +1189,7 @@ export default function SuppliersPage() {
                 ) : creditKind === "payment" ? (
                   "Record payment"
                 ) : (
-                  "Save partial payment"
+                  "Save adjustment"
                 )}
               </Button>
             </Modal.Footer>

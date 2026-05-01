@@ -192,12 +192,12 @@ export class SupplierService {
     }
 
     /**
-     * Record a credit against supplier debit (payment or manual adjustment).
-     * Reduces debit_balance by increasing credit_amount on the ledger.
+     * Record a manual balance adjustment (ledger-only — no Payment record).
+     * Use SupplierPaymentService.recordPayment for actual money movements.
      */
     public async recordSupplierCreditTransaction(
         supplierId: number,
-        kind: "payment" | "adjustment",
+        kind: "adjustment",
         amount: number,
         userId: number,
         options?: { notes?: string; externalReference?: string },
@@ -213,7 +213,7 @@ export class SupplierService {
             throw new Error("Amount must be positive");
         }
 
-        if (kind === "adjustment" && !String(options?.notes ?? "").trim()) {
+        if (!String(options?.notes ?? "").trim()) {
             throw new Error("Reason is required for adjustments");
         }
 
@@ -233,24 +233,14 @@ export class SupplierService {
         if (options?.notes?.trim()) {
             noteParts.push(options.notes.trim());
         }
-        const noteText =
-            noteParts.length > 0
-                ? noteParts.join(" — ")
-                : kind === "payment"
-                  ? "Payment recorded"
-                  : "Balance adjustment";
-
-        const transactionType =
-            kind === "payment" ? SupplierTransactionType.PAYMENT : SupplierTransactionType.ADJUSTMENT;
-        const referenceType =
-            kind === "payment" ? SupplierReferenceType.PAYMENT : SupplierReferenceType.ADJUSTMENT;
+        const noteText = noteParts.length > 0 ? noteParts.join(" — ") : "Balance adjustment";
 
         return this.createSupplierTransaction(
             supplierId,
-            transactionType,
+            SupplierTransactionType.ADJUSTMENT,
             0,
             amt,
-            referenceType,
+            SupplierReferenceType.ADJUSTMENT,
             null,
             noteText,
             userId,
