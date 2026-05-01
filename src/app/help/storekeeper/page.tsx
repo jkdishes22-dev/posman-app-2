@@ -14,8 +14,8 @@ export default function StorekeeperHelpPage() {
       title: "Issue Production",
       icon: "bi-box-seam",
       prerequisites: [
-        { description: "Items exist in the system" },
-        { description: "Inventory items are available (for composite items)" },
+        { description: "Production items (leaf/component items) exist in the system" },
+        { description: "Inventory levels are sufficient for the items to be issued" },
       ],
       steps: [
         {
@@ -26,34 +26,33 @@ export default function StorekeeperHelpPage() {
           ],
         },
         {
-          description: "Search for an item",
+          description: "Search for the item to issue",
           details: [
-            "Use the search bar to find the item you want to issue",
-            "Type item name or code to search",
-            "Select the item from the search results",
+            "Use the search bar to find an item by name or code",
+            "Important: grouped or composite items cannot be issued directly — only leaf (component) items are eligible",
+            "If you see a 'grouped item' error, issue the component items individually instead",
           ],
         },
         {
           description: "Enter production details",
           details: [
-            "View current inventory level for the item",
+            "Review the current inventory level shown for the item",
             "Enter the quantity produced",
-            "Add notes if needed (optional)",
+            "Add notes if needed",
           ],
         },
         {
           description: "Submit the production issue",
           details: [
-            "Click 'Issue Production' or 'Submit' button",
-            "The production will be recorded",
-            "Inventory will be updated automatically",
+            "Click 'Issue Production' to confirm",
+            "The production is recorded and inventory is updated automatically",
           ],
         },
         {
           description: "Verify the issue",
           details: [
-            "Check that inventory levels have been updated",
-            "View production history to confirm the issue",
+            "Check that inventory levels reflect the new production",
+            "View Production History to confirm the record was created",
           ],
         },
       ],
@@ -73,37 +72,28 @@ export default function StorekeeperHelpPage() {
           ],
         },
         {
-          description: "View inventory levels",
+          description: "Review stock levels",
           details: [
-            "All inventory items are displayed with current levels",
-            "View low stock alerts if any",
-            "Use filters to find specific items",
-          ],
-        },
-        {
-          description: "Search for specific items",
-          details: [
-            "Use the search bar to find items",
-            "Filter by category if needed",
-            "View item details and current stock",
+            "All inventory items are shown with current quantities",
+            "Low-stock alerts are highlighted — take action on these first",
+            "Use search or category filters to narrow the list",
           ],
         },
         {
           description: "Adjust inventory if needed",
           details: [
-            "Select an item to adjust",
-            "Click 'Adjust' or 'Edit' button",
-            "Enter new quantity or adjustment amount",
-            "Add notes explaining the adjustment",
-            "Save the changes",
+            "Select an item and click 'Adjust'",
+            "Note: adjusting inventory requires the CAN_ADJUST_INVENTORY permission — if the Adjust button is missing, contact your admin",
+            "Enter the adjustment amount and add a note explaining the reason",
+            "Save the change",
           ],
         },
         {
-          description: "Monitor inventory dashboard",
+          description: "Monitor the inventory dashboard",
           details: [
-            "Navigate to Inventory > Overview",
-            "View key metrics: total items, low stock alerts, recent transactions",
-            "Take action on items that need attention",
+            "Navigate to Inventory > Overview for key metrics",
+            "View total items, low-stock count, and recent transactions",
+            "Act on items that need restocking or investigation",
           ],
         },
       ],
@@ -112,53 +102,44 @@ export default function StorekeeperHelpPage() {
       title: "Create Purchase Order",
       icon: "bi-cart-plus",
       prerequisites: [
-        { description: "Suppliers exist in the system" },
+        { description: "At least one supplier exists in the system" },
         { description: "Items exist in the system" },
       ],
       steps: [
         {
           description: "Navigate to Suppliers > Purchase Orders",
           details: [
-            "Click on 'Suppliers' in the sidebar menu",
+            "Click on 'Suppliers' in the sidebar",
             "Select 'Purchase Orders' from the submenu",
           ],
         },
         {
-          description: "Click 'Create Purchase Order' or 'Add Purchase Order' button",
+          description: "Click 'Create Purchase Order'",
           details: [
-            "The button is typically located at the top right",
+            "The button is at the top right of the purchase orders list",
           ],
         },
         {
-          description: "Select supplier",
+          description: "Select the supplier",
           details: [
             "Choose a supplier from the dropdown",
-            "If supplier doesn't exist, create it first in Suppliers > Suppliers",
+            "If the supplier does not exist yet, create it first under Suppliers > Suppliers",
           ],
         },
         {
           description: "Add items to the order",
           details: [
-            "Search for items to add",
-            "Select items and enter quantities",
-            "Enter unit prices for each item",
+            "Search for items by name or code",
+            "Enter quantities and unit prices for each item",
             "Review the order total",
           ],
         },
         {
-          description: "Add order details",
+          description: "Add order details and submit",
           details: [
-            "Enter order date",
-            "Add expected delivery date (optional)",
-            "Add notes or special instructions (optional)",
-          ],
-        },
-        {
-          description: "Submit the purchase order",
-          details: [
-            "Click 'Create' or 'Submit' button",
-            "The purchase order will be created with 'pending' status",
-            "You can receive it once goods arrive",
+            "Enter the order date and optional expected delivery date",
+            "Add any notes or special instructions",
+            "Click 'Create' or 'Submit' — the purchase order is created with 'pending' status",
           ],
         },
       ],
@@ -167,46 +148,43 @@ export default function StorekeeperHelpPage() {
       title: "Receive Purchase Order",
       icon: "bi-check-square",
       prerequisites: [
-        { description: "Purchase order exists in pending status" },
-        { description: "Goods have arrived from supplier" },
+        { description: "A purchase order exists in 'pending' status" },
+        { description: "The goods have arrived from the supplier" },
       ],
       steps: [
         {
           description: "Navigate to Suppliers > Purchase Orders",
           details: [
-            "Click on 'Suppliers' in the sidebar menu",
+            "Click on 'Suppliers' in the sidebar",
             "Select 'Purchase Orders' from the submenu",
           ],
         },
         {
-          description: "Find the purchase order",
+          description: "Open the pending purchase order",
           details: [
-            "View purchase orders with 'pending' status",
-            "Click on the purchase order you want to receive",
+            "Find the order with 'pending' status and click on it",
           ],
         },
         {
-          description: "Click 'Receive' or 'Receive Order' button",
+          description: "Click 'Receive' or 'Receive Order'",
           details: [
-            "The receive button is available for pending orders",
-            "Click to open the receive dialog",
+            "This opens the receive dialog",
           ],
         },
         {
           description: "Confirm received quantities",
           details: [
-            "Review the ordered quantities",
-            "Enter actual received quantities for each item",
-            "Adjust quantities if some items are missing or damaged",
-            "Add notes about any discrepancies",
+            "Review the ordered quantities for each item",
+            "Enter the actual received quantity — adjust if some items are missing or damaged",
+            "Add notes for any discrepancies",
           ],
         },
         {
           description: "Complete the receive process",
           details: [
-            "Click 'Receive' or 'Confirm' button",
-            "The purchase order status will change to 'received'",
-            "Inventory will be updated automatically with received items",
+            "Click 'Receive' or 'Confirm'",
+            "The purchase order status changes to 'received'",
+            "Inventory is updated automatically with the received quantities",
           ],
         },
       ],
@@ -219,17 +197,16 @@ export default function StorekeeperHelpPage() {
         {
           description: "Navigate to Suppliers > Suppliers",
           details: [
-            "Click on 'Suppliers' in the sidebar menu",
+            "Click on 'Suppliers' in the sidebar",
             "Select 'Suppliers' from the submenu",
           ],
         },
         {
           description: "Add a new supplier",
           details: [
-            "Click 'Add Supplier' or 'New Supplier' button",
-            "Enter supplier name",
-            "Enter contact information (phone, email, address)",
-            "Add notes or additional details (optional)",
+            "Click 'Add Supplier'",
+            "Enter supplier name, phone, email, and address",
+            "Add any notes",
             "Click 'Save' to create the supplier",
           ],
         },
@@ -237,26 +214,49 @@ export default function StorekeeperHelpPage() {
           description: "Edit supplier information",
           details: [
             "Select a supplier from the list",
-            "Click 'Edit' button",
-            "Update supplier details",
-            "Save the changes",
+            "Click 'Edit', update the details, and save",
           ],
         },
         {
           description: "View supplier details",
           details: [
-            "Click on a supplier to view full details",
-            "View purchase orders from this supplier",
-            "View payment history if applicable",
+            "Click on a supplier to view their purchase order history and payment transactions",
+          ],
+        },
+      ],
+    },
+    {
+      title: "View Supplier Transactions",
+      icon: "bi-receipt",
+      prerequisites: [
+        { description: "Purchase orders have been received from suppliers" },
+      ],
+      steps: [
+        {
+          description: "Navigate to Suppliers > Transactions",
+          details: [
+            "Click on 'Suppliers' in the sidebar",
+            "Select 'Transactions' from the submenu",
           ],
         },
         {
-          description: "Delete supplier (if needed)",
+          description: "View transaction history",
           details: [
-            "Select a supplier",
-            "Click 'Delete' button",
-            "Confirm the deletion",
-            "Note: Suppliers with purchase orders may not be deletable",
+            "All supplier payment transactions are listed with date, amount, and linked purchase order",
+          ],
+        },
+        {
+          description: "Filter by date or supplier",
+          details: [
+            "Use date range filters to narrow results to a specific period",
+            "Filter by supplier name to see transactions with a specific supplier",
+            "Click 'Apply Filters' to update the list",
+          ],
+        },
+        {
+          description: "View transaction details",
+          details: [
+            "Click on a transaction to see the linked purchase order and any associated notes",
           ],
         },
       ],
@@ -271,39 +271,57 @@ export default function StorekeeperHelpPage() {
         {
           description: "Navigate to Inventory > Transactions",
           details: [
-            "Click on 'Inventory' in the sidebar menu",
+            "Click on 'Inventory' in the sidebar",
             "Select 'Transactions' from the submenu",
           ],
         },
         {
-          description: "View all transactions",
+          description: "View all inventory movements",
           details: [
-            "All inventory movements are displayed",
-            "Transactions show: item, quantity change, type, date, user",
+            "Transactions show: item, quantity change, type (production, sale, adjustment), date, and user",
           ],
         },
         {
           description: "Filter transactions",
           details: [
-            "Filter by date range using date pickers",
-            "Filter by item using search or dropdown",
-            "Filter by transaction type (production, sale, adjustment, etc.)",
+            "Filter by date range, item, or transaction type",
             "Click 'Apply Filters' to view filtered results",
           ],
         },
         {
           description: "View transaction details",
           details: [
-            "Click on a transaction to view full details",
-            "See related information (bill ID, production ID, etc.)",
-            "View notes or reasons for the transaction",
+            "Click on a transaction to see related information (bill ID, production ID, notes)",
+          ],
+        },
+      ],
+    },
+    {
+      title: "View Storekeeper Reports",
+      icon: "bi-bar-chart",
+      prerequisites: [
+        { description: "Sales and production data exist in the system" },
+      ],
+      steps: [
+        {
+          description: "Navigate to Reports in the sidebar",
+          details: [
+            "Click on 'Reports' from the storekeeper sidebar",
           ],
         },
         {
-          description: "Export transaction data (if available)",
+          description: "Select a report type",
           details: [
-            "Use export functionality to download transaction data",
-            "Export for reporting or analysis purposes",
+            "Items Sold Count — breakdown of item sales to reconcile against production",
+            "Other available reports as shown in your sidebar",
+          ],
+        },
+        {
+          description: "Set date filters and view results",
+          details: [
+            "Choose a date range",
+            "Click 'Generate' or 'View Report' to load the data",
+            "Use the results to reconcile production output against actual sales",
           ],
         },
       ],
@@ -320,7 +338,7 @@ export default function StorekeeperHelpPage() {
             Storekeeper User Documentation
           </h1>
           <p className="mb-0">
-            Step-by-step guides for common storekeeper tasks in the POS system
+            Step-by-step guides for storekeeper tasks in the POS system
           </p>
         </div>
 
@@ -329,16 +347,16 @@ export default function StorekeeperHelpPage() {
           <Card.Body>
             <h5 className="mb-3">
               <i className="bi bi-info-circle me-2 text-primary"></i>
-              About This Documentation
+              Your Role
             </h5>
             <p>
-              This documentation provides detailed user journeys for storekeeper tasks.
-              Each journey includes prerequisites that must be completed first, followed by
-              step-by-step instructions to complete the task.
+              As a Storekeeper, you manage physical inventory — issuing production, tracking stock
+              levels, handling purchase orders, and managing suppliers. Accurate inventory keeps
+              sales and production workflows running without interruptions.
             </p>
             <p className="mb-0">
-              <strong>Note:</strong> Make sure to complete all prerequisites before starting
-              any journey to ensure a smooth workflow.
+              <strong>Tip:</strong> Only leaf (component) items can be issued in production.
+              Grouped or composite items must be broken down to their components first.
             </p>
           </Card.Body>
         </Card>
@@ -404,6 +422,12 @@ export default function StorekeeperHelpPage() {
                     </a>
                   </li>
                   <li className="mb-2">
+                    <a href="/storekeeper/suppliers/transactions" className="text-decoration-none">
+                      <i className="bi bi-receipt me-2"></i>
+                      Supplier Transactions
+                    </a>
+                  </li>
+                  <li className="mb-2">
                     <a href="/storekeeper/purchase-orders" className="text-decoration-none">
                       <i className="bi bi-cart-check me-2"></i>
                       Purchase Orders
@@ -424,4 +448,3 @@ export default function StorekeeperHelpPage() {
     </RoleAwareLayout>
   );
 }
-

@@ -14,55 +14,41 @@ export default function SalesHelpPage() {
       title: "Create a Bill",
       icon: "bi-cart-plus",
       prerequisites: [
-        { description: "Station is selected (use station switcher if needed)" },
-        { description: "Pricelist is available for your station" },
+        { description: "A station is selected (use the station switcher in the top nav if needed)" },
+        { description: "A pricelist is linked to your station" },
         { description: "Menu categories and items exist" },
       ],
       steps: [
         {
-          description: "Navigate to Bill",
+          description: "Navigate to Bill in the sidebar",
           details: [
-            "Click on 'Bill' in the sidebar menu",
-            "You will see the billing interface",
+            "Click on 'Bill' in the sidebar menu to open the billing interface",
           ],
         },
         {
-          description: "Select a category",
+          description: "Select a category and add items",
           details: [
-            "Browse categories on the left side",
-            "Click on a category to view its items",
-          ],
-        },
-        {
-          description: "Add items to the bill",
-          details: [
-            "Click on items from the selected category",
-            "Items will be added to the bill on the right side",
-            "You can add multiple items from different categories",
+            "Browse categories on the left panel",
+            "Click a category to view its items",
+            "Click an item to add it to the bill on the right",
+            "Tip: use the Express Item Search button (magnifying glass icon) to quickly find items across all categories",
           ],
         },
         {
           description: "Set quantities",
           details: [
-            "For each item, adjust the quantity using + and - buttons",
-            "Or enter quantity directly in the quantity field",
-            "The subtotal will update automatically",
+            "Adjust quantity using the + and – buttons next to each item",
+            "Or type a quantity directly in the quantity field",
+            "The subtotal updates automatically",
           ],
         },
         {
-          description: "Review the bill",
+          description: "Review and save the bill",
           details: [
-            "Check all items and quantities are correct",
-            "Review the total amount",
-            "Remove items if needed by clicking the remove button",
-          ],
-        },
-        {
-          description: "Save the bill",
-          details: [
-            "Click 'Save Bill' or 'Submit' button",
-            "The bill will be saved with 'pending' status",
-            "You can submit it later from 'My Sales'",
+            "Confirm all items and quantities are correct",
+            "Remove items by clicking the remove button next to them",
+            "Click 'Save Bill' — the bill is saved with 'pending' status",
+            "You can submit it later from My Sales",
           ],
         },
       ],
@@ -71,47 +57,36 @@ export default function SalesHelpPage() {
       title: "Submit Bills for Processing",
       icon: "bi-send",
       prerequisites: [
-        { description: "Bills exist in pending status" },
-        { description: "Bills were created by you" },
+        { description: "One or more bills exist in 'pending' status under your account" },
       ],
       steps: [
         {
           description: "Navigate to My Sales",
           details: [
             "Click on 'My Sales' in the sidebar menu",
-            "You will see all your bills",
           ],
         },
         {
-          description: "View pending bills",
+          description: "Select the bill(s) to submit",
           details: [
-            "Bills with 'pending' status will be displayed",
-            "You can filter bills by status if needed",
+            "Check the boxes next to the bills you want to submit",
+            "Or click a single bill to open it",
           ],
         },
         {
-          description: "Select bills to submit",
+          description: "Enter payment information in the submit modal",
           details: [
-            "Check the boxes next to bills you want to submit",
-            "Or select a single bill by clicking on it",
+            "Click 'Submit' to open the payment modal (3 steps: select → review → result)",
+            "Step 1 — Select payment method: Cash, M-Pesa, or both; enter amounts",
+            "For M-Pesa payments, enter the transaction reference — references must be unique; duplicates are rejected",
+            "Step 2 — Review the payment summary before confirming",
+            "Step 3 — Confirm the result; the bill moves to 'submitted' status",
           ],
         },
         {
-          description: "Add payment information",
+          description: "Bill is now with the Cashier or Supervisor",
           details: [
-            "Click 'Submit' button",
-            "Select payment method: Cash, M-Pesa, or both",
-            "Enter payment amounts",
-            "For M-Pesa payments, enter the transaction reference",
-          ],
-        },
-        {
-          description: "Confirm submission",
-          details: [
-            "Review the payment details",
-            "Click 'Submit Bill' to confirm",
-            "The bill status will change to 'submitted'",
-            "Cashier can now process the payment",
+            "They will process the payment and close the bill",
           ],
         },
       ],
@@ -120,39 +95,66 @@ export default function SalesHelpPage() {
       title: "Request Item Void",
       icon: "bi-x-circle",
       prerequisites: [
-        { description: "Bill exists in submitted or reopened status" },
-        { description: "Item is in active status (not already voided)" },
+        { description: "The bill is in 'submitted' or 'reopened' status" },
+        { description: "The item has not already been voided" },
       ],
       steps: [
         {
-          description: "Navigate to My Sales",
+          description: "Navigate to My Sales and open the submitted bill",
           details: [
-            "Click on 'My Sales' in the sidebar menu",
-            "View your submitted bills",
+            "Click on 'My Sales' in the sidebar",
+            "Find the bill (filter by 'submitted' or 'reopened' status if needed)",
+            "Click the bill to open its details",
           ],
         },
         {
-          description: "Select a bill with submitted status",
-          details: [
-            "Find a bill that is 'submitted' or 'reopened'",
-            "Click on the bill to view its details",
-          ],
-        },
-        {
-          description: "Request void for an item",
+          description: "Request a void for an item",
           details: [
             "Find the item you want to void in the bill",
-            "Click 'Void Request' button next to the item",
-            "Enter a reason for voiding the item",
+            "Click 'Void Request' next to the item",
+            "Enter a clear reason for voiding (e.g., 'customer changed order')",
             "Click 'Submit Void Request'",
           ],
         },
         {
-          description: "Wait for approval",
+          description: "Wait for Supervisor approval",
           details: [
-            "The item status will change to 'void_pending'",
-            "Cashier or supervisor will review and approve/reject",
-            "You will see the status update once approved",
+            "The item status changes to 'void_pending'",
+            "A Supervisor will review and approve or reject the request",
+            "You will see the status update once a decision is made",
+          ],
+        },
+      ],
+    },
+    {
+      title: "Request a Quantity Change",
+      icon: "bi-pencil-square",
+      prerequisites: [
+        { description: "The bill is in 'submitted' status" },
+        { description: "The item you want to change has not been voided" },
+      ],
+      steps: [
+        {
+          description: "Navigate to My Sales and open the submitted bill",
+          details: [
+            "Click on 'My Sales' in the sidebar",
+            "Find a bill in 'submitted' status and click to open it",
+          ],
+        },
+        {
+          description: "Click 'Request Quantity Change' next to the item",
+          details: [
+            "Enter the new quantity you need",
+            "Enter a reason for the change",
+            "Click 'Submit' to send the request",
+          ],
+        },
+        {
+          description: "Wait for Supervisor approval",
+          details: [
+            "The request is sent to a Supervisor for review",
+            "If approved, the item quantity on the bill is updated automatically",
+            "If rejected, the original quantity remains unchanged",
           ],
         },
       ],
@@ -161,49 +163,66 @@ export default function SalesHelpPage() {
       title: "Resubmit Reopened Bills",
       icon: "bi-arrow-repeat",
       prerequisites: [
-        { description: "Bill exists in reopened status" },
-        { description: "Issues have been fixed (payment discrepancies, incorrect items, etc.)" },
+        { description: "A bill is in 'reopened' status (returned by Cashier or Supervisor)" },
+        { description: "You have reviewed the reopen reason and are ready to correct the issue" },
       ],
       steps: [
         {
-          description: "Navigate to My Sales",
+          description: "Navigate to My Sales and find the reopened bill",
           details: [
-            "Click on 'My Sales' in the sidebar menu",
-            "Filter or search for reopened bills",
+            "Click on 'My Sales' in the sidebar",
+            "Filter by 'reopened' status if needed",
+            "Click the bill and read the reopen reason provided",
           ],
         },
         {
-          description: "Select a reopened bill",
+          description: "Make the necessary corrections",
           details: [
-            "Find bills with 'reopened' status",
-            "Click on a reopened bill to view its details",
-            "Review the reopen reason",
+            "Fix payment discrepancies, incorrect items, or quantities as described in the reopen reason",
+            "Add or remove items if needed",
           ],
         },
         {
-          description: "Make necessary corrections",
+          description: "Add corrected payment if required",
           details: [
-            "Fix payment discrepancies if needed",
-            "Correct any incorrect items or quantities",
-            "Add missing items if required",
-            "Remove incorrect items if needed",
-          ],
-        },
-        {
-          description: "Add payment if needed",
-          details: [
-            "If payment was the issue, add the correct payment",
-            "Select payment method and enter amounts",
-            "For M-Pesa, enter transaction reference",
+            "Select the correct payment method and enter the right amount",
+            "For M-Pesa, provide the correct and unique transaction reference",
           ],
         },
         {
           description: "Resubmit the bill",
           details: [
-            "Click 'Resubmit Bill' button",
-            "Confirm the resubmission",
-            "The bill status will change back to 'submitted'",
-            "Cashier can now process it again",
+            "Click 'Resubmit Bill' and confirm",
+            "The bill returns to 'submitted' status for the Cashier or Supervisor to process",
+          ],
+        },
+      ],
+    },
+    {
+      title: "Switch Pricelist at Your Station",
+      icon: "bi-tags",
+      prerequisites: [
+        { description: "Multiple pricelists are linked to your station" },
+      ],
+      steps: [
+        {
+          description: "Open the billing interface",
+          details: [
+            "Click on 'Bill' in the sidebar menu",
+          ],
+        },
+        {
+          description: "Locate the pricelist switcher",
+          details: [
+            "The pricelist switcher appears in the top area of the billing interface",
+            "It shows the currently active pricelist name",
+          ],
+        },
+        {
+          description: "Select a different pricelist",
+          details: [
+            "Click the switcher and choose the pricelist for the current customer or event",
+            "Item prices in the bill will update immediately to reflect the selected pricelist",
           ],
         },
       ],
@@ -212,35 +231,26 @@ export default function SalesHelpPage() {
       title: "View Pricelist Catalog",
       icon: "bi-book",
       prerequisites: [
-        { description: "Pricelist is linked to your station" },
+        { description: "A pricelist is linked to your station" },
       ],
       steps: [
         {
-          description: "Navigate to Pricelist Catalog",
+          description: "Navigate to Pricelist Catalog in the sidebar",
           details: [
-            "Click on 'Pricelist Catalog' in the sidebar menu",
-            "You will see items available for your current pricelist",
+            "Click 'Pricelist Catalog' to see all items available under your current pricelist",
           ],
         },
         {
-          description: "Browse items by category",
+          description: "Browse by category or search",
           details: [
-            "Select a category from the list",
-            "View all items in that category with their prices",
-          ],
-        },
-        {
-          description: "Search for items",
-          details: [
-            "Use the search bar to find specific items",
-            "Search by item name or description",
+            "Select a category to view its items and prices",
+            "Use the search bar to find a specific item by name",
           ],
         },
         {
           description: "View item details",
           details: [
-            "Click on an item to see more details",
-            "View price, description, and availability",
+            "Click on an item to see its price, description, and availability",
           ],
         },
       ],
@@ -257,7 +267,7 @@ export default function SalesHelpPage() {
             Sales User Documentation
           </h1>
           <p className="mb-0">
-            Step-by-step guides for common sales tasks in the POS system
+            Step-by-step guides for sales tasks in the POS system
           </p>
         </div>
 
@@ -266,16 +276,17 @@ export default function SalesHelpPage() {
           <Card.Body>
             <h5 className="mb-3">
               <i className="bi bi-info-circle me-2 text-primary"></i>
-              About This Documentation
+              Your Role
             </h5>
             <p>
-              This documentation provides detailed user journeys for sales tasks.
-              Each journey includes prerequisites that must be completed first, followed by
-              step-by-step instructions to complete the task.
+              As a Sales user, your job is to create bills and submit them for payment processing.
+              Bills flow from you (pending) → Cashier or Supervisor (submitted) → closed. Understand
+              the void and quantity change workflows so you can handle corrections without unnecessary
+              bill reopening.
             </p>
             <p className="mb-0">
-              <strong>Note:</strong> Make sure to complete all prerequisites before starting
-              any journey to ensure a smooth workflow.
+              <strong>Tip:</strong> M-Pesa transaction references must be unique — you cannot reuse a
+              reference that has already been recorded on another bill.
             </p>
           </Card.Body>
         </Card>
@@ -343,4 +354,3 @@ export default function SalesHelpPage() {
     </RoleAwareLayout>
   );
 }
-
