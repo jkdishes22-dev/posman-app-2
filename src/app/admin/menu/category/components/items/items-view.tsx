@@ -483,12 +483,14 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
                             className="btn btn-primary btn-sm"
                             onClick={() => onItemPick?.(item)}
                             disabled={
+                              !item.allowNegativeInventory &&
                               itemInventory &&
                               Object.prototype.hasOwnProperty.call(itemInventory, item.id) &&
                               (itemInventory[item.id] || 0) === 0
                             }
                             title={
-                              itemInventory &&
+                              !item.allowNegativeInventory &&
+                                itemInventory &&
                                 Object.prototype.hasOwnProperty.call(itemInventory, item.id) &&
                                 (itemInventory[item.id] || 0) === 0
                                 ? "No inventory available"
