@@ -36,7 +36,6 @@ interface InventoryItem {
         created_at?: string;
     };
     quantity: number;
-    reserved_quantity: number;
     available_quantity: number;
     min_stock_level: number | null;
     max_stock_level: number | null;
@@ -338,7 +337,6 @@ function StockManagementContent() {
                                             <th>Item</th>
                                             <th>Type</th>
                                             <th>Quantity</th>
-                                            <th>Reserved</th>
                                             <th>Available</th>
                                             <th>Min Level</th>
                                             <th>Reorder Point</th>
@@ -366,7 +364,6 @@ function StockManagementContent() {
                                                 </td>
                                                 <td>{getItemTypeBadge(item.item.isStock)}</td>
                                                 <td>{item.quantity}</td>
-                                                <td>{item.reserved_quantity}</td>
                                                 <td>
                                                     <strong>{item.available_quantity}</strong>
                                                 </td>

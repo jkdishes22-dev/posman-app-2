@@ -230,11 +230,16 @@ export const submitBill = async (req: NextApiRequest, res: NextApiResponse) => {
     const submittedBill = await billService.submitBill(billPayment);
     res.status(200).json(submittedBill);
   } catch (error: any) {
+    const isValidationError = error?.message && (
+      error.message.includes("Insufficient inventory") ||
+      error.message.includes("not found") ||
+      error.message.includes("only submit bills that you created")
+    );
     const { userMessage, errorCode } = handleApiError(error, {
       operation: "submitting",
       resource: "bill"
     });
-    res.status(500).json({ error: userMessage, code: errorCode });
+    res.status(isValidationError ? 400 : 500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -281,11 +286,15 @@ export const bulkSubmitBills = async (req: NextApiRequest, res: NextApiResponse)
     const results = await billService.submitBillsBulk(billPayments, parseInt(req.user?.id as string));
     res.status(200).json({ results });
   } catch (error: any) {
+    const isValidationError = error?.message && (
+      error.message.includes("Insufficient inventory") ||
+      error.message.includes("not found")
+    );
     const { userMessage, errorCode } = handleApiError(error, {
       operation: "submitting",
       resource: "bills"
     });
-    res.status(500).json({ error: userMessage, code: errorCode });
+    res.status(isValidationError ? 400 : 500).json({ error: userMessage, code: errorCode });
   }
 };
 
