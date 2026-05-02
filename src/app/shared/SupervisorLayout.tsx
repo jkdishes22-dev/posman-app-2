@@ -414,6 +414,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     icon: "bi-cart-check",
                     path: "/admin/reports/purchase-orders",
                 },
+                {
+                    id: "reports-sales-revenue",
+                    label: "Sales Revenue",
+                    icon: "bi-graph-up",
+                    path: "/admin/reports/sales-revenue",
+                },
             ],
         },
         {

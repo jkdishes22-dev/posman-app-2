@@ -44,7 +44,8 @@ export const printReceiptWithTimestamp = async (
     bill: any,
     title: string,
     type: "customer" | "captain" | "receipt" = "receipt",
-    printerName?: string
+    printerName?: string,
+    extraProps?: Record<string, any>
 ): Promise<void> => {
     return new Promise<void>((resolve) => {
         const tempDiv = document.createElement("div");
@@ -54,7 +55,7 @@ export const printReceiptWithTimestamp = async (
         document.body.appendChild(tempDiv);
 
         const root = ReactDOM.createRoot(tempDiv);
-        root.render(React.createElement(Component, { bill: bill }));
+        root.render(React.createElement(Component, { bill, ...extraProps }));
 
         setTimeout(() => {
             const printContents = tempDiv.innerHTML;
