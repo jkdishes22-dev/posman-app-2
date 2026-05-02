@@ -4,7 +4,9 @@ import { cache } from "@backend/utils/cache";
 import {
   createMockDataSource,
   createMockRepository,
+  createMockTransactionalEntityManager,
 } from "../mocks/createMockDataSource";
+import { BillStatus } from "@backend/entities/Bill";
 
 describe("InventoryService", () => {
   let mockInventoryRepo: ReturnType<typeof createMockRepository>;
@@ -199,6 +201,71 @@ describe("InventoryService", () => {
       expect(result.get(1)).toBe(0);
       expect(result.get(2)).toBe(0);
       expect(result.get(3)).toBe(0);
+    });
+  });
+
+  describe("deductInventoryForSale", () => {
+    it("deducts item quantity from inventory on bill submission", async () => {
+      mockBillRepo.findOne.mockResolvedValue({
+        id: 1,
+        status: BillStatus.SUBMITTED,
+        bill_items: [{ item: { id: 10, name: "Coffee", allowNegativeInventory: false }, quantity: 3 }],
+      });
+      mockItemGroupRepo.count.mockResolvedValue(0);
+
+      const txn = createMockTransactionalEntityManager();
+      txn.findOne.mockResolvedValue({ item_id: 10, quantity: 10, updated_by: null });
+      txn.save.mockImplementation(async (_cls: any, data?: any) => data ?? _cls ?? {});
+      txn.create.mockImplementation((_cls: any, data?: any) => data ?? {});
+      mockInventoryRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
+
+      await service.deductInventoryForSale(1, 99);
+
+      expect(txn.save).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ quantity: 7 })
+      );
+    });
+
+    it("throws when deduction would make quantity negative and allowNegativeInventory is false", async () => {
+      mockBillRepo.findOne.mockResolvedValue({
+        id: 2,
+        status: BillStatus.SUBMITTED,
+        bill_items: [{ item: { id: 11, name: "Steak", allowNegativeInventory: false }, quantity: 5 }],
+      });
+      mockItemGroupRepo.count.mockResolvedValue(0);
+
+      const txn = createMockTransactionalEntityManager();
+      txn.findOne.mockResolvedValue({ item_id: 11, quantity: 2, updated_by: null });
+      txn.save.mockResolvedValue({});
+      txn.create.mockImplementation((_cls: any, data?: any) => data ?? {});
+      mockInventoryRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
+
+      await expect(service.deductInventoryForSale(2, 99)).rejects.toThrow(
+        "Inventory quantity would go negative"
+      );
+    });
+
+    it("allows inventory to go negative when allowNegativeInventory is true", async () => {
+      mockBillRepo.findOne.mockResolvedValue({
+        id: 3,
+        status: BillStatus.SUBMITTED,
+        bill_items: [{ item: { id: 12, name: "Tap Water", allowNegativeInventory: true }, quantity: 10 }],
+      });
+      mockItemGroupRepo.count.mockResolvedValue(0);
+
+      const txn = createMockTransactionalEntityManager();
+      txn.findOne.mockResolvedValue({ item_id: 12, quantity: 0, updated_by: null });
+      txn.save.mockImplementation(async (_cls: any, data?: any) => data ?? _cls ?? {});
+      txn.create.mockImplementation((_cls: any, data?: any) => data ?? {});
+      mockInventoryRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
+
+      await expect(service.deductInventoryForSale(3, 99)).resolves.toBeUndefined();
+
+      expect(txn.save).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ quantity: -10 })
+      );
     });
   });
 });
