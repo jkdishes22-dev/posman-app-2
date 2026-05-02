@@ -46,6 +46,9 @@ export const ROLE_PERMISSIONS = {
         "can_add_station_pricelist",
         "can_edit_station_pricelist",
         "can_delete_station_pricelist",
+        // System settings
+        "can_view_system_settings",
+        "can_edit_system_settings",
         // Read-only access to business data
         "can_view_bill",
         "can_view_bill_item",
@@ -123,7 +126,9 @@ export const ROLE_PERMISSIONS = {
         // Additional supervisor permissions
         "can_edit_station",
         "can_view_station_pricelist",
-        "can_edit_user_station"
+        "can_edit_user_station",
+        // System settings (read-only — supervisor needs printer/bill settings for billing)
+        "can_view_system_settings"
     ],
 
     sales: [
@@ -150,6 +155,8 @@ export const ROLE_PERMISSIONS = {
     ],
 
     cashier: [
+        // System settings (read-only — needed to load printer/bill settings for billing)
+        "can_view_system_settings",
         // Financial operations
         "can_view_bill",
         "can_view_bill_item",
@@ -227,7 +234,9 @@ export const PERMISSION_CATEGORIES = {
         "can_add_user",
         "can_edit_user",
         "can_delete_user",
-        "can_manage_role"
+        "can_manage_role",
+        "can_view_system_settings",
+        "can_edit_system_settings"
     ],
     billing: [
         "can_view_bill",
