@@ -1,12 +1,12 @@
 import React from "react";
 
-const ReceiptContent = ({ bill, label, showTotals = true }: { bill: any; label: string; showTotals?: boolean }) => {
+const ReceiptContent = ({ bill, label, showTotals = true, showTax = true }: { bill: any; label: string; showTotals?: boolean; showTax?: boolean }) => {
     const dateObj = bill.created_at ? new Date(bill.created_at) : new Date();
     const dateStr = dateObj.toLocaleDateString();
     const timeStr = dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const grossTotal = bill.bill_items?.reduce((sum, item) => sum + Number(item.subtotal), 0) || 0;
     const tax = grossTotal * 0.16;
-    const finalTotal = grossTotal + tax;
+    const finalTotal = showTax ? grossTotal + tax : grossTotal;
 
     // Get the bill ID from various possible locations
     const billId = bill.id || bill.bill_id || bill.billId || bill.bill_number || "N/A";
@@ -59,9 +59,11 @@ const ReceiptContent = ({ bill, label, showTotals = true }: { bill: any; label: 
                     <div style={{ textAlign: "right", fontWeight: "bold", fontSize: 16, margin: "8px 0" }}>
                         Gross Total: {bill.currency} {(Number(grossTotal) || 0).toFixed(2)}
                     </div>
+                    {showTax && (
                     <div style={{ textAlign: "right", fontWeight: "bold", fontSize: 14, margin: "8px 0" }}>
                         Tax (16%): {bill.currency} {(Number(tax) || 0).toFixed(2)}
                     </div>
+                    )}
                     <div style={{ textAlign: "right", fontWeight: "bold", fontSize: 18, margin: "8px 0" }}>
                         Total: {bill.currency} {(Number(finalTotal) || 0).toFixed(2)}
                     </div>
@@ -77,7 +79,7 @@ const ReceiptContent = ({ bill, label, showTotals = true }: { bill: any; label: 
 };
 
 // Captain Order Print Component
-export const CaptainOrderPrint = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
+export const CaptainOrderPrint = React.forwardRef<HTMLDivElement, { bill: any; showTax?: boolean }>(({ bill, showTax }, ref) => {
     if (!bill) return null;
     return (
         <>
@@ -107,7 +109,7 @@ export const CaptainOrderPrint = React.forwardRef<HTMLDivElement, { bill: any }>
                 }
             `}</style>
             <div ref={ref}>
-                <ReceiptContent bill={bill} label="Captain Order" showTotals={false} />
+                <ReceiptContent bill={bill} label="Captain Order" showTotals={false} showTax={showTax} />
             </div>
         </>
     );
@@ -116,7 +118,7 @@ export const CaptainOrderPrint = React.forwardRef<HTMLDivElement, { bill: any }>
 CaptainOrderPrint.displayName = "CaptainOrderPrint";
 
 // Customer Copy Print Component
-export const CustomerCopyPrint = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
+export const CustomerCopyPrint = React.forwardRef<HTMLDivElement, { bill: any; showTax?: boolean }>(({ bill, showTax }, ref) => {
     if (!bill) return null;
     return (
         <>
@@ -146,7 +148,7 @@ export const CustomerCopyPrint = React.forwardRef<HTMLDivElement, { bill: any }>
                 }
             `}</style>
             <div ref={ref}>
-                <ReceiptContent bill={bill} label="Customer Copy" showTotals={true} />
+                <ReceiptContent bill={bill} label="Customer Copy" showTotals={true} showTax={showTax} />
             </div>
         </>
     );
