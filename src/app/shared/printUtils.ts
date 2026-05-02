@@ -35,74 +35,62 @@ export const generatePrintTitle = (bill: any, type: string): string => {
 };
 
 /**
- * Enhanced print function with timestamp-based filenames
+ * Enhanced print function with timestamp-based filenames.
+ * In Electron, prints silently via IPC (no dialog).
+ * In web mode, opens a print-dialog popup as fallback.
  */
 export const printReceiptWithTimestamp = async (
     Component: any,
     bill: any,
     title: string,
-    type: "customer" | "captain" | "receipt" = "receipt"
+    type: "customer" | "captain" | "receipt" = "receipt",
+    printerName?: string,
+    extraProps?: Record<string, any>
 ): Promise<void> => {
     return new Promise<void>((resolve) => {
-        // Create a temporary div for the receipt
         const tempDiv = document.createElement("div");
         tempDiv.style.position = "absolute";
         tempDiv.style.left = "-9999px";
         tempDiv.style.top = "-9999px";
         document.body.appendChild(tempDiv);
 
-        // Render the component
         const root = ReactDOM.createRoot(tempDiv);
-        root.render(React.createElement(Component, { bill: bill }));
+        root.render(React.createElement(Component, { bill, ...extraProps }));
 
-        // Wait for render, then print
         setTimeout(() => {
             const printContents = tempDiv.innerHTML;
-            const filename = generateReceiptFilename(bill, type);
-            const printTitle = generatePrintTitle(bill, type);
+            root.unmount();
+            document.body.removeChild(tempDiv);
 
-            const win = window.open("", "", "width=350,height=600");
-
-            // Check if pop-up was blocked
-            if (!win) {
-                alert("Pop-up blocked! Please allow pop-ups for this site and try again.");
-                // Clean up
-                root.unmount();
-                document.body.removeChild(tempDiv);
-                resolve();
+            // Electron path: silent print via main-process IPC
+            const electronAPI = (window as any).electron;
+            if (electronAPI?.printReceipt) {
+                electronAPI.printReceipt(printContents, printerName || "").then(() => resolve()).catch(() => resolve());
                 return;
             }
 
+            // Web fallback: open a popup and trigger the browser print dialog
+            const printTitle = generatePrintTitle(bill, type);
+            const win = window.open("", "", "width=350,height=600");
+            if (!win) {
+                alert("Pop-up blocked! Please allow pop-ups for this site and try again.");
+                resolve();
+                return;
+            }
             try {
-                // Set the document title with timestamp
                 win.document.title = printTitle;
-
-                win.document.write("<html><head>");
-                win.document.write(`<title>${printTitle}</title>`);
-                win.document.write("<meta charset=\"utf-8\">");
-                win.document.write("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
-                win.document.write("</head><body>");
+                win.document.write(`<html><head><title>${printTitle}</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body>`);
                 win.document.write(printContents);
                 win.document.write("</body></html>");
                 win.document.close();
                 win.focus();
-
-                // Add a comment with the filename for reference
-
                 setTimeout(() => {
                     win.print();
                     win.close();
-
-                    // Clean up
-                    root.unmount();
-                    document.body.removeChild(tempDiv);
                     resolve();
                 }, 500);
             } catch (error) {
                 console.error("Print error:", error);
-                // Clean up
-                root.unmount();
-                document.body.removeChild(tempDiv);
                 resolve();
             }
         }, 100);

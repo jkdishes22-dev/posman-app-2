@@ -189,27 +189,37 @@ async function replaceWindowsKeytarBinary(context, destNodeModules, log, err) {
     }
 
     log(`\n   🔄 Replacing keytar.node with Windows Electron prebuild (${arch}, electron ${electronVersion})...`);
+    let prebuildOk = false;
     try {
         execSync(
             `npx --yes prebuild-install --runtime electron --target ${electronVersion} --arch ${arch} --platform win32`,
             { cwd: keytarDir, stdio: "pipe" },
         );
+        prebuildOk = true;
     } catch (e) {
-        err(`   ❌ keytar prebuild-install failed: ${e.message}`);
+        err(`   ⚠️ keytar prebuild-install failed: ${e.message}`);
     }
 
     if (!hasWindowsPeHeader(keytarBinaryPath)) {
-        throw new Error(
-            `keytar binary replacement failed or incompatible. Expected Windows PE binary at ${keytarBinaryPath}`,
+        err(
+            `   ⚠️ keytar binary replacement unavailable. Expected Windows PE binary at ${keytarBinaryPath}`,
         );
+        err("   ⚠️ Continuing build; runtime will gracefully report secure storage as unavailable.");
+        return;
     }
     const afterMachine = readPeMachine(keytarBinaryPath);
     if (!peMachineMatchesTargetArch(afterMachine, arch)) {
-        throw new Error(
-            `keytar.node after prebuild does not match target arch ${arch} (PE machine 0x${(afterMachine ?? 0).toString(16)}): ${keytarBinaryPath}`,
+        err(
+            `   ⚠️ keytar.node does not match target arch ${arch} (PE machine 0x${(afterMachine ?? 0).toString(16)}): ${keytarBinaryPath}`,
         );
+        err("   ⚠️ Continuing build; runtime will gracefully report secure storage as unavailable.");
+        return;
     }
 
+    if (!prebuildOk) {
+        log(`   ✅ keytar.node already valid for target arch (${arch}): ${keytarBinaryPath}`);
+        return;
+    }
     log(`   ✅ Windows keytar.node installed: ${keytarBinaryPath}`);
 }
 

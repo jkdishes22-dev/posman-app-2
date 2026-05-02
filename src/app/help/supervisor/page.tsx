@@ -2,6 +2,7 @@
 
 import React from "react";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
+import SecureRoute from "../../components/SecureRoute";
 import UserJourney from "../../components/UserJourney";
 import { Container, Row, Col, Card, Accordion } from "react-bootstrap";
 import { useTooltips } from "../../hooks/useTooltips";
@@ -14,47 +15,39 @@ export default function SupervisorHelpPage() {
       title: "Process Bills",
       icon: "bi-cash-stack",
       prerequisites: [
-        { description: "Bills exist in submitted status" },
-        { description: "You have cashier or supervisor permissions" },
+        { description: "Bills exist in 'submitted' status" },
       ],
       steps: [
         {
           description: "Navigate to Bills Management > Process Bills",
           details: [
-            "Click on 'Bills Management' in the sidebar menu",
+            "Click on 'Bills Management' in the sidebar",
             "Select 'Process Bills' from the submenu",
-          ],
-        },
-        {
-          description: "View submitted bills",
-          details: [
-            "Bills with 'submitted' status will be displayed",
-            "Use filters to find specific bills if needed",
           ],
         },
         {
           description: "Select a bill to process",
           details: [
-            "Click on a bill from the list to view its details",
-            "Review the bill items and total amount",
+            "Bills with 'submitted' status are displayed",
+            "Click a bill to view its items and total amount",
+            "Tooltips on status badges explain each status — hover to read them",
           ],
         },
         {
-          description: "Add payments to the bill",
+          description: "Add payments",
           details: [
-            "Click 'Add Payment' or 'Process Payment' button",
+            "Click 'Add Payment' or 'Process Payment'",
             "Select payment method: Cash, M-Pesa, or both",
             "Enter payment amounts",
-            "For M-Pesa payments, enter the transaction reference",
-            "Click 'Add Payment' to record the payment",
+            "For M-Pesa, enter the transaction reference — references must be unique; duplicates are rejected",
+            "Click 'Add Payment' to record",
           ],
         },
         {
           description: "Close the bill",
           details: [
             "Once total payments equal or exceed the bill total, click 'Close Bill'",
-            "Confirm the bill closure",
-            "The bill status will change to 'closed'",
+            "Confirm the closure — the bill status changes to 'closed'",
           ],
         },
       ],
@@ -63,38 +56,64 @@ export default function SupervisorHelpPage() {
       title: "Approve Void Requests",
       icon: "bi-check-circle",
       prerequisites: [
-        { description: "Void requests exist from sales users" },
-        { description: "Bills are in submitted or reopened status" },
+        { description: "Void requests have been submitted by sales users" },
+        { description: "The related bill is in 'submitted' or 'reopened' status" },
       ],
       steps: [
         {
           description: "Navigate to Bills Management > Void Requests",
           details: [
-            "Click on 'Bills Management' in the sidebar menu",
+            "Click on 'Bills Management' in the sidebar",
             "Select 'Void Requests' from the submenu",
           ],
         },
         {
-          description: "View pending void requests",
+          description: "Review pending void requests",
           details: [
-            "All pending void requests will be displayed",
-            "Each request shows the bill, item, reason, and requesting user",
+            "Each request shows the bill, item, reason provided by the sales user, and the requesting user",
           ],
         },
         {
-          description: "Review the void request",
+          description: "Click a void request to view full details",
           details: [
-            "Click on a void request to view details",
-            "Review the item to be voided and the reason provided",
-            "Verify the bill status allows voiding",
+            "Verify the item to be voided and the reason",
+            "Check that the bill status allows voiding",
+          ],
+        },
+        {
+          description: "Approve or reject",
+          details: [
+            "Click 'Approve' to void the item — its status updates immediately",
+            "Click 'Reject' to deny the request — the item remains on the bill",
+          ],
+        },
+      ],
+    },
+    {
+      title: "Approve Quantity Change Requests",
+      icon: "bi-pencil-check",
+      prerequisites: [
+        { description: "Sales users have submitted quantity change requests on submitted bills" },
+      ],
+      steps: [
+        {
+          description: "Navigate to Bills Management > Change Requests",
+          details: [
+            "Click on 'Bills Management' in the sidebar",
+            "Select 'Change Requests' from the submenu",
+          ],
+        },
+        {
+          description: "Review pending quantity change requests",
+          details: [
+            "Each request shows the bill, item, current quantity, requested quantity, and the reason",
           ],
         },
         {
           description: "Approve or reject the request",
           details: [
-            "Click 'Approve' to approve the void request",
-            "Or click 'Reject' to deny the void request",
-            "The item status will be updated accordingly",
+            "Click 'Approve' — the item quantity on the bill is updated automatically",
+            "Click 'Reject' — the original quantity remains and the sales user is notified",
           ],
         },
       ],
@@ -103,44 +122,60 @@ export default function SupervisorHelpPage() {
       title: "Reopen Bills",
       icon: "bi-arrow-clockwise",
       prerequisites: [
-        { description: "Bills exist in submitted status with payment discrepancies" },
-        { description: "There are actual issues that need fixing (payment problems, incorrect items, etc.)" },
+        { description: "A bill is in 'submitted' status with payment discrepancies or other issues" },
       ],
       steps: [
         {
           description: "Navigate to Bills Management > Process Bills",
           details: [
-            "Click on 'Bills Management' in the sidebar menu",
-            "Select 'Process Bills' from the submenu",
+            "Click on 'Bills Management' in the sidebar",
+            "Select 'Process Bills'",
           ],
         },
         {
-          description: "Select a bill with issues",
+          description: "Open the bill with issues",
           details: [
-            "Find a bill in 'submitted' status that has payment discrepancies or other issues",
-            "Click on the bill to view its details",
+            "Find a submitted bill with a payment discrepancy or incorrect items",
+            "Click the bill to view its details",
           ],
         },
         {
-          description: "Click 'Reopen Bill' button",
+          description: "Click 'Reopen Bill' and provide a reason",
           details: [
-            "The reopen button is available for bills with payment issues",
-            "Click the button to open the reopen dialog",
-          ],
-        },
-        {
-          description: "Provide reopen reason",
-          details: [
-            "Enter a clear reason for reopening the bill",
-            "Common reasons: payment discrepancy, incorrect items, customer request",
+            "Enter a clear reason (e.g., 'payment discrepancy', 'incorrect items', 'customer request')",
             "Click 'Reopen' to confirm",
+            "The bill status changes to 'reopened' and is returned to the sales user for corrections",
+          ],
+        },
+      ],
+    },
+    {
+      title: "View Bills",
+      icon: "bi-receipt",
+      prerequisites: [
+        { description: "Bills exist in the system" },
+      ],
+      steps: [
+        {
+          description: "Navigate to Bills Management > Bills",
+          details: [
+            "Click on 'Bills Management' in the sidebar",
+            "Select 'Bills' from the submenu",
           ],
         },
         {
-          description: "Bill status changes to 'reopened'",
+          description: "Browse and filter bills",
           details: [
-            "The bill will be returned to the sales user for corrections",
-            "Sales user can make changes and resubmit",
+            "Bills across all stations are shown with their current status",
+            "Use status filters to view pending, submitted, closed, or reopened bills",
+            "Hover over status badges to read tooltip explanations",
+          ],
+        },
+        {
+          description: "View bill details",
+          details: [
+            "Click any bill to see its items, payments, and status history",
+            "This view is for oversight and auditing — to process payments, use Process Bills",
           ],
         },
       ],
@@ -153,33 +188,22 @@ export default function SupervisorHelpPage() {
         {
           description: "Navigate to Menu & Pricing > Categories",
           details: [
-            "Click on 'Menu & Pricing' in the sidebar menu",
+            "Click on 'Menu & Pricing' in the sidebar",
             "Select 'Categories' from the submenu",
           ],
         },
         {
           description: "Add a new category",
           details: [
-            "Enter category name in the form at the top",
-            "Click 'Add Category' or 'Submit' button",
-            "The category will appear in the categories list",
+            "Enter the category name in the form at the top",
+            "Click 'Add Category' — it appears in the list immediately",
           ],
         },
         {
-          description: "Edit an existing category",
+          description: "Edit or delete a category",
           details: [
-            "Select a category from the list",
-            "Click 'Edit' or modify the category name",
-            "Save the changes",
-          ],
-        },
-        {
-          description: "Delete a category (if needed)",
-          details: [
-            "Select a category from the list",
-            "Click 'Delete' button",
-            "Confirm the deletion",
-            "Note: Categories with items cannot be deleted",
+            "Select a category and click 'Edit' to rename it",
+            "Click 'Delete' to remove it — categories with items attached cannot be deleted",
           ],
         },
       ],
@@ -195,42 +219,69 @@ export default function SupervisorHelpPage() {
         {
           description: "Navigate to Menu & Pricing > Pricelists",
           details: [
-            "Click on 'Menu & Pricing' in the sidebar menu",
+            "Click on 'Menu & Pricing' in the sidebar",
             "Select 'Pricelists' from the submenu",
           ],
         },
         {
           description: "Create a new pricelist",
           details: [
-            "Click 'Add Pricelist' button",
-            "Enter pricelist name and description",
-            "Set status to 'Active' if it should be immediately available",
-            "Click 'Save' to create the pricelist",
+            "Click 'Add Pricelist'",
+            "Enter name, description, and set status to 'Active'",
+            "Click 'Save'",
           ],
         },
         {
-          description: "Add items to pricelist",
+          description: "Add items and prices",
           details: [
-            "Select the pricelist from the list",
-            "Click 'Add Items' or use the item management interface",
-            "Select items and set their prices",
-            "Save the item prices",
-          ],
-        },
-        {
-          description: "Edit pricelist details",
-          details: [
-            "Select a pricelist from the list",
-            "Click 'Edit' to modify name, description, or status",
+            "Open the pricelist and click 'Add Items'",
+            "Select items and enter their prices",
             "Save the changes",
           ],
         },
         {
-          description: "Link pricelist to station",
+          description: "Link the pricelist to a station",
           details: [
             "Navigate to Stations > Overview",
-            "Select a station",
-            "Link the pricelist to the station",
+            "Open the station, find the 'Linked Pricelists' section, and add the pricelist",
+          ],
+        },
+      ],
+    },
+    {
+      title: "Manage Production",
+      icon: "bi-box-seam",
+      prerequisites: [
+        { description: "Production items and definitions are configured in the system" },
+      ],
+      steps: [
+        {
+          description: "Navigate to Production",
+          details: [
+            "Click on 'Production' in the sidebar",
+          ],
+        },
+        {
+          description: "Issue production",
+          details: [
+            "Select 'Issue Production' from the submenu",
+            "Search for the item to issue (leaf/component items only — grouped items cannot be issued directly)",
+            "Enter the quantity and submit",
+          ],
+        },
+        {
+          description: "Review production history",
+          details: [
+            "Select 'Production History' from the submenu",
+            "View all issued production with dates and quantities",
+            "Use this for reconciliation against sales data",
+          ],
+        },
+        {
+          description: "Manage production definitions",
+          details: [
+            "Select 'Production Definitions' or 'Daily Production' from the submenu",
+            "Configure what constitutes a production run for each item",
           ],
         },
       ],
@@ -239,41 +290,38 @@ export default function SupervisorHelpPage() {
       title: "View Reports",
       icon: "bi-bar-chart",
       prerequisites: [
-        { description: "Bills and transactions exist in the system" },
+        { description: "Bills, production, and inventory transactions exist in the system" },
       ],
       steps: [
         {
-          description: "Navigate to Reports",
+          description: "Navigate to Reports in the sidebar",
           details: [
-            "Click on 'Reports' in the sidebar menu",
-            "Select the type of report you want to view",
+            "Click on 'Reports' and select the report type from the submenu",
           ],
         },
         {
-          description: "Select report type",
+          description: "Select a report",
           details: [
-            "Sales Revenue: View sales revenue reports",
-            "Items Sold Count: View items sold statistics",
-            "Voided Items: View voided items report",
-            "Expenditure: View expenditure reports",
-            "Production/Sales Reconciliation: View reconciliation reports",
-            "Other available reports as needed",
+            "Sales Revenue — total revenue for a period",
+            "Items Sold Count — item-level sales breakdown",
+            "Voided Items — list of all voided bill items",
+            "Production-Sales Reconciliation — compare production output vs. sales",
+            "Production Stock Revenue — value of production stock",
+            "Expenditure — cost tracking",
           ],
         },
         {
-          description: "Set date range",
+          description: "Set date range and generate",
           details: [
-            "Select start date and end date for the report",
-            "Use date pickers to choose the period",
+            "Select start and end dates",
             "Click 'Generate Report' or 'View Report'",
           ],
         },
         {
-          description: "View and analyze results",
+          description: "Review and export",
           details: [
-            "Review the report data",
-            "Export or print the report if needed",
-            "Use filters to drill down into specific data",
+            "Review results on screen",
+            "Export or print for sharing or audit purposes",
           ],
         },
       ],
@@ -281,6 +329,7 @@ export default function SupervisorHelpPage() {
   ];
 
   return (
+    <SecureRoute roleRequired="supervisor">
     <RoleAwareLayout>
       <Container fluid className="py-4">
         {/* Header */}
@@ -290,7 +339,7 @@ export default function SupervisorHelpPage() {
             Supervisor User Documentation
           </h1>
           <p className="mb-0">
-            Step-by-step guides for common supervisor tasks in the POS system
+            Step-by-step guides for supervisor tasks in the POS system
           </p>
         </div>
 
@@ -299,16 +348,17 @@ export default function SupervisorHelpPage() {
           <Card.Body>
             <h5 className="mb-3">
               <i className="bi bi-info-circle me-2 text-primary"></i>
-              About This Documentation
+              Your Role
             </h5>
             <p>
-              This documentation provides detailed user journeys for supervisor tasks.
-              Each journey includes prerequisites that must be completed first, followed by
-              step-by-step instructions to complete the task.
+              As a Supervisor, you oversee billing operations, approve corrections (voids and quantity
+              changes), manage reopened bills, configure menus and pricelists, run production workflows,
+              and generate operational reports. You bridge day-to-day sales operations and management
+              oversight.
             </p>
             <p className="mb-0">
-              <strong>Note:</strong> Make sure to complete all prerequisites before starting
-              any journey to ensure a smooth workflow.
+              <strong>Note:</strong> All void and quantity change approvals flow to you — Cashiers no
+              longer handle those. Make sure to check Void Requests and Change Requests regularly.
             </p>
           </Card.Body>
         </Card>
@@ -347,26 +397,38 @@ export default function SupervisorHelpPage() {
                 <ul className="list-unstyled">
                   <li className="mb-2">
                     <a href="/home/cashier/bills" className="text-decoration-none">
-                      <i className="bi bi-receipt me-2"></i>
+                      <i className="bi bi-cash-stack me-2"></i>
                       Process Bills
                     </a>
                   </li>
                   <li className="mb-2">
+                    <a href="/supervisor/bills" className="text-decoration-none">
+                      <i className="bi bi-receipt me-2"></i>
+                      View Bills
+                    </a>
+                  </li>
+                  <li className="mb-2">
                     <a href="/supervisor/void-requests" className="text-decoration-none">
-                      <i className="bi bi-exclamation-triangle me-2"></i>
+                      <i className="bi bi-x-circle me-2"></i>
                       Void Requests
                     </a>
                   </li>
                   <li className="mb-2">
-                    <a href="/supervisor/reopened-bills" className="text-decoration-none">
-                      <i className="bi bi-arrow-clockwise me-2"></i>
-                      Reopened Bills
+                    <a href="/supervisor/bills/change-requests" className="text-decoration-none">
+                      <i className="bi bi-pencil-square me-2"></i>
+                      Quantity Change Requests
                     </a>
                   </li>
                 </ul>
               </Col>
               <Col md={6}>
                 <ul className="list-unstyled">
+                  <li className="mb-2">
+                    <a href="/supervisor/reopened-bills" className="text-decoration-none">
+                      <i className="bi bi-arrow-clockwise me-2"></i>
+                      Reopened Bills
+                    </a>
+                  </li>
                   <li className="mb-2">
                     <a href="/supervisor/menu/category" className="text-decoration-none">
                       <i className="bi bi-grid me-2"></i>
@@ -382,7 +444,7 @@ export default function SupervisorHelpPage() {
                   <li className="mb-2">
                     <a href="/admin/reports" className="text-decoration-none">
                       <i className="bi bi-bar-chart me-2"></i>
-                      Reports & Analytics
+                      Reports &amp; Analytics
                     </a>
                   </li>
                 </ul>
@@ -392,6 +454,6 @@ export default function SupervisorHelpPage() {
         </Card>
       </Container>
     </RoleAwareLayout>
+    </SecureRoute>
   );
 }
-

@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Image from "next/image";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import NewUser from "../register/new-user";
 import { AuthError, User } from "../../../types/types";

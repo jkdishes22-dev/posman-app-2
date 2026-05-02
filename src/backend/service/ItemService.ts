@@ -390,7 +390,6 @@ export class ItemService {
             const newInventory = inventoryRepository.create({
               item_id: itemData.id,
               quantity: 0,
-              reserved_quantity: 0,
               created_by: user_id,
             });
             await inventoryRepository.save(newInventory);

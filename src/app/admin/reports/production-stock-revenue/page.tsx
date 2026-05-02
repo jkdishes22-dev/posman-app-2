@@ -1,4 +1,5 @@
 "use client";
+import { todayEAT } from "../../../shared/eatDate";
 
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
@@ -26,8 +27,8 @@ export default function ProductionStockRevenueReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [dateRange, setDateRange] = useState({
-    startDate: new Date().toISOString().split("T")[0],
-    endDate: new Date().toISOString().split("T")[0]
+    startDate: todayEAT(),
+    endDate: todayEAT()
   });
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [items, setItems] = useState<Item[]>([]);
@@ -192,4 +193,3 @@ export default function ProductionStockRevenueReportPage() {
     </RoleAwareLayout>
   );
 }
-

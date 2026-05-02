@@ -17,9 +17,17 @@ interface SupervisorLayoutProps {
     authError: AuthError | null;
 }
 
+function getExpandedSidebarWidth(): number {
+    if (typeof window === "undefined") return 280;
+    if (window.innerWidth < 1024) return 60;
+    if (window.innerWidth < 1400) return 220;
+    return 280;
+}
+
 const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError }) => {
     useTooltips();
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [sidebarWidth, setSidebarWidth] = useState(280);
     const [activeItem, setActiveItem] = useState("");
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
     const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
@@ -27,6 +35,13 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
     const { currentStation } = useStation();
     const router = useRouter();
     const pathname = usePathname();
+
+    useEffect(() => {
+        const update = () => setSidebarWidth(getExpandedSidebarWidth());
+        update();
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, []);
 
     useEffect(() => {
         // Set active item based on current path - Rule 5.13: Active State Management
@@ -55,9 +70,11 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             { path: "/admin/station/user", item: "station-users" },
             { path: "/storekeeper/suppliers", item: "suppliers-list" },
             { path: "/storekeeper/purchase-orders", item: "suppliers-purchase-orders" },
+            { path: "/supervisor/expenses", item: "expenses" },
             { path: "/storekeeper", item: "inventory-dashboard" },
             { path: "/storekeeper/stock", item: "inventory-list" },
             { path: "/storekeeper/inventory/transactions", item: "inventory-transactions" },
+            { path: "/admin/logs", item: "system-logs" },
             { path: "/admin/reports", item: "reports-dashboard" },
             { path: "/admin/reports/", item: "reports-dashboard" },
             { path: "/admin/reports/sales-revenue", item: "reports-sales-revenue" },
@@ -111,6 +128,13 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     { label: "Overview", path: "/admin/station" }
                 ];
             }
+        } else if (path.includes("/supervisor/expenses")) {
+            expandedMenuIds.push("suppliers");
+            breadcrumbItems = [
+                { label: "Dashboard", path: "/supervisor" },
+                { label: "Suppliers", path: "/storekeeper/suppliers" },
+                { label: "Expenses", path: "/supervisor/expenses" }
+            ];
         } else if (path.includes("/storekeeper") && (path.includes("/storekeeper/suppliers") || path.includes("/storekeeper/purchase-orders"))) {
             expandedMenuIds.push("suppliers");
             if (path.includes("/storekeeper/suppliers")) {
@@ -255,7 +279,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         },
         {
             id: "bills",
-            label: "Bills Management",
+            label: "Billing",
             icon: "bi-receipt",
             submenu: [
                 {
@@ -298,7 +322,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         },
         {
             id: "menu-pricing",
-            label: "Menu & Pricing",
+            label: "Menus & Pricelist",
             icon: "bi-list-ul",
             submenu: [
                 {
@@ -308,16 +332,16 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     path: "/supervisor/menu/category",
                 },
                 {
-                    id: "menu-recipes",
-                    label: "Recipes",
-                    icon: "bi-journal-text",
-                    path: "/supervisor/menu/recipes",
-                },
-                {
                     id: "menu-pricelist",
                     label: "Pricelists",
                     icon: "bi-tags",
                     path: "/supervisor/menu/pricelist",
+                },
+                {
+                    id: "menu-recipes",
+                    label: "Recipes",
+                    icon: "bi-journal-text",
+                    path: "/supervisor/menu/recipes",
                 },
             ],
         },
@@ -331,44 +355,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     label: "Issue Production",
                     icon: "bi-arrow-up-circle",
                     path: "/supervisor/production",
-                },
-            ],
-        },
-        {
-            id: "stations",
-            label: "Stations",
-            icon: "bi-gear",
-            submenu: [
-                {
-                    id: "stations-overview",
-                    label: "Overview",
-                    icon: "bi-building",
-                    path: "/admin/station", // Direct to admin page to avoid redirect
-                },
-                {
-                    id: "station-users",
-                    label: "Station Users",
-                    icon: "bi-people-fill",
-                    path: "/admin/station/user", // Direct to admin page to avoid redirect
-                },
-            ],
-        },
-        {
-            id: "suppliers",
-            label: "Suppliers",
-            icon: "bi-truck",
-            submenu: [
-                {
-                    id: "suppliers-list",
-                    label: "Suppliers",
-                    icon: "bi-building",
-                    path: "/storekeeper/suppliers",
-                },
-                {
-                    id: "suppliers-purchase-orders",
-                    label: "Purchase Orders",
-                    icon: "bi-cart-check",
-                    path: "/storekeeper/purchase-orders",
                 },
             ],
         },
@@ -398,27 +384,40 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             ],
         },
         {
+            id: "suppliers",
+            label: "Suppliers",
+            icon: "bi-truck",
+            submenu: [
+                {
+                    id: "suppliers-list",
+                    label: "Suppliers",
+                    icon: "bi-building",
+                    path: "/storekeeper/suppliers",
+                },
+                {
+                    id: "suppliers-purchase-orders",
+                    label: "Purchase Orders",
+                    icon: "bi-cart-check",
+                    path: "/storekeeper/purchase-orders",
+                },
+                {
+                    id: "expenses",
+                    label: "Expenses",
+                    icon: "bi-cash-coin",
+                    path: "/supervisor/expenses",
+                },
+            ],
+        },
+        {
             id: "reports",
             label: "Reports",
             icon: "bi-bar-chart",
             submenu: [
                 {
-                    id: "reports-dashboard",
-                    label: "Dashboard",
-                    icon: "bi-speedometer2",
-                    path: "/admin/reports",
-                },
-                {
-                    id: "reports-sales-revenue",
-                    label: "Sales Revenue",
-                    icon: "bi-currency-dollar",
-                    path: "/admin/reports/sales-revenue",
-                },
-                {
-                    id: "reports-production-stock-revenue",
-                    label: "Production/Stock Revenue",
-                    icon: "bi-box-seam",
-                    path: "/admin/reports/production-stock-revenue",
+                    id: "reports-pnl",
+                    label: "Profit & Loss",
+                    icon: "bi-graph-up-arrow",
+                    path: "/admin/reports/pnl",
                 },
                 {
                     id: "reports-items-sold-count",
@@ -427,22 +426,16 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     path: "/admin/reports/items-sold-count",
                 },
                 {
-                    id: "reports-voided-items",
-                    label: "Voided Items",
-                    icon: "bi-exclamation-triangle",
-                    path: "/admin/reports/voided-items",
+                    id: "reports-production-stock-revenue",
+                    label: "Stock & Production",
+                    icon: "bi-box-seam",
+                    path: "/admin/reports/production-stock-revenue",
                 },
                 {
                     id: "reports-expenditure",
-                    label: "Expenditure",
+                    label: "Expenses",
                     icon: "bi-cash-stack",
                     path: "/admin/reports/expenditure",
-                },
-                {
-                    id: "reports-invoices-pending-bills",
-                    label: "Invoices & Pending Bills",
-                    icon: "bi-file-earmark-text",
-                    path: "/admin/reports/invoices-pending-bills",
                 },
                 {
                     id: "reports-purchase-orders",
@@ -451,10 +444,10 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     path: "/admin/reports/purchase-orders",
                 },
                 {
-                    id: "reports-pnl",
-                    label: "Profit & Loss",
-                    icon: "bi-graph-up-arrow",
-                    path: "/admin/reports/pnl",
+                    id: "reports-sales-revenue",
+                    label: "Sales Revenue",
+                    icon: "bi-graph-up",
+                    path: "/admin/reports/sales-revenue",
                 },
             ],
         },
@@ -463,6 +456,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             label: "Settings",
             icon: "bi-gear",
             path: "/supervisor/settings",
+        },
+        {
+            id: "system-logs",
+            label: "System Logs",
+            icon: "bi-journal-text",
+            path: "/admin/logs",
         },
     ];
 
@@ -547,7 +546,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 className={`bg-dark text-white d-flex flex-column ${isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"
                     }`}
                 style={{
-                    width: isCollapsed ? "60px" : "280px",
+                    width: isCollapsed ? "60px" : `${sidebarWidth}px`,
                     transition: "width 0.3s ease",
                     minHeight: "100vh",
                 }}

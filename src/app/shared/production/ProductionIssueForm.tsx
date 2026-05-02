@@ -1,4 +1,5 @@
 "use client";
+import { todayEAT } from "../eatDate";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Form, Button, Spinner, Alert } from "react-bootstrap";
@@ -30,7 +31,7 @@ export default function ProductionIssueForm({
 
   const [selectedId, setSelectedId] = useState<string>("");
   const [quantity, setQuantity] = useState("");
-  const [issueDate, setIssueDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [issueDate, setIssueDate] = useState(() => todayEAT());
   const [notes, setNotes] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -103,7 +104,7 @@ export default function ProductionIssueForm({
         setSelectedId("");
         setQuantity("");
         setNotes("");
-        setIssueDate(new Date().toISOString().split("T")[0]);
+        setIssueDate(todayEAT());
         void loadItems();
         onIssued?.();
       } else if (result.status === 403) {

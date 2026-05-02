@@ -55,6 +55,17 @@ try {
   process.exit(1);
 }
 
+// Step 1.5: Copy public/ and .next/static into standalone so the Next.js server can serve them
+console.log("📋 Copying static assets to standalone output...");
+const standaloneDir = path.join(process.cwd(), ".next/standalone");
+try {
+  fs.cpSync(path.join(process.cwd(), "public"), path.join(standaloneDir, "public"), { recursive: true, force: true });
+  fs.cpSync(path.join(process.cwd(), ".next/static"), path.join(standaloneDir, ".next/static"), { recursive: true, force: true });
+  console.log("✅ Static assets copied to standalone\n");
+} catch (err) {
+  console.warn("⚠️  Warning: could not copy static assets:", err.message);
+}
+
 // Step 2: Verify standalone build exists
 const standalonePath = path.join(process.cwd(), ".next/standalone");
 if (!fs.existsSync(standalonePath)) {
