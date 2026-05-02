@@ -88,11 +88,18 @@ export function createAppDataSource(): DataSource {
   const mode = process.env.DB_MODE || "mysql";
 
   if (mode === "sqlite") {
+    // Electron runs the Next standalone server with cwd = .next/standalone; use an absolute glob
+    // so migrations resolve reliably (relative "src/..." breaks when cwd is not the repo root).
+    const sqliteMigrations = path.join(
+      process.cwd(),
+      "src/backend/config/migrations-sqlite",
+      "[0-9]*.cjs",
+    );
     return new DataSource({
       type: "better-sqlite3",
       database: getSqlitePath(),
       entities,
-      migrations: ["src/backend/config/migrations-sqlite/[0-9]*.cjs"],
+      migrations: [sqliteMigrations],
       synchronize: false,
     });
   }

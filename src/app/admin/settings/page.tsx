@@ -39,6 +39,8 @@ export default function AdminSettingsPage() {
     const [printers, setPrinters] = useState<PrinterInfo[]>([]);
     const [printerSaving, setPrinterSaving] = useState(false);
     const [printerResult, setPrinterResult] = useState<{ success: boolean; error?: string } | null>(null);
+    const [printTestMessage, setPrintTestMessage] = useState<string | null>(null);
+    const [printTestBusy, setPrintTestBusy] = useState(false);
 
     // Bill settings state
     const [billSettings, setBillSettings] = useState<BillSettings>({ show_tax_on_receipt: true });
@@ -106,6 +108,31 @@ export default function AdminSettingsPage() {
             setBackupResult({ success: false, error: "Network error occurred" });
         } finally {
             setBackupLoading(false);
+        }
+    };
+
+    const handleTestPrint = async () => {
+        const electronAPI = (window as any).electron;
+        if (!electronAPI?.printReceipt) {
+            setPrintTestMessage("Silent print is only available in the desktop app (Electron). On web, use Print from a bill screen.");
+            return;
+        }
+        setPrintTestBusy(true);
+        setPrintTestMessage(null);
+        try {
+            const html = `<div style="padding:12px;font-family:monospace"><strong>JK PosMan — test print</strong><br/>`
+                + `${new Date().toLocaleString()}<br/>`
+                + `Printer: ${printerSettings.printer_name || "Default"}</div>`;
+            const outcome = await electronAPI.printReceipt(html, printerSettings.printer_name || "");
+            if (outcome?.success === false) {
+                setPrintTestMessage(`Print failed: ${outcome.failureReason || "Unknown reason"}. Check Electron log (JK PosMan logs) or printer drivers.`);
+            } else {
+                setPrintTestMessage("Print job sent. Check your receipt printer for output.");
+            }
+        } catch (e: any) {
+            setPrintTestMessage(`Print error: ${e?.message || String(e)}`);
+        } finally {
+            setPrintTestBusy(false);
         }
     };
 
@@ -276,6 +303,14 @@ export default function AdminSettingsPage() {
                             )}
                             <Form.Text className="text-muted">Printer list is only available in the desktop app.</Form.Text>
                         </Form.Group>
+                        {printTestMessage && (
+                            <Alert variant={printTestMessage.startsWith("Print job sent") ? "success" : "warning"} className="mb-3" dismissible onClose={() => setPrintTestMessage(null)}>
+                                {printTestMessage}
+                            </Alert>
+                        )}
+                        <Button variant="outline-secondary" className="me-2 mb-3" onClick={handleTestPrint} disabled={printTestBusy}>
+                            {printTestBusy ? <><Spinner animation="border" size="sm" className="me-2" />Sending…</> : "Test print"}
+                        </Button>
                         <Button variant="primary" onClick={handleSavePrinterSettings} disabled={printerSaving}>
                             {printerSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save Printer Settings"}
                         </Button>

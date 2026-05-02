@@ -682,10 +682,16 @@ ipcMain.handle("print-receipt", async (event, htmlContent, printerName) => {
 });
 
 // IPC: list available system printers
-ipcMain.handle("get-printers", async () => {
-    if (!mainWindow) return [];
+ipcMain.handle("get-printers", async (event) => {
     try {
-        return await mainWindow.webContents.getPrintersAsync();
+        const wc = event?.sender;
+        if (wc && typeof wc.getPrintersAsync === "function") {
+            return await wc.getPrintersAsync();
+        }
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            return await mainWindow.webContents.getPrintersAsync();
+        }
+        return [];
     } catch (err) {
         logToFile(`get-printers IPC error: ${err.message}`, "ERROR");
         return [];

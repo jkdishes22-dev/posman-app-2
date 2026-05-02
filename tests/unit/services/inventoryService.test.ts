@@ -63,11 +63,10 @@ describe("InventoryService", () => {
       expect(result).toBeNull();
     });
 
-    it("computes available_quantity as quantity - reserved_quantity", async () => {
+    it("sets available_quantity to on-hand quantity (no reservation column)", async () => {
       mockInventoryRepo.findOne.mockResolvedValue({
         item_id: 1,
         quantity: 20,
-        reserved_quantity: 5,
         min_stock_level: null,
         max_stock_level: null,
         reorder_point: 10,
@@ -75,14 +74,13 @@ describe("InventoryService", () => {
 
       const result = await service.getInventoryLevel(1);
 
-      expect(result?.available_quantity).toBe(15);
+      expect(result?.available_quantity).toBe(20);
     });
 
     it("marks is_low_stock true when available_quantity <= reorder_point", async () => {
       mockInventoryRepo.findOne.mockResolvedValue({
         item_id: 1,
-        quantity: 10,
-        reserved_quantity: 5,
+        quantity: 4,
         min_stock_level: null,
         max_stock_level: null,
         reorder_point: 5,
@@ -97,7 +95,6 @@ describe("InventoryService", () => {
       mockInventoryRepo.findOne.mockResolvedValue({
         item_id: 1,
         quantity: 10,
-        reserved_quantity: 0,
         min_stock_level: null,
         max_stock_level: null,
         reorder_point: null,
@@ -119,28 +116,26 @@ describe("InventoryService", () => {
       expect(result).toBe(0);
     });
 
-    it("returns quantity minus reserved_quantity", async () => {
+    it("returns on-hand quantity as available stock", async () => {
       mockInventoryRepo.findOne.mockResolvedValue({
         item_id: 1,
         quantity: 30,
-        reserved_quantity: 8,
       });
 
       const result = await service.getAvailableStock(1);
 
-      expect(result).toBe(22);
+      expect(result).toBe(30);
     });
 
-    it("returns 0 when quantity is less than reserved (never negative)", async () => {
+    it("returns quantity even when small (no reserved subtraction)", async () => {
       mockInventoryRepo.findOne.mockResolvedValue({
         item_id: 1,
         quantity: 2,
-        reserved_quantity: 5,
       });
 
       const result = await service.getAvailableStock(1);
 
-      expect(result).toBe(0);
+      expect(result).toBe(2);
     });
   });
 

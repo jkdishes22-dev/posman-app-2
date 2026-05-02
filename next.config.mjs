@@ -32,15 +32,16 @@ const nextConfig = {
     // Externalising these packages ensures a single shared module instance and intact names.
     serverExternalPackages: ['typeorm', 'better-sqlite3', 'reflect-metadata'],
     experimental: {
+        // Run src/instrumentation.ts on Node server startup (migrations before first request)
+        instrumentationHook: true,
         // Prevent server bundle class-name mangling that breaks TypeORM targetName lookups.
         serverMinification: false,
     },
-    // Include SQLite migration files in standalone output so TypeORM can find them at runtime.
-    // Must be top-level (not under experimental) in Next.js 15+.
+    // Include migration files in the standalone server bundle (API + instrumentation startup).
     outputFileTracingIncludes: {
-        '/api/**': [
-            './src/backend/config/migrations-sqlite/**/*.cjs',
-            './src/backend/config/migrations/**/*.cjs',
+        "/**": [
+            "./src/backend/config/migrations-sqlite/**/*.cjs",
+            "./src/backend/config/migrations/**/*.cjs",
         ],
     },
     webpack: (config, { dev, isServer }) => {

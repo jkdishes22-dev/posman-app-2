@@ -9,6 +9,7 @@ interface ExpensePayment {
     id: number;
     amount: number;
     payment_method: string;
+    reference?: string | null;
     notes?: string;
     created_at: string;
 }
@@ -63,7 +64,7 @@ export default function ExpensesPage() {
 
     // Record payment modal
     const [payTarget, setPayTarget] = useState<Expense | null>(null);
-    const [payForm, setPayForm] = useState({ amount: "", payment_method: "Cash", notes: "" });
+    const [payForm, setPayForm] = useState({ amount: "", payment_method: "Cash", notes: "", reference: "" });
     const [paySaving, setPaySaving] = useState(false);
     const [payError, setPayError] = useState<string | null>(null);
 
@@ -133,7 +134,7 @@ export default function ExpensesPage() {
             });
             if (res.status === 201) {
                 setPayTarget(null);
-                setPayForm({ amount: "", payment_method: "Cash", notes: "" });
+                setPayForm({ amount: "", payment_method: "Cash", notes: "", reference: "" });
                 loadExpenses(page);
             } else {
                 setPayError(res.error || res.data?.error || "Failed to record payment");
@@ -209,7 +210,7 @@ export default function ExpensesPage() {
                                                     <i className="bi bi-eye"></i>
                                                 </Button>
                                                 {e.status !== "settled" && (
-                                                    <Button size="sm" variant="outline-primary" onClick={() => { setPayTarget(e); setPayForm({ amount: String(e.balance), payment_method: "Cash", notes: "" }); }}>
+                                                    <Button size="sm" variant="outline-primary" onClick={() => { setPayTarget(e); setPayForm({ amount: String(e.balance), payment_method: "Cash", notes: "", reference: "" }); }}>
                                                         Pay
                                                     </Button>
                                                 )}
@@ -332,6 +333,17 @@ export default function ExpensesPage() {
                                 {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
                             </Form.Select>
                         </Form.Group>
+                        {payForm.payment_method === "Mobile Money" && (
+                            <Form.Group className="mb-3">
+                                <Form.Label>Reference / confirmation code</Form.Label>
+                                <Form.Control
+                                    type="text"
+                                    placeholder="e.g. M-Pesa code"
+                                    value={payForm.reference}
+                                    onChange={(e) => setPayForm(f => ({ ...f, reference: e.target.value }))}
+                                />
+                            </Form.Group>
+                        )}
                         <Form.Group className="mb-3">
                             <Form.Label>Notes <span className="text-muted">(optional)</span></Form.Label>
                             <Form.Control
@@ -389,6 +401,7 @@ export default function ExpensesPage() {
                                             <th>Date</th>
                                             <th>Method</th>
                                             <th className="text-end">Amount</th>
+                                            <th>Reference</th>
                                             <th>Notes</th>
                                         </tr>
                                     </thead>
@@ -398,6 +411,7 @@ export default function ExpensesPage() {
                                                 <td>{new Date(p.created_at).toLocaleDateString()}</td>
                                                 <td>{p.payment_method}</td>
                                                 <td className="text-end">KES {Number(p.amount).toFixed(2)}</td>
+                                                <td className="text-monospace small">{p.reference || "—"}</td>
                                                 <td>{p.notes || "—"}</td>
                                             </tr>
                                         ))}

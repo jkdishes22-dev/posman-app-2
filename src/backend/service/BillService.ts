@@ -61,7 +61,7 @@ export class BillService {
     // Validate inventory availability BEFORE creating the bill
     // Use the same logic as the frontend availability check
     const itemIds = items.map((item: any) => item.item_id);
-    const availableInventory = await this.inventoryService.getAvailableInventoryForItems(itemIds);
+    const availableInventory = await this.inventoryService.getAvailableInventoryForItems(itemIds, false);
 
     // Batch load all items to check allowNegativeInventory flags
     const itemRepository = this.billRepository.manager.getRepository(Item);
@@ -160,6 +160,7 @@ export class BillService {
       },
     );
 
+    InventoryService.invalidateInventoryCache();
     return completeBill;
   }
 
@@ -344,7 +345,9 @@ export class BillService {
     if (userId) {
       bill.updated_by = userId;
     }
-    return await this.billRepository.save(bill);
+    const saved = await this.billRepository.save(bill);
+    InventoryService.invalidateInventoryCache();
+    return saved;
   }
 
   // Request void for a specific item (Rule 4.3, 4.5)
@@ -458,7 +461,7 @@ export class BillService {
     }
 
     // Use transaction for atomic operations (Rule 4.8)
-    return await this.billItemRepository.manager.transaction(async manager => {
+    const out = await this.billItemRepository.manager.transaction(async manager => {
       if (approved) {
         // Approve void request - mark item as voided (not deleted)
         billItem.status = BillItemStatus.VOIDED;
@@ -475,9 +478,7 @@ export class BillService {
         bill.total = newTotal;
         await manager.save(bill);
 
-        // Return inventory for voided item if bill was previously submitted
-        // REOPENED status means bill was previously SUBMITTED (inventory was deducted)
-        // PENDING status means inventory was only reserved, not deducted yet
+        // REOPENED: inventory was deducted at original submit — return stock. PENDING: no stock movement; availability updates via cache invalidation.
         if (bill.status === BillStatus.REOPENED) {
           try {
             await this.inventoryService.returnInventoryForVoidedItem(
@@ -492,8 +493,6 @@ export class BillService {
             console.error(`Failed to return inventory for voided item ${itemId} in bill ${billId}:`, inventoryError);
           }
         }
-        // Note: For PENDING bills, inventory was only reserved, not deducted
-        // Reservation will be released if bill is deleted, but voided items don't need special handling
       } else {
         // Reject void request - revert item to pending
         billItem.status = BillItemStatus.PENDING;
@@ -544,6 +543,8 @@ export class BillService {
 
       return savedItem;
     });
+    InventoryService.invalidateInventoryCache();
+    return out;
   }
 
   // Legacy method - kept for backward compatibility
@@ -557,7 +558,9 @@ export class BillService {
     }
 
     billItem.status = BillItemStatus.VOIDED;
-    return await this.billItemRepository.save(billItem);
+    const saved = await this.billItemRepository.save(billItem);
+    InventoryService.invalidateInventoryCache();
+    return saved;
   }
 
   async fetchBillItems(billId: number) {
@@ -656,9 +659,8 @@ export class BillService {
         },
       );
 
-      // Convert inventory reservation to actual deduction (Phase 2: Deduction)
-      // This happens AFTER the transaction commits to ensure bill status is SUBMITTED
-      // This uses InventoryService's own transaction
+      // Deduct stock on submit (pending bills no longer count toward availability once submitted).
+      // Runs after the DB transaction commits so bill status is SUBMITTED.
       try {
         await this.inventoryService.deductInventoryForSale(bill.id, billPayment.userId);
       } catch (error: any) {
@@ -1031,7 +1033,7 @@ export class BillService {
     }
 
     // Use transaction for atomic operations (Rule 4.8)
-    return await this.billItemRepository.manager.transaction(async manager => {
+    const out = await this.billItemRepository.manager.transaction(async manager => {
       if (approved) {
         // Approve quantity change - update quantity and recalculate subtotal
         const oldQuantity = billItem.quantity;
@@ -1099,6 +1101,8 @@ export class BillService {
 
       return savedItem;
     });
+    InventoryService.invalidateInventoryCache();
+    return out;
   }
 
   // Get void requests (bills with items in void_pending status)

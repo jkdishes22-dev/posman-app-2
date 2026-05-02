@@ -389,11 +389,54 @@ async function hasCoreSchema(): Promise<boolean> {
 
 // --- SQLite-specific bootstrap ---
 
+/**
+ * Apply pending TypeORM migrations when the Node server process boots (Next instrumentation).
+ * Covers fresh installs, Electron upgrades/restarts, and dev — before the first HTTP request.
+ * Safe when called again from checkSqliteStatus / getConnection; already-applied revisions are skipped.
+ */
+export async function applyPendingMigrationsAtStartup(): Promise<void> {
+  const sqlite = isSqliteMode();
+  try {
+    if (!AppDataSource.isInitialized) {
+      await AppDataSource.initialize();
+    }
+  } catch (err: any) {
+    if (sqlite) {
+      console.error("[startup] SQLite database init failed:", err?.message || err);
+      throw err;
+    }
+    console.warn(
+      "[startup] Database not reachable; migrations will run after the DB is available:",
+      err?.message || err,
+    );
+    return;
+  }
+
+  try {
+    const executed = await AppDataSource.runMigrations();
+    if (executed.length > 0) {
+      console.info(
+        `[startup] Applied ${executed.length} pending migration(s): ${executed.map((m) => m.name).join(", ")}`,
+      );
+    }
+  } catch (err: any) {
+    if (sqlite) {
+      console.error("[startup] SQLite migrations failed:", err?.message || err);
+      throw err;
+    }
+    console.warn("[startup] Migration run failed; will retry on first DB connection:", err?.message || err);
+  }
+}
+
 async function checkSqliteStatus(): Promise<SetupStatusPayload> {
   try {
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
     }
+    // Always apply pending migrations — core tables alone are not enough (e.g. system_settings,
+    // expenses). Previously we only checked five tables and skipped runMigrations forever after
+    // first boot, leaving DBs stuck at an old migration revision.
+    await AppDataSource.runMigrations();
     const requiredTables = ["user", "roles", "permissions", "user_roles", "role_permissions"];
     const placeholders = requiredTables.map(() => "?").join(",");
     const result = await AppDataSource.query(

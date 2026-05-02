@@ -4,8 +4,16 @@ import path from "path";
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  resolve: {
+    alias: {
+      "@backend": path.resolve(__dirname, "src/backend"),
+      "@entities": path.resolve(__dirname, "src/backend/entities"),
+      "@services": path.resolve(__dirname, "src/backend/service"),
+    },
+  },
   test: {
-    include: ["tests/e2e/**/*.test.ts"],
+    // Include root-level *.test.ts as well as nested **/*.test.ts (single "*" misses e2e/*.test.ts on some matchers)
+    include: ["tests/e2e/**/*.test.ts", "tests/e2e/*.test.ts"],
     environment: "node",
     globalSetup: ["tests/e2e/setup/global-setup.ts"],
     setupFiles: ["tests/e2e/setup/patch-sqlite.ts"],

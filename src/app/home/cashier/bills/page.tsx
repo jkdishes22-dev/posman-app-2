@@ -1119,7 +1119,7 @@ const CashierBillsPage = () => {
                 Bill Details
               </h5>
             </div>
-            <div className="card-body" style={{ overflowY: "auto", maxHeight: "calc(100vh - 300px)" }}>
+            <div className="card-body pos-cashier-table-max" style={{ overflowY: "auto" }}>
               {closeBillError && <div className="alert alert-danger alert-sm">{closeBillError}</div>}
               {selectedBills.length === 1 && selectedBill ? (
                 <div style={{ wordWrap: "break-word" }}>
@@ -1466,7 +1466,7 @@ const CashierBillsPage = () => {
                 Payment Details
               </h5>
             </div>
-            <div className="card-body" style={{ overflowY: "auto", maxHeight: "calc(100vh - 300px)" }}>
+            <div className="card-body pos-cashier-table-max" style={{ overflowY: "auto" }}>
               {selectedBills.length === 1 && selectedBill ? (
                 <div style={{ wordWrap: "break-word" }}>
                   {(() => {

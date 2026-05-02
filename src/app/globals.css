@@ -370,6 +370,34 @@
     overflow-y: auto;
 }
 
+/* ~15" / short-height screens: reclaim vertical space for POS panels */
+@media screen and (max-height: 900px) {
+    .items-grid,
+    .bill-items {
+        max-height: 45vh;
+    }
+}
+
+.pos-panel-height {
+    height: calc(100vh - 250px);
+}
+
+@media screen and (max-height: 900px) {
+    .pos-panel-height {
+        height: calc(100vh - 190px);
+    }
+}
+
+.pos-cashier-table-max {
+    max-height: calc(100vh - 300px);
+}
+
+@media screen and (max-height: 900px) {
+    .pos-cashier-table-max {
+        max-height: calc(100vh - 220px);
+    }
+}
+
 /* Material Design Utility Classes */
 .min-vh-100 {
     min-height: 100vh;

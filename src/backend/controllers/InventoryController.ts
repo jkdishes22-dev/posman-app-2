@@ -306,7 +306,7 @@ export const getAvailableInventoryHandler = async (
 ) => {
     const inventoryService = new InventoryService(req.db);
     try {
-        const { itemIds, includeDetails } = req.query;
+        const { itemIds, includeDetails, excludeBillId: excludeBillIdRaw } = req.query;
 
         if (!itemIds) {
             return res.status(400).json({
@@ -326,11 +326,24 @@ export const getAvailableInventoryHandler = async (
             });
         }
 
+        let excludeBillId: number | undefined;
+        if (excludeBillIdRaw !== undefined && excludeBillIdRaw !== "") {
+            const parsed = parseInt(String(excludeBillIdRaw), 10);
+            if (Number.isNaN(parsed) || parsed <= 0) {
+                return res.status(400).json({
+                    message: "excludeBillId must be a positive integer when provided",
+                });
+            }
+            excludeBillId = parsed;
+        }
+
+        const availabilityOptions = excludeBillId !== undefined ? { excludeBillId } : undefined;
+
         // Check if details are requested
         const includeDetailsFlag = includeDetails === "true" || includeDetails === "1";
 
         if (includeDetailsFlag) {
-            const result = await inventoryService.getAvailableInventoryForItems(itemIdArray, true);
+            const result = await inventoryService.getAvailableInventoryForItems(itemIdArray, true, availabilityOptions);
 
             // Convert Maps to objects for JSON response
             const available: Record<number, number> = {};
@@ -348,7 +361,7 @@ export const getAvailableInventoryHandler = async (
                 missingConstituents,
             });
         } else {
-            const availableMap = await inventoryService.getAvailableInventoryForItems(itemIdArray);
+            const availableMap = await inventoryService.getAvailableInventoryForItems(itemIdArray, false, availabilityOptions);
 
             // Convert Map to object for JSON response
             const result: Record<number, number> = {};

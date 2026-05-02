@@ -13,6 +13,8 @@ export interface CreateExpenseInput {
 export interface RecordPaymentInput {
     amount: number;
     payment_method?: string;
+    /** e.g. M-Pesa confirmation code */
+    reference?: string;
     notes?: string;
 }
 
@@ -73,16 +75,19 @@ export class ExpenseService {
         const payAmount = Number(data.amount);
         if (!payAmount || payAmount <= 0) throw new Error("Payment amount must be greater than 0");
 
+        const refNorm = data.reference?.trim();
         const payment = this.paymentRepo.create({
             expense_id: expenseId,
             amount: payAmount,
             payment_method: data.payment_method || "cash",
+            reference: refNorm ? refNorm.toUpperCase() : undefined,
             notes: data.notes?.trim() || undefined,
             created_by: userId,
         });
         await this.paymentRepo.save(payment);
 
-        const allPayments = [...(expense.payments || []), payment];
+        const refreshed = await this.expenseRepo.findOne({ where: { id: expenseId }, relations: ["payments"] });
+        const allPayments = refreshed?.payments || [];
         const paid = allPayments.reduce((s, p) => s + Number(p.amount), 0);
         const total = Number(expense.amount);
 

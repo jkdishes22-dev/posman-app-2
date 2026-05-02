@@ -2,9 +2,10 @@ import { Inventory } from "@backend/entities/Inventory";
 import { InventoryTransaction, InventoryTransactionType, InventoryReferenceType } from "@backend/entities/InventoryTransaction";
 import { Item } from "@backend/entities/Item";
 import { Bill, BillStatus } from "@backend/entities/Bill";
-import { BillItem } from "@backend/entities/BillItem";
+import { BillItem, BillItemStatus } from "@backend/entities/BillItem";
 import { ItemGroup } from "@backend/entities/ItemGroup";
 import { DataSource, Repository } from "typeorm";
+import { cache } from "@backend/utils/cache";
 
 export interface InventoryLevel {
     item_id: number;
@@ -20,7 +21,11 @@ export interface LowStockItem extends InventoryLevel {
     item: Item;
 }
 
-import { cache } from "@backend/utils/cache";
+/** Options for {@link InventoryService.getAvailableInventoryForItems}. */
+export interface AvailableInventoryOptions {
+    /** Exclude this bill's lines when subtracting other users' pending-bill demand (editing an open bill). */
+    excludeBillId?: number;
+}
 
 export class InventoryService {
     private inventoryRepository: Repository<Inventory>;
@@ -283,34 +288,26 @@ export class InventoryService {
     }
 
     /**
-     * Get available inventory for multiple items (batch operation)
-     * Returns a map of item_id -> available_quantity
+     * Get available inventory for multiple items (batch operation).
+     * Returns a map of item_id -> quantity available for **new** sales: on-hand minus demand
+     * from everyone else's pending (unsubmitted) bills, matching createBill validation.
+     * Not cached: pending bills change frequently.
      */
-    public async getAvailableInventoryForItems(itemIds: number[]): Promise<Map<number, number>>;
-    public async getAvailableInventoryForItems(itemIds: number[], includeDetails: false): Promise<Map<number, number>>;
-    public async getAvailableInventoryForItems(itemIds: number[], includeDetails: true): Promise<{
+    public async getAvailableInventoryForItems(itemIds: number[], includeDetails?: false, options?: AvailableInventoryOptions): Promise<Map<number, number>>;
+    public async getAvailableInventoryForItems(itemIds: number[], includeDetails: true, options?: AvailableInventoryOptions): Promise<{
         availability: Map<number, number>;
         missingConstituents: Map<number, Array<{ itemId: number; itemName: string; available: number; required: number }>>;
     }>;
     public async getAvailableInventoryForItems(
         itemIds: number[],
-        includeDetails: boolean = false
+        includeDetails: boolean = false,
+        options?: AvailableInventoryOptions
     ): Promise<Map<number, number> | {
         availability: Map<number, number>;
         missingConstituents: Map<number, Array<{ itemId: number; itemName: string; available: number; required: number }>>;
     }> {
         if (itemIds.length === 0) {
             return new Map();
-        }
-
-        // Create cache key from sorted itemIds to ensure consistent caching
-        const sortedIds = [...itemIds].sort((a, b) => a - b);
-        const cacheKey = `available_inventory_${sortedIds.join(",")}`;
-
-        // Try cache first
-        const cached = cache.get<Map<number, number>>(cacheKey);
-        if (cached !== null) {
-            return cached;
         }
 
         // Get all items to check which are composite
@@ -326,8 +323,6 @@ export class InventoryService {
             for (const itemId of itemIds) {
                 result.set(itemId, 0);
             }
-            // Cache empty result
-            cache.set(cacheKey, result);
             return result;
         }
 
@@ -390,13 +385,15 @@ export class InventoryService {
             .where("inventory.item_id IN (:...itemIds)", { itemIds: allItemIds })
             .getMany();
 
-        // Pre-calculate all available inventories in one pass
+        // On-hand quantities (physical rows)
         const inventoryMap = new Map<number, number>();
         for (const inventory of inventories) {
             inventoryMap.set(inventory.item_id, Math.max(0, inventory.quantity));
         }
 
-        // Pre-calculate constituent availability for composite items (avoid repeated lookups)
+        await this.subtractPendingBillsFromInventoryMap(inventoryMap, options?.excludeBillId);
+
+        // Pre-calculate constituent availability for composite items (after pending-bill adjustment)
         const constituentAvailabilityMap = new Map<number, number>();
         for (const constituentId of constituentItemIds) {
             constituentAvailabilityMap.set(constituentId, inventoryMap.get(constituentId) || 0);
@@ -517,16 +514,101 @@ export class InventoryService {
             }
         }
 
-        // Cache the result (only cache simple availability, not details)
         if (!includeDetails) {
-            cache.set(cacheKey, result);
             return result;
-        } else {
-            // Return detailed result with missing constituents
-            return {
-                availability: result,
-                missingConstituents: missingConstituentsMap,
-            };
+        }
+        return {
+            availability: result,
+            missingConstituents: missingConstituentsMap,
+        };
+    }
+
+    /**
+     * Reduce on-hand counts by quantities tied up in other users' pending bills (not yet submitted).
+     * Mirrors composite expansion in deductInventoryForSale (sellable SKU + constituents).
+     */
+    private async subtractPendingBillsFromInventoryMap(
+        inventoryMap: Map<number, number>,
+        excludeBillId?: number,
+    ): Promise<void> {
+        const billItemRepo = this.inventoryRepository.manager.getRepository(BillItem);
+
+        const qb = billItemRepo
+            .createQueryBuilder("bi")
+            .innerJoin("bi.bill", "b")
+            .select("bi.item_id", "item_id")
+            .addSelect("SUM(bi.quantity)", "quantity")
+            .where("b.status = :pending", { pending: BillStatus.PENDING })
+            .andWhere("bi.status NOT IN (:...ex)", {
+                ex: [BillItemStatus.VOIDED, BillItemStatus.DELETED],
+            })
+            .groupBy("bi.item_id");
+
+        if (excludeBillId != null && Number.isFinite(excludeBillId)) {
+            qb.andWhere("b.id != :exId", { exId: excludeBillId });
+        }
+
+        const rows = await qb.getRawMany();
+        if (rows.length === 0) {
+            return;
+        }
+
+        const pendingSellableIds = rows
+            .map((r: { item_id?: number | string }) => Number(r.item_id))
+            .filter((id: number) => Number.isFinite(id) && id > 0);
+        const uniquePendingIds = [...new Set(pendingSellableIds)];
+
+        const pendingRatios = uniquePendingIds.length > 0
+            ? await this.itemGroupRepository
+                .createQueryBuilder("ig")
+                .leftJoinAndSelect("ig.subItem", "subItem")
+                .leftJoinAndSelect("ig.item", "item")
+                .where("ig.item_id IN (:...ids)", { ids: uniquePendingIds })
+                .getMany()
+            : [];
+
+        const ratioDefinitionsByPendingItem = new Map<number, Array<{ subItemId: number; portionSize: number }>>();
+        for (const ratio of pendingRatios) {
+            const itemId = ratio.item?.id;
+            const subItem = ratio.subItem;
+            if (!itemId || !subItem?.id || subItem.id === itemId) {
+                continue;
+            }
+            if (!ratioDefinitionsByPendingItem.has(itemId)) {
+                ratioDefinitionsByPendingItem.set(itemId, []);
+            }
+            ratioDefinitionsByPendingItem.get(itemId)!.push({
+                subItemId: subItem.id,
+                portionSize: ratio.portion_size,
+            });
+        }
+
+        const demand = new Map<number, number>();
+        const addDemand = (itemId: number, units: number) => {
+            if (!itemId || units <= 0) {
+                return;
+            }
+            demand.set(itemId, (demand.get(itemId) || 0) + units);
+        };
+
+        for (const row of rows) {
+            const itemId = Number((row as { item_id?: number | string }).item_id);
+            const qty = Number((row as { quantity?: number | string }).quantity);
+            if (!Number.isFinite(itemId) || itemId <= 0 || !Number.isFinite(qty) || qty <= 0) {
+                continue;
+            }
+            addDemand(itemId, qty);
+            const pr = ratioDefinitionsByPendingItem.get(itemId);
+            if (pr) {
+                for (const r of pr) {
+                    addDemand(r.subItemId, qty * r.portionSize);
+                }
+            }
+        }
+
+        for (const [itemId, d] of demand) {
+            const physical = inventoryMap.has(itemId) ? inventoryMap.get(itemId)! : 0;
+            inventoryMap.set(itemId, Math.max(0, physical - d));
         }
     }
 
@@ -619,14 +701,11 @@ export class InventoryService {
             await transactionalEntityManager.save(InventoryTransaction, transaction);
         }
 
-        // Invalidate cache after inventory reservation
         InventoryService.invalidateInventoryCache();
     }
 
     /**
-     * Convert reservation to actual deduction (Phase 2: Deduction)
-     * Called when bill is submitted (SUBMITTED status)
-     * 
+     * Deduct inventory when a bill is submitted (SUBMITTED).
      * Universal Tracking: ALL items (stock and non-stock) are deducted.
      * Negative Prevention: Items without allowNegativeInventory flag cannot go negative.
      * Supports ratio-based deduction for composite items (all constituents are deducted).

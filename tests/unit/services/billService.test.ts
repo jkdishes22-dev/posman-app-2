@@ -4,13 +4,15 @@ import { createMockDataSource, createMockRepository, createMockTransactionalEnti
 const mockGetAvailableInventoryForItems = vi.fn();
 const mockReserveInventoryForBill = vi.fn().mockResolvedValue({});
 
-vi.mock("@backend/service/InventoryService", () => ({
-  InventoryService: vi.fn().mockImplementation(() => ({
+vi.mock("@backend/service/InventoryService", () => {
+  const InventoryService = vi.fn().mockImplementation(() => ({
     getAvailableInventoryForItems: mockGetAvailableInventoryForItems,
     reserveInventoryForBill: mockReserveInventoryForBill,
     reduceInventoryForBill: vi.fn().mockResolvedValue({}),
-  })),
-}));
+  }));
+  InventoryService.invalidateInventoryCache = vi.fn();
+  return { InventoryService };
+});
 
 vi.mock("@backend/service/UserService", () => ({
   UserService: vi.fn().mockImplementation(() => ({
@@ -53,6 +55,7 @@ vi.mock("@backend/config/timezone", () => ({
 }));
 
 import { BillService } from "@backend/service/BillService";
+import { InventoryService } from "@backend/service/InventoryService";
 import { BillStatus } from "@backend/entities/Bill";
 import { BillItemStatus } from "@backend/entities/BillItem";
 import { AppDataSource } from "@backend/config/data-source";
@@ -114,7 +117,7 @@ describe("BillService", () => {
         station_id: null,
       });
 
-      expect(mockReserveInventoryForBill).toHaveBeenCalled();
+      expect(InventoryService.invalidateInventoryCache).toHaveBeenCalled();
     });
 
     it("returns existing bill when request_id matches (idempotency)", async () => {

@@ -11,6 +11,12 @@ export interface PrintOptions {
     type: "customer" | "captain" | "receipt";
 }
 
+export type PrintReceiptResult = {
+    success: boolean;
+    failureReason?: string | null;
+    mode: "electron" | "browser" | "blocked" | "error";
+};
+
 /**
  * Generate a timestamp-based filename for receipts
  */
@@ -46,8 +52,8 @@ export const printReceiptWithTimestamp = async (
     type: "customer" | "captain" | "receipt" = "receipt",
     printerName?: string,
     extraProps?: Record<string, any>
-): Promise<void> => {
-    return new Promise<void>((resolve) => {
+): Promise<PrintReceiptResult> => {
+    return new Promise<PrintReceiptResult>((resolve) => {
         const tempDiv = document.createElement("div");
         tempDiv.style.position = "absolute";
         tempDiv.style.left = "-9999px";
@@ -65,7 +71,22 @@ export const printReceiptWithTimestamp = async (
             // Electron path: silent print via main-process IPC
             const electronAPI = (window as any).electron;
             if (electronAPI?.printReceipt) {
-                electronAPI.printReceipt(printContents, printerName || "").then(() => resolve()).catch(() => resolve());
+                electronAPI.printReceipt(printContents, printerName || "")
+                    .then((outcome: { success?: boolean; failureReason?: string | null } | undefined) => {
+                        const success = outcome?.success !== false;
+                        resolve({
+                            success,
+                            failureReason: outcome?.failureReason ?? null,
+                            mode: "electron",
+                        });
+                    })
+                    .catch((err: Error) => {
+                        resolve({
+                            success: false,
+                            failureReason: err?.message || "print IPC failed",
+                            mode: "electron",
+                        });
+                    });
                 return;
             }
 
@@ -74,7 +95,7 @@ export const printReceiptWithTimestamp = async (
             const win = window.open("", "", "width=350,height=600");
             if (!win) {
                 alert("Pop-up blocked! Please allow pop-ups for this site and try again.");
-                resolve();
+                resolve({ success: false, failureReason: "Pop-up blocked", mode: "blocked" });
                 return;
             }
             try {
@@ -87,11 +108,15 @@ export const printReceiptWithTimestamp = async (
                 setTimeout(() => {
                     win.print();
                     win.close();
-                    resolve();
+                    resolve({ success: true, mode: "browser" });
                 }, 500);
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Print error:", error);
-                resolve();
+                resolve({
+                    success: false,
+                    failureReason: error?.message || String(error),
+                    mode: "error",
+                });
             }
         }, 100);
     });

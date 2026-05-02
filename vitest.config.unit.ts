@@ -1,8 +1,16 @@
 import { defineConfig } from "vitest/config";
 import tsconfigPaths from "vite-tsconfig-paths";
+import path from "path";
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  resolve: {
+    alias: {
+      "@backend": path.resolve(__dirname, "src/backend"),
+      "@entities": path.resolve(__dirname, "src/backend/entities"),
+      "@services": path.resolve(__dirname, "src/backend/service"),
+    },
+  },
   test: {
     include: ["tests/unit/**/*.test.ts"],
     environment: "node",

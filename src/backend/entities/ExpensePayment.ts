@@ -17,6 +17,9 @@ export class ExpensePayment extends BaseEntity {
     @Column({ type: "varchar", length: 50, name: "payment_method", default: "cash" })
     payment_method: string;
 
+    @Column({ type: "varchar", length: 255, nullable: true })
+    reference: string | null;
+
     @Column({ type: "text", nullable: true })
     notes: string;
 }

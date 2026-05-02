@@ -1,5 +1,9 @@
-module.exports = class PrinterSettingsSqlite1700000000024 {
-  name = "PrinterSettingsSqlite1700000000024";
+/**
+ * Inserts default printer_settings row. Was 1700000000024 but that timestamp collided with
+ * SystemSettingsSqlite (same revision = undefined order in TypeORM).
+ */
+module.exports = class PrinterSettingsSqlite1700000000031 {
+  name = "PrinterSettingsSqlite1700000000031";
 
   async up(queryRunner) {
     await queryRunner.query(`

@@ -637,7 +637,7 @@ const MySales = () => {
           {/* Bills and details row */}
           <div className="row g-2">
             <div className="col-lg-5 col-md-12 mb-2">
-              <div className="card shadow-sm" style={{ height: "calc(100vh - 250px)", display: "flex", flexDirection: "column" }}>
+              <div className="card shadow-sm pos-panel-height" style={{ display: "flex", flexDirection: "column" }}>
                 <div className="card-header bg-light d-flex justify-content-between align-items-center py-2 flex-shrink-0">
                   <h6 className="mb-0 fw-bold">Bills List</h6>
                   <Button
@@ -818,7 +818,7 @@ const MySales = () => {
             </div>
             <div className="col-lg-7 col-md-12 mb-2">
               {isLoadingBillDetails ? (
-                <div className="card" style={{ height: "calc(100vh - 250px)" }}>
+                <div className="card pos-panel-height">
                   <div className="card-body d-flex align-items-center justify-content-center">
                     <div className="text-center">
                       <div className="spinner-border text-primary mb-3" role="status">
@@ -829,7 +829,7 @@ const MySales = () => {
                   </div>
                 </div>
               ) : selectedBill ? (
-                <div className="card" style={{ height: "calc(100vh - 250px)", display: "flex", flexDirection: "column" }}>
+                <div className="card pos-panel-height" style={{ display: "flex", flexDirection: "column" }}>
                   <div className="card-header bg-light flex-shrink-0">
                     <h6 className="mb-0 fw-bold">
                       <i className="bi bi-receipt me-2"></i>

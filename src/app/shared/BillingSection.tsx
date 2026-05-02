@@ -84,6 +84,9 @@ const BillingSection = () => {
   const [autoPrintPrinterName, setAutoPrintPrinterName] = useState("");
   const [showTax, setShowTax] = useState(true);
 
+  /** While a pending bill is open, exclude it from pending-demand so totals match server validation. */
+  const pendingBillExcludeIdRef = useRef<number | undefined>(undefined);
+
   const cleanupModalArtifacts = useCallback(() => {
     if (typeof document === "undefined") {
       return;
@@ -111,6 +114,14 @@ const BillingSection = () => {
     // Note: Stations and pricelists are already loaded by their respective contexts on mount
     // No need to call loadStationsIfNeeded/loadPricelistsIfNeeded here as contexts handle it
   }, [isAuthenticated, user]);
+
+  useEffect(() => {
+    if (createdBill && String(createdBill.status).toLowerCase() === "pending" && createdBill.id) {
+      pendingBillExcludeIdRef.current = Number(createdBill.id);
+    } else {
+      pendingBillExcludeIdRef.current = undefined;
+    }
+  }, [createdBill]);
 
   // Load printer and bill settings once on mount
   useEffect(() => {
@@ -175,9 +186,11 @@ const BillingSection = () => {
 
     try {
       const itemIdsParam = itemIds.join(",");
+      const ex = pendingBillExcludeIdRef.current;
+      const excludeQs = ex ? `&excludeBillId=${ex}` : "";
       const url = includeDetails
-        ? `/api/inventory/available?itemIds=${itemIdsParam}&includeDetails=true`
-        : `/api/inventory/available?itemIds=${itemIdsParam}`;
+        ? `/api/inventory/available?itemIds=${itemIdsParam}&includeDetails=true${excludeQs}`
+        : `/api/inventory/available?itemIds=${itemIdsParam}${excludeQs}`;
       const result = await apiCall(url);
 
       if (result.status === 200) {
@@ -603,8 +616,14 @@ const BillingSection = () => {
           // Auto-print then auto-reset; without auto-print, reset immediately.
           if (autoPrintEnabled) {
             (async () => {
-              await printReceiptWithTimestamp(CaptainOrderPrint, billForReceipt, "Captain Order", "captain", autoPrintPrinterName || undefined, { showTax });
-              await printReceiptWithTimestamp(CustomerCopyPrint, billForReceipt, "Customer Copy", "customer", autoPrintPrinterName || undefined, { showTax });
+              const captainPrint = await printReceiptWithTimestamp(CaptainOrderPrint, billForReceipt, "Captain Order", "captain", autoPrintPrinterName || undefined, { showTax });
+              const customerPrint = await printReceiptWithTimestamp(CustomerCopyPrint, billForReceipt, "Customer Copy", "customer", autoPrintPrinterName || undefined, { showTax });
+              if (!captainPrint.success || !customerPrint.success) {
+                console.warn("Auto-print: one or more copies failed", {
+                  captain: captainPrint,
+                  customer: customerPrint,
+                });
+              }
               resetForNewBill();
             })();
           } else {
