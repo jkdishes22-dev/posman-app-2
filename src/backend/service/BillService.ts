@@ -180,14 +180,12 @@ export class BillService {
     const { targetDate, status, billId, billingUserId } = billFilter;
     let startOfDayDate, endOfDayDate;
     if (targetDate) {
-      // targetDate is in UTC format (YYYY-MM-DDTHH:MM:SS.000Z)
-      // Convert to local timezone for database comparison since DB stores in local time
+      // Convert the target date to the app's local timezone, then get the full
+      // day range (midnight → 23:59:59) expressed as UTC timestamps for the DB query.
       const appTimezone = getAppTimezone();
       const localDate = toZonedTime(targetDate, appTimezone);
-
-      // Create local date range for the entire day
-      startOfDayDate = startOfDay(localDate);
-      endOfDayDate = endOfDay(localDate);
+      startOfDayDate = fromZonedTime(startOfDay(localDate), appTimezone);
+      endOfDayDate = fromZonedTime(endOfDay(localDate), appTimezone);
     }
 
     // Optimize: Only fetch user if we need role check (not needed for single billId query)

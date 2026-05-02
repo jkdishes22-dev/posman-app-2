@@ -4,7 +4,6 @@ import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
 import CategoryItems from "../../../admin/menu/category/components/category/category-items";
 import Categories from "../../../admin/menu/category/components/category/categories";
-import Image from "next/image";
 import CategoryDeleteModal from "../../../admin/menu/category/components/category/category-delete";
 import { AuthError } from "../../../types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";

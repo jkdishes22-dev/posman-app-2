@@ -2,17 +2,9 @@ import React, { useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
+import { EAT_TIMEZONE } from "./eatDate";
 
-/**
- * Get the application timezone
- * Uses local timezone by default
- */
-const getAppTimezone = (): string => {
-  // Use local timezone
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
-};
-
-const timeZone = getAppTimezone();
+const timeZone = EAT_TIMEZONE;
 
 const TimeZoneAwareDatePicker = ({
   onDateChange,

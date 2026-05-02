@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
-import Image from "next/image";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";

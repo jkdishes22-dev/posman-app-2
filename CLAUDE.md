@@ -1,4 +1,4 @@
-# Project rules
+ # Project rules
 
 - Always create a new branch from origin/main when starting a new feature or change 
 - Always switch to plan mode when researching about an issue. Ask to be switched to edit mode manually
