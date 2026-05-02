@@ -66,9 +66,23 @@ function StockManagementContent() {
     const [showAdjustModal, setShowAdjustModal] = useState(false);
     const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
     const [adjustQuantity, setAdjustQuantity] = useState<string>("");
-    const [adjustReason, setAdjustReason] = useState<string>("");
+    const [adjustReasonCategory, setAdjustReasonCategory] = useState<string>("");
+    const [adjustReasonNotes, setAdjustReasonNotes] = useState<string>("");
     const [isAdjusting, setIsAdjusting] = useState(false);
     const [adjustError, setAdjustError] = useState<string | null>(null);
+
+    // Predefined adjustment reasons (helps storekeepers track *why* stock changes
+    // and keeps reporting consistent across users).
+    const ADJUSTMENT_REASONS = [
+        { value: "stale", label: "Stale / past freshness window" },
+        { value: "expired", label: "Expired" },
+        { value: "damaged", label: "Damaged / broken" },
+        { value: "spillage", label: "Spillage / spoilage" },
+        { value: "theft", label: "Theft / shrinkage" },
+        { value: "stock_count", label: "Physical stock count correction" },
+        { value: "data_entry_correction", label: "Data entry correction" },
+        { value: "other", label: "Other (describe in notes)" },
+    ] as const;
 
     useEffect(() => {
         // Read filter from URL query params
@@ -165,8 +179,13 @@ function StockManagementContent() {
 
     const handleAdjustClick = (item: InventoryItem) => {
         setSelectedItem(item);
-        setAdjustQuantity(item.quantity.toString());
-        setAdjustReason("");
+        // Default the new quantity to the currently-available quantity rather than the
+        // raw on-hand total. This nudges storekeepers to subtract from what's actually
+        // available, which matches the user's expectation that "adjustments operate on
+        // currently-available stock".
+        setAdjustQuantity(String(item.available_quantity ?? item.quantity ?? 0));
+        setAdjustReasonCategory("");
+        setAdjustReasonNotes("");
         setAdjustError(null);
         setShowAdjustModal(true);
     };
@@ -181,10 +200,20 @@ function StockManagementContent() {
             return;
         }
 
-        if (!adjustReason.trim()) {
-            setAdjustError("Please provide a reason for the adjustment");
+        if (!adjustReasonCategory) {
+            setAdjustError("Please select a reason for the adjustment");
             return;
         }
+        if (adjustReasonCategory === "other" && !adjustReasonNotes.trim()) {
+            setAdjustError("Please describe the adjustment reason in the notes");
+            return;
+        }
+
+        const reasonLabel = ADJUSTMENT_REASONS.find((r) => r.value === adjustReasonCategory)?.label
+            ?? adjustReasonCategory;
+        const reasonText = adjustReasonNotes.trim()
+            ? `${reasonLabel} — ${adjustReasonNotes.trim()}`
+            : reasonLabel;
 
         setIsAdjusting(true);
 
@@ -193,7 +222,7 @@ function StockManagementContent() {
                 method: "POST",
                 body: JSON.stringify({
                     new_quantity: newQuantity,
-                    reason: adjustReason.trim(),
+                    reason: reasonText,
                 }),
             });
 
@@ -399,11 +428,15 @@ function StockManagementContent() {
                                 <p>
                                     <strong>Item:</strong> {selectedItem.item.name} ({selectedItem.item.code})
                                 </p>
+                                <p className="mb-1">
+                                    <strong>On-hand:</strong> {selectedItem.quantity}
+                                </p>
                                 <p>
-                                    <strong>Current Quantity:</strong> {selectedItem.quantity}
+                                    <strong>Currently available:</strong>{" "}
+                                    <span className="text-primary">{selectedItem.available_quantity}</span>
                                 </p>
                                 <Form.Group className="mb-3">
-                                    <Form.Label>New Quantity <span className="text-danger">*</span></Form.Label>
+                                    <Form.Label>New Available Quantity <span className="text-danger">*</span></Form.Label>
                                     <Form.Control
                                         type="number"
                                         min="0"
@@ -412,16 +445,41 @@ function StockManagementContent() {
                                         onChange={(e) => setAdjustQuantity(e.target.value)}
                                         required
                                     />
+                                    <Form.Text className="text-muted">
+                                        Adjustments are applied to the <em>currently available</em>{" "}
+                                        quantity. Reserved stock for open bills is preserved.
+                                    </Form.Text>
                                 </Form.Group>
                                 <Form.Group className="mb-3">
                                     <Form.Label>Reason <span className="text-danger">*</span></Form.Label>
+                                    <Form.Select
+                                        value={adjustReasonCategory}
+                                        onChange={(e) => setAdjustReasonCategory(e.target.value)}
+                                        required
+                                    >
+                                        <option value="">Select a reason…</option>
+                                        {ADJUSTMENT_REASONS.map((r) => (
+                                            <option key={r.value} value={r.value}>{r.label}</option>
+                                        ))}
+                                    </Form.Select>
+                                </Form.Group>
+                                <Form.Group className="mb-3">
+                                    <Form.Label>
+                                        Notes
+                                        {adjustReasonCategory === "other" && (
+                                            <span className="text-danger"> *</span>
+                                        )}
+                                    </Form.Label>
                                     <Form.Control
                                         as="textarea"
-                                        rows={3}
-                                        placeholder="Enter reason for adjustment..."
-                                        value={adjustReason}
-                                        onChange={(e) => setAdjustReason(e.target.value)}
-                                        required
+                                        rows={2}
+                                        placeholder={
+                                            adjustReasonCategory === "other"
+                                                ? "Describe the adjustment reason"
+                                                : "Optional: add any extra context"
+                                        }
+                                        value={adjustReasonNotes}
+                                        onChange={(e) => setAdjustReasonNotes(e.target.value)}
                                     />
                                 </Form.Group>
                                 {adjustError && (

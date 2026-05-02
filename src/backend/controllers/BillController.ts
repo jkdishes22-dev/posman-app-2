@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { BillFilter, BillService } from "@services/BillService";
 import { DEFAULT_PAGE_SIZE } from "@backend/config/constants";
 import { handleApiError } from "@backend/utils/errorHandler";
+import { parseStartDateInAppTz, parseEndDateInAppTz } from "@backend/utils/dateRange";
 
 export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
@@ -27,18 +28,14 @@ export const fetchBills = async (req: NextApiRequest, res: NextApiResponse) => {
   const currentUserId = Number(req.user?.id);
   const { date, startDate, endDate, status, billId, billingUserId, page = 1, pageSize = DEFAULT_PAGE_SIZE } = req.query;
 
-  const parseDate = (val: string | string[] | undefined): Date | undefined => {
-    if (!val) return undefined;
-    const str = Array.isArray(val) ? val[0] : val;
-    if (!str.match(/^\d{4}-\d{2}-\d{2}$/)) return undefined;
-    const d = new Date(str + "T00:00:00.000Z");
-    return isNaN(d.getTime()) ? undefined : d;
-  };
-
+  // BillService.fetchBills already converts targetDate to start/end of day in
+  // the app timezone, so we keep targetDate as the day's start. For range
+  // filters we explicitly use start-of-day / end-of-day in the app timezone so
+  // that "today" includes bills created later in the day.
   const billFilter: BillFilter = {
-    targetDate: parseDate(date as string),
-    startDate: parseDate(startDate as string),
-    endDate: parseDate(endDate as string),
+    targetDate: parseStartDateInAppTz(date as string),
+    startDate: parseStartDateInAppTz(startDate as string),
+    endDate: parseEndDateInAppTz(endDate as string),
     status,
     billId,
     billingUserId,

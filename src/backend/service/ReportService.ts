@@ -187,8 +187,11 @@ export class ReportService {
   }
 
   private getDateRange(startDate: Date, endDate: Date, period?: "day" | "week" | "month" | "year"): { start: Date; end: Date } {
-    const start = startOfDay(startDate);
-    const end = endOfDay(endDate);
+    // Trust callers to pass already-zoned start/end dates (see backend/utils/dateRange).
+    // Only apply period-based widening here so we don't accidentally re-snap to the
+    // server's local timezone and exclude same-day data for users in other zones.
+    const start = startDate;
+    const end = endDate;
 
     if (period === "week") {
       return { start: startOfWeek(start), end: endOfWeek(end) };

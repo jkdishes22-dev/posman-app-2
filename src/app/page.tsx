@@ -578,12 +578,20 @@ const LoginForm = () => {
           <div className="p-3 border bg-light mb-3">
             <div className="p-3 border bg-light h-100 d-flex flex-column justify-content-center align-items-center">
               <img
-                src="/images/jk-big.png"
+                src="/icons/JKlogo.png"
                 width={300}
-                height={500}
+                height={300}
                 className="m-2"
                 alt="JK PosMan"
                 style={{ maxWidth: "100%", height: "auto", objectFit: "contain" }}
+                onError={(e) => {
+                  const target = e.currentTarget as HTMLImageElement;
+                  if (target.src.endsWith("/icons/JKlogo.png")) {
+                    target.src = "/images/jk-big.png";
+                  } else if (target.src.endsWith("/images/jk-big.png")) {
+                    target.src = "/icons/JK-icon.png";
+                  }
+                }}
               />
               <span className="text-muted display-4">PosMan</span>
             </div>

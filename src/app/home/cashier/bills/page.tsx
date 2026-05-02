@@ -325,59 +325,31 @@ const CashierBillsPage = () => {
   };
 
   const fetchSalesPersons = async () => {
-    // Fetch users with roles that can create bills: 'user', 'sales', and 'waitress'
+    // Fetch only the roles that can create bills: user, sales, waitress, supervisor.
+    // We deliberately exclude admin / cashier / storekeeper because they don't
+    // appear as bill creators in the cashier bills filter dropdown.
     try {
-      const [userResult, salesResult, waitressResult] = await Promise.all([
-        apiCall("/api/users?role=user"),
-        apiCall("/api/users?role=sales"),
-        apiCall("/api/users?role=waitress").catch(() => ({ status: 404, data: null, error: "Waitress role not found" }))
-      ]);
+      const result = await apiCall("/api/users?role=user,sales,waitress,supervisor&pageSize=500");
 
-      const allUsers: User[] = [];
-
-      // Handle user role results
-      if (userResult.status === 200) {
-        const users = userResult.data?.users || userResult.data || [];
-        if (Array.isArray(users)) {
-          allUsers.push(...users);
-        } else {
-          console.warn("Unexpected user role response structure:", userResult.data);
-        }
-      } else {
-        console.warn("Failed to fetch user role:", userResult.error);
+      if (result.status !== 200) {
+        console.warn("Failed to fetch billing-capable users:", result.error);
+        setWaitresses([]);
+        return;
       }
 
-      // Handle sales role results
-      if (salesResult.status === 200) {
-        const users = salesResult.data?.users || salesResult.data || [];
-        if (Array.isArray(users)) {
-          allUsers.push(...users);
-        } else {
-          console.warn("Unexpected sales role response structure:", salesResult.data);
-        }
-      } else {
-        console.warn("Failed to fetch sales role:", salesResult.error);
+      const users = result.data?.users || result.data || [];
+      if (!Array.isArray(users)) {
+        console.warn("Unexpected users response structure:", result.data);
+        setWaitresses([]);
+        return;
       }
 
-      // Handle waitress role results (if it exists)
-      if (waitressResult && waitressResult.status === 200) {
-        const users = waitressResult.data?.users || waitressResult.data || [];
-        if (Array.isArray(users)) {
-          allUsers.push(...users);
-        } else {
-          console.warn("Unexpected waitress role response structure:", waitressResult.data);
-        }
-      }
-
-      // Remove duplicates based on user ID
-      const uniqueUsers = allUsers.filter((user, index, self) =>
+      // De-duplicate (a user with multiple eligible roles might appear twice)
+      const uniqueUsers = users.filter((user: User, index: number, self: User[]) =>
         index === self.findIndex((u) => u.id === user.id)
       );
 
       setWaitresses(uniqueUsers);
-      if (uniqueUsers.length === 0) {
-        console.log("No waitresses found. User result:", userResult, "Sales result:", salesResult, "Waitress result:", waitressResult);
-      }
     } catch (error: any) {
       console.error("Error fetching sales persons:", error);
       setError("Network error occurred");

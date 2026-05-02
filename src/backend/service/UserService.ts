@@ -66,10 +66,16 @@ export class UserService {
   }
 
   public async getUsers(role?: string, page = 1, pageSize = 10, search?: string): Promise<{ users: User[]; total: number }> {
+    // Support comma-separated roles, e.g. ?role=sales,supervisor
+    const roleNames = role
+      ? role.split(",").map((r) => r.trim()).filter(Boolean)
+      : [];
+    const cacheRoleKey = roleNames.length > 0 ? roleNames.slice().sort().join("+") : "all";
+
     // Only cache if no search (search results change frequently)
     const cacheKey = search
       ? null
-      : `users_${role || "all"}_${page}_${pageSize}`;
+      : `users_${cacheRoleKey}_${page}_${pageSize}`;
 
     // Try cache first (only for non-search queries)
     if (cacheKey) {
@@ -95,8 +101,10 @@ export class UserService {
         "role.name"
       ]);
 
-    if (role) {
-      query.andWhere("role.name = :role", { role });
+    if (roleNames.length === 1) {
+      query.andWhere("role.name = :role", { role: roleNames[0] });
+    } else if (roleNames.length > 1) {
+      query.andWhere("role.name IN (:...roleNames)", { roleNames });
     }
 
     if (search) {
@@ -111,8 +119,10 @@ export class UserService {
       .createQueryBuilder("user")
       .leftJoin("user.roles", "role");
 
-    if (role) {
-      countQuery.andWhere("role.name = :role", { role });
+    if (roleNames.length === 1) {
+      countQuery.andWhere("role.name = :role", { role: roleNames[0] });
+    } else if (roleNames.length > 1) {
+      countQuery.andWhere("role.name IN (:...roleNames)", { roleNames });
     }
 
     if (search) {

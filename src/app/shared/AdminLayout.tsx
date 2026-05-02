@@ -235,6 +235,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         ];
       }
     }
+    // Settings
+    else if (path.includes("/admin/settings")) {
+      activeItemId = "settings";
+      breadcrumbItems = [
+        { label: "Dashboard", path: "/admin" },
+        { label: "System Settings", path: "/admin/settings" }
+      ];
+    }
     // License diagnostics
     else if (path.includes("/admin/license")) {
       activeItemId = "license-diagnostics";
@@ -383,6 +391,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       ],
     },
     {
+      id: "settings",
+      label: "System Settings",
+      icon: "bi-sliders",
+      path: "/admin/settings",
+    },
+    {
       id: "license-diagnostics",
       label: "License Diagnostics",
       icon: "bi-key",
@@ -475,6 +489,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       "Inventory List": "View all inventory items and their current levels",
       "Transactions": "View all inventory movement transactions",
       "Reports": "View reports and system analytics",
+      "System Settings": "Configure system preferences, printers, backups, and licensing",
       "License Diagnostics": "View license health status and expiry details",
     };
     return tooltips[label] || `Navigate to ${label}`;

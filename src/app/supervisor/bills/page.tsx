@@ -50,9 +50,10 @@ const SupervisorBillsPage: React.FC = () => {
         router.push(`/home/cashier/bills?billId=${billId}`);
     };
 
-    // Load staff users (sales role) once on mount
+    // Load billing-capable staff (sales + supervisor) once on mount.
+    // We exclude admin/cashier/storekeeper because they don't create bills.
     useEffect(() => {
-        apiCall("/api/users?role=sales&pageSize=200").then((res) => {
+        apiCall("/api/users?role=sales,supervisor&pageSize=200").then((res) => {
             if (res.status === 200) {
                 const list = Array.isArray(res.data) ? res.data : (res.data?.users || []);
                 setStaffUsers(list);
