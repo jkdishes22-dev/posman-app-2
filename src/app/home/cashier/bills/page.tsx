@@ -1152,7 +1152,7 @@ const CashierBillsPage = () => {
                   <h6 className="fw-bold text-primary">Bill Information</h6>
                   <div className="mb-3">
                     <p className="mb-1"><strong>Bill ID:</strong> {selectedBill.id}</p>
-                    <p className="mb-1"><strong>Total:</strong> ${selectedBill.total}</p>
+                    <p className="mb-1"><strong>Total:</strong> KES {(Number(selectedBill.total) || 0).toFixed(2)}</p>
                     <p className="mb-1"><strong>Created By:</strong> {selectedBill.user.firstName} {selectedBill.user.lastName}</p>
                     <p className="mb-1"><strong>Created At:</strong> {new Date(selectedBill.created_at).toLocaleString()}</p>
                   </div>
@@ -1453,7 +1453,29 @@ const CashierBillsPage = () => {
                   />
                 </div>
               ) : selectedBills.length > 1 ? (
-                <p className="text-center text-muted">Select a single bill to see details.</p>
+                <div>
+                  <h6 className="fw-bold text-primary">Selection Summary</h6>
+                  <div className="mb-2">
+                    <p className="mb-1"><strong>Bills Selected:</strong> {selectedBills.length}</p>
+                    <p className="mb-1">
+                      <strong>Combined Total:</strong>{" "}
+                      <span className="text-success fw-bold">
+                        KES {bills
+                          .filter((b) => selectedBills.includes(b.id))
+                          .reduce((sum, b) => sum + (Number(b.total) || 0), 0)
+                          .toFixed(2)}
+                      </span>
+                    </p>
+                    <p className="mb-1">
+                      <strong>Pending Bills:</strong>{" "}
+                      {bills.filter((b) => selectedBills.includes(b.id) && b.status === "pending").length}
+                    </p>
+                  </div>
+                  <div className="alert alert-info alert-sm py-2">
+                    <i className="bi bi-info-circle me-1"></i>
+                    Only pending bills will be submitted. Multiple bill submission only supports Cash payment.
+                  </div>
+                </div>
               ) : (
                 <p className="text-center text-muted">Select a bill to see the details</p>
               )}
@@ -1622,7 +1644,22 @@ const CashierBillsPage = () => {
                   })()}
                 </div>
               ) : selectedBills.length > 1 ? (
-                <p className="text-center text-muted">Select a single bill to see payment details.</p>
+                <div>
+                  <h6 className="fw-bold text-primary mb-3">Bulk Submit Payment</h6>
+                  <div className="alert alert-warning py-2">
+                    <i className="bi bi-exclamation-triangle me-1"></i>
+                    <strong>Cash only</strong> — MPesa is disabled when submitting multiple bills to avoid reference conflicts.
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center mt-3">
+                    <span><strong>Total to collect:</strong></span>
+                    <span className="fw-bold text-success">
+                      KES {bills
+                        .filter((b) => selectedBills.includes(b.id) && b.status === "pending")
+                        .reduce((sum, b) => sum + (Number(b.total) || 0), 0)
+                        .toFixed(2)}
+                    </span>
+                  </div>
+                </div>
               ) : (
                 <p className="text-center text-muted">Select a bill to see payment details</p>
               )}
