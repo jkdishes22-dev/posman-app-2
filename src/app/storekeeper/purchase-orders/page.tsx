@@ -78,6 +78,10 @@ export default function PurchaseOrdersPage() {
     const [showCancelModal, setShowCancelModal] = useState(false);
     const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
 
+    // PO payments state
+    const [poPayments, setPoPayments] = useState<any[]>([]);
+    const [loadingPoPayments, setLoadingPoPayments] = useState(false);
+
     // Form states
     const [formData, setFormData] = useState({
         supplier_id: "",
@@ -201,7 +205,19 @@ export default function PurchaseOrdersPage() {
 
     const handleView = async (po: PurchaseOrder) => {
         setSelectedPO(po);
+        setPoPayments([]);
         setShowViewModal(true);
+        setLoadingPoPayments(true);
+        try {
+            const result = await apiCall(`/api/purchase-orders/${po.id}/payments`);
+            if (result.status === 200) {
+                setPoPayments(Array.isArray(result.data) ? result.data : []);
+            }
+        } catch {
+            // non-critical — silently ignore
+        } finally {
+            setLoadingPoPayments(false);
+        }
     };
 
     const handleReceive = (po: PurchaseOrder) => {
@@ -963,7 +979,7 @@ export default function PurchaseOrdersPage() {
                                             </Card.Header>
                                             <Card.Body>
                                                 <p className="mb-2">
-                                                    <strong>Total Amount:</strong> ${selectedPO?.total_amount != null ? Number(selectedPO.total_amount).toFixed(2) : "0.00"}
+                                                    <strong>Total Amount:</strong> KES {selectedPO?.total_amount != null ? Number(selectedPO.total_amount).toFixed(2) : "0.00"}
                                                 </p>
                                                 {selectedPO.notes && (
                                                     <p className="mb-0">
@@ -975,7 +991,7 @@ export default function PurchaseOrdersPage() {
                                     </Col>
                                 </Row>
 
-                                <Card>
+                                <Card className="mb-4">
                                     <Card.Header className="bg-light">
                                         <h6 className="mb-0">Order Items</h6>
                                     </Card.Header>
@@ -1005,8 +1021,8 @@ export default function PurchaseOrdersPage() {
                                                                 </Badge>
                                                             )}
                                                         </td>
-                                                        <td>${item?.unit_price != null ? Number(item.unit_price).toFixed(2) : "0.00"}</td>
-                                                        <td>${item?.subtotal != null ? Number(item.subtotal).toFixed(2) : "0.00"}</td>
+                                                        <td>KES {item?.unit_price != null ? Number(item.unit_price).toFixed(2) : "0.00"}</td>
+                                                        <td>KES {item?.subtotal != null ? Number(item.subtotal).toFixed(2) : "0.00"}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -1015,10 +1031,77 @@ export default function PurchaseOrdersPage() {
                                                     <td colSpan={5} className="text-end fw-bold">
                                                         Total:
                                                     </td>
-                                                    <td className="fw-bold">${selectedPO?.total_amount != null ? Number(selectedPO.total_amount).toFixed(2) : "0.00"}</td>
+                                                    <td className="fw-bold">KES {selectedPO?.total_amount != null ? Number(selectedPO.total_amount).toFixed(2) : "0.00"}</td>
                                                 </tr>
                                             </tfoot>
                                         </Table>
+                                    </Card.Body>
+                                </Card>
+
+                                {/* Payments section */}
+                                <Card>
+                                    <Card.Header className="bg-light d-flex justify-content-between align-items-center">
+                                        <h6 className="mb-0">Payments</h6>
+                                        {(() => {
+                                            const total = Number(selectedPO?.total_amount ?? 0);
+                                            const paid = poPayments.reduce((sum: number, p: any) => sum + Number(p.payment?.creditAmount ?? 0), 0);
+                                            if (poPayments.length === 0) return <Badge bg="danger">Unpaid</Badge>;
+                                            if (paid >= total) return <Badge bg="success">Paid</Badge>;
+                                            return <Badge bg="warning" text="dark">Partial</Badge>;
+                                        })()}
+                                    </Card.Header>
+                                    <Card.Body>
+                                        {loadingPoPayments ? (
+                                            <div className="text-center py-2">
+                                                <Spinner animation="border" size="sm" />
+                                            </div>
+                                        ) : poPayments.length === 0 ? (
+                                            <p className="text-muted small mb-0">No payments recorded for this order.</p>
+                                        ) : (
+                                            <>
+                                                {(() => {
+                                                    const total = Number(selectedPO?.total_amount ?? 0);
+                                                    const paid = poPayments.reduce((sum: number, p: any) => sum + Number(p.payment?.creditAmount ?? 0), 0);
+                                                    const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+                                                    return (
+                                                        <div className="mb-3">
+                                                            <div className="d-flex justify-content-between small mb-1">
+                                                                <span>Paid KES {paid.toFixed(2)} of KES {total.toFixed(2)}</span>
+                                                                <span>{pct}%</span>
+                                                            </div>
+                                                            <div className="progress" style={{ height: 6 }}>
+                                                                <div
+                                                                    className={`progress-bar ${pct >= 100 ? "bg-success" : "bg-primary"}`}
+                                                                    style={{ width: `${pct}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                                <Table responsive size="sm" className="mb-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Date</th>
+                                                            <th>Method</th>
+                                                            <th>Amount</th>
+                                                            <th>Reference</th>
+                                                            <th>Notes</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {poPayments.map((p: any) => (
+                                                            <tr key={p.id}>
+                                                                <td>{new Date(p.created_at).toLocaleDateString()}</td>
+                                                                <td>{p.payment?.paymentType ?? "—"}</td>
+                                                                <td>KES {Number(p.payment?.creditAmount ?? 0).toFixed(2)}</td>
+                                                                <td>{p.payment?.reference ?? "—"}</td>
+                                                                <td>{p.notes}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </Table>
+                                            </>
+                                        )}
                                     </Card.Body>
                                 </Card>
                             </>
