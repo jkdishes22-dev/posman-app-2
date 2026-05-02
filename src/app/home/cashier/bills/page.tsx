@@ -473,7 +473,7 @@ const CashierBillsPage = () => {
     }
   };
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedBills(event.target.checked ? bills.map((bill) => bill.id) : []);
+    setSelectedBills(event.target.checked ? bills.filter((b) => b.status !== "voided").map((b) => b.id) : []);
   };
   const handleBulkProcess = async () => {
     setBulkCloseResults(null);
@@ -988,8 +988,8 @@ const CashierBillsPage = () => {
                             <input
                               type="checkbox"
                               checked={
-                                selectedBills.length === bills.length &&
-                                bills.length > 0
+                                bills.filter((b) => b.status !== "voided").length > 0 &&
+                                bills.filter((b) => b.status !== "voided").every((b) => selectedBills.includes(b.id))
                               }
                               onChange={handleSelectAll}
                             />
@@ -1019,6 +1019,8 @@ const CashierBillsPage = () => {
                                 type="checkbox"
                                 checked={selectedBills.includes(bill.id)}
                                 onChange={() => handleCheckboxChange(bill.id)}
+                                disabled={bill.status === "voided"}
+                                title={bill.status === "voided" ? "Voided bills cannot be selected" : undefined}
                               />
                             </td>
                             <td>{bill.id}</td>
@@ -1390,7 +1392,7 @@ const CashierBillsPage = () => {
                           <div className="mt-2">
                             <Button
                               variant="success"
-                              size="sm"
+                              className="w-100"
                               onClick={() => {
                                 const hasPendingVoids = selectedBill.bill_items?.some(
                                   (item: any) => item.status === "void_pending"
@@ -1407,7 +1409,7 @@ const CashierBillsPage = () => {
                               }}
                             >
                               <i className="bi bi-check-circle me-1"></i>
-                              Submit Bill (KES: {selectedBill.total})
+                              Submit Bill — KES {selectedBill.total}
                             </Button>
                           </div>
                         )}

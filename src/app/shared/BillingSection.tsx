@@ -416,7 +416,8 @@ const BillingSection = () => {
     const availableAfterReserved = available - alreadyReserved;
 
     // If item has inventory tracking and no stock available, show error with missing constituents
-    if (available === 0 && item.id in itemInventory) {
+    // Skip this check for items that allow negative inventory
+    if (available === 0 && item.id in itemInventory && !item.allowNegativeInventory) {
       const missing = missingConstituents[item.id];
       if (missing && missing.length > 0) {
         const missingList = missing.map(c => `${c.itemName} (Available: ${c.available}, Required: ${c.required} per unit)`).join(", ");
@@ -445,8 +446,8 @@ const BillingSection = () => {
     const alreadyReserved = alreadyInBill ? alreadyInBill.quantity : 0;
     const availableAfterReserved = available - alreadyReserved;
 
-    // If item has inventory tracking, validate quantity
-    if (currentItem.id in itemInventory) {
+    // If item has inventory tracking, validate quantity (skip for allow-negative items)
+    if (currentItem.id in itemInventory && !currentItem.allowNegativeInventory) {
       if (availableAfterReserved < quantity) {
         setBillError(
           `Cannot add ${quantity} ${currentItem.name}. ` +

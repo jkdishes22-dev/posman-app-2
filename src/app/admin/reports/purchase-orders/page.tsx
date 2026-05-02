@@ -2,6 +2,7 @@
 import { todayEAT } from "../../../shared/eatDate";
 
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
+import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { Button, Form } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
@@ -137,7 +138,7 @@ export default function PurchaseOrdersReportPage() {
                     <table className="table table-striped">
                       <thead><tr><th>Date</th><th>Order Number</th><th>Supplier</th><th>Status</th><th>Total Amount</th></tr></thead>
                       <tbody>
-                        {reports.map((r, i) => <tr key={i}><td>{new Date(r.date).toLocaleDateString()}</td><td>{r.orderNumber}</td><td>{r.supplierName}</td><td><span className={`badge bg-${r.status === "received" ? "success" : r.status === "cancelled" ? "danger" : "warning"}`}>{r.status}</span></td><td>${(Number(r.totalAmount) || 0).toFixed(2)}</td></tr>)}
+                        {reports.map((r, i) => <tr key={i}><td>{new Date(r.date).toLocaleDateString()}</td><td><Link href={`/storekeeper/purchase-orders?search=${encodeURIComponent(r.orderNumber)}`} className="text-primary">{r.orderNumber}</Link></td><td>{r.supplierName}</td><td><span className={`badge bg-${r.status === "received" ? "success" : r.status === "cancelled" ? "danger" : "warning"}`}>{r.status}</span></td><td>${(Number(r.totalAmount) || 0).toFixed(2)}</td></tr>)}
                       </tbody>
                     </table>
                     {reports.length === 0 && <div className="text-center text-muted py-4"><i className="bi bi-cart-check fs-1"></i><p className="mt-2">No data found</p></div>}
