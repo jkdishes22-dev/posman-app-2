@@ -116,6 +116,10 @@ export const ROLE_PERMISSIONS = {
         // Production permissions
         "can_issue_production",
         "can_view_production_history",
+        // Expense permissions
+        "can_view_expense",
+        "can_add_expense",
+        "can_edit_expense",
         // Additional supervisor permissions
         "can_edit_station",
         "can_view_station_pricelist",

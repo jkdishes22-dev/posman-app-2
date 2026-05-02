@@ -70,9 +70,11 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             { path: "/admin/station/user", item: "station-users" },
             { path: "/storekeeper/suppliers", item: "suppliers-list" },
             { path: "/storekeeper/purchase-orders", item: "suppliers-purchase-orders" },
+            { path: "/supervisor/expenses", item: "expenses" },
             { path: "/storekeeper", item: "inventory-dashboard" },
             { path: "/storekeeper/stock", item: "inventory-list" },
             { path: "/storekeeper/inventory/transactions", item: "inventory-transactions" },
+            { path: "/admin/logs", item: "system-logs" },
             { path: "/admin/reports", item: "reports-dashboard" },
             { path: "/admin/reports/", item: "reports-dashboard" },
             { path: "/admin/reports/sales-revenue", item: "reports-sales-revenue" },
@@ -126,6 +128,13 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     { label: "Overview", path: "/admin/station" }
                 ];
             }
+        } else if (path.includes("/supervisor/expenses")) {
+            expandedMenuIds.push("suppliers");
+            breadcrumbItems = [
+                { label: "Dashboard", path: "/supervisor" },
+                { label: "Suppliers", path: "/storekeeper/suppliers" },
+                { label: "Expenses", path: "/supervisor/expenses" }
+            ];
         } else if (path.includes("/storekeeper") && (path.includes("/storekeeper/suppliers") || path.includes("/storekeeper/purchase-orders"))) {
             expandedMenuIds.push("suppliers");
             if (path.includes("/storekeeper/suppliers")) {
@@ -391,6 +400,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     icon: "bi-cart-check",
                     path: "/storekeeper/purchase-orders",
                 },
+                {
+                    id: "expenses",
+                    label: "Expenses",
+                    icon: "bi-cash-coin",
+                    path: "/supervisor/expenses",
+                },
             ],
         },
         {
@@ -428,6 +443,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     icon: "bi-cart-check",
                     path: "/admin/reports/purchase-orders",
                 },
+                {
+                    id: "reports-sales-revenue",
+                    label: "Sales Revenue",
+                    icon: "bi-graph-up",
+                    path: "/admin/reports/sales-revenue",
+                },
             ],
         },
         {
@@ -435,6 +456,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             label: "Settings",
             icon: "bi-gear",
             path: "/supervisor/settings",
+        },
+        {
+            id: "system-logs",
+            label: "System Logs",
+            icon: "bi-journal-text",
+            path: "/admin/logs",
         },
     ];
 

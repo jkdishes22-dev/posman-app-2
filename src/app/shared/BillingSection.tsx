@@ -82,6 +82,7 @@ const BillingSection = () => {
 
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintPrinterName, setAutoPrintPrinterName] = useState("");
+  const [showTax, setShowTax] = useState(true);
 
   const cleanupModalArtifacts = useCallback(() => {
     if (typeof document === "undefined") {
@@ -111,12 +112,17 @@ const BillingSection = () => {
     // No need to call loadStationsIfNeeded/loadPricelistsIfNeeded here as contexts handle it
   }, [isAuthenticated, user]);
 
-  // Load printer settings once on mount
+  // Load printer and bill settings once on mount
   useEffect(() => {
     apiCall("/api/system/settings?key=printer_settings").then((res) => {
       if (res.status === 200 && res.data?.value) {
         setAutoPrintEnabled(!!res.data.value.print_after_close_bill);
         setAutoPrintPrinterName(res.data.value.printer_name || "");
+      }
+    }).catch(() => {});
+    apiCall("/api/system/settings?key=bill_settings").then((res) => {
+      if (res.status === 200 && res.data?.value) {
+        setShowTax(res.data.value.show_tax_on_receipt !== false);
       }
     }).catch(() => {});
   }, []);
@@ -596,9 +602,9 @@ const BillingSection = () => {
           // Auto-print if enabled in printer settings
           if (autoPrintEnabled) {
             setTimeout(async () => {
-              await printReceiptWithTimestamp(CaptainOrderPrint, billForReceipt, "Captain Order", "captain", autoPrintPrinterName || undefined);
+              await printReceiptWithTimestamp(CaptainOrderPrint, billForReceipt, "Captain Order", "captain", autoPrintPrinterName || undefined, { showTax });
               setTimeout(async () => {
-                await printReceiptWithTimestamp(CustomerCopyPrint, billForReceipt, "Customer Copy", "customer", autoPrintPrinterName || undefined);
+                await printReceiptWithTimestamp(CustomerCopyPrint, billForReceipt, "Customer Copy", "customer", autoPrintPrinterName || undefined, { showTax });
               }, 1200);
             }, 300);
           }
@@ -653,7 +659,7 @@ const BillingSection = () => {
       type = "captain";
     }
 
-    return printReceiptWithTimestamp(Component, bill, title, type);
+    return printReceiptWithTimestamp(Component, bill, title, type, undefined, { showTax });
   };
 
   const handleDownload = async () => {
