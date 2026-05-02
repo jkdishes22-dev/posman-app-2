@@ -121,6 +121,11 @@ const permissions = {
     CAN_DELETE_SUPPLIER_PAYMENT: "can_delete_supplier_payment",
     CAN_VIEW_SUPPLIER_PAYMENT: "can_view_supplier_payment",
 
+    // Expense
+    CAN_VIEW_EXPENSE: "can_view_expense",
+    CAN_ADD_EXPENSE: "can_add_expense",
+    CAN_EDIT_EXPENSE: "can_edit_expense",
+
     // Purchase Order
     CAN_VIEW_PURCHASE_ORDER: "can_view_purchase_order",
     CAN_ADD_PURCHASE_ORDER: "can_add_purchase_order",
