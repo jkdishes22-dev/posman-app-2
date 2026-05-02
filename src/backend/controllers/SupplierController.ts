@@ -1,7 +1,4 @@
 import { SupplierService } from "@backend/service/SupplierService";
-import { SupplierPaymentService } from "@backend/service/SupplierPaymentService";
-import { SupplierPaymentAction } from "@backend/entities/SupplierPayment";
-import { PaymentType } from "@backend/entities/Payment";
 import { NextApiRequest, NextApiResponse } from "next";
 import { handleApiError } from "@backend/utils/errorHandler";
 import { startOfDay, endOfDay } from "date-fns";
@@ -169,6 +166,7 @@ export const recordSupplierCreditHandler = async (
     req: NextApiRequest,
     res: NextApiResponse,
 ) => {
+    const supplierService = new SupplierService(req.db);
     try {
         const { id } = req.query;
         const userId = (req as any).user?.id;
@@ -181,68 +179,30 @@ export const recordSupplierCreditHandler = async (
             return res.status(400).json({ message: "Invalid supplier id" });
         }
 
-        const { payment_type, amount, action, action_reference_id, notes, reference, transaction_type } = req.body || {};
+        const { transaction_type, amount, notes, reference } = req.body || {};
+        if (transaction_type !== "payment" && transaction_type !== "adjustment") {
+            return res.status(400).json({
+                message: "transaction_type must be payment or adjustment",
+            });
+        }
 
         const numAmount = typeof amount === "string" ? parseFloat(amount) : Number(amount);
         if (!Number.isFinite(numAmount)) {
             return res.status(400).json({ message: "amount is required and must be a number" });
         }
 
-        // Adjustment path — ledger-only, no payment record
-        if (transaction_type === "adjustment") {
-            const supplierService = new SupplierService(req.db);
-            const transaction = await supplierService.recordSupplierCreditTransaction(
-                supplierId,
-                "adjustment",
-                numAmount,
-                Number(userId),
-                {
-                    notes: typeof notes === "string" ? notes : undefined,
-                    externalReference: typeof reference === "string" ? reference : undefined,
-                },
-            );
-            return res.status(200).json(transaction);
-        }
-
-        // Payment path — creates Payment + SupplierPayment + SupplierTransaction
-        const allowedActions = Object.values(SupplierPaymentAction) as string[];
-        if (!action || !allowedActions.includes(action)) {
-            return res.status(400).json({
-                message: `action must be one of: ${allowedActions.join(", ")}`,
-            });
-        }
-
-        const allowedPaymentTypes = Object.values(PaymentType) as string[];
-        if (!payment_type || !allowedPaymentTypes.includes(payment_type)) {
-            return res.status(400).json({
-                message: `payment_type must be one of: ${allowedPaymentTypes.join(", ")}`,
-            });
-        }
-
-        if (!notes?.trim()) {
-            return res.status(400).json({ message: "notes are required for supplier payments" });
-        }
-
-        const refId =
-            action_reference_id != null && String(action_reference_id).trim() !== ""
-                ? Number(action_reference_id)
-                : null;
-
-        const supplierPaymentService = new SupplierPaymentService(req.db);
-        const sp = await supplierPaymentService.recordPayment(
-            {
-                supplierId,
-                paymentType: payment_type as PaymentType,
-                amount: numAmount,
-                action: action as SupplierPaymentAction,
-                actionReferenceId: refId,
-                notes: String(notes).trim(),
-                reference: typeof reference === "string" ? reference : null,
-            },
+        const transaction = await supplierService.recordSupplierCreditTransaction(
+            supplierId,
+            transaction_type,
+            numAmount,
             Number(userId),
+            {
+                notes: typeof notes === "string" ? notes : undefined,
+                externalReference: typeof reference === "string" ? reference : undefined,
+            },
         );
 
-        return res.status(200).json(sp);
+        res.status(200).json(transaction);
     } catch (error: any) {
         const msg = error?.message || "";
         if (
@@ -257,7 +217,7 @@ export const recordSupplierCreditHandler = async (
         }
         const { userMessage, errorCode } = handleApiError(error, {
             operation: "recording",
-            resource: "supplier payment",
+            resource: "supplier credit transaction",
         });
         res.status(500).json({ error: userMessage, code: errorCode });
     }
