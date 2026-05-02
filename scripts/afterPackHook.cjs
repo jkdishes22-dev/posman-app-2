@@ -72,6 +72,17 @@ async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot,
     if (context.electronPlatformName !== "win32") return;
 
     const arch = resolveTargetArch(context);
+    const destBinaryPath = path.join(
+        destNodeModules, "better-sqlite3", "build", "Release", "better_sqlite3.node"
+    );
+
+    // Offline-friendly fast path: if destination already has a valid Windows binary
+    // for the target architecture, do nothing.
+    const currentMachine = readPeMachine(destBinaryPath);
+    if (peMachineMatchesTargetArch(currentMachine, arch)) {
+        log(`   ✅ better_sqlite3.node already matches target arch (${arch}): ${destBinaryPath}`);
+        return;
+    }
 
     const bsq3PkgPath = path.join(destNodeModules, "better-sqlite3", "package.json");
     if (!fs.existsSync(bsq3PkgPath)) {
@@ -95,8 +106,27 @@ async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot,
         }
     } catch { /* keep default */ }
 
+    // Try local candidates before any network download. This keeps Windows offline builds working
+    // when a valid binary already exists elsewhere in the build output/project.
+    const localCandidates = [
+        path.join(projectRoot, "node_modules", "better-sqlite3", "build", "Release", "better_sqlite3.node"),
+        path.join(projectRoot, ".next", "standalone", "node_modules", "better-sqlite3", "build", "Release", "better_sqlite3.node"),
+        path.join(context.appOutDir || "", "resources", "app.asar.unpacked", "node_modules", "better-sqlite3", "build", "Release", "better_sqlite3.node"),
+        path.join(context.appOutDir || "", "resources", ".next", "standalone", "node_modules", "better-sqlite3", "build", "Release", "better_sqlite3.node"),
+    ];
+    const uniqueLocalCandidates = [...new Set(localCandidates)]
+        .filter((candidatePath) => candidatePath && candidatePath !== destBinaryPath);
+    for (const candidatePath of uniqueLocalCandidates) {
+        const machine = readPeMachine(candidatePath);
+        if (!peMachineMatchesTargetArch(machine, arch)) continue;
+        fs.mkdirSync(path.dirname(destBinaryPath), { recursive: true });
+        fs.copyFileSync(candidatePath, destBinaryPath);
+        log(`   ✅ Reused local Windows better_sqlite3.node (${arch}) from: ${candidatePath}`);
+        return;
+    }
+
     const tarUrl = `https://github.com/WiseLibs/better-sqlite3/releases/download/v${bsq3Version}/better-sqlite3-v${bsq3Version}-electron-v${abi}-win32-${arch}.tar.gz`;
-    log(`\n   🔄 Replacing macOS better_sqlite3.node with Windows (${arch}) version...`);
+    log(`\n   🔄 Ensuring Windows better_sqlite3.node (${arch}) via prebuilt download...`);
     log(`   📥 URL: ${tarUrl}`);
 
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bsq3-win-"));
@@ -112,15 +142,15 @@ async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot,
             return;
         }
 
-        const destBinaryPath = path.join(
-            destNodeModules, "better-sqlite3", "build", "Release", "better_sqlite3.node"
-        );
         fs.mkdirSync(path.dirname(destBinaryPath), { recursive: true });
         fs.copyFileSync(extractedBinary, destBinaryPath);
         log(`   ✅ Windows better_sqlite3.node installed: ${destBinaryPath}`);
     } catch (e) {
-        err(`   ❌ Binary replacement failed: ${e.message}`);
-        err(`   💡 Check the release exists: ${tarUrl}`);
+        err(`   ❌ Could not download/install better_sqlite3.node: ${e.message}`);
+        err(`   💡 Offline build tip: pre-seed a valid Windows binary at either:`);
+        err(`      - ${destBinaryPath}`);
+        err(`      - ${path.join(projectRoot, "node_modules", "better-sqlite3", "build", "Release", "better_sqlite3.node")}`);
+        err(`   💡 Or verify release URL availability when online: ${tarUrl}`);
     } finally {
         try {
             fs.rmSync(tmpDir, { recursive: true, force: true });

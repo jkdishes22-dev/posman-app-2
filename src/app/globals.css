@@ -864,7 +864,7 @@
 /* Fix for nested modals */
 .modal-backdrop.show {
     opacity: 0.5;
-}}
+}
 
 /* ============================================
    15-inch screen fit (1024px – 1400px)
