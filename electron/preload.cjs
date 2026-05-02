@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('electron', {
     chrome: process.versions.chrome,
     electron: process.versions.electron,
   },
-  // Add any other Electron APIs you need to expose
-  // Example: window.electron.openExternal(url)
+  printReceipt: (html, printerName) => ipcRenderer.invoke('print-receipt', html, printerName),
+  getPrinters: () => ipcRenderer.invoke('get-printers'),
 });
 

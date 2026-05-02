@@ -82,6 +82,7 @@ export const CaptainOrderPrint = React.forwardRef<HTMLDivElement, { bill: any }>
     return (
         <>
             <style>{`
+                @page { size: 80mm auto; margin: 0; }
                 .receipt-container {
                     width: 100%;
                     max-width: 320px;
@@ -120,6 +121,7 @@ export const CustomerCopyPrint = React.forwardRef<HTMLDivElement, { bill: any }>
     return (
         <>
             <style>{`
+                @page { size: 80mm auto; margin: 0; }
                 .receipt-container {
                     width: 100%;
                     max-width: 320px;
@@ -158,6 +160,7 @@ const ReceiptPrint = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, 
     return (
         <>
             <style>{`
+                @page { size: 80mm auto; margin: 0; }
                 .receipt-container {
                     width: 100%;
                     max-width: 320px;
