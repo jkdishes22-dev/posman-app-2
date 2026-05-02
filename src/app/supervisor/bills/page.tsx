@@ -2,9 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
-import { formatISO } from "date-fns";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
@@ -24,6 +21,12 @@ interface Bill {
     };
 }
 
+interface StaffUser {
+    id: number;
+    firstName: string;
+    lastName: string;
+}
+
 const SupervisorBillsPage: React.FC = () => {
     const router = useRouter();
     const [bills, setBills] = useState<Bill[]>([]);
@@ -32,31 +35,40 @@ const SupervisorBillsPage: React.FC = () => {
     const [errorDetails, setErrorDetails] = useState<any>(null);
     const [statusFilter, setStatusFilter] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
-    const [createdDate, setCreatedDate] = useState<Date | null>(null);
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+    const [staffUserId, setStaffUserId] = useState("");
+    const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
     const pageSize = 10;
     const apiCall = useApiCall();
 
-    // For client-side pagination when searching
     const [searchPage, setSearchPage] = useState(1);
 
     const handleViewBill = (billId: number) => {
-        // Navigate to bill details in cashier bills page in the same window
         router.push(`/home/cashier/bills?billId=${billId}`);
     };
 
+    // Load staff users (sales role) once on mount
+    useEffect(() => {
+        apiCall("/api/users?role=sales&pageSize=200").then((res) => {
+            if (res.status === 200) {
+                const list = Array.isArray(res.data) ? res.data : (res.data?.users || []);
+                setStaffUsers(list);
+            }
+        }).catch(() => {});
+    }, []);
+
     useEffect(() => {
         fetchBills();
-    }, [statusFilter, page, createdDate]);
+    }, [statusFilter, page, startDate, endDate, staffUserId]);
 
-    // Reset to page 1 when status filter or date changes
     useEffect(() => {
         setPage(1);
         setSearchPage(1);
-    }, [statusFilter, createdDate]);
+    }, [statusFilter, startDate, endDate, staffUserId]);
 
-    // Reset search page when search term changes
     useEffect(() => {
         setSearchPage(1);
     }, [searchTerm]);
@@ -67,18 +79,16 @@ const SupervisorBillsPage: React.FC = () => {
             setError(null);
             setErrorDetails(null);
 
-            let url = `/api/bills?page=${page}&pageSize=${pageSize}`;
+            const params = new URLSearchParams({
+                page: page.toString(),
+                pageSize: pageSize.toString(),
+            });
+            if (statusFilter !== "all") params.append("status", statusFilter);
+            if (startDate) params.append("startDate", startDate);
+            if (endDate) params.append("endDate", endDate);
+            if (staffUserId) params.append("billingUserId", staffUserId);
 
-            if (statusFilter !== "all") {
-                url += `&status=${statusFilter}`;
-            }
-
-            if (createdDate) {
-                const formattedDate = formatISO(createdDate, { representation: "date" });
-                url += `&date=${formattedDate}`;
-            }
-
-            const result = await apiCall(url);
+            const result = await apiCall(`/api/bills?${params.toString()}`);
 
             if (result.status === 200) {
                 setBills(result.data.bills || []);
@@ -89,7 +99,7 @@ const SupervisorBillsPage: React.FC = () => {
                 setBills([]);
                 setTotal(0);
             }
-        } catch (error) {
+        } catch {
             setError("Network error occurred");
             setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
             setBills([]);
@@ -99,41 +109,37 @@ const SupervisorBillsPage: React.FC = () => {
         }
     };
 
-    const filteredBills = bills.filter(bill => {
-        const matchesSearch = searchTerm === "" ||
-            bill.id.toString().includes(searchTerm) ||
-            bill.user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            bill.user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            bill.station?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const filteredBills = bills.filter(bill =>
+        searchTerm === "" ||
+        bill.id.toString().includes(searchTerm) ||
+        bill.user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bill.user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (bill.station?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
-        // Filter by created date if selected
-        const matchesDate = !createdDate || (() => {
-            const billDate = new Date(bill.created_at);
-            const filterDate = new Date(createdDate);
-            return billDate.getFullYear() === filterDate.getFullYear() &&
-                billDate.getMonth() === filterDate.getMonth() &&
-                billDate.getDate() === filterDate.getDate();
-        })();
-
-        return matchesSearch && matchesDate;
-    });
-
-    // For client-side pagination when searching
     const paginatedBills = searchTerm
         ? filteredBills.slice((searchPage - 1) * pageSize, searchPage * pageSize)
         : filteredBills;
 
     const displayTotal = searchTerm ? filteredBills.length : total;
 
+    const clearFilters = () => {
+        setSearchTerm("");
+        setStatusFilter("all");
+        setStartDate("");
+        setEndDate("");
+        setStaffUserId("");
+        setPage(1);
+    };
+
     const getStatusBadge = (status: string) => {
-        const statusClasses = {
+        const statusClasses: Record<string, string> = {
             pending: "bg-warning",
             submitted: "bg-info",
             closed: "bg-success",
             reopened: "bg-danger",
             voided: "bg-secondary"
         };
-
         return (
             <span className={`badge ${statusClasses[status] || "bg-secondary"}`}>
                 {status.toUpperCase()}
@@ -157,18 +163,15 @@ const SupervisorBillsPage: React.FC = () => {
                         <ErrorDisplay
                             error={error}
                             errorDetails={errorDetails}
-                            onDismiss={() => {
-                                setError(null);
-                                setErrorDetails(null);
-                            }}
+                            onDismiss={() => { setError(null); setErrorDetails(null); }}
                         />
 
                         {/* Filters */}
                         <div className="card mb-4">
                             <div className="card-body">
                                 <div className="row g-3">
-                                    <div className="col-12 col-md-6 col-lg-3">
-                                        <label className="form-label">Status Filter</label>
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <label className="form-label">Status</label>
                                         <select
                                             className="form-select"
                                             value={statusFilter}
@@ -182,37 +185,53 @@ const SupervisorBillsPage: React.FC = () => {
                                             <option value="voided">Voided</option>
                                         </select>
                                     </div>
-                                    <div className="col-12 col-md-6 col-lg-3">
-                                        <label className="form-label">Created Date</label>
-                                        <DatePicker
-                                            selected={createdDate}
-                                            onChange={(date: Date | null) => setCreatedDate(date)}
-                                            dateFormat="yyyy-MM-dd"
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <label className="form-label">Staff</label>
+                                        <select
+                                            className="form-select"
+                                            value={staffUserId}
+                                            onChange={(e) => setStaffUserId(e.target.value)}
+                                        >
+                                            <option value="">All Staff</option>
+                                            {staffUsers.map((u) => (
+                                                <option key={u.id} value={u.id}>
+                                                    {u.firstName} {u.lastName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <label className="form-label">From</label>
+                                        <input
+                                            type="date"
                                             className="form-control"
-                                            placeholderText="Select date"
-                                            isClearable
+                                            value={startDate}
+                                            max={endDate || undefined}
+                                            onChange={(e) => setStartDate(e.target.value)}
                                         />
                                     </div>
-                                    <div className="col-12 col-md-6 col-lg-3">
+                                    <div className="col-12 col-md-6 col-lg-2">
+                                        <label className="form-label">To</label>
+                                        <input
+                                            type="date"
+                                            className="form-control"
+                                            value={endDate}
+                                            min={startDate || undefined}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="col-12 col-md-6 col-lg-2">
                                         <label className="form-label">Search</label>
                                         <input
                                             type="text"
                                             className="form-control"
-                                            placeholder="Search by ID, user, or station..."
+                                            placeholder="ID, user, station…"
                                             value={searchTerm}
                                             onChange={(e) => setSearchTerm(e.target.value)}
                                         />
                                     </div>
-                                    <div className="col-12 col-md-6 col-lg-3 d-flex align-items-end">
-                                        <button
-                                            className="btn btn-outline-secondary w-100"
-                                            onClick={() => {
-                                                setSearchTerm("");
-                                                setStatusFilter("all");
-                                                setCreatedDate(null);
-                                                setPage(1);
-                                            }}
-                                        >
+                                    <div className="col-12 col-md-6 col-lg-2 d-flex align-items-end">
+                                        <button className="btn btn-outline-secondary w-100" onClick={clearFilters}>
                                             Clear Filters
                                         </button>
                                     </div>
@@ -223,9 +242,7 @@ const SupervisorBillsPage: React.FC = () => {
                         {/* Bills Table */}
                         <div className="card">
                             <div className="card-header">
-                                <h5 className="card-title mb-0">
-                                    Bills ({displayTotal})
-                                </h5>
+                                <h5 className="card-title mb-0">Bills ({displayTotal})</h5>
                             </div>
                             <div className="card-body">
                                 {loading ? (
@@ -258,16 +275,10 @@ const SupervisorBillsPage: React.FC = () => {
                                                 <tbody>
                                                     {paginatedBills.map((bill) => (
                                                         <tr key={bill.id}>
-                                                            <td>
-                                                                <strong>#{bill.id}</strong>
-                                                            </td>
-                                                            <td>
-                                                                {bill.user.firstName} {bill.user.lastName}
-                                                            </td>
+                                                            <td><strong>#{bill.id}</strong></td>
+                                                            <td>{bill.user.firstName} {bill.user.lastName}</td>
                                                             <td className="d-none d-md-table-cell">{bill.station?.name || "N/A"}</td>
-                                                            <td>
-                                                                <strong>KES {(Number(bill.total) || 0).toFixed(2)}</strong>
-                                                            </td>
+                                                            <td><strong>KES {(Number(bill.total) || 0).toFixed(2)}</strong></td>
                                                             <td>{getStatusBadge(bill.status)}</td>
                                                             <td className="d-none d-lg-table-cell">
                                                                 {new Date(bill.created_at).toLocaleDateString()}
