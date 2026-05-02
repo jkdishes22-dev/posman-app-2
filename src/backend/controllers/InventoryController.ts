@@ -278,11 +278,25 @@ export const getAllInventoryTransactionsHandler = async (
             ? req.query.search[0]
             : req.query.search;
 
+        const parseQueryDate = (val: string | string[] | undefined): Date | undefined => {
+            const str = Array.isArray(val) ? val[0] : val;
+            if (!str || !str.match(/^\d{4}-\d{2}-\d{2}$/)) return undefined;
+            const d = new Date(str + "T00:00:00.000Z");
+            return isNaN(d.getTime()) ? undefined : d;
+        };
+
+        const startDate = parseQueryDate(req.query.startDate as string);
+        const endDate = parseQueryDate(req.query.endDate as string);
+        // endDate: advance to end of day so the full day is included
+        if (endDate) endDate.setUTCHours(23, 59, 59, 999);
+
         const result = await inventoryService.getAllInventoryTransactions(
             page,
             pageSize,
             itemId,
-            search
+            search,
+            startDate,
+            endDate
         );
         res.status(200).json(result);
     } catch (error: any) {

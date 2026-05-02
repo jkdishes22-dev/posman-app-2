@@ -17,7 +17,9 @@ import { Service } from "typedi";
 import { DataSource, EntityNotFoundError, Repository } from "typeorm";
 
 export type BillFilter = {
-  targetDate: Date;
+  targetDate?: Date;
+  startDate?: Date;
+  endDate?: Date;
   status?: string | string[];
   billId?: string | string[];
   billingUserId?: string | string[]
@@ -162,15 +164,25 @@ export class BillService {
   }
 
   async fetchBills(userId: number, billFilter: BillFilter, page = 1, pageSize = 20) {
-    const { targetDate, status, billId, billingUserId } = billFilter;
+    const { targetDate, startDate, endDate, status, billId, billingUserId } = billFilter;
+    const appTimezone = getAppTimezone();
     let startOfDayDate, endOfDayDate;
+
     if (targetDate) {
-      // Convert the target date to the app's local timezone, then get the full
-      // day range (midnight → 23:59:59) expressed as UTC timestamps for the DB query.
-      const appTimezone = getAppTimezone();
+      // Single-date filter (backward compat for cashier page) — full day range in local timezone.
       const localDate = toZonedTime(targetDate, appTimezone);
       startOfDayDate = fromZonedTime(startOfDay(localDate), appTimezone);
       endOfDayDate = fromZonedTime(endOfDay(localDate), appTimezone);
+    } else if (startDate || endDate) {
+      // Date range filter: convert each boundary to local-timezone midnight / end-of-day.
+      if (startDate) {
+        const local = toZonedTime(startDate, appTimezone);
+        startOfDayDate = fromZonedTime(startOfDay(local), appTimezone);
+      }
+      if (endDate) {
+        const local = toZonedTime(endDate, appTimezone);
+        endOfDayDate = fromZonedTime(endOfDay(local), appTimezone);
+      }
     }
 
     // Optimize: Only fetch user if we need role check (not needed for single billId query)
@@ -193,11 +205,15 @@ export class BillService {
         .leftJoinAndSelect("bill.user", "user")
         .leftJoinAndSelect("bill.station", "station");
 
-      if (targetDate) {
+      if (startOfDayDate && endOfDayDate) {
         query.where("bill.created_at BETWEEN :start AND :end", {
           start: startOfDayDate,
           end: endOfDayDate,
         });
+      } else if (startOfDayDate) {
+        query.where("bill.created_at >= :start", { start: startOfDayDate });
+      } else if (endOfDayDate) {
+        query.where("bill.created_at <= :end", { end: endOfDayDate });
       }
 
       if (status) {
@@ -231,11 +247,15 @@ export class BillService {
           .createQueryBuilder("bill")
           .select("COUNT(DISTINCT bill.id)", "count");
 
-        if (targetDate) {
+        if (startOfDayDate && endOfDayDate) {
           countQuery.where("bill.created_at BETWEEN :start AND :end", {
             start: startOfDayDate,
             end: endOfDayDate,
           });
+        } else if (startOfDayDate) {
+          countQuery.where("bill.created_at >= :start", { start: startOfDayDate });
+        } else if (endOfDayDate) {
+          countQuery.where("bill.created_at <= :end", { end: endOfDayDate });
         }
 
         if (status) {

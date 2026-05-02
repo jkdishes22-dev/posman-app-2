@@ -1038,14 +1038,16 @@ export class InventoryService {
         page: number = 1,
         pageSize: number = 10,
         itemId?: number,
-        search?: string
+        search?: string,
+        startDate?: Date,
+        endDate?: Date
     ): Promise<{ transactions: InventoryTransaction[]; total: number }> {
-        // Only cache if no search (search results change frequently)
-        const cacheKey = search
+        const hasDateFilter = startDate || endDate;
+        // Only cache when no volatile filters are active
+        const cacheKey = (search || hasDateFilter)
             ? null
             : `inventory_transactions_${page}_${pageSize}_${itemId || "all"}`;
 
-        // Try cache first (only for non-search queries)
         if (cacheKey) {
             const cached = cache.get<{ transactions: InventoryTransaction[]; total: number }>(cacheKey);
             if (cached !== null) {
@@ -1059,37 +1061,42 @@ export class InventoryService {
             .leftJoinAndSelect("transaction.created_by_user", "created_by_user")
             .orderBy("transaction.created_at", "DESC");
 
+        const conditions: string[] = [];
+        const params: Record<string, any> = {};
+
         if (itemId) {
-            query.where("transaction.item_id = :itemId", { itemId });
+            conditions.push("transaction.item_id = :itemId");
+            params.itemId = itemId;
         }
 
         if (search) {
             const searchLower = `%${search.toLowerCase()}%`;
-            if (itemId) {
-                query.andWhere(
-                    "(item.name LIKE :search OR item.code LIKE :search OR transaction.transaction_type LIKE :search)",
-                    { search: searchLower }
-                );
-            } else {
-                query.where(
-                    "(item.name LIKE :search OR item.code LIKE :search OR transaction.transaction_type LIKE :search)",
-                    { search: searchLower }
-                );
-            }
+            conditions.push("(item.name LIKE :search OR item.code LIKE :search OR transaction.transaction_type LIKE :search)");
+            params.search = searchLower;
+        }
+
+        if (startDate) {
+            conditions.push("transaction.created_at >= :startDate");
+            params.startDate = startDate;
+        }
+
+        if (endDate) {
+            conditions.push("transaction.created_at <= :endDate");
+            params.endDate = endDate;
+        }
+
+        if (conditions.length > 0) {
+            query.where(conditions.join(" AND "), params);
         }
 
         const total = await query.getCount();
-
         query.skip((page - 1) * pageSize).take(pageSize);
         const transactions = await query.getMany();
 
         const result = { transactions, total };
-
-        // Cache the result (only for non-search queries)
         if (cacheKey) {
             cache.set(cacheKey, result);
         }
-
         return result;
     }
 
