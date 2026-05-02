@@ -640,52 +640,44 @@ function runDailyAutoBackup() {
     }
 }
 
-// IPC: silent thermal print via Electron — no print dialog
+// IPC: silent thermal print via Electron — dedicated hidden window, prints only receipt HTML
 ipcMain.handle("print-receipt", async (event, htmlContent, printerName) => {
-    if (!mainWindow) return { success: false, failureReason: "No main window" };
     return new Promise((resolve) => {
-        const escaped = JSON.stringify(htmlContent);
-        const injectScript = `
-            (() => {
-                const prev = document.getElementById('__print_overlay__');
-                if (prev) prev.remove();
-                const prevStyle = document.getElementById('__print_style__');
-                if (prevStyle) prevStyle.remove();
-
-                const overlay = document.createElement('div');
-                overlay.id = '__print_overlay__';
-                overlay.innerHTML = ${escaped};
-
-                const style = document.createElement('style');
-                style.id = '__print_style__';
-                style.textContent =
-                    '@page { size: 80mm auto; margin: 0; } ' +
-                    '@media screen { #__print_overlay__ { display: none !important; } } ' +
-                    '@media print { body > * { display: none !important; } #__print_overlay__ { display: block !important; position: static; } }';
-                document.head.appendChild(style);
-                document.body.appendChild(overlay);
-            })();
-        `;
-        const printOptions = { silent: true, printBackground: false };
-        if (printerName) printOptions.deviceName = printerName;
-        mainWindow.webContents.executeJavaScript(injectScript).then(() => {
-            mainWindow.webContents.print(printOptions, (success, failureReason) => {
-                const cleanupScript = `
-                    (() => {
-                        const el = document.getElementById('__print_overlay__');
-                        if (el) el.remove();
-                        const st = document.getElementById('__print_style__');
-                        if (st) st.remove();
-                    })();
-                `;
-                mainWindow.webContents.executeJavaScript(cleanupScript).catch(() => {});
-                logToFile(`print-receipt: success=${success}${failureReason ? ", reason=" + failureReason : ""}`);
-                resolve({ success, failureReason: failureReason || null });
+        let printWin;
+        try {
+            printWin = new BrowserWindow({
+                show: false,
+                width: 400,
+                height: 800,
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true,
+                },
             });
-        }).catch((err) => {
+
+            const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Courier New",monospace;width:80mm}@page{size:80mm auto;margin:0}</style></head><body>${htmlContent}</body></html>`;
+            printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
+
+            printWin.webContents.once("did-finish-load", () => {
+                const printOptions = { silent: true, printBackground: false };
+                if (printerName) printOptions.deviceName = printerName;
+                printWin.webContents.print(printOptions, (success, failureReason) => {
+                    logToFile(`print-receipt: success=${success}${failureReason ? ", reason=" + failureReason : ""}`);
+                    if (!printWin.isDestroyed()) printWin.destroy();
+                    resolve({ success, failureReason: failureReason || null });
+                });
+            });
+
+            printWin.webContents.once("did-fail-load", (_ev, _code, desc) => {
+                logToFile(`print-receipt: load failed: ${desc}`, "ERROR");
+                if (!printWin.isDestroyed()) printWin.destroy();
+                resolve({ success: false, failureReason: desc });
+            });
+        } catch (err) {
             logToFile(`print-receipt IPC error: ${err.message}`, "ERROR");
+            if (printWin && !printWin.isDestroyed()) printWin.destroy();
             resolve({ success: false, failureReason: err.message });
-        });
+        }
     });
 });
 

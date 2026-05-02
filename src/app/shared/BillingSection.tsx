@@ -599,21 +599,19 @@ const BillingSection = () => {
           };
           setCreatedBill(billForReceipt);
 
-          // Auto-print if enabled in printer settings
+          // Auto-print then auto-reset; without auto-print, reset immediately.
           if (autoPrintEnabled) {
-            setTimeout(async () => {
+            (async () => {
               await printReceiptWithTimestamp(CaptainOrderPrint, billForReceipt, "Captain Order", "captain", autoPrintPrinterName || undefined, { showTax });
-              setTimeout(async () => {
-                await printReceiptWithTimestamp(CustomerCopyPrint, billForReceipt, "Customer Copy", "customer", autoPrintPrinterName || undefined, { showTax });
-              }, 1200);
-            }, 300);
+              await printReceiptWithTimestamp(CustomerCopyPrint, billForReceipt, "Customer Copy", "customer", autoPrintPrinterName || undefined, { showTax });
+              resetForNewBill();
+            })();
+          } else {
+            resetForNewBill();
           }
 
           // Refresh inventory after bill creation in the background.
-          // Revalidate all pricelist items so category switching stays fresh.
-          setTimeout(() => {
-            refreshAvailability("all", [], { force: true, background: true });
-          }, 0);
+          refreshAvailability("all", [], { force: true, background: true });
         } else {
           setBillError(result.error || "Failed to submit picked items");
           setErrorDetails(result.errorDetails);

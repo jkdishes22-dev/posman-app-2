@@ -256,7 +256,7 @@ export default function AdminSettingsPage() {
                                 {printerResult.success ? "Printer settings saved." : printerResult.error}
                             </Alert>
                         )}
-                        <Form.Check type="switch" id="auto-print-switch" label="Auto-print receipt after closing a bill"
+                        <Form.Check type="switch" id="auto-print-switch" label="Auto-print receipt after submitting a bill"
                             checked={printerSettings.print_after_close_bill}
                             onChange={(e) => setPrinterSettings((s) => ({ ...s, print_after_close_bill: e.target.checked }))}
                             className="mb-3" />
