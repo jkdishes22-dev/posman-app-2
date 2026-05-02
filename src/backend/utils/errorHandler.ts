@@ -17,9 +17,37 @@ export interface ErrorResponse {
 /**
  * Maps technical error patterns to user-friendly messages
  */
+/**
+ * Returns true if the error message is a clean, application-level message
+ * that is safe to show directly to the user.
+ * Blocks raw SQL errors, file paths, stack traces, and overly long messages.
+ */
+const isCleanApplicationError = (message: string): boolean => {
+  if (!message || message.length > 400 || message.includes("\n")) return false;
+
+  const low = message.toLowerCase();
+  const sqlKeywords = ["sqlite", "sql", "select ", "insert ", "update ", "delete ", "constraint", "foreign key", "unique constraint", "no such column", "no such table"];
+  if (sqlKeywords.some(k => low.includes(k))) return false;
+
+  // Block stack-trace fragments
+  if (low.includes("    at ") || low.includes("\tat ")) return false;
+
+  // Block file path fragments
+  if (/[A-Za-z]:\\/.test(message) || message.includes("/Users/") || message.includes("/home/")) return false;
+
+  return true;
+};
+
 const getErrorMessage = (error: any, context?: ErrorContext): string => {
   const errorMessage = error?.message || String(error);
   const lowerMessage = errorMessage.toLowerCase();
+
+  // If the error message is a clean application-level message, pass it through directly.
+  // This preserves useful business errors like "You can only submit bills that you created."
+  // without leaking internal details.
+  if (isCleanApplicationError(errorMessage)) {
+    return errorMessage;
+  }
 
   // Inventory-related errors
   if (lowerMessage.includes("insufficient stock") || lowerMessage.includes("not enough inventory")) {

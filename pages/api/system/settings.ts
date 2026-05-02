@@ -14,8 +14,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "GET") {
         return authorize([permissions.CAN_VIEW_PERMISSION])(async (request: NextApiRequest, response: NextApiResponse) => {
             try {
-                const dataSource = (request as any).dataSource;
-                const rows: any[] = await dataSource.query(
+                const rows: any[] = await request.db.query(
                     "SELECT value FROM system_settings WHERE key = ?",
                     [key]
                 );
@@ -38,8 +37,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 if (body === undefined || body === null) {
                     return response.status(400).json({ error: "Request body is required" });
                 }
-                const dataSource = (request as any).dataSource;
-                await dataSource.query(
+                await request.db.query(
                     "INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
                     [key, JSON.stringify(body)]
                 );
