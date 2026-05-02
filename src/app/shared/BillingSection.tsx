@@ -80,6 +80,9 @@ const BillingSection = () => {
   );
   const canDeleteCategoryOnBill = hasPermission(userRoleNames, "can_delete_category");
 
+  const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
+  const [autoPrintPrinterName, setAutoPrintPrinterName] = useState("");
+
   const cleanupModalArtifacts = useCallback(() => {
     if (typeof document === "undefined") {
       return;
@@ -107,6 +110,16 @@ const BillingSection = () => {
     // Note: Stations and pricelists are already loaded by their respective contexts on mount
     // No need to call loadStationsIfNeeded/loadPricelistsIfNeeded here as contexts handle it
   }, [isAuthenticated, user]);
+
+  // Load printer settings once on mount
+  useEffect(() => {
+    apiCall("/api/system/settings?key=printer_settings").then((res) => {
+      if (res.status === 200 && res.data?.value) {
+        setAutoPrintEnabled(!!res.data.value.print_after_close_bill);
+        setAutoPrintPrinterName(res.data.value.printer_name || "");
+      }
+    }).catch(() => {});
+  }, []);
 
   // Defensive cleanup to prevent stale modal backdrops from blocking navigation.
   useEffect(() => {
@@ -569,7 +582,7 @@ const BillingSection = () => {
         if (result.status === 201) {
           setShowSubmitModal(false);
           setBillError(""); // Clear any previous errors
-          setCreatedBill({
+          const billForReceipt = {
             ...result.data.bill,
             bill_items: selectedItems.map(item => ({
               ...item,
@@ -577,7 +590,18 @@ const BillingSection = () => {
             })),
             user: { firstName: waitress },
             currency: "KES",
-          });
+          };
+          setCreatedBill(billForReceipt);
+
+          // Auto-print if enabled in printer settings
+          if (autoPrintEnabled) {
+            setTimeout(async () => {
+              await printReceiptWithTimestamp(CaptainOrderPrint, billForReceipt, "Captain Order", "captain", autoPrintPrinterName || undefined);
+              setTimeout(async () => {
+                await printReceiptWithTimestamp(CustomerCopyPrint, billForReceipt, "Customer Copy", "customer", autoPrintPrinterName || undefined);
+              }, 1200);
+            }, 300);
+          }
 
           // Refresh inventory after bill creation in the background.
           // Revalidate all pricelist items so category switching stays fresh.
