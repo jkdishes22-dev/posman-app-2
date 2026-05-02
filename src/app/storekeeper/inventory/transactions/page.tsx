@@ -61,6 +61,8 @@ export default function InventoryTransactionsPage() {
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [itemIdFilter, setItemIdFilter] = useState<string>("");
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
+    const [startDate, setStartDate] = useState<string>("");
+    const [endDate, setEndDate] = useState<string>("");
     const [inventoryItems, setInventoryItems] = useState<{ id: number; name: string; code: string }[]>([]);
 
     // Add quantity modal state
@@ -82,7 +84,7 @@ export default function InventoryTransactionsPage() {
 
     useEffect(() => {
         fetchTransactions();
-    }, [apiCall, page, itemIdFilter, debouncedSearchTerm]);
+    }, [apiCall, page, itemIdFilter, debouncedSearchTerm, startDate, endDate]);
 
     useEffect(() => {
         apiCall("/api/menu/items").then((result) => {
@@ -103,12 +105,10 @@ export default function InventoryTransactionsPage() {
                 page: page.toString(),
                 pageSize: DEFAULT_PAGE_SIZE.toString(),
             });
-            if (itemIdFilter) {
-                params.append("itemId", itemIdFilter);
-            }
-            if (debouncedSearchTerm) {
-                params.append("search", debouncedSearchTerm);
-            }
+            if (itemIdFilter) params.append("itemId", itemIdFilter);
+            if (debouncedSearchTerm) params.append("search", debouncedSearchTerm);
+            if (startDate) params.append("startDate", startDate);
+            if (endDate) params.append("endDate", endDate);
 
             const result = await apiCall(`/api/inventory/transactions?${params.toString()}`);
             if (result.status === 200) {
@@ -268,8 +268,8 @@ export default function InventoryTransactionsPage() {
                 {/* Filters */}
                 <Card className="mb-4">
                     <Card.Body>
-                        <Row>
-                            <Col md={6}>
+                        <Row className="g-3">
+                            <Col md={4}>
                                 <Form.Group>
                                     <Form.Label>Search Items</Form.Label>
                                     <InputGroup>
@@ -285,7 +285,7 @@ export default function InventoryTransactionsPage() {
                                     </InputGroup>
                                 </Form.Group>
                             </Col>
-                            <Col md={4}>
+                            <Col md={3}>
                                 <Form.Group>
                                     <Form.Label>Filter by Item</Form.Label>
                                     <Form.Select
@@ -304,12 +304,36 @@ export default function InventoryTransactionsPage() {
                                     </Form.Select>
                                 </Form.Group>
                             </Col>
-                            <Col md={2} className="d-flex align-items-end">
+                            <Col md={2}>
+                                <Form.Group>
+                                    <Form.Label>From</Form.Label>
+                                    <Form.Control
+                                        type="date"
+                                        value={startDate}
+                                        max={endDate || undefined}
+                                        onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={2}>
+                                <Form.Group>
+                                    <Form.Label>To</Form.Label>
+                                    <Form.Control
+                                        type="date"
+                                        value={endDate}
+                                        min={startDate || undefined}
+                                        onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
+                                    />
+                                </Form.Group>
+                            </Col>
+                            <Col md={1} className="d-flex align-items-end">
                                 <Button
                                     variant="outline-secondary"
                                     onClick={() => {
                                         setItemIdFilter("");
                                         setSearchTerm("");
+                                        setStartDate("");
+                                        setEndDate("");
                                         setPage(1);
                                     }}
                                 >

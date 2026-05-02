@@ -22,17 +22,37 @@ let nextServer = null;
 const PORT = process.env.PORT || 2026;
 const HOST = "localhost";
 
-// Setup logging to file for Windows debugging
-const logDir = path.join(os.homedir(), "AppData", "Local", "JK PosMan", "logs");
-const logFile = path.join(logDir, `app-${new Date().toISOString().replace(/:/g, "-")}.log`);
+// Cross-platform log directory under the user's app-data folder (writable on all installs)
+function resolveLogDir() {
+    if (process.platform === "win32") {
+        // APPDATA = C:\Users\<user>\AppData\Roaming — writable regardless of install location
+        const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+        return path.join(appData, "JK PosMan", "logs");
+    }
+    if (process.platform === "darwin") {
+        return path.join(os.homedir(), "Library", "Logs", "JK PosMan");
+    }
+    // Linux / others
+    return path.join(os.homedir(), ".local", "share", "JK PosMan", "logs");
+}
+
+// One log file per day in EAT timezone (UTC+3).  Named app-YYYY-MM-DD.log so listing by date is trivial.
+function getTodayLogFilename() {
+    const eatOffset = 3 * 60 * 60 * 1000; // EAT = UTC+3
+    const eatNow = new Date(Date.now() + eatOffset);
+    const dateStr = eatNow.toISOString().slice(0, 10); // "YYYY-MM-DD"
+    return `app-${dateStr}.log`;
+}
+
+const logDir = resolveLogDir();
 
 function ensureLogDir() {
     try {
         if (!fs.existsSync(logDir)) {
             fs.mkdirSync(logDir, { recursive: true });
         }
-    } catch (error) {
-        // If we can't create log dir, continue without file logging
+    } catch (_) {
+        // Continue without file logging if directory cannot be created
     }
 }
 
@@ -40,19 +60,19 @@ function logToFile(message, level = "INFO") {
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] [${level}] ${message}\n`;
 
-    // Always log to console
     if (level === "ERROR") {
         console.error(logMessage.trim());
     } else {
         console.log(logMessage.trim());
     }
 
-    // Try to log to file
     try {
         ensureLogDir();
+        // Resolve log filename at write-time so daily rotation happens automatically
+        const logFile = path.join(logDir, getTodayLogFilename());
         fs.appendFileSync(logFile, logMessage);
-    } catch (error) {
-        // If file logging fails, continue without it
+    } catch (_) {
+        // Continue without file logging if write fails
     }
 }
 
@@ -237,6 +257,8 @@ function startNextServer() {
             DB_MODE: process.env.DB_MODE || "sqlite",
             // For SQLite: store DB file in user data directory so it persists across app updates
             SQLITE_DB_PATH: path.join(app.getPath("userData"), "posman.db"),
+            // Pass log directory so the API can serve log files to the UI
+            LOG_DIR: logDir,
         };
 
         // Set NODE_PATH to ensure modules are found

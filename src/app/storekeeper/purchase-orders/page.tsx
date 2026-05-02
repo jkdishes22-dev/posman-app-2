@@ -99,6 +99,8 @@ export default function PurchaseOrdersPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "sent" | "partial" | "received" | "cancelled">("all");
     const [supplierFilter, setSupplierFilter] = useState<string>("all");
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
 
     useEffect(() => {
         fetchPurchaseOrders();
@@ -107,7 +109,7 @@ export default function PurchaseOrdersPage() {
 
     useEffect(() => {
         filterPurchaseOrders();
-    }, [purchaseOrders, searchTerm, statusFilter, supplierFilter]);
+    }, [purchaseOrders, searchTerm, statusFilter, supplierFilter, startDate, endDate]);
 
     const fetchPurchaseOrders = async () => {
         setIsLoading(true);
@@ -151,24 +153,31 @@ export default function PurchaseOrdersPage() {
     const filterPurchaseOrders = () => {
         let filtered = [...purchaseOrders];
 
-        // Filter by search term
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter(po =>
                 po.order_number.toLowerCase().includes(term) ||
                 po.supplier?.name?.toLowerCase().includes(term) ||
-                po.notes?.toLowerCase().includes(term)
+                (po.notes || "").toLowerCase().includes(term)
             );
         }
 
-        // Filter by status
         if (statusFilter !== "all") {
             filtered = filtered.filter(po => po.status === statusFilter);
         }
 
-        // Filter by supplier
         if (supplierFilter !== "all") {
             filtered = filtered.filter(po => po.supplier_id === Number(supplierFilter));
+        }
+
+        if (startDate) {
+            const from = new Date(startDate + "T00:00:00");
+            filtered = filtered.filter(po => new Date(po.order_date) >= from);
+        }
+
+        if (endDate) {
+            const to = new Date(endDate + "T23:59:59");
+            filtered = filtered.filter(po => new Date(po.order_date) <= to);
         }
 
         setFilteredPOs(filtered);
@@ -494,21 +503,21 @@ export default function PurchaseOrdersPage() {
                 {/* Search and Filter */}
                 <Card className="mb-4">
                     <Card.Body>
-                        <Row>
-                            <Col md={4}>
+                        <Row className="g-2">
+                            <Col md={3}>
                                 <InputGroup>
                                     <InputGroup.Text>
                                         <i className="bi bi-search"></i>
                                     </InputGroup.Text>
                                     <Form.Control
                                         type="text"
-                                        placeholder="Search by PO number, supplier, or notes..."
+                                        placeholder="Search PO, supplier, notes…"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                     />
                                 </InputGroup>
                             </Col>
-                            <Col md={3}>
+                            <Col md={2}>
                                 <Form.Select
                                     value={statusFilter}
                                     onChange={(e) => setStatusFilter(e.target.value as any)}
@@ -521,7 +530,7 @@ export default function PurchaseOrdersPage() {
                                     <option value="cancelled">Cancelled</option>
                                 </Form.Select>
                             </Col>
-                            <Col md={3}>
+                            <Col md={2}>
                                 <Form.Select
                                     value={supplierFilter}
                                     onChange={(e) => setSupplierFilter(e.target.value)}
@@ -534,7 +543,27 @@ export default function PurchaseOrdersPage() {
                                     ))}
                                 </Form.Select>
                             </Col>
-                            <Col md={2} className="text-end">
+                            <Col md={2}>
+                                <Form.Control
+                                    type="date"
+                                    value={startDate}
+                                    max={endDate || undefined}
+                                    placeholder="From"
+                                    title="From date"
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                />
+                            </Col>
+                            <Col md={2}>
+                                <Form.Control
+                                    type="date"
+                                    value={endDate}
+                                    min={startDate || undefined}
+                                    placeholder="To"
+                                    title="To date"
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                />
+                            </Col>
+                            <Col md={1} className="text-end d-flex align-items-center justify-content-end gap-2">
                                 <Badge bg="secondary" className="fs-6 p-2">
                                     {filteredPOs.length} PO{filteredPOs.length !== 1 ? "s" : ""}
                                 </Badge>
