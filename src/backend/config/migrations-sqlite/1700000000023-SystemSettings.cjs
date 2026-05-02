@@ -1,7 +1,8 @@
-/** @type {import('./sqlite-compat-runner.cjs').MigrationModule} */
-module.exports = {
-  async up(db) {
-    await db.query(`
+module.exports = class SystemSettingsSqlite1700000000023 {
+  name = "SystemSettingsSqlite1700000000023";
+
+  async up(queryRunner) {
+    await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "system_settings" (
         "key" TEXT NOT NULL,
         "value" TEXT NOT NULL,
@@ -10,13 +11,13 @@ module.exports = {
       );
     `);
 
-    await db.query(`
+    await queryRunner.query(`
       INSERT OR IGNORE INTO "system_settings" ("key", "value")
       VALUES ('log_settings', '{"retention_days":14}');
     `);
-  },
+  }
 
-  async down(db) {
-    await db.query(`DROP TABLE IF EXISTS "system_settings";`);
-  },
+  async down(queryRunner) {
+    await queryRunner.query(`DROP TABLE IF EXISTS "system_settings";`);
+  }
 };
