@@ -491,7 +491,6 @@ export class PricelistUploadService {
             const inv = queryRunner.manager.create(Inventory, {
               item_id: savedItem.id,
               quantity: 0,
-              reserved_quantity: 0,
               created_by: userId,
             });
             await queryRunner.manager.save(Inventory, inv);

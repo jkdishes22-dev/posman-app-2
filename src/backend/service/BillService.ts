@@ -158,21 +158,6 @@ export class BillService {
       },
     );
 
-    // Reserve inventory for bill (Phase 1: Reservation)
-    // This happens AFTER the transaction commits to ensure the bill is visible
-    // Pass the bill object directly to avoid lookup issues
-    console.log(`[BillService] About to reserve inventory for bill ${completeBill.id} with ${completeBill.bill_items?.length || 0} items`);
-    try {
-      await this.inventoryService.reserveInventoryForBill(completeBill, user_id);
-      console.log(`[BillService] Successfully reserved inventory for bill ${completeBill.id}`);
-    } catch (error: any) {
-      console.error(`[BillService] Failed to reserve inventory for bill ${completeBill.id}:`, error);
-      // If inventory reservation fails, we should delete the bill or mark it as failed
-      // For now, we'll let it fail and the caller should handle the error
-      // TODO: Consider adding a cleanup mechanism for bills with failed inventory reservation
-      throw new Error(`Failed to reserve inventory: ${error.message}`);
-    }
-
     return completeBill;
   }
 
@@ -335,17 +320,6 @@ export class BillService {
 
     if (!bill) {
       throw new Error("Bill not found");
-    }
-
-    // Only release inventory if bill is still in PENDING status
-    // If already submitted, inventory was already deducted
-    if (bill.status === BillStatus.PENDING && userId) {
-      try {
-        await this.inventoryService.releaseInventoryReservation(billId, userId);
-      } catch (error: any) {
-        // Log error but don't fail cancellation
-        console.error(`Failed to release inventory reservation for bill ${billId}:`, error);
-      }
     }
 
     bill.status = BillStatus.CANCELLED;
