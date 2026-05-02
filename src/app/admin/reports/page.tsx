@@ -16,6 +16,14 @@ interface ReportCard {
 
 const reportCards: ReportCard[] = [
   {
+    id: "pnl",
+    title: "Profit & Loss",
+    description: "Comprehensive P&L analysis with actual and projected revenue",
+    icon: "bi-graph-up-arrow",
+    path: "/admin/reports/pnl",
+    color: "success"
+  },
+  {
     id: "sales-revenue",
     title: "Sales Revenue",
     description: "View actual and projected revenue from closed and active bills",
@@ -24,28 +32,20 @@ const reportCards: ReportCard[] = [
     color: "primary"
   },
   {
-    id: "production-stock-revenue",
-    title: "Production vs Stock Revenue",
-    description: "Compare revenue from production items vs stock items",
-    icon: "bi-box-seam",
-    path: "/admin/reports/production-stock-revenue",
-    color: "info"
-  },
-  {
     id: "items-sold-count",
     title: "Items Sold Count",
     description: "Count of items sold with quantity tracking",
     icon: "bi-cart",
     path: "/admin/reports/items-sold-count",
-    color: "success"
+    color: "info"
   },
   {
-    id: "voided-items",
-    title: "Voided Items",
-    description: "Track voided items, reasons, and approval status",
-    icon: "bi-exclamation-triangle",
-    path: "/admin/reports/voided-items",
-    color: "warning"
+    id: "production-stock-revenue",
+    title: "Stock & Production",
+    description: "Compare revenue from production items vs stock items",
+    icon: "bi-box-seam",
+    path: "/admin/reports/production-stock-revenue",
+    color: "secondary"
   },
   {
     id: "expenditure",
@@ -53,15 +53,7 @@ const reportCards: ReportCard[] = [
     description: "Stock items supplied and expenses per supplier",
     icon: "bi-cash-stack",
     path: "/admin/reports/expenditure",
-    color: "danger"
-  },
-  {
-    id: "invoices-pending-bills",
-    title: "Invoices & Pending Bills",
-    description: "Track invoices (received purchase orders) and pending bills",
-    icon: "bi-file-earmark-text",
-    path: "/admin/reports/invoices-pending-bills",
-    color: "secondary"
+    color: "warning"
   },
   {
     id: "purchase-orders",
@@ -71,22 +63,6 @@ const reportCards: ReportCard[] = [
     path: "/admin/reports/purchase-orders",
     color: "dark"
   },
-  {
-    id: "pnl",
-    title: "Profit & Loss",
-    description: "Comprehensive P&L analysis with actual and projected revenue",
-    icon: "bi-graph-up-arrow",
-    path: "/admin/reports/pnl",
-    color: "success"
-  },
-  {
-    id: "production-sales-reconciliation",
-    title: "Production vs Sales Reconciliation",
-    description: "Track issued items against sales/bills with voided items (e.g., 10 produced, 8 sold, 1 voided = 1 remaining)",
-    icon: "bi-arrow-left-right",
-    path: "/admin/reports/production-sales-reconciliation",
-    color: "primary"
-  }
 ];
 
 export default function ReportsDashboardPage() {
@@ -102,7 +78,7 @@ export default function ReportsDashboardPage() {
 
         <Row className="g-4">
           {reportCards.map((report) => (
-            <Col key={report.id} xs={12} sm={6} lg={4} xl={3}>
+            <Col key={report.id} xs={12} sm={6} lg={4}>
               <Link 
                 href={report.path} 
                 style={{ textDecoration: "none", color: "inherit" }}
@@ -124,7 +100,7 @@ export default function ReportsDashboardPage() {
                   }}
                 >
                   <Card.Body className="d-flex flex-column">
-                    <div className={`text-${report.color} mb-3`} style={{ fontSize: "2.5rem" }}>
+                    <div className={`text-${report.color} mb-3 report-icon`} style={{ fontSize: "2.5rem" }}>
                       <i className={`bi ${report.icon}`}></i>
                     </div>
                     <Card.Title className="h5 mb-2">{report.title}</Card.Title>

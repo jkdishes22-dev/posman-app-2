@@ -17,9 +17,17 @@ interface SupervisorLayoutProps {
     authError: AuthError | null;
 }
 
+function getExpandedSidebarWidth(): number {
+    if (typeof window === "undefined") return 280;
+    if (window.innerWidth < 1024) return 60;
+    if (window.innerWidth < 1400) return 220;
+    return 280;
+}
+
 const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError }) => {
     useTooltips();
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [sidebarWidth, setSidebarWidth] = useState(280);
     const [activeItem, setActiveItem] = useState("");
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
     const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
@@ -27,6 +35,13 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
     const { currentStation } = useStation();
     const router = useRouter();
     const pathname = usePathname();
+
+    useEffect(() => {
+        const update = () => setSidebarWidth(getExpandedSidebarWidth());
+        update();
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, []);
 
     useEffect(() => {
         // Set active item based on current path - Rule 5.13: Active State Management
@@ -531,7 +546,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 className={`bg-dark text-white d-flex flex-column ${isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"
                     }`}
                 style={{
-                    width: isCollapsed ? "60px" : "280px",
+                    width: isCollapsed ? "60px" : `${sidebarWidth}px`,
                     transition: "width 0.3s ease",
                     minHeight: "100vh",
                 }}

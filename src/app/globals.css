@@ -864,4 +864,58 @@
 /* Fix for nested modals */
 .modal-backdrop.show {
     opacity: 0.5;
+}}
+
+/* ============================================
+   15-inch screen fit (1024px – 1400px)
+   Typical restaurant touchscreen POS monitor
+   ============================================ */
+@media (min-width: 1024px) and (max-width: 1399px) {
+    /* Slim the sidebar via CSS custom property */
+    :root {
+        --pos-sidebar-width: 220px;
+    }
+
+    /* Tighten main content padding */
+    main.flex-grow-1.p-4 {
+        padding: 1rem !important;
+    }
+
+    /* Compact card padding */
+    .card-body {
+        padding: 0.875rem;
+    }
+
+    /* Smaller page headings */
+    h2 {
+        font-size: 1.35rem;
+    }
+
+    /* Billing POS grid: give items panel more room */
+    .pos-grid {
+        grid-template-columns: 1fr 380px;
+    }
+
+    /* Tighter table cells so rows don't overflow */
+    .table td,
+    .table th {
+        padding: 0.4rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    /* Reduce report card icon size */
+    .report-icon {
+        font-size: 1.75rem !important;
+    }
+}
+
+/* Very compact mode for 768px–1023px (e.g. 12-inch screens / landscape tablets) */
+@media (min-width: 768px) and (max-width: 1023px) {
+    :root {
+        --pos-sidebar-width: 60px;
+    }
+
+    .pos-grid {
+        grid-template-columns: 1fr 320px;
+    }
 }
