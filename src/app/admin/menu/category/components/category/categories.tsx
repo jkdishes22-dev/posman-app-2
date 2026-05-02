@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from "react";
-import Image from "next/image";
 import { useTooltips } from "../../../../../hooks/useTooltips";
 
 interface Category {
@@ -108,22 +107,21 @@ const CategoriesComponent = ({
                   <div className="d-flex justify-content-between align-items-start border-bottom border-light pb-1">
                     <div className="col-auto"></div>
                     <div className="col-auto">
-                      {onDeleteCategory && ( // Check if onDeleteCategory is defined
-                        <Image
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {onDeleteCategory && (
+                        <img
                           src="/icons/x-circle.svg"
-                          alt="Delete Item"
+                          alt="Delete"
                           width={24}
                           height={24}
                           className="m-1"
                           style={{ cursor: "pointer" }}
-                          data-bs-toggle="tooltip"
-                          data-bs-placement="top"
                           title="Delete this category"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (onDeleteCategory) {
                               onDeleteCategory(category);
-                            } // Call delete only if the function exists
+                            }
                           }}
                         />
                       )}

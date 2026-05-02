@@ -16,9 +16,6 @@ export class Inventory extends BaseEntity {
     @Column({ type: "int", default: 0 })
     quantity: number;
 
-    @Column({ type: "int", default: 0, name: "reserved_quantity" })
-    reserved_quantity: number;
-
     @Column({ type: "int", nullable: true, name: "min_stock_level" })
     min_stock_level: number;
 

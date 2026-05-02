@@ -256,7 +256,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         },
         {
             id: "bills",
-            label: "Bills Management",
+            label: "Billing",
             icon: "bi-receipt",
             submenu: [
                 {
@@ -299,7 +299,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         },
         {
             id: "menu-pricing",
-            label: "Menu & Pricing",
+            label: "Menus & Pricelist",
             icon: "bi-list-ul",
             submenu: [
                 {
@@ -309,16 +309,16 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     path: "/supervisor/menu/category",
                 },
                 {
-                    id: "menu-recipes",
-                    label: "Recipes",
-                    icon: "bi-journal-text",
-                    path: "/supervisor/menu/recipes",
-                },
-                {
                     id: "menu-pricelist",
                     label: "Pricelists",
                     icon: "bi-tags",
                     path: "/supervisor/menu/pricelist",
+                },
+                {
+                    id: "menu-recipes",
+                    label: "Recipes",
+                    icon: "bi-journal-text",
+                    path: "/supervisor/menu/recipes",
                 },
             ],
         },
@@ -332,44 +332,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     label: "Issue Production",
                     icon: "bi-arrow-up-circle",
                     path: "/supervisor/production",
-                },
-            ],
-        },
-        {
-            id: "stations",
-            label: "Stations",
-            icon: "bi-gear",
-            submenu: [
-                {
-                    id: "stations-overview",
-                    label: "Overview",
-                    icon: "bi-building",
-                    path: "/admin/station", // Direct to admin page to avoid redirect
-                },
-                {
-                    id: "station-users",
-                    label: "Station Users",
-                    icon: "bi-people-fill",
-                    path: "/admin/station/user", // Direct to admin page to avoid redirect
-                },
-            ],
-        },
-        {
-            id: "suppliers",
-            label: "Suppliers",
-            icon: "bi-truck",
-            submenu: [
-                {
-                    id: "suppliers-list",
-                    label: "Suppliers",
-                    icon: "bi-building",
-                    path: "/storekeeper/suppliers",
-                },
-                {
-                    id: "suppliers-purchase-orders",
-                    label: "Purchase Orders",
-                    icon: "bi-cart-check",
-                    path: "/storekeeper/purchase-orders",
                 },
             ],
         },
@@ -399,27 +361,34 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             ],
         },
         {
+            id: "suppliers",
+            label: "Suppliers",
+            icon: "bi-truck",
+            submenu: [
+                {
+                    id: "suppliers-list",
+                    label: "Suppliers",
+                    icon: "bi-building",
+                    path: "/storekeeper/suppliers",
+                },
+                {
+                    id: "suppliers-purchase-orders",
+                    label: "Purchase Orders",
+                    icon: "bi-cart-check",
+                    path: "/storekeeper/purchase-orders",
+                },
+            ],
+        },
+        {
             id: "reports",
             label: "Reports",
             icon: "bi-bar-chart",
             submenu: [
                 {
-                    id: "reports-dashboard",
-                    label: "Dashboard",
-                    icon: "bi-speedometer2",
-                    path: "/admin/reports",
-                },
-                {
-                    id: "reports-sales-revenue",
-                    label: "Sales Revenue",
-                    icon: "bi-currency-dollar",
-                    path: "/admin/reports/sales-revenue",
-                },
-                {
-                    id: "reports-production-stock-revenue",
-                    label: "Production/Stock Revenue",
-                    icon: "bi-box-seam",
-                    path: "/admin/reports/production-stock-revenue",
+                    id: "reports-pnl",
+                    label: "Profit & Loss",
+                    icon: "bi-graph-up-arrow",
+                    path: "/admin/reports/pnl",
                 },
                 {
                     id: "reports-items-sold-count",
@@ -428,34 +397,22 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     path: "/admin/reports/items-sold-count",
                 },
                 {
-                    id: "reports-voided-items",
-                    label: "Voided Items",
-                    icon: "bi-exclamation-triangle",
-                    path: "/admin/reports/voided-items",
+                    id: "reports-production-stock-revenue",
+                    label: "Stock & Production",
+                    icon: "bi-box-seam",
+                    path: "/admin/reports/production-stock-revenue",
                 },
                 {
                     id: "reports-expenditure",
-                    label: "Expenditure",
+                    label: "Expenses",
                     icon: "bi-cash-stack",
                     path: "/admin/reports/expenditure",
-                },
-                {
-                    id: "reports-invoices-pending-bills",
-                    label: "Invoices & Pending Bills",
-                    icon: "bi-file-earmark-text",
-                    path: "/admin/reports/invoices-pending-bills",
                 },
                 {
                     id: "reports-purchase-orders",
                     label: "Purchase Orders",
                     icon: "bi-cart-check",
                     path: "/admin/reports/purchase-orders",
-                },
-                {
-                    id: "reports-pnl",
-                    label: "Profit & Loss",
-                    icon: "bi-graph-up-arrow",
-                    path: "/admin/reports/pnl",
                 },
             ],
         },

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import Image from "next/image";
 import EditItemModal from "./item-edit";
 import ItemDeleteModal from "./item-delete";
 import { Category, Item } from "../../../../../types/types";
@@ -390,6 +389,7 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
                   <>
                     <th>Item code</th>
                     <th>Category</th>
+                    <th>Flags</th>
                   </>
                 )}
                 <th>Pricelist</th>
@@ -429,6 +429,13 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
                         <>
                           <td>{item.code}</td>
                           <td>{item.category?.name || "N/A"}</td>
+                          <td>
+                            <div className="d-flex gap-1 flex-wrap">
+                              {item.isGroup && <span className="badge bg-primary">Group</span>}
+                              {item.isStock && <span className="badge bg-success">Stock</span>}
+                              {item.allowNegativeInventory && <span className="badge bg-warning text-dark">Allow Neg</span>}
+                            </div>
+                          </td>
                         </>
                       )}
                       <td>{item.pricelistName || "N/A"}</td>

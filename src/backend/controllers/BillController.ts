@@ -25,24 +25,20 @@ export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
 export const fetchBills = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
   const currentUserId = Number(req.user?.id);
-  const { date, status, billId, billingUserId, page = 1, pageSize = DEFAULT_PAGE_SIZE } = req.query;
+  const { date, startDate, endDate, status, billId, billingUserId, page = 1, pageSize = DEFAULT_PAGE_SIZE } = req.query;
 
-  let targetDate: Date | undefined = undefined;
-  if (date) {
-    // Parse YYYY-MM-DD format as UTC date to avoid timezone issues
-    const dateStr = date as string;
-    if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      targetDate = new Date(dateStr + "T00:00:00.000Z"); // Force UTC
-    } else {
-      targetDate = new Date(dateStr);
-    }
-    if (isNaN(targetDate.getTime())) {
-      return res.status(400).json({ error: "Invalid date format" });
-    }
-  }
+  const parseDate = (val: string | string[] | undefined): Date | undefined => {
+    if (!val) return undefined;
+    const str = Array.isArray(val) ? val[0] : val;
+    if (!str.match(/^\d{4}-\d{2}-\d{2}$/)) return undefined;
+    const d = new Date(str + "T00:00:00.000Z");
+    return isNaN(d.getTime()) ? undefined : d;
+  };
 
   const billFilter: BillFilter = {
-    targetDate,
+    targetDate: parseDate(date as string),
+    startDate: parseDate(startDate as string),
+    endDate: parseDate(endDate as string),
     status,
     billId,
     billingUserId,
@@ -230,11 +226,16 @@ export const submitBill = async (req: NextApiRequest, res: NextApiResponse) => {
     const submittedBill = await billService.submitBill(billPayment);
     res.status(200).json(submittedBill);
   } catch (error: any) {
+    const isValidationError = error?.message && (
+      error.message.includes("Insufficient inventory") ||
+      error.message.includes("not found") ||
+      error.message.includes("only submit bills that you created")
+    );
     const { userMessage, errorCode } = handleApiError(error, {
       operation: "submitting",
       resource: "bill"
     });
-    res.status(500).json({ error: userMessage, code: errorCode });
+    res.status(isValidationError ? 400 : 500).json({ error: userMessage, code: errorCode });
   }
 };
 
@@ -281,11 +282,15 @@ export const bulkSubmitBills = async (req: NextApiRequest, res: NextApiResponse)
     const results = await billService.submitBillsBulk(billPayments, parseInt(req.user?.id as string));
     res.status(200).json({ results });
   } catch (error: any) {
+    const isValidationError = error?.message && (
+      error.message.includes("Insufficient inventory") ||
+      error.message.includes("not found")
+    );
     const { userMessage, errorCode } = handleApiError(error, {
       operation: "submitting",
       resource: "bills"
     });
-    res.status(500).json({ error: userMessage, code: errorCode });
+    res.status(isValidationError ? 400 : 500).json({ error: userMessage, code: errorCode });
   }
 };
 

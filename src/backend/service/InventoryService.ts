@@ -9,8 +9,7 @@ import { DataSource, Repository } from "typeorm";
 export interface InventoryLevel {
     item_id: number;
     quantity: number;
-    reserved_quantity: number;
-    available_quantity: number; // quantity - reserved_quantity
+    available_quantity: number; // same as quantity
     min_stock_level: number | null;
     max_stock_level: number | null;
     reorder_point: number | null;
@@ -59,7 +58,6 @@ export class InventoryService {
         const inventory = this.inventoryRepository.create({
             item_id: itemId,
             quantity: initialQuantity,
-            reserved_quantity: 0,
             min_stock_level: minLevel,
             max_stock_level: maxLevel,
             reorder_point: reorderPoint,
@@ -95,7 +93,7 @@ export class InventoryService {
             return null;
         }
 
-        const available_quantity = inventory.quantity - inventory.reserved_quantity;
+        const available_quantity = inventory.quantity;
         const is_low_stock = inventory.reorder_point !== null
             ? available_quantity <= inventory.reorder_point
             : false;
@@ -103,7 +101,6 @@ export class InventoryService {
         const result = {
             item_id: inventory.item_id,
             quantity: inventory.quantity,
-            reserved_quantity: inventory.reserved_quantity,
             available_quantity,
             min_stock_level: inventory.min_stock_level,
             max_stock_level: inventory.max_stock_level,
@@ -117,7 +114,7 @@ export class InventoryService {
     }
 
     /**
-     * Get available stock (quantity - reserved_quantity) (cached)
+     * Get available stock (same as quantity) (cached)
      */
     public async getAvailableStock(itemId: number): Promise<number> {
         const cacheKey = `available_stock_${itemId}`;
@@ -137,7 +134,7 @@ export class InventoryService {
             return 0;
         }
 
-        const result = Math.max(0, inventory.quantity - inventory.reserved_quantity);
+        const result = inventory.quantity;
 
         // Cache the result
         cache.set(cacheKey, result);
@@ -166,7 +163,6 @@ export class InventoryService {
                 };
             };
             quantity: number;
-            reserved_quantity: number;
             available_quantity: number;
             min_stock_level: number | null;
             max_stock_level: number | null;
@@ -220,7 +216,7 @@ export class InventoryService {
         const inventories = await baseQuery.getMany();
 
         const items = inventories.map((inventory) => {
-            const available_quantity = inventory.quantity - inventory.reserved_quantity;
+            const available_quantity = inventory.quantity;
             const is_low_stock = inventory.reorder_point !== null
                 ? available_quantity <= inventory.reorder_point
                 : false;
@@ -239,7 +235,6 @@ export class InventoryService {
                     } : undefined,
                 },
                 quantity: inventory.quantity,
-                reserved_quantity: inventory.reserved_quantity,
                 available_quantity,
                 min_stock_level: inventory.min_stock_level,
                 max_stock_level: inventory.max_stock_level,
@@ -398,8 +393,7 @@ export class InventoryService {
         // Pre-calculate all available inventories in one pass
         const inventoryMap = new Map<number, number>();
         for (const inventory of inventories) {
-            const available = inventory.quantity - inventory.reserved_quantity;
-            inventoryMap.set(inventory.item_id, Math.max(0, available));
+            inventoryMap.set(inventory.item_id, Math.max(0, inventory.quantity));
         }
 
         // Pre-calculate constituent availability for composite items (avoid repeated lookups)
@@ -537,397 +531,6 @@ export class InventoryService {
     }
 
     /**
-     * Reserve inventory for a bill (Phase 1: Reservation)
-     * Called when bill is created (DRAFT status)
-     * 
-     * Universal Tracking: ALL items (stock and non-stock) are tracked and reserved.
-     * Negative Prevention: Items without allowNegativeInventory flag cannot go negative.
-     * 
-     * @param billOrId - Either a Bill object with relations or a bill ID
-     * @param userId - User ID performing the reservation
-     */
-    public async reserveInventoryForBill(billOrId: number | Bill, userId: number): Promise<void> {
-        console.log(`[InventoryService] reserveInventoryForBill called with billOrId: ${typeof billOrId === "object" ? billOrId.id : billOrId}, userId: ${userId}`);
-
-        let bill: Bill | null;
-
-        // If bill object is passed, check if relations are already loaded
-        if (typeof billOrId === "object" && billOrId !== null) {
-            bill = billOrId;
-            // Only reload if bill_items or item relations are missing
-            const hasBillItems = bill.bill_items && bill.bill_items.length > 0;
-            const hasItemRelations = hasBillItems && bill.bill_items.every((bi: any) => bi.item != null);
-
-            if (!hasItemRelations) {
-                console.log(`[InventoryService] Bill object passed, reloading with relations. Bill ID: ${bill.id}`);
-                bill = await this.billRepository.findOne({
-                    where: { id: bill.id },
-                    relations: ["bill_items", "bill_items.item"],
-                });
-            } else {
-                console.log(`[InventoryService] Bill object passed with relations already loaded. Bill ID: ${bill.id}`);
-            }
-        } else {
-            const billId = billOrId as number;
-            console.log(`[InventoryService] Bill ID passed, fetching bill ${billId}`);
-            bill = await this.billRepository.findOne({
-                where: { id: billId },
-                relations: ["bill_items", "bill_items.item"],
-            });
-        }
-
-        if (!bill) {
-            console.error(`[InventoryService] Bill ${typeof billOrId === "object" ? billOrId.id : billOrId} not found`);
-            throw new Error(`Bill ${typeof billOrId === "object" ? billOrId.id : billOrId} not found`);
-        }
-
-        console.log(`[InventoryService] Bill ${bill.id} found. Status: ${bill.status}, Bill items count: ${bill.bill_items?.length || 0}`);
-
-        if (bill.status !== BillStatus.PENDING) {
-            console.error(`[InventoryService] Cannot reserve inventory for bill ${bill.id} with status ${bill.status}`);
-            throw new Error(`Cannot reserve inventory for bill ${bill.id} with status ${bill.status}`);
-        }
-
-        // Validate that bill items have item relations loaded
-        if (!bill.bill_items || bill.bill_items.length === 0) {
-            console.warn(`[InventoryService] Bill ${bill.id} has no bill items. Skipping inventory reservation.`);
-            return;
-        }
-
-        const itemsWithoutRelations = bill.bill_items.filter(bi => !bi.item);
-        if (itemsWithoutRelations.length > 0) {
-            console.warn(`[InventoryService] Bill ${bill.id} has ${itemsWithoutRelations.length} bill items without item relations. These will be skipped.`);
-        }
-
-        console.log(`[InventoryService] Starting inventory reservation transaction for bill ${bill.id}`);
-
-        // Use transaction to ensure atomicity
-        await this.inventoryRepository.manager.transaction(async (transactionalEntityManager) => {
-            // First, calculate total quantity needed per item (in case same item appears multiple times)
-            const itemQuantities = new Map<number, number>();
-            const itemMap = new Map<number, Item>(); // Store items for later use
-            let skippedItems = 0;
-            for (const billItem of bill.bill_items || []) {
-                const item = billItem.item;
-                if (!item) {
-                    skippedItems++;
-                    console.warn(`Bill item ${billItem.id} has no item relation. Skipping.`);
-                    continue;
-                }
-                const currentTotal = itemQuantities.get(item.id) || 0;
-                itemQuantities.set(item.id, currentTotal + billItem.quantity);
-                itemMap.set(item.id, item);
-            }
-
-            if (skippedItems > 0) {
-                console.warn(`Skipped ${skippedItems} bill items without item relations for bill ${bill.id}`);
-            }
-
-            if (itemQuantities.size === 0) {
-                console.warn(`[InventoryService] No valid items found for bill ${bill.id}. No inventory transactions will be created.`);
-                return;
-            }
-
-            console.log(`[InventoryService] Processing ${itemQuantities.size} unique items for bill ${bill.id}`);
-
-            // OPTIMIZATION: Batch load all ratio definitions at once
-            const itemIds = Array.from(itemQuantities.keys());
-            const allRatioDefinitions = await transactionalEntityManager.find(ItemGroup, {
-                where: itemIds.map(id => ({ item: { id } })),
-                relations: ["subItem"],
-            });
-
-            // Group ratio definitions by item ID for quick lookup
-            const ratioDefinitionsByItem = new Map<number, ItemGroup[]>();
-            for (const ratio of allRatioDefinitions) {
-                // ItemGroup has a relation to item, need to get it from the query
-                // Since we loaded with relations, ratio.item should be available
-                const itemId = ratio.item?.id;
-                if (itemId) {
-                    if (!ratioDefinitionsByItem.has(itemId)) {
-                        ratioDefinitionsByItem.set(itemId, []);
-                    }
-                    ratioDefinitionsByItem.get(itemId)!.push(ratio);
-                }
-            }
-
-            // OPTIMIZATION: Batch load all inventory records at once
-            const allInventories = await transactionalEntityManager.find(Inventory, {
-                where: itemIds.map(id => ({ item_id: id })),
-            });
-            const inventoryMap = new Map<number, Inventory>();
-            for (const inv of allInventories) {
-                inventoryMap.set(inv.item_id, inv);
-            }
-
-            // Now reserve inventory for each unique item
-            for (const [itemId, totalQuantity] of itemQuantities.entries()) {
-                console.log(`[InventoryService] Processing item ${itemId}, quantity: ${totalQuantity}`);
-                const item = itemMap.get(itemId);
-
-                if (!item) {
-                    console.warn(`Item ${itemId} not found in bill items. Skipping.`);
-                    continue;
-                }
-
-                // Get ratio definitions from pre-loaded map
-                const ratioDefinitions = ratioDefinitionsByItem.get(itemId) || [];
-
-                console.log(`[InventoryService] Item ${item.id} (${item.name}) has ${ratioDefinitions.length} ratio definitions`);
-
-                if (ratioDefinitions.length > 0) {
-                    // Composite item: Reserve from constituent items based on ratios
-                    console.log(`[InventoryService] Item ${item.id} is composite, reserving from constituents`);
-                    await this.reserveInventoryForCompositeItem(
-                        item,
-                        totalQuantity,
-                        bill.id,
-                        userId,
-                        ratioDefinitions,
-                        transactionalEntityManager
-                    );
-
-                    // ALWAYS reserve the sellable composite item itself 1:1 (same as deduction logic)
-                    // This ensures inventory tracking for the sellable item regardless of constituent types
-                    // NOTE: For composite items, availability is calculated from constituents (already validated above)
-                    // We don't check the composite item's own inventory here - it's for tracking issued production only
-                    console.log(`[InventoryService] Also reserving composite item ${item.id} itself (1:1) for tracking`);
-                    let compositeInventory = inventoryMap.get(item.id);
-
-                    if (!compositeInventory) {
-                        compositeInventory = transactionalEntityManager.create(Inventory, {
-                            item_id: item.id,
-                            quantity: 0,
-                            reserved_quantity: 0,
-                            created_by: userId,
-                        });
-                        compositeInventory = await transactionalEntityManager.save(Inventory, compositeInventory);
-                        inventoryMap.set(item.id, compositeInventory); // Cache for potential future use
-                    }
-
-                    // For composite items, we don't check their own inventory availability
-                    // Availability is based on constituents, which was already validated in reserveInventoryForCompositeItem
-                    // The composite item's inventory is for tracking issued production, not for availability checks
-                    compositeInventory.reserved_quantity += totalQuantity;
-                    compositeInventory.updated_by = userId;
-                    await transactionalEntityManager.save(Inventory, compositeInventory);
-
-                    // Create transaction record for composite item reservation
-                    console.log(`[InventoryService] Creating inventory transaction for composite item ${item.id}, bill ${bill.id}, quantity: ${-totalQuantity}`);
-                    const compositeTransaction = transactionalEntityManager.create(InventoryTransaction, {
-                        item_id: item.id,
-                        transaction_type: InventoryTransactionType.SALE,
-                        quantity: -totalQuantity,
-                        reference_type: InventoryReferenceType.BILL,
-                        reference_id: bill.id,
-                        notes: `Reserved ${totalQuantity} units for composite item ${item.name} in bill ${bill.id}`,
-                        created_by: userId,
-                    });
-                    const savedCompositeTransaction = await transactionalEntityManager.save(InventoryTransaction, compositeTransaction);
-                    console.log(`[InventoryService] Inventory transaction created: ID ${savedCompositeTransaction.id} for composite item ${item.id}`);
-                } else {
-                    console.log(`[InventoryService] Item ${item.id} is regular item, reserving directly`);
-                    // Regular item: Reserve directly
-                    // Reserve inventory for both stock items (isStock: true) and produced items (isStock: false)
-                    // Both types need inventory tracking for sales
-
-                    // Get inventory from pre-loaded map, or create if it doesn't exist
-                    let inventory = inventoryMap.get(item.id);
-
-                    if (!inventory) {
-                        // Initialize inventory with 0 quantity if it doesn't exist
-                        inventory = transactionalEntityManager.create(Inventory, {
-                            item_id: item.id,
-                            quantity: 0,
-                            reserved_quantity: 0,
-                            created_by: userId,
-                        });
-                        inventory = await transactionalEntityManager.save(Inventory, inventory);
-                        inventoryMap.set(item.id, inventory); // Cache for potential future use
-                    }
-
-                    // Check allowNegativeInventory flag
-                    const allowNegative = Boolean(item.allowNegativeInventory) || Number(item.allowNegativeInventory) === 1;
-
-                    // Check available stock and validate (unless allowNegativeInventory is true)
-                    // Available = total quantity - already reserved quantity
-                    const availableStock = inventory.quantity - inventory.reserved_quantity;
-
-                    if (!allowNegative && availableStock < totalQuantity) {
-                        throw new Error(
-                            `Insufficient stock for item ${item.name} (${item.code || "N/A"}). ` +
-                            `Available: ${availableStock}, Required: ${totalQuantity}. ` +
-                            `Please issue more ${item.name} to inventory before adding to bill.`
-                        );
-                    }
-
-                    // Reserve the total quantity for this item
-                    inventory.reserved_quantity += totalQuantity;
-                    inventory.updated_by = userId;
-                    // updated_at is automatically managed by TypeORM's UpdateDateColumn
-
-                    await transactionalEntityManager.save(Inventory, inventory);
-
-                    // Create transaction record for reservation (one per item, not per bill item)
-                    console.log(`[InventoryService] Creating inventory transaction for item ${item.id}, bill ${bill.id}, quantity: ${-totalQuantity}`);
-                    const transaction = transactionalEntityManager.create(InventoryTransaction, {
-                        item_id: item.id,
-                        transaction_type: InventoryTransactionType.SALE,
-                        quantity: -totalQuantity, // Negative for reservation (not yet deducted)
-                        reference_type: InventoryReferenceType.BILL,
-                        reference_id: bill.id,
-                        notes: `Reserved ${totalQuantity} units for bill ${bill.id}`,
-                        created_by: userId,
-                    });
-                    const savedTransaction = await transactionalEntityManager.save(InventoryTransaction, transaction);
-                    console.log(`[InventoryService] Inventory transaction created: ID ${savedTransaction.id} for item ${item.id}`);
-                }
-            }
-
-            console.log(`[InventoryService] Completed inventory reservation transaction for bill ${bill.id}`);
-        });
-
-        console.log(`[InventoryService] Successfully reserved inventory for bill ${bill.id}`);
-    }
-
-    /**
-     * Reserve inventory for composite items based on ratio definitions
-     * For ALL constituents in the ratio, reserves quantity * portion_size
-     * Respects allowNegativeInventory flag: if false, validates availability; if true, allows negative
-     */
-    private async reserveInventoryForCompositeItem(
-        compositeItem: Item,
-        quantity: number,
-        billId: number,
-        userId: number,
-        ratioDefinitions: ItemGroup[],
-        transactionalEntityManager: any
-    ): Promise<void> {
-        console.log(`[InventoryService] reserveInventoryForCompositeItem: compositeItem ${compositeItem.id} (${compositeItem.name}), quantity: ${quantity}, billId: ${billId}`);
-
-        // OPTIMIZATION: Batch load all constituent inventories and items first
-        const allConstituentIds = ratioDefinitions.map(r => r.subItem?.id).filter(Boolean) as number[];
-
-        // Load all constituent items to check allowNegativeInventory flag
-        const constituentItems = allConstituentIds.length > 0
-            ? await transactionalEntityManager.find(Item, {
-                where: allConstituentIds.map(id => ({ id })),
-            })
-            : [];
-        const constituentItemMap = new Map<number, Item>();
-        for (const item of constituentItems) {
-            constituentItemMap.set(item.id, item);
-        }
-
-        const allConstituentInventories = allConstituentIds.length > 0
-            ? await transactionalEntityManager.find(Inventory, {
-                where: allConstituentIds.map(id => ({ item_id: id })),
-            })
-            : [];
-        const constituentInventoryMap = new Map<number, Inventory>();
-        for (const inv of allConstituentInventories) {
-            constituentInventoryMap.set(inv.item_id, inv);
-        }
-
-        // Aggregate quantities needed per constituent item
-        // ALL constituents are now included, regardless of isStock flag
-        // IMPORTANT: Skip the composite item itself if it appears in its own ratio definitions (prevents circular references)
-        const constituentQuantities = new Map<number, number>();
-
-        for (const ratio of ratioDefinitions) {
-            const constituentItem = ratio.subItem;
-
-            if (!constituentItem) {
-                console.log("[InventoryService] Skipping constituent with no item data");
-                continue;
-            }
-
-            // Skip if the constituent is the composite item itself (prevents circular references)
-            if (constituentItem.id === compositeItem.id) {
-                console.log(`[InventoryService] Skipping circular reference: composite item ${compositeItem.id} (${compositeItem.name}) cannot be a constituent of itself`);
-                continue;
-            }
-
-            // Calculate quantity to reserve: quantity sold × portion_size
-            const quantityToReserve = quantity * ratio.portion_size;
-            const currentTotal = constituentQuantities.get(constituentItem.id) || 0;
-            constituentQuantities.set(constituentItem.id, currentTotal + quantityToReserve);
-            console.log(`[InventoryService] Constituent ${constituentItem.id} (${constituentItem.name}): reserving ${quantityToReserve} (${quantity} × ${ratio.portion_size})`);
-        }
-
-        if (constituentQuantities.size === 0) {
-            console.warn(`[InventoryService] No constituents found in ratio definitions for composite item ${compositeItem.id}. No inventory will be reserved.`);
-            return;
-        }
-
-        console.log(`[InventoryService] Reserving inventory for ${constituentQuantities.size} constituents`);
-
-        // OPTIMIZATION: Batch load all constituent inventories at once
-        const constituentItemIds = Array.from(constituentQuantities.keys());
-        const stockInventories = await transactionalEntityManager.find(Inventory, {
-            where: constituentItemIds.map(id => ({ item_id: id })),
-        });
-        const stockInventoryMap = new Map<number, Inventory>();
-        for (const inv of stockInventories) {
-            stockInventoryMap.set(inv.item_id, inv);
-        }
-
-        // Reserve inventory for each constituent item
-        for (const [constituentItemId, totalQuantityToReserve] of constituentQuantities.entries()) {
-            // Get constituent item to check allowNegativeInventory flag
-            const constituentItem = constituentItemMap.get(constituentItemId);
-            const allowNegative = Boolean(constituentItem?.allowNegativeInventory) || Number(constituentItem?.allowNegativeInventory) === 1;
-
-            // Get inventory from pre-loaded map, or create if it doesn't exist
-            let stockInventory = stockInventoryMap.get(constituentItemId);
-
-            if (!stockInventory) {
-                // Constituent item doesn't have inventory yet, create it with 0 quantity
-                stockInventory = transactionalEntityManager.create(Inventory, {
-                    item_id: constituentItemId,
-                    quantity: 0,
-                    reserved_quantity: 0,
-                    created_by: userId,
-                });
-                stockInventory = await transactionalEntityManager.save(Inventory, stockInventory);
-                stockInventoryMap.set(constituentItemId, stockInventory); // Cache for potential future use
-            }
-
-            // Check available stock and validate (unless allowNegativeInventory is true)
-            const availableStock = stockInventory.quantity - stockInventory.reserved_quantity;
-            if (!allowNegative && availableStock < totalQuantityToReserve) {
-                // Find the constituent item name for error message
-                const constituentItemName = constituentItem?.name || `Item ${constituentItemId}`;
-                throw new Error(
-                    `Insufficient stock for ingredient ${constituentItemName} in composite item ${compositeItem.name}. ` +
-                    `Available: ${availableStock}, Required: ${totalQuantityToReserve} ` +
-                    `(${quantity} × ${ratioDefinitions.find(r => r.subItem?.id === constituentItemId)?.portion_size || "N/A"} per unit). ` +
-                    `Please issue more ${constituentItemName} to inventory before adding to bill.`
-                );
-            }
-
-            // Reserve the constituent item
-            stockInventory.reserved_quantity += totalQuantityToReserve;
-            stockInventory.updated_by = userId;
-            await transactionalEntityManager.save(Inventory, stockInventory);
-
-            // Create transaction record for constituent item reservation
-            console.log(`[InventoryService] Creating inventory transaction for constituent ${constituentItemId}, bill ${billId}, quantity: ${-totalQuantityToReserve}`);
-            const transaction = transactionalEntityManager.create(InventoryTransaction, {
-                item_id: constituentItemId,
-                transaction_type: InventoryTransactionType.SALE,
-                quantity: -totalQuantityToReserve, // Negative for reservation
-                reference_type: InventoryReferenceType.BILL,
-                reference_id: billId,
-                notes: `Reserved ${totalQuantityToReserve} (${quantity} × ${ratioDefinitions.find(r => r.subItem?.id === constituentItemId)?.portion_size || "N/A"}) for composite item ${compositeItem.name} in bill ${billId}`,
-                created_by: userId,
-            });
-            const savedTransaction = await transactionalEntityManager.save(InventoryTransaction, transaction);
-            console.log(`[InventoryService] Inventory transaction created: ID ${savedTransaction.id} for constituent ${constituentItemId}`);
-        }
-    }
-
-    /**
      * Deduct inventory for composite items based on ratio definitions
      * For ALL constituents in the ratio, deducts quantity * portion_size
      * Respects allowNegativeInventory flag: if false, validates availability; if true, allows negative
@@ -980,7 +583,6 @@ export class InventoryService {
                 stockInventory = transactionalEntityManager.create(Inventory, {
                     item_id: constituentItem.id,
                     quantity: 0,
-                    reserved_quantity: 0,
                     created_by: userId,
                 });
                 stockInventory = await transactionalEntityManager.save(Inventory, stockInventory);
@@ -990,7 +592,7 @@ export class InventoryService {
             const allowNegative = constituentItem.allowNegativeInventory === true || constituentItem.allowNegativeInventory === 1;
 
             // Check available stock and validate (unless allowNegativeInventory is true)
-            const availableStock = stockInventory.quantity - stockInventory.reserved_quantity;
+            const availableStock = stockInventory.quantity;
             if (!allowNegative && availableStock < quantityToDeduct) {
                 throw new Error(
                     `Insufficient stock for ingredient ${constituentItem.name}. ` +
@@ -1081,7 +683,6 @@ export class InventoryService {
                     inventory = transactionalEntityManager.create(Inventory, {
                         item_id: item.id,
                         quantity: 0,
-                        reserved_quantity: 0,
                         created_by: userId,
                     });
                     inventory = await transactionalEntityManager.save(Inventory, inventory);
@@ -1090,16 +691,8 @@ export class InventoryService {
                 // Check allowNegativeInventory flag
                 const allowNegative = Boolean(item.allowNegativeInventory) || Number(item.allowNegativeInventory) === 1;
 
-                // Check if quantity was reserved (unless allowNegativeInventory is true)
-                if (!allowNegative && inventory.reserved_quantity < billItem.quantity) {
-                    throw new Error(
-                        `Reserved quantity mismatch for item ${item.id} (${item.name}). Reserved: ${inventory.reserved_quantity}, Required: ${billItem.quantity}`
-                    );
-                }
-
-                // Convert reservation to deduction: decrease both quantity and reserved_quantity
+                // Deduct inventory at submission time
                 inventory.quantity -= billItem.quantity;
-                inventory.reserved_quantity -= billItem.quantity;
                 inventory.updated_by = userId;
                 // updated_at is automatically managed by TypeORM's UpdateDateColumn
 
@@ -1199,7 +792,6 @@ export class InventoryService {
                 inventory = transactionalEntityManager.create(Inventory, {
                     item_id: item.id,
                     quantity: 0,
-                    reserved_quantity: 0,
                     created_by: userId,
                 });
                 inventory = await transactionalEntityManager.save(Inventory, inventory);
@@ -1261,7 +853,6 @@ export class InventoryService {
                 inventory = transactionalEntityManager.create(Inventory, {
                     item_id: constituentItem.id,
                     quantity: 0,
-                    reserved_quantity: 0,
                     created_by: userId,
                 });
                 inventory = await transactionalEntityManager.save(Inventory, inventory);
@@ -1287,120 +878,6 @@ export class InventoryService {
     }
 
     /**
-     * Release inventory reservation
-     * Called when bill is cancelled/deleted (DRAFT status only)
-     * 
-     * Universal Tracking: ALL constituents (stock and non-stock) have reservations released.
-     */
-    public async releaseInventoryReservation(billId: number, userId: number): Promise<void> {
-        const bill = await this.billRepository.findOne({
-            where: { id: billId },
-            relations: ["bill_items", "bill_items.item"],
-        });
-
-        if (!bill) {
-            throw new Error(`Bill ${billId} not found`);
-        }
-
-        // Only release if bill is still in DRAFT/PENDING status
-        if (bill.status !== BillStatus.PENDING) {
-            // Bill already submitted, reservation already converted to deduction
-            return;
-        }
-
-        // Use transaction to ensure atomicity
-        await this.inventoryRepository.manager.transaction(async (transactionalEntityManager) => {
-            for (const billItem of bill.bill_items || []) {
-                const item = billItem.item;
-
-                // Skip if item is missing
-                if (!item) {
-                    continue;
-                }
-
-                // Check if item is a composite item
-                const ratioDefinitions = await transactionalEntityManager.find(ItemGroup, {
-                    where: { item: { id: item.id } },
-                    relations: ["subItem"],
-                });
-
-                if (ratioDefinitions.length > 0) {
-                    // Composite item: Release reservations from ALL constituent items
-                    // ALL constituents are now released, regardless of isStock flag
-                    for (const ratio of ratioDefinitions) {
-                        const constituentItem = ratio.subItem;
-                        if (!constituentItem) {
-                            continue;
-                        }
-
-                        const quantityToRelease = billItem.quantity * ratio.portion_size;
-
-                        const inventory = await transactionalEntityManager.findOne(Inventory, {
-                            where: { item_id: constituentItem.id },
-                        });
-
-                        if (!inventory) {
-                            // Inventory doesn't exist, skip (shouldn't happen if reservation was successful)
-                            continue;
-                        }
-
-                        // Release the reserved quantity
-                        if (inventory.reserved_quantity >= quantityToRelease) {
-                            inventory.reserved_quantity -= quantityToRelease;
-                            inventory.updated_by = userId;
-                            await transactionalEntityManager.save(Inventory, inventory);
-
-                            // Create transaction record for release
-                            const transaction = transactionalEntityManager.create(InventoryTransaction, {
-                                item_id: constituentItem.id,
-                                transaction_type: InventoryTransactionType.ADJUSTMENT,
-                                quantity: quantityToRelease, // Positive for release
-                                reference_type: InventoryReferenceType.BILL,
-                                reference_id: billId,
-                                notes: `Released reservation for cancelled bill ${billId} (composite item ${item.name})`,
-                                created_by: userId,
-                            });
-                            await transactionalEntityManager.save(InventoryTransaction, transaction);
-                        }
-                    }
-                } else {
-                    // Regular item: Release inventory reservation
-                    const inventory = await transactionalEntityManager.findOne(Inventory, {
-                        where: { item_id: item.id },
-                    });
-
-                    if (!inventory) {
-                        continue; // Inventory doesn't exist, skip
-                    }
-
-                    // Release the reserved quantity
-                    if (inventory.reserved_quantity >= billItem.quantity) {
-                        inventory.reserved_quantity -= billItem.quantity;
-                        inventory.updated_by = userId;
-                        // updated_at is automatically managed by TypeORM's UpdateDateColumn
-                        await transactionalEntityManager.save(Inventory, inventory);
-
-                        // Create transaction record for release
-                        const transaction = transactionalEntityManager.create(InventoryTransaction, {
-                            item_id: item.id,
-                            transaction_type: InventoryTransactionType.ADJUSTMENT,
-                            quantity: billItem.quantity, // Positive for release
-                            reference_type: InventoryReferenceType.BILL,
-                            reference_id: billId,
-                            notes: `Released reservation for cancelled bill ${billId}`,
-                            created_by: userId,
-                        });
-                        await transactionalEntityManager.save(InventoryTransaction, transaction);
-                    }
-                }
-            }
-        });
-
-        // Invalidate cache after releasing inventory reservation
-        InventoryService.invalidateInventoryCache();
-    }
-
-    /**
      * Check for low stock items
      */
     public async checkLowStock(): Promise<LowStockItem[]> {
@@ -1413,13 +890,12 @@ export class InventoryService {
         const lowStockItems: LowStockItem[] = [];
 
         for (const inventory of inventories) {
-            const available_quantity = inventory.quantity - inventory.reserved_quantity;
+            const available_quantity = inventory.quantity;
 
             if (inventory.reorder_point !== null && available_quantity <= inventory.reorder_point) {
                 lowStockItems.push({
                     item_id: inventory.item_id,
                     quantity: inventory.quantity,
-                    reserved_quantity: inventory.reserved_quantity,
                     available_quantity,
                     min_stock_level: inventory.min_stock_level,
                     max_stock_level: inventory.max_stock_level,
@@ -1500,10 +976,10 @@ export class InventoryService {
         const lowStockItems = await this.checkLowStock();
         const lowStockCount = lowStockItems.length;
 
-        // Count out of stock items (available_quantity === 0) from all inventory items
+        // Count out of stock items (quantity === 0) from all inventory items
         const outOfStockCount = await this.inventoryRepository
             .createQueryBuilder("inventory")
-            .where("(inventory.quantity - inventory.reserved_quantity) <= 0")
+            .where("inventory.quantity <= 0")
             .getCount();
 
         // Get recent movements count (transactions in last 7 days)
@@ -1562,14 +1038,16 @@ export class InventoryService {
         page: number = 1,
         pageSize: number = 10,
         itemId?: number,
-        search?: string
+        search?: string,
+        startDate?: Date,
+        endDate?: Date
     ): Promise<{ transactions: InventoryTransaction[]; total: number }> {
-        // Only cache if no search (search results change frequently)
-        const cacheKey = search
+        const hasDateFilter = startDate || endDate;
+        // Only cache when no volatile filters are active
+        const cacheKey = (search || hasDateFilter)
             ? null
             : `inventory_transactions_${page}_${pageSize}_${itemId || "all"}`;
 
-        // Try cache first (only for non-search queries)
         if (cacheKey) {
             const cached = cache.get<{ transactions: InventoryTransaction[]; total: number }>(cacheKey);
             if (cached !== null) {
@@ -1583,37 +1061,42 @@ export class InventoryService {
             .leftJoinAndSelect("transaction.created_by_user", "created_by_user")
             .orderBy("transaction.created_at", "DESC");
 
+        const conditions: string[] = [];
+        const params: Record<string, any> = {};
+
         if (itemId) {
-            query.where("transaction.item_id = :itemId", { itemId });
+            conditions.push("transaction.item_id = :itemId");
+            params.itemId = itemId;
         }
 
         if (search) {
             const searchLower = `%${search.toLowerCase()}%`;
-            if (itemId) {
-                query.andWhere(
-                    "(item.name LIKE :search OR item.code LIKE :search OR transaction.transaction_type LIKE :search)",
-                    { search: searchLower }
-                );
-            } else {
-                query.where(
-                    "(item.name LIKE :search OR item.code LIKE :search OR transaction.transaction_type LIKE :search)",
-                    { search: searchLower }
-                );
-            }
+            conditions.push("(item.name LIKE :search OR item.code LIKE :search OR transaction.transaction_type LIKE :search)");
+            params.search = searchLower;
+        }
+
+        if (startDate) {
+            conditions.push("transaction.created_at >= :startDate");
+            params.startDate = startDate;
+        }
+
+        if (endDate) {
+            conditions.push("transaction.created_at <= :endDate");
+            params.endDate = endDate;
+        }
+
+        if (conditions.length > 0) {
+            query.where(conditions.join(" AND "), params);
         }
 
         const total = await query.getCount();
-
         query.skip((page - 1) * pageSize).take(pageSize);
         const transactions = await query.getMany();
 
         const result = { transactions, total };
-
-        // Cache the result (only for non-search queries)
         if (cacheKey) {
             cache.set(cacheKey, result);
         }
-
         return result;
     }
 
@@ -1677,7 +1160,7 @@ export class InventoryService {
             throw new Error(`Inventory not found for item ${itemId}`);
         }
 
-        const availableQuantity = inventory.quantity - inventory.reserved_quantity;
+        const availableQuantity = inventory.quantity;
 
         if (quantity <= 0) {
             throw new Error("Disposal quantity must be greater than 0");
@@ -1685,7 +1168,7 @@ export class InventoryService {
 
         if (quantity > availableQuantity) {
             throw new Error(
-                `Cannot dispose ${quantity} units. Only ${availableQuantity} units available (${inventory.quantity} total - ${inventory.reserved_quantity} reserved)`
+                `Cannot dispose ${quantity} units. Only ${availableQuantity} units available`
             );
         }
 
@@ -1730,7 +1213,6 @@ export class InventoryService {
             const result = await this.inventoryRepository.insert({
                 item_id: itemId,
                 quantity: quantity,
-                reserved_quantity: 0,
                 last_restocked_at: new Date(),
                 created_by: userId,
             });
@@ -1776,7 +1258,6 @@ export class InventoryService {
             const result = await this.inventoryRepository.insert({
                 item_id: itemId,
                 quantity: quantity,
-                reserved_quantity: 0,
                 last_restocked_at: new Date(),
                 created_by: userId,
             });

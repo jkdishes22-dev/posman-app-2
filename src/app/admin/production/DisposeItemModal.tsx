@@ -60,8 +60,7 @@ export default function DisposeItemModal({ show, onHide, onSuccess, item }: Disp
             const result = await apiCall(`/api/inventory/${itemId}`);
             if (result.status >= 200 && result.status < 300) {
                 const inventory = result.data;
-                const availableQuantity = inventory?.available_quantity ??
-                    ((inventory?.quantity || 0) - (inventory?.reserved_quantity || 0));
+                const availableQuantity = inventory?.available_quantity ?? (inventory?.quantity || 0);
                 setCurrentInventory(availableQuantity);
             } else {
                 setCurrentInventory(0);
