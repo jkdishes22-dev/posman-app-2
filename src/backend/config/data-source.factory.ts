@@ -34,6 +34,8 @@ import { ProductionIssue } from "@backend/entities/ProductionIssue";
 import { ProductionPreparation } from "@backend/entities/ProductionPreparation";
 import { PricelistItemAudit } from "@backend/entities/PricelistItemAudit";
 import { ItemAudit } from "@backend/entities/ItemAudit";
+import { Expense } from "@backend/entities/Expense";
+import { ExpensePayment } from "@backend/entities/ExpensePayment";
 
 // Note: previously used EntityRef.get() in entity relation decorators to defer
 // circular class lookups. We now resolve inverse relations by table-name string
@@ -72,6 +74,8 @@ const entities = [
   ProductionPreparation,
   PricelistItemAudit,
   ItemAudit,
+  Expense,
+  ExpensePayment,
 ];
 
 function getSqlitePath(): string {
