@@ -12,7 +12,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 
     if (req.method === "GET") {
-        return authorize([permissions.CAN_VIEW_PERMISSION])(async (request: NextApiRequest, response: NextApiResponse) => {
+        return authorize([permissions.CAN_VIEW_SYSTEM_SETTINGS])(async (request: NextApiRequest, response: NextApiResponse) => {
             try {
                 const rows: any[] = await request.db.query(
                     "SELECT value FROM system_settings WHERE key = ?",
@@ -31,7 +31,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 
     if (req.method === "PUT") {
-        return authorize([permissions.CAN_EDIT_PERMISSION])(async (request: NextApiRequest, response: NextApiResponse) => {
+        return authorize([permissions.CAN_EDIT_SYSTEM_SETTINGS])(async (request: NextApiRequest, response: NextApiResponse) => {
             try {
                 const body = request.body;
                 if (body === undefined || body === null) {

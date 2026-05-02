@@ -71,6 +71,10 @@ const permissions = {
     CAN_DELETE_PERMISSION: "can_delete_permission",
     CAN_VIEW_PERMISSION: "can_view_permission",
 
+    // System Settings
+    CAN_VIEW_SYSTEM_SETTINGS: "can_view_system_settings",
+    CAN_EDIT_SYSTEM_SETTINGS: "can_edit_system_settings",
+
     // Role Permission
     CAN_ADD_ROLE_PERMISSION: "can_add_role_permission",
     CAN_EDIT_ROLE_PERMISSION: "can_edit_role_permission",
