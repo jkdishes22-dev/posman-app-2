@@ -59,6 +59,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             { path: "/storekeeper", item: "inventory-dashboard" },
             { path: "/storekeeper/stock", item: "inventory-list" },
             { path: "/storekeeper/inventory/transactions", item: "inventory-transactions" },
+            { path: "/admin/logs", item: "system-logs" },
             { path: "/admin/reports", item: "reports-dashboard" },
             { path: "/admin/reports/", item: "reports-dashboard" },
             { path: "/admin/reports/sales-revenue", item: "reports-sales-revenue" },
@@ -427,6 +428,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     icon: "bi-cart-check",
                     path: "/admin/reports/purchase-orders",
                 },
+                {
+                    id: "reports-sales-revenue",
+                    label: "Sales Revenue",
+                    icon: "bi-graph-up",
+                    path: "/admin/reports/sales-revenue",
+                },
             ],
         },
         {
@@ -434,6 +441,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             label: "Settings",
             icon: "bi-gear",
             path: "/supervisor/settings",
+        },
+        {
+            id: "system-logs",
+            label: "System Logs",
+            icon: "bi-journal-text",
+            path: "/admin/logs",
         },
     ];
 
