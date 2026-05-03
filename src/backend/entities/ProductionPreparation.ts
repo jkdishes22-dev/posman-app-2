@@ -12,9 +12,7 @@ export enum ProductionPreparationStatus {
 }
 
 @Entity("production_preparation")
-@Index(["item_id"])
 @Index(["status"])
-@Index(["prepared_by"])
 @Index(["prepared_at"])
 export class ProductionPreparation extends BaseEntity {
     @ManyToOne(() => Item)

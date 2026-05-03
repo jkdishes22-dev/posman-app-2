@@ -3,7 +3,6 @@ import { BaseEntity } from "./BaseEntity";
 import { Item } from "./Item";
 
 @Entity("inventory")
-@Index(["item_id"])
 @Index(["quantity"])
 export class Inventory extends BaseEntity {
     @OneToOne(() => Item)
