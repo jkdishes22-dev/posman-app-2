@@ -1,14 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createMockDataSource, createMockRepository } from "../mocks/createMockDataSource";
 import { ExpenseService } from "@backend/service/ExpenseService";
-import { ExpenseStatus } from "@backend/entities/Expense";
-import { PaymentType } from "@backend/entities/Payment";
+import { Expense, ExpenseStatus } from "@backend/entities/Expense";
+import { ExpensePayment } from "@backend/entities/ExpensePayment";
+import { Payment, PaymentType } from "@backend/entities/Payment";
 
 describe("ExpenseService", () => {
     let mockExpenseRepo: ReturnType<typeof createMockRepository>;
     let mockExpensePaymentRepo: ReturnType<typeof createMockRepository>;
     let mockPaymentRepo: ReturnType<typeof createMockRepository>;
     let service: ExpenseService;
+
+    /** Run transactional code against the same mocked repos TypeORM would return from getRepository. */
+    function wireTransactionMock() {
+        mockExpenseRepo.manager.transaction = vi.fn().mockImplementation(async (cb: (m: any) => Promise<unknown>) => {
+            const em = {
+                getRepository: vi.fn().mockImplementation((Entity: typeof Expense | typeof ExpensePayment | typeof Payment) => {
+                    if (Entity === Expense) return mockExpenseRepo;
+                    if (Entity === ExpensePayment) return mockExpensePaymentRepo;
+                    if (Entity === Payment) return mockPaymentRepo;
+                    return createMockRepository();
+                }),
+            };
+            return cb(em);
+        });
+    }
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -17,6 +33,7 @@ describe("ExpenseService", () => {
         mockPaymentRepo = createMockRepository();
         // findAndCount is not in the base mock — add it per repo
         mockExpenseRepo.findAndCount = vi.fn().mockResolvedValue([[], 0]);
+        wireTransactionMock();
 
         const mockDs = createMockDataSource({
             Expense: mockExpenseRepo,
@@ -147,6 +164,39 @@ describe("ExpenseService", () => {
             await expect(service.recordPayment(1, { amount: 0 }, 1)).rejects.toThrow("Payment amount must be greater than 0");
         });
 
+        it("throws when no remaining balance to pay", async () => {
+            mockExpenseRepo.findOne.mockResolvedValue({
+                id: 1,
+                status: ExpenseStatus.PARTIAL,
+                amount: 500,
+                payments: [{ payment: { debitAmount: 500 } }],
+            });
+            await expect(service.recordPayment(1, { amount: 50 }, 1)).rejects.toThrow("no remaining balance");
+        });
+
+        it("throws when payment exceeds remaining balance", async () => {
+            const expense = {
+                id: 1,
+                status: ExpenseStatus.OPEN,
+                amount: 500,
+                payments: [{ payment: { debitAmount: 300 } }],
+            };
+            mockExpenseRepo.findOne.mockResolvedValueOnce(expense);
+            await expect(service.recordPayment(1, { amount: 250 }, 1)).rejects.toThrow("exceeds remaining balance");
+            expect(mockPaymentRepo.save).not.toHaveBeenCalled();
+        });
+
+        it("throws when M-Pesa reference was already used on this expense", async () => {
+            const expense = { id: 1, status: ExpenseStatus.PARTIAL, amount: 500, payments: [] };
+            mockExpenseRepo.findOne.mockResolvedValueOnce(expense);
+            const qb = mockExpensePaymentRepo.createQueryBuilder();
+            qb.getOne.mockResolvedValueOnce({ id: 99 });
+            await expect(
+                service.recordPayment(1, { amount: 100, payment_method: "mpesa", reference: "TYWHA" }, 1),
+            ).rejects.toThrow("reference is already recorded");
+            expect(mockPaymentRepo.save).not.toHaveBeenCalled();
+        });
+
         it("creates Payment and ExpensePayment records on happy path", async () => {
             const expense = { id: 1, status: ExpenseStatus.OPEN, amount: 500, payments: [] };
             // First findOne: the expense; second findOne: refreshed expense with new payment
@@ -164,8 +214,6 @@ describe("ExpenseService", () => {
             const savedExpensePayment = { id: 20, expense: { id: 1 }, payment: { id: 10 } };
             mockExpensePaymentRepo.create.mockReturnValue(savedExpensePayment);
             mockExpensePaymentRepo.save.mockResolvedValue(savedExpensePayment);
-
-            mockExpenseRepo.save.mockResolvedValue({});
 
             const result = await service.recordPayment(1, { amount: 300, payment_method: "cash" }, 99);
 
@@ -189,6 +237,11 @@ describe("ExpenseService", () => {
             );
 
             expect(result).toEqual(savedExpensePayment);
+
+            expect(mockExpenseRepo.update).toHaveBeenCalledWith(
+                { id: 1 },
+                expect.objectContaining({ status: ExpenseStatus.PARTIAL, updated_by: 99 }),
+            );
         });
 
         it("maps mpesa payment_method to PaymentType.MPESA", async () => {
@@ -201,7 +254,6 @@ describe("ExpenseService", () => {
             mockPaymentRepo.save.mockResolvedValue({ id: 11 });
             mockExpensePaymentRepo.create.mockReturnValue({});
             mockExpensePaymentRepo.save.mockResolvedValue({});
-            mockExpenseRepo.save.mockResolvedValue({});
 
             await service.recordPayment(2, { amount: 1000, payment_method: "mpesa", reference: "  abc123 " }, 1);
 
@@ -219,13 +271,15 @@ describe("ExpenseService", () => {
                 .mockResolvedValueOnce(expense)
                 .mockResolvedValueOnce({ ...expense, payments: [{ payment: { debitAmount: 500 } }] });
 
-            mockPaymentRepo.save.mockResolvedValue({ id: 1 });
+            mockPaymentRepo.create.mockReturnValue({ id: 1 });
+            mockExpensePaymentRepo.create.mockReturnValue({});
             mockExpensePaymentRepo.save.mockResolvedValue({});
 
             await service.recordPayment(3, { amount: 500 }, 1);
 
-            expect(mockExpenseRepo.save).toHaveBeenCalledWith(
-                expect.objectContaining({ status: ExpenseStatus.SETTLED })
+            expect(mockExpenseRepo.update).toHaveBeenCalledWith(
+                { id: 3 },
+                expect.objectContaining({ status: ExpenseStatus.SETTLED, updated_by: 1 }),
             );
         });
 
@@ -235,13 +289,15 @@ describe("ExpenseService", () => {
                 .mockResolvedValueOnce(expense)
                 .mockResolvedValueOnce({ ...expense, payments: [{ payment: { debitAmount: 200 } }] });
 
-            mockPaymentRepo.save.mockResolvedValue({ id: 2 });
+            mockPaymentRepo.create.mockReturnValue({ id: 2 });
+            mockExpensePaymentRepo.create.mockReturnValue({});
             mockExpensePaymentRepo.save.mockResolvedValue({});
 
             await service.recordPayment(4, { amount: 200 }, 1);
 
-            expect(mockExpenseRepo.save).toHaveBeenCalledWith(
-                expect.objectContaining({ status: ExpenseStatus.PARTIAL })
+            expect(mockExpenseRepo.update).toHaveBeenCalledWith(
+                { id: 4 },
+                expect.objectContaining({ status: ExpenseStatus.PARTIAL, updated_by: 1 }),
             );
         });
     });

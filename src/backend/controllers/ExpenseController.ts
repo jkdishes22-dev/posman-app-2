@@ -57,7 +57,10 @@ export const recordExpensePaymentHandler = async (req: NextApiRequest, res: Next
         const isValidation = error?.message && (
             error.message.includes("not found") ||
             error.message.includes("greater than") ||
-            error.message.includes("already")
+            error.message.includes("already") ||
+            error.message.includes("remaining balance") ||
+            error.message.includes("no remaining balance") ||
+            error.message.includes("reference is already")
         );
         const { userMessage, errorCode } = handleApiError(error, { operation: "recording", resource: "expense payment" });
         res.status(isValidation ? 400 : 500).json({ error: userMessage, code: errorCode });

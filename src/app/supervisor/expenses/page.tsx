@@ -127,6 +127,16 @@ export default function ExpensesPage() {
 
     const handleRecordPayment = async () => {
         if (!payTarget) return;
+        const amt = parseFloat(payForm.amount);
+        if (!Number.isFinite(amt) || amt <= 0) {
+            setPayError("Enter a valid payment amount");
+            return;
+        }
+        const bal = Number(payTarget.balance);
+        if (amt > bal + 0.005) {
+            setPayError(`Amount cannot exceed remaining balance (KES ${bal.toFixed(2)})`);
+            return;
+        }
         setPaySaving(true);
         setPayError(null);
         try {
@@ -328,11 +338,13 @@ export default function ExpensesPage() {
                             <Form.Control
                                 type="number"
                                 min="0"
+                                max={payTarget ? Number(payTarget.balance) : undefined}
                                 step="0.01"
                                 placeholder="0.00"
                                 value={payForm.amount}
                                 onChange={(e) => setPayForm(f => ({ ...f, amount: e.target.value }))}
                             />
+                            <Form.Text className="text-muted">Maximum: KES {Number(payTarget.balance).toFixed(2)}</Form.Text>
                         </Form.Group>
                         <Form.Group className="mb-3">
                             <Form.Label>Payment Method</Form.Label>
@@ -364,7 +376,11 @@ export default function ExpensesPage() {
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={() => setPayTarget(null)}>Cancel</Button>
-                    <Button variant="primary" onClick={handleRecordPayment} disabled={paySaving || !payForm.amount}>
+                    <Button
+                        variant="primary"
+                        onClick={handleRecordPayment}
+                        disabled={paySaving || !payForm.amount || parseFloat(payForm.amount) <= 0}
+                    >
                         {paySaving ? <><Spinner animation="border" size="sm" className="me-2" />Recording…</> : "Record Payment"}
                     </Button>
                 </Modal.Footer>
