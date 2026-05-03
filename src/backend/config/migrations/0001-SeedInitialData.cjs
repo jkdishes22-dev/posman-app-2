@@ -80,6 +80,7 @@ const rolePermissionsBaseline = {
     "can_view_expense",
     "can_add_expense",
     "can_edit_expense",
+    "can_print",
   ],
   supervisor: [
     // Full billing management
@@ -144,8 +145,10 @@ const rolePermissionsBaseline = {
     "can_edit_station",
     "can_view_station_pricelist",
     "can_edit_user_station",
+    "can_print",
   ],
   sales: [
+    "can_print",
     // Bill creation and management (sales owns the order lifecycle)
     "can_view_bill",
     "can_add_bill",
@@ -171,6 +174,7 @@ const rolePermissionsBaseline = {
     "can_view_user_station",
   ],
   cashier: [
+    "can_print",
     // Bill visibility (cashier settles bills raised by sales)
     "can_view_bill",
     "can_view_bill_item",
@@ -320,6 +324,7 @@ const SEEDED_PERMISSION_NAMES = uniqueStrings([
   "can_add_bill_payment",
   "can_edit_bill_payment",
   "can_delete_bill_payment",
+  "can_print",
   // financial (incl. reports)
   "can_view_payment",
   "can_add_payment",
@@ -508,6 +513,7 @@ module.exports = class SeedInitialDataConsolidated1700000000001 {
         "can_add_bill_payment",
         "can_edit_bill_payment",
         "can_delete_bill_payment",
+        "can_print",
       ],
       financial: [
         "can_view_payment",

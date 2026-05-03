@@ -62,7 +62,9 @@ export const ROLE_PERMISSIONS = {
         "can_view_production_history",
         "can_view_expense",
         "can_add_expense",
-        "can_edit_expense"
+        "can_edit_expense",
+        // Receipt / thermal print prefs (narrow; see /api/system/receipt-printer-prefs)
+        "can_print"
     ],
 
     supervisor: [
@@ -130,11 +132,12 @@ export const ROLE_PERMISSIONS = {
         "can_edit_station",
         "can_view_station_pricelist",
         "can_edit_user_station",
-        // System settings (read-only — supervisor needs printer/bill settings for billing)
-        "can_view_system_settings"
+        // Receipt printer prefs + bill receipt settings (not full system settings UI)
+        "can_print"
     ],
 
     sales: [
+        "can_print",
         // Billing and customer operations
         "can_view_bill",
         "can_add_bill",
@@ -158,8 +161,7 @@ export const ROLE_PERMISSIONS = {
     ],
 
     cashier: [
-        // System settings (read-only — needed to load printer/bill settings for billing)
-        "can_view_system_settings",
+        "can_print",
         // Financial operations
         "can_view_bill",
         "can_view_bill_item",
@@ -258,7 +260,8 @@ export const PERMISSION_CATEGORIES = {
         "can_edit_bill_payment",
         "can_delete_bill_payment",
         "can_approve_void",
-        "can_approve_change_request"
+        "can_approve_change_request",
+        "can_print"
     ],
     financial: [
         "can_view_payment",

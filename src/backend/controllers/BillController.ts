@@ -3,17 +3,65 @@ import { BillFilter, BillService } from "@services/BillService";
 import { DEFAULT_PAGE_SIZE } from "@backend/config/constants";
 import { handleApiError } from "@backend/utils/errorHandler";
 import { parseStartDateInAppTz, parseEndDateInAppTz } from "@backend/utils/dateRange";
+import logger from "@backend/utils/logger";
 
 export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
   const billService = new BillService(req.db);
+  const authUserId = req.user?.id != null ? Number(req.user.id) : undefined;
+  const body = req.body as {
+    items?: unknown[];
+    total?: number;
+    user_id?: number;
+    station_id?: number;
+    request_id?: string;
+  };
   try {
+    logger.info(
+      {
+        event: "create-bill-attempt",
+        authUserId,
+        bodyUserId: body?.user_id,
+        stationId: body?.station_id,
+        itemCount: Array.isArray(body?.items) ? body.items.length : 0,
+        total: body?.total,
+        requestId: body?.request_id,
+      },
+      "create-bill: attempting",
+    );
     const newBill = await billService.createBill(req.body);
+    logger.info(
+      {
+        event: "create-bill-success",
+        billId: (newBill as { id?: number })?.id,
+        authUserId,
+        bodyUserId: body?.user_id,
+        stationId: body?.station_id,
+        itemCount: Array.isArray((newBill as { bill_items?: unknown[] })?.bill_items)
+          ? (newBill as { bill_items: unknown[] }).bill_items.length
+          : 0,
+        status: (newBill as { status?: string })?.status,
+        requestId: body?.request_id,
+      },
+      "create-bill: success",
+    );
     res.status(201).json(newBill);
   } catch (error: any) {
     const isValidationError = error?.message && (
       error.message.includes("Insufficient inventory") ||
       error.message.includes("not found") ||
       error.message.includes("Invalid")
+    );
+    logger.warn(
+      {
+        event: "create-bill-failed",
+        authUserId,
+        bodyUserId: body?.user_id,
+        stationId: body?.station_id,
+        requestId: body?.request_id,
+        validation: isValidationError,
+        errMessage: error?.message,
+      },
+      "create-bill: failed",
     );
     const { userMessage, errorCode } = handleApiError(error, {
       operation: "creating",

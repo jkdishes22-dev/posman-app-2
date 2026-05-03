@@ -12,7 +12,7 @@ import DatePicker from "react-datepicker";
 import { Bill, BillItem, VoidRequestPayload, VoidRequestResponse } from "src/app/types/types";
 import Pagination from "src/app/components/Pagination";
 import { CustomerCopyPrint } from "../../shared/ReceiptPrint";
-import { printCaptainOrderAndCustomerCopy, downloadReceiptAsFile } from "../../shared/printUtils";
+import { printCustomerCopyOnly, downloadReceiptAsFile, logClientFromRenderer } from "../../shared/printUtils";
 import ReactDOM from "react-dom/client";
 import { useApiCall } from "../../utils/apiUtils";
 import { ApiErrorResponse } from "../../utils/errorUtils";
@@ -79,6 +79,8 @@ const MySales = () => {
   const isLoadingBillsRef = useRef(false);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isLoadingBillDetails, setIsLoadingBillDetails] = useState(false);
+  /** Matches admin “Show tax details on receipt” (`bill_settings.show_tax_on_receipt`). */
+  const [showTax, setShowTax] = useState(true);
 
   // Void request state
   const [showVoidModal, setShowVoidModal] = useState<boolean>(false);
@@ -113,6 +115,16 @@ const MySales = () => {
       }
     };
     fetchReopenReasons();
+  }, [apiCall]);
+
+  useEffect(() => {
+    apiCall("/api/system/settings?key=bill_settings")
+      .then((res) => {
+        if (res.status === 200 && res.data?.value) {
+          setShowTax(res.data.value.show_tax_on_receipt !== false);
+        }
+      })
+      .catch(() => {});
   }, [apiCall]);
 
   // Helper function to get reopen reason name from reason_key
@@ -398,14 +410,15 @@ const MySales = () => {
 
   const handlePrint = async () => {
     if (!selectedBill) return;
-    await printCaptainOrderAndCustomerCopy(selectedBill, undefined, {});
+    logClientFromRenderer(`print: my-sales customer-copy-only billId=${selectedBill.id}`);
+    await printCustomerCopyOnly(selectedBill, undefined, { showTax });
   };
 
   const handleDownload = async () => {
     if (!selectedBill) return;
 
     // Download Customer Copy
-    await downloadReceiptAsFile(CustomerCopyPrint, selectedBill, "customer");
+    await downloadReceiptAsFile(CustomerCopyPrint, selectedBill, "customer", { showTax });
   };
 
   // Void request functions

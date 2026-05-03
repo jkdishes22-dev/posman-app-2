@@ -44,7 +44,8 @@ class SeedPermissions1700000000005 {
             billing: [
                 "can_view_bill", "can_add_bill", "can_edit_bill", "can_close_bill", "can_cancel_bill", "can_reopen_bill", "can_delete_bill",
                 "can_view_bill_item", "can_add_bill_item", "can_edit_bill_item", "can_delete_bill_item",
-                "can_view_bill_payment", "can_add_bill_payment", "can_edit_bill_payment", "can_delete_bill_payment"
+                "can_view_bill_payment", "can_add_bill_payment", "can_edit_bill_payment", "can_delete_bill_payment",
+                "can_print"
             ],
             // Financial scope
             financial: [

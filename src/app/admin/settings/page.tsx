@@ -327,7 +327,8 @@ export default function AdminSettingsPage() {
                                     className="mb-2"
                                 />
                                 <p className="text-muted small mb-3">
-                                    Applies when a pending bill is first saved from billing. Submitting or closing bills does not auto-print; use the Print button on the bill screen.
+                                    When on, saving a new bill from billing prints two jobs (kitchen ticket + customer copy). Closing a bill never prints automatically.
+                                    My Sales → Print: one customer copy with totals. Billing → Print on a pending bill: kitchen + customer (same pair as auto-print).
                                 </p>
                                 <Form.Group className="mb-3">
                                     <Form.Label className="fw-medium small">Printer</Form.Label>

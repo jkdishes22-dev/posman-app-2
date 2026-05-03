@@ -11,7 +11,7 @@ const ViewItems = lazy(() => import("../admin/menu/category/components/items/ite
 const Categories = lazy(() => import("../admin/menu/category/components/category/categories"));
 const CategoryDeleteModal = lazy(() => import("../admin/menu/category/components/category/category-delete"));
 import ReceiptPrint, { CustomerCopyPrint } from "./ReceiptPrint";
-import { printCaptainOrderAndCustomerCopy, downloadReceiptAsFile } from "./printUtils";
+import { printCaptainOrderAndCustomerCopy, downloadReceiptAsFile, logClientFromRenderer } from "./printUtils";
 import { normalizePrinterSettings } from "./printerSettings";
 import ReactDOM from "react-dom/client";
 import { useStation } from "../contexts/StationContext";
@@ -81,7 +81,7 @@ const BillingSection = () => {
   );
   const canDeleteCategoryOnBill = hasPermission(userRoleNames, "can_delete_category");
 
-  /** When true, print captain + customer receipts after creating a new bill (pending). Submit/close stay manual. */
+  /** When true, print captain + customer (2 jobs) after creating a pending bill from billing. Cashier close bill never prints; My Sales Print is customer copy only. */
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintPrinterName, setAutoPrintPrinterName] = useState("");
   const [showTax, setShowTax] = useState(true);
@@ -127,8 +127,8 @@ const BillingSection = () => {
 
   // Load printer and bill settings once on mount
   useEffect(() => {
-    apiCall("/api/system/settings?key=system_settings&sub=printer_settings").then((res) => {
-      if (res.status === 200 && res.data?.value) {
+    apiCall("/api/system/receipt-printer-prefs").then((res) => {
+      if (res.status === 200 && res.data?.value != null) {
         const p = normalizePrinterSettings(res.data.value);
         setAutoPrintEnabled(p.print_after_create_bill);
         setAutoPrintPrinterName(p.printer_name);
@@ -603,10 +603,19 @@ const BillingSection = () => {
           body: JSON.stringify(payload),
         });
         if (result.status === 201) {
+          const apiPayload = result.data as { bill?: unknown; id?: number } | undefined;
+          const createdFromApi = apiPayload && typeof apiPayload === "object" && "bill" in apiPayload
+            ? (apiPayload as { bill: Record<string, unknown> }).bill
+            : (apiPayload as Record<string, unknown> | undefined);
+          const newBillId = createdFromApi?.id as number | undefined;
+          logClientFromRenderer(
+            `create-bill: HTTP 201 billId=${newBillId ?? "?"} items=${selectedItems.length} total=${total} autoPrintEnabled=${autoPrintEnabled}`,
+          );
           setShowSubmitModal(false);
           setBillError(""); // Clear any previous errors
           const billForReceipt = {
-            ...result.data.bill,
+            ...((createdFromApi ?? {}) as object),
+            id: newBillId,
             bill_items: selectedItems.map(item => ({
               ...item,
               item: { name: item.name, price: item.price },
@@ -618,6 +627,9 @@ const BillingSection = () => {
 
           // Auto-print on create (optional) then auto-reset; otherwise reset immediately.
           if (autoPrintEnabled) {
+            logClientFromRenderer(
+              `create-bill: auto-print starting billId=${billForReceipt.id} printer=${autoPrintPrinterName?.trim() ? autoPrintPrinterName : "default"}`,
+            );
             (async () => {
               const { captain: captainPrint, customer: customerPrint } = await printCaptainOrderAndCustomerCopy(
                 billForReceipt,
@@ -625,20 +637,31 @@ const BillingSection = () => {
                 { showTax }
               );
               if (!captainPrint.success || !customerPrint.success) {
+                logClientFromRenderer(
+                  `create-bill: auto-print finished with errors billId=${billForReceipt.id} captain=${captainPrint.success} customer=${customerPrint.success}`,
+                  "WARN",
+                );
                 console.warn("Auto-print: one or more copies failed", {
                   captain: captainPrint,
                   customer: customerPrint,
                 });
+              } else {
+                logClientFromRenderer(`create-bill: auto-print finished OK billId=${billForReceipt.id}`);
               }
               resetForNewBill();
             })();
           } else {
+            logClientFromRenderer(`create-bill: auto-print skipped (disabled) billId=${billForReceipt.id}`);
             resetForNewBill();
           }
 
           // Refresh inventory after bill creation in the background.
           refreshAvailability("all", [], { force: true, background: true });
         } else {
+          logClientFromRenderer(
+            `create-bill: HTTP ${result.status} error=${result.error || "unknown"}`,
+            "WARN",
+          );
           setBillError(result.error || "Failed to submit picked items");
           setErrorDetails(result.errorDetails);
 
@@ -646,6 +669,10 @@ const BillingSection = () => {
           refreshAvailability("all", [], { force: true, background: true });
         }
       } catch (error: any) {
+        logClientFromRenderer(
+          `create-bill: client exception ${error?.message || String(error)}`,
+          "ERROR",
+        );
         // Show the actual error message from the API
         const errorMessage = error.message || "Failed to submit picked items";
         setBillError(errorMessage);
@@ -664,6 +691,7 @@ const BillingSection = () => {
 
   const handlePrint = async () => {
     if (!createdBill) return;
+    logClientFromRenderer(`print: manual pending bill (billing) captain+customer billId=${createdBill.id}`);
     await printCaptainOrderAndCustomerCopy(createdBill, undefined, { showTax });
   };
 
@@ -671,7 +699,7 @@ const BillingSection = () => {
     if (!createdBill) return;
 
     // Download Customer Copy
-    await downloadReceiptAsFile(CustomerCopyPrint, createdBill, "customer");
+    await downloadReceiptAsFile(CustomerCopyPrint, createdBill, "customer", { showTax });
   };
 
   const handleConfirmCancel = useCallback(() => {
@@ -1114,7 +1142,7 @@ const BillingSection = () => {
 
       {/* Hidden Receipt Component */}
       <div style={{ display: "none" }}>
-        {createdBill && <ReceiptPrint ref={receiptRef} bill={createdBill} />}
+        {createdBill && <ReceiptPrint ref={receiptRef} bill={createdBill} showTax={showTax} />}
       </div>
 
       {/* Quantity Modal */}

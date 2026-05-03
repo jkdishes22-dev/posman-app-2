@@ -647,6 +647,18 @@ function buildEscPosCutFooter(feedLines = 4) {
     return buf.toString("latin1");
 }
 
+// IPC: renderer → main process file log (create bill, print attempts, etc.)
+ipcMain.handle("log-client", async (_event, message, level = "INFO") => {
+    try {
+        const lvl = level === "WARN" || level === "ERROR" ? level : "INFO";
+        logToFile(`[renderer] ${message}`, lvl);
+        return { ok: true };
+    } catch (err) {
+        console.error("log-client IPC error:", err?.message || err);
+        return { ok: false };
+    }
+});
+
 // IPC: silent thermal print via Electron — dedicated hidden window, prints only receipt HTML
 ipcMain.handle("print-receipt", async (event, htmlContent, printerName, options = {}) => {
     return new Promise((resolve) => {
@@ -673,6 +685,10 @@ ipcMain.handle("print-receipt", async (event, htmlContent, printerName, options 
             printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
 
             printWin.webContents.once("did-finish-load", () => {
+                const cut = options.appendEscPosCut !== false;
+                logToFile(
+                    `print-receipt: spooling silent=true printer=${printerName || "default"} escPosCut=${cut}`,
+                );
                 const printOptions = { silent: true, printBackground: false };
                 if (printerName) printOptions.deviceName = printerName;
                 printWin.webContents.print(printOptions, (success, failureReason) => {

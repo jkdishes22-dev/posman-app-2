@@ -14,5 +14,7 @@ contextBridge.exposeInMainWorld('electron', {
   printReceipt: (html, printerName, options) =>
     ipcRenderer.invoke('print-receipt', html, printerName ?? '', options ?? {}),
   getPrinters: () => ipcRenderer.invoke('get-printers'),
+  /** Append one line to the desktop app log file (same folder as other JK PosMan logs). */
+  logClient: (message, level) => ipcRenderer.invoke('log-client', String(message ?? ''), level ?? 'INFO'),
 });
 
