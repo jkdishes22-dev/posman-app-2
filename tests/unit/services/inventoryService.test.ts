@@ -48,7 +48,7 @@ describe("InventoryService", () => {
       const result = await service.initializeInventory(1, 10, 5, 100, 20, 1);
 
       expect(mockInventoryRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ item_id: 1, quantity: 10 })
+        expect.objectContaining({ item: { id: 1 }, quantity: 10 })
       );
       expect(result).toMatchObject({ item_id: 1, quantity: 10 });
     });

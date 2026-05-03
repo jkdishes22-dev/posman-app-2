@@ -489,7 +489,7 @@ export class PricelistUploadService {
           // Create inventory record for stock items
           if (row.is_stock) {
             const inv = queryRunner.manager.create(Inventory, {
-              item_id: savedItem.id,
+              item: savedItem,
               quantity: 0,
               created_by: userId,
             });

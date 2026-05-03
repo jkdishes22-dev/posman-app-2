@@ -267,16 +267,6 @@ export class StationService {
         status: UserStationStatus.ACTIVE
       },
       relations: ["station"],
-      select: {
-        id: true,
-        isDefault: true,
-        status: true,
-        station: {
-          id: true,
-          name: true,
-          status: true
-        }
-      }
     });
 
     const result = activeUserStations.map(us => us.station);

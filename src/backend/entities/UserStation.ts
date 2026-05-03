@@ -24,11 +24,11 @@ export class UserStation extends BaseEntity {
   })
   status!: UserStationStatus;
 
-  @ManyToOne(() => User, { eager: true })
+  @ManyToOne(() => User)
   @JoinColumn({ name: "user_id" })
   user: User;
 
-  @ManyToOne(() => Station, { eager: true })
+  @ManyToOne(() => Station)
   @JoinColumn({ name: "station_id" })
   station: Station;
 }

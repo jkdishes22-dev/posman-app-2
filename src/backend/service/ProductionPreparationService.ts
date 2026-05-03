@@ -70,10 +70,10 @@ export class ProductionPreparationService {
 
         // Create preparation with PENDING status
         const preparation = this.preparationRepository.create({
-            item_id: input.item_id,
+            item: { id: input.item_id } as Item,
             quantity_prepared: input.quantity_prepared,
             status: ProductionPreparationStatus.PENDING,
-            prepared_by: userId,
+            prepared_by_user: { id: userId } as User,
             prepared_at: new Date(),
             notes: input.notes || null,
             created_by: userId,
@@ -113,7 +113,7 @@ export class ProductionPreparationService {
 
         // Update preparation status to ISSUED
         preparation.status = ProductionPreparationStatus.ISSUED;
-        preparation.issued_by = userId;
+        preparation.issued_by_user = user;
         preparation.issued_at = new Date();
         preparation.updated_by = userId;
 
@@ -208,12 +208,12 @@ export class ProductionPreparationService {
 
         // Create preparation with ISSUED status (directly issued)
         const preparation = this.preparationRepository.create({
-            item_id: input.item_id,
+            item: { id: input.item_id } as Item,
             quantity_prepared: input.quantity_prepared,
             status: ProductionPreparationStatus.ISSUED,
-            prepared_by: userId, // Supervisor is both preparer and issuer
+            prepared_by_user: { id: userId } as User,
             prepared_at: preparedAt,
-            issued_by: userId,
+            issued_by_user: { id: userId } as User,
             issued_at: issuedAt,
             notes: input.notes || null,
             created_by: userId,

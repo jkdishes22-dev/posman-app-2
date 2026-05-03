@@ -61,7 +61,7 @@ export class InventoryService {
         }
 
         const inventory = this.inventoryRepository.create({
-            item_id: itemId,
+            item: { id: itemId } as Item,
             quantity: initialQuantity,
             min_stock_level: minLevel,
             max_stock_level: maxLevel,
@@ -663,7 +663,7 @@ export class InventoryService {
             if (!stockInventory) {
                 // Constituent item doesn't have inventory yet, create it with 0 quantity
                 stockInventory = transactionalEntityManager.create(Inventory, {
-                    item_id: constituentItem.id,
+                    item: constituentItem,
                     quantity: 0,
                     created_by: userId,
                 });
@@ -760,7 +760,7 @@ export class InventoryService {
                 if (!inventory) {
                     // Create inventory record if it doesn't exist (universal tracking)
                     inventory = transactionalEntityManager.create(Inventory, {
-                        item_id: item.id,
+                        item,
                         quantity: 0,
                         created_by: userId,
                     });
@@ -869,7 +869,7 @@ export class InventoryService {
             if (!inventory) {
                 // Create inventory record if it doesn't exist
                 inventory = transactionalEntityManager.create(Inventory, {
-                    item_id: item.id,
+                    item,
                     quantity: 0,
                     created_by: userId,
                 });
@@ -930,7 +930,7 @@ export class InventoryService {
 
             if (!inventory) {
                 inventory = transactionalEntityManager.create(Inventory, {
-                    item_id: constituentItem.id,
+                    item: constituentItem,
                     quantity: 0,
                     created_by: userId,
                 });
