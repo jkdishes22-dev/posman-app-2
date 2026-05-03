@@ -120,9 +120,7 @@ export default function AdminSettingsPage() {
         setPrintTestBusy(true);
         setPrintTestMessage(null);
         try {
-            const html = `<div style="padding:12px;font-family:monospace"><strong>JK PosMan — test print</strong><br/>`
-                + `${new Date().toLocaleString()}<br/>`
-                + `Printer: ${printerSettings.printer_name || "Default"}</div>`;
+            const html = `<div style="padding:12px;font-family:monospace"><strong>JK PosMan — test print</strong><br/>${new Date().toLocaleString()}<br/>Printer: ${printerSettings.printer_name || "Default"}</div>`;
             const outcome = await electronAPI.printReceipt(html, printerSettings.printer_name || "");
             if (outcome?.success === false) {
                 setPrintTestMessage(`Print failed: ${outcome.failureReason || "Unknown reason"}. Check Electron log (JK PosMan logs) or printer drivers.`);
