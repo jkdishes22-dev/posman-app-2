@@ -344,7 +344,7 @@ export default function ExpensesPage() {
                                 value={payForm.amount}
                                 onChange={(e) => setPayForm(f => ({ ...f, amount: e.target.value }))}
                             />
-                            <Form.Text className="text-muted">Maximum: KES {Number(payTarget.balance).toFixed(2)}</Form.Text>
+                            <Form.Text className="text-muted">Maximum: KES {Number(payTarget?.balance ?? 0).toFixed(2)}</Form.Text>
                         </Form.Group>
                         <Form.Group className="mb-3">
                             <Form.Label>Payment Method</Form.Label>
