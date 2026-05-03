@@ -125,7 +125,7 @@ const BillingSection = () => {
 
   // Load printer and bill settings once on mount
   useEffect(() => {
-    apiCall("/api/system/settings?key=printer_settings").then((res) => {
+    apiCall("/api/system/settings?key=system_settings&sub=printer_settings").then((res) => {
       if (res.status === 200 && res.data?.value) {
         setAutoPrintEnabled(!!res.data.value.print_after_close_bill);
         setAutoPrintPrinterName(res.data.value.printer_name || "");

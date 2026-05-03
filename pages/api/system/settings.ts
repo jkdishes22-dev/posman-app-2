@@ -5,11 +5,13 @@ import { withMiddleware } from "@backend/middleware/middleware-util";
 import permissions from "@backend/config/permissions";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-    const { key } = req.query;
+    const { key, sub } = req.query;
 
     if (!key || typeof key !== "string") {
         return res.status(400).json({ error: "Missing required query param: key" });
     }
+
+    const subKey = typeof sub === "string" ? sub : undefined;
 
     if (req.method === "GET") {
         return authorize([permissions.CAN_VIEW_SYSTEM_SETTINGS])(async (request: NextApiRequest, response: NextApiResponse) => {
@@ -21,8 +23,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 if (!rows.length) {
                     return response.status(404).json({ error: "Setting not found" });
                 }
-                const value = JSON.parse(rows[0].value);
-                return response.status(200).json({ key, value });
+                const parsed = JSON.parse(rows[0].value);
+                const value = subKey !== undefined ? (parsed[subKey] ?? null) : parsed;
+                return response.status(200).json({ key, sub: subKey, value });
             } catch (error: any) {
                 console.error("[settings GET] Failed:", error.message);
                 return response.status(500).json({ error: "Failed to read setting" });
@@ -37,6 +40,22 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 if (body === undefined || body === null) {
                     return response.status(400).json({ error: "Request body is required" });
                 }
+
+                if (subKey !== undefined) {
+                    // Read the current top-level value and merge only the sub-key
+                    const existing: any[] = await request.db.query(
+                        "SELECT value FROM system_settings WHERE key = ?",
+                        [key]
+                    );
+                    const current = existing.length ? JSON.parse(existing[0].value) : {};
+                    const merged = { ...current, [subKey]: body };
+                    await request.db.query(
+                        "INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+                        [key, JSON.stringify(merged)]
+                    );
+                    return response.status(200).json({ key, sub: subKey, value: body });
+                }
+
                 await request.db.query(
                     "INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
                     [key, JSON.stringify(body)]

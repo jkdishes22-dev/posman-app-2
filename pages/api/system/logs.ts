@@ -17,11 +17,11 @@ function lastLines(text: string, n: number): string {
 async function getRetentionDays(db: NextApiRequest["db"]): Promise<number> {
     try {
         const rows: { value: string }[] = await db.query(
-            "SELECT value FROM system_settings WHERE key = 'log_settings'"
+            "SELECT value FROM system_settings WHERE key = 'system_settings'"
         );
         if (rows.length > 0) {
             const parsed = JSON.parse(rows[0].value);
-            const days = Number(parsed?.retention_days);
+            const days = Number(parsed?.log_settings?.retention_days);
             if (Number.isFinite(days) && days > 0) return days;
         }
     } catch {
