@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn, RelationId } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import type { Expense } from "./Expense";
 import type { Payment } from "./Payment";
@@ -9,14 +9,14 @@ export class ExpensePayment extends BaseEntity {
     @JoinColumn({ name: "expense_id" })
     expense: Expense;
 
-    @RelationId((ep: ExpensePayment) => ep.expense)
+    @Column({ name: "expense_id", type: "int" })
     expense_id: number;
 
     @ManyToOne("payment")
     @JoinColumn({ name: "payment_id" })
     payment: Payment;
 
-    @RelationId((ep: ExpensePayment) => ep.payment)
+    @Column({ name: "payment_id", type: "int" })
     payment_id: number;
 
     @Column({ type: "text", nullable: true })

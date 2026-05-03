@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn, Index, RelationId } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Item } from "./Item";
 import { User } from "./User";
@@ -19,7 +19,7 @@ export class ProductionPreparation extends BaseEntity {
     @JoinColumn({ name: "item_id" })
     item: Item;
 
-    @RelationId((p: ProductionPreparation) => p.item)
+    @Column({ name: "item_id", type: "int" })
     item_id: number;
 
     @Column({ type: "int", name: "quantity_prepared" })
@@ -36,8 +36,7 @@ export class ProductionPreparation extends BaseEntity {
     @JoinColumn({ name: "prepared_by" })
     prepared_by_user: User;
 
-    /** FK id (read-only); use prepared_by_user for writes */
-    @RelationId((p: ProductionPreparation) => p.prepared_by_user)
+    @Column({ name: "prepared_by", type: "int" })
     prepared_by: number;
 
     @Column({ type: "datetime", nullable: true, name: "prepared_at" })
@@ -47,8 +46,7 @@ export class ProductionPreparation extends BaseEntity {
     @JoinColumn({ name: "issued_by" })
     issued_by_user: User | null;
 
-    /** FK id (read-only); use issued_by_user for writes */
-    @RelationId((p: ProductionPreparation) => p.issued_by_user)
+    @Column({ name: "issued_by", type: "int", nullable: true })
     issued_by: number | null;
 
     @Column({ type: "datetime", nullable: true, name: "issued_at" })
