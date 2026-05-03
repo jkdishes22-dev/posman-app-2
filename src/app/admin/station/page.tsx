@@ -927,8 +927,9 @@ export default function StationPage() {
                     <div className="alert alert-info alert-sm mb-3" role="alert">
                       <i className="bi bi-info-circle me-1"></i>
                       <small>
-                        Only users with <span className="badge bg-primary text-white ms-1 me-1">waiter</span>
-                        or <span className="badge bg-danger text-white ms-1 me-1">admin</span> roles who are not locked can be added to stations
+                        Only users with <span className="badge bg-primary text-white ms-1 me-1">waiter</span>,
+                        <span className="badge bg-warning text-dark ms-1 me-1">supervisor</span>, or
+                        <span className="badge bg-danger text-white ms-1 me-1">admin</span> roles who are not locked can be added to stations
                       </small>
                     </div>
                     <div className="list-group list-group-flush">

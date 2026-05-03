@@ -179,6 +179,51 @@ describe("StationService", () => {
     });
   });
 
+  describe("getAvailableUsers", () => {
+    it("queries with sales, admin, and supervisor roles", async () => {
+      mockAppDataSourceQuery.mockResolvedValue([]);
+
+      await service.getAvailableUsers(1);
+
+      expect(mockAppDataSourceQuery).toHaveBeenCalledWith(
+        expect.stringMatching(/r\.name IN \('sales', 'admin', 'supervisor'\)/),
+        [1]
+      );
+    });
+
+    it("returns users from query result", async () => {
+      const users = [
+        { id: 1, firstName: "Alice", lastName: "Smith", username: "alice", role_name: "supervisor" },
+        { id: 2, firstName: "Bob", lastName: "Jones", username: "bob", role_name: "sales" },
+      ];
+      mockAppDataSourceQuery.mockResolvedValue(users);
+
+      const result = await service.getAvailableUsers(2);
+
+      expect(result).toEqual(users);
+    });
+
+    it("excludes users already assigned to the station", async () => {
+      mockAppDataSourceQuery.mockResolvedValue([]);
+
+      await service.getAvailableUsers(5);
+
+      expect(mockAppDataSourceQuery).toHaveBeenCalledWith(
+        expect.stringMatching(/u\.id NOT IN[\s\S]*us\.station_id = \?/),
+        [5]
+      );
+    });
+
+    it("caches result and does not query twice for same stationId", async () => {
+      mockAppDataSourceQuery.mockResolvedValue([{ id: 1, firstName: "Alice", lastName: "Smith", username: "alice", role_name: "supervisor" }]);
+
+      await service.getAvailableUsers(3);
+      await service.getAvailableUsers(3);
+
+      expect(mockAppDataSourceQuery).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("getUserDefaultStation", () => {
     it("returns null when no default row", async () => {
       mockUserStationRepo.manager.query.mockResolvedValue([]);
