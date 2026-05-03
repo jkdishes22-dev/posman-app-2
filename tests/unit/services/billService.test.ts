@@ -4,15 +4,16 @@ import { createMockDataSource, createMockRepository, createMockTransactionalEnti
 const mockGetAvailableInventoryForItems = vi.fn();
 const mockReserveInventoryForBill = vi.fn().mockResolvedValue({});
 
-vi.mock("@backend/service/InventoryService", () => {
-  const InventoryService = vi.fn().mockImplementation(() => ({
-    getAvailableInventoryForItems: mockGetAvailableInventoryForItems,
-    reserveInventoryForBill: mockReserveInventoryForBill,
-    reduceInventoryForBill: vi.fn().mockResolvedValue({}),
-  }));
-  InventoryService.invalidateInventoryCache = vi.fn();
-  return { InventoryService };
-});
+vi.mock("@backend/service/InventoryService", () => ({
+  InventoryService: Object.assign(
+    vi.fn().mockImplementation(() => ({
+      getAvailableInventoryForItems: mockGetAvailableInventoryForItems,
+      reserveInventoryForBill: mockReserveInventoryForBill,
+      reduceInventoryForBill: vi.fn().mockResolvedValue({}),
+    })),
+    { invalidateInventoryCache: vi.fn() },
+  ),
+}));
 
 vi.mock("@backend/service/UserService", () => ({
   UserService: vi.fn().mockImplementation(() => ({

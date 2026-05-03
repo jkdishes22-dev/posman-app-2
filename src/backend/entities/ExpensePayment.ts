@@ -1,25 +1,24 @@
-import { Entity, Column, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, RelationId } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import type { Expense } from "./Expense";
+import type { Payment } from "./Payment";
 
 @Entity("expense_payment")
 export class ExpensePayment extends BaseEntity {
-    @Column({ type: "int", name: "expense_id" })
-    expense_id: number;
-
     @ManyToOne("expense", (e: Expense) => e.payments)
     @JoinColumn({ name: "expense_id" })
     expense: Expense;
 
-    @Column({ type: "decimal", precision: 10, scale: 2 })
-    amount: number;
+    @RelationId((ep: ExpensePayment) => ep.expense)
+    expense_id: number;
 
-    @Column({ type: "varchar", length: 50, name: "payment_method", default: "cash" })
-    payment_method: string;
+    @ManyToOne("payment")
+    @JoinColumn({ name: "payment_id" })
+    payment: Payment;
 
-    @Column({ type: "varchar", length: 255, nullable: true })
-    reference: string | null;
+    @RelationId((ep: ExpensePayment) => ep.payment)
+    payment_id: number;
 
     @Column({ type: "text", nullable: true })
-    notes: string;
+    notes: string | null;
 }

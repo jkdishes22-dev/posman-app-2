@@ -1,6 +1,7 @@
 import { DataSource, Repository } from "typeorm";
 import { Expense, ExpenseStatus } from "@backend/entities/Expense";
 import { ExpensePayment } from "@backend/entities/ExpensePayment";
+import { Payment, PaymentType } from "@backend/entities/Payment";
 
 export interface CreateExpenseInput {
     category: string;
@@ -18,25 +19,33 @@ export interface RecordPaymentInput {
     notes?: string;
 }
 
+function toPaymentType(method: string | undefined): PaymentType {
+    const m = (method || "cash").toLowerCase();
+    if (m === "cash") return PaymentType.CASH;
+    return PaymentType.MPESA;
+}
+
 export class ExpenseService {
     private expenseRepo: Repository<Expense>;
-    private paymentRepo: Repository<ExpensePayment>;
+    private expensePaymentRepo: Repository<ExpensePayment>;
+    private paymentRepo: Repository<Payment>;
 
     constructor(dataSource: DataSource) {
         this.expenseRepo = dataSource.getRepository(Expense);
-        this.paymentRepo = dataSource.getRepository(ExpensePayment);
+        this.expensePaymentRepo = dataSource.getRepository(ExpensePayment);
+        this.paymentRepo = dataSource.getRepository(Payment);
     }
 
     async getExpenses(page = 1, pageSize = 20) {
         const [expenses, total] = await this.expenseRepo.findAndCount({
-            relations: ["payments"],
+            relations: ["payments", "payments.payment"],
             order: { expense_date: "DESC", id: "DESC" },
             take: pageSize,
             skip: (page - 1) * pageSize,
         });
 
         const items = expenses.map((e) => {
-            const paid = (e.payments || []).reduce((s, p) => s + Number(p.amount), 0);
+            const paid = (e.payments || []).reduce((s, p) => s + Number(p.payment?.debitAmount ?? 0), 0);
             return { ...e, paid, balance: Number(e.amount) - paid };
         });
 
@@ -44,9 +53,12 @@ export class ExpenseService {
     }
 
     async getExpense(id: number) {
-        const expense = await this.expenseRepo.findOne({ where: { id }, relations: ["payments"] });
+        const expense = await this.expenseRepo.findOne({
+            where: { id },
+            relations: ["payments", "payments.payment"],
+        });
         if (!expense) return null;
-        const paid = (expense.payments || []).reduce((s, p) => s + Number(p.amount), 0);
+        const paid = (expense.payments || []).reduce((s, p) => s + Number(p.payment?.debitAmount ?? 0), 0);
         return { ...expense, paid, balance: Number(expense.amount) - paid };
     }
 
@@ -68,33 +80,51 @@ export class ExpenseService {
     }
 
     async recordPayment(expenseId: number, data: RecordPaymentInput, userId: number) {
-        const expense = await this.expenseRepo.findOne({ where: { id: expenseId }, relations: ["payments"] });
+        const expense = await this.expenseRepo.findOne({
+            where: { id: expenseId },
+            relations: ["payments", "payments.payment"],
+        });
         if (!expense) throw new Error("Expense not found");
         if (expense.status === ExpenseStatus.SETTLED) throw new Error("Expense is already fully settled");
 
         const payAmount = Number(data.amount);
         if (!payAmount || payAmount <= 0) throw new Error("Payment amount must be greater than 0");
 
-        const refNorm = data.reference?.trim();
+        const refNorm = data.reference?.trim() ? data.reference.trim().toUpperCase() : null;
+        const paymentType = toPaymentType(data.payment_method);
+
+        // Create the shared Payment record (debitAmount = money leaving the business)
         const payment = this.paymentRepo.create({
-            expense_id: expenseId,
-            amount: payAmount,
-            payment_method: data.payment_method || "cash",
-            reference: refNorm ? refNorm.toUpperCase() : undefined,
-            notes: data.notes?.trim() || undefined,
+            debitAmount: payAmount,
+            creditAmount: 0,
+            paymentType,
+            reference: refNorm,
             created_by: userId,
         });
-        await this.paymentRepo.save(payment);
+        const savedPayment = await this.paymentRepo.save(payment);
 
-        const refreshed = await this.expenseRepo.findOne({ where: { id: expenseId }, relations: ["payments"] });
+        // Create the ExpensePayment linking expense → payment
+        const expensePayment = this.expensePaymentRepo.create({
+            expense: { id: expenseId } as Expense,
+            payment: { id: savedPayment.id } as Payment,
+            notes: data.notes?.trim() || null,
+            created_by: userId,
+        });
+        await this.expensePaymentRepo.save(expensePayment);
+
+        // Recalculate settled status
+        const refreshed = await this.expenseRepo.findOne({
+            where: { id: expenseId },
+            relations: ["payments", "payments.payment"],
+        });
         const allPayments = refreshed?.payments || [];
-        const paid = allPayments.reduce((s, p) => s + Number(p.amount), 0);
+        const paid = allPayments.reduce((s, p) => s + Number(p.payment?.debitAmount ?? 0), 0);
         const total = Number(expense.amount);
 
         expense.status = paid >= total ? ExpenseStatus.SETTLED : paid > 0 ? ExpenseStatus.PARTIAL : ExpenseStatus.OPEN;
         expense.updated_by = userId;
         await this.expenseRepo.save(expense);
 
-        return payment;
+        return expensePayment;
     }
 }

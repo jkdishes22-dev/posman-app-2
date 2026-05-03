@@ -39,4 +39,7 @@ export class Payment extends BaseEntity {
   // Resolved by table name to avoid class-reference fragility in webpack bundles.
   @OneToMany("bill_payment", (billPayment: BillPayment) => billPayment.payment)
   bill_payments: Promise<BillPayment[]>;
+
+  @OneToMany("expense_payment", (ep: any) => ep.payment)
+  expense_payments: Promise<any[]>;
 }

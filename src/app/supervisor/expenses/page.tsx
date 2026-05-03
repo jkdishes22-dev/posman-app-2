@@ -5,12 +5,18 @@ import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import { Card, Table, Button, Badge, Modal, Form, Alert, Spinner, Row, Col } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 
+interface PaymentRecord {
+    id: number;
+    debitAmount: number;
+    paymentType: string;
+    reference?: string | null;
+    paidAt: string;
+}
+
 interface ExpensePayment {
     id: number;
-    amount: number;
-    payment_method: string;
-    reference?: string | null;
-    notes?: string;
+    payment: PaymentRecord;
+    notes?: string | null;
     created_at: string;
 }
 
@@ -129,6 +135,7 @@ export default function ExpensesPage() {
                 body: JSON.stringify({
                     amount: parseFloat(payForm.amount),
                     payment_method: payForm.payment_method,
+                    reference: payForm.reference || undefined,
                     notes: payForm.notes || undefined,
                 }),
             });
@@ -408,10 +415,10 @@ export default function ExpensesPage() {
                                     <tbody>
                                         {detailExpense.payments.map(p => (
                                             <tr key={p.id}>
-                                                <td>{new Date(p.created_at).toLocaleDateString()}</td>
-                                                <td>{p.payment_method}</td>
-                                                <td className="text-end">KES {Number(p.amount).toFixed(2)}</td>
-                                                <td className="text-monospace small">{p.reference || "—"}</td>
+                                                <td>{new Date(p.payment?.paidAt ?? p.created_at).toLocaleDateString()}</td>
+                                                <td>{p.payment?.paymentType ?? "—"}</td>
+                                                <td className="text-end">KES {Number(p.payment?.debitAmount ?? 0).toFixed(2)}</td>
+                                                <td className="text-monospace small">{p.payment?.reference || "—"}</td>
                                                 <td>{p.notes || "—"}</td>
                                             </tr>
                                         ))}
