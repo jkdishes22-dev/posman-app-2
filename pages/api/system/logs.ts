@@ -54,7 +54,7 @@ function pruneOldLogs(logDir: string, retentionDays: number): void {
  * GET /api/system/logs?file=<name> → read a specific log file (last 2000 lines)
  */
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-    return authorize([permissions.CAN_VIEW_PERMISSION])(async (request, response) => {
+    return authorize([permissions.CAN_VIEW_LOGS])(async (request, response) => {
         if (request.method !== "GET") {
             response.setHeader("Allow", ["GET"]);
             return response.status(405).json({ error: `Method ${request.method} not allowed` });

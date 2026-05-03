@@ -1,9 +1,10 @@
 /**
- * Fixed-width monospace receipt lines for 80mm thermal printers.
- * Flex/grid layouts are often flattened when Electron/Chromium prints via GDI raster drivers.
+ * Fixed-width monospace receipt lines for 80mm-class thermal rolls.
+ * Many models (e.g. Xprinter XP-Q807K) have ~72mm print width on 80mm paper; 48× monospace
+ * at 11pt was getting clipped on the right with vendor GDI drivers. 42 columns fits that head.
  */
 
-export const THERMAL_WIDTH_80MM = 48;
+export const THERMAL_WIDTH_80MM = 42;
 
 export function padLeft(s: string, w: number): string {
     const t = String(s);
@@ -35,10 +36,10 @@ export function lineLabelValue(label: string, value: string, width = THERMAL_WID
 }
 
 const COL_IDX = 3;
-const COL_NAME = 18;
-const COL_QTY = 5;
-const COL_PRICE = 8;
-const COL_SUB = 10;
+const COL_NAME = 16;
+const COL_QTY = 4;
+const COL_PRICE = 7;
+const COL_SUB = 8;
 
 export function receiptItemTablePre(billItems: unknown[] | undefined): string {
     const items = Array.isArray(billItems) ? billItems : [];
@@ -50,7 +51,7 @@ export function receiptItemTablePre(billItems: unknown[] | undefined): string {
             " " +
             padLeft("Qty", COL_QTY) +
             " " +
-            padLeft("@Price", COL_PRICE) +
+            padLeft("Price", COL_PRICE) +
             " " +
             padLeft("Total", COL_SUB),
     );

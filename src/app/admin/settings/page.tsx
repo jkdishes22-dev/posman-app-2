@@ -1,10 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
-import { Card, Button, Alert, Spinner, Form, Badge, Row, Col } from "react-bootstrap";
+import { Card, Button, Alert, Spinner, Form, Badge, Row, Col, Table } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import { normalizePrinterSettings, toPrinterSettingsPayload } from "../../shared/printerSettings";
+import type {
+    OrganisationSettingsValue,
+    OrganisationMpesaMethod,
+    MpesaMethodType,
+} from "@backend/utils/organisationReceiptBranding";
 
 interface PrinterInfo {
     name: string;
@@ -28,6 +34,38 @@ interface DbBackupSettings {
 interface LicenseStatus {
     state: "ready" | "license_required" | "license_expired" | "license_invalid";
     message?: string;
+}
+
+function newMpesaMethodId(): string {
+    return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `m-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function normalizeOrganisationForSave(v: OrganisationSettingsValue): OrganisationSettingsValue {
+    const methods: OrganisationMpesaMethod[] = (v.mpesa_methods ?? []).map((m) => ({
+        ...m,
+        id: m.id ? String(m.id) : newMpesaMethodId(),
+        type: (m.type as MpesaMethodType) || "till",
+        is_default: !!m.is_default,
+    }));
+    if (methods.length === 0) {
+        return { name: (v.name ?? "").trim(), tagline: (v.tagline ?? "").trim(), mpesa_methods: [] };
+    }
+    const defaults = methods.filter((m) => m.is_default);
+    if (defaults.length !== 1) {
+        methods.forEach((m) => { m.is_default = false; });
+        methods[0].is_default = true;
+    }
+    return {
+        name: (v.name ?? "").trim(),
+        tagline: (v.tagline ?? "").trim(),
+        mpesa_methods: methods,
+    };
+}
+
+function emptyOrganisation(): OrganisationSettingsValue {
+    return { name: "", tagline: "", mpesa_methods: [] };
 }
 
 export default function AdminSettingsPage() {
@@ -59,6 +97,10 @@ export default function AdminSettingsPage() {
     const [logRetentionLoading, setLogRetentionLoading] = useState(false);
     const [logRetentionResult, setLogRetentionResult] = useState<{ success: boolean; message?: string } | null>(null);
 
+    const [organisation, setOrganisation] = useState<OrganisationSettingsValue>(() => emptyOrganisation());
+    const [organisationSaving, setOrganisationSaving] = useState(false);
+    const [organisationResult, setOrganisationResult] = useState<{ success: boolean; error?: string } | null>(null);
+
     // License
     const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null);
     const [licenseLoading, setLicenseLoading] = useState(true);
@@ -84,6 +126,16 @@ export default function AdminSettingsPage() {
         apiCall("/api/system/settings?key=bill_settings").then((res) => {
             if (res.status === 200 && res.data?.value) setBillSettings(res.data.value);
         });
+        apiCall("/api/system/settings?key=organisation_settings").then((res) => {
+            if (res.status === 200 && res.data?.value != null) {
+                const val = res.data.value as OrganisationSettingsValue;
+                setOrganisation({
+                    name: val.name ?? "",
+                    tagline: val.tagline ?? "",
+                    mpesa_methods: Array.isArray(val.mpesa_methods) ? val.mpesa_methods : [],
+                });
+            }
+        }).catch(() => {});
         apiCall("/api/system/license-status").then((res) => {
             if (res.status === 200) setLicenseStatus(res.data);
             else setLicenseStatus({ state: "license_invalid", message: "Unable to load license status" });
@@ -206,6 +258,66 @@ export default function AdminSettingsPage() {
         }
     };
 
+    const handleSaveOrganisation = async () => {
+        setOrganisationSaving(true);
+        setOrganisationResult(null);
+        const payload = normalizeOrganisationForSave(organisation);
+        try {
+            const result = await apiCall("/api/system/settings?key=organisation_settings", {
+                method: "PUT",
+                body: JSON.stringify(payload),
+            });
+            if (result.status === 200) {
+                setOrganisation(payload);
+                setOrganisationResult({ success: true });
+            } else {
+                setOrganisationResult({ success: false, error: result.error || "Failed to save" });
+            }
+        } catch {
+            setOrganisationResult({ success: false, error: "Network error occurred" });
+        } finally {
+            setOrganisationSaving(false);
+        }
+    };
+
+    const addMpesaMethod = () => {
+        setOrganisation((org) => {
+            const methods = [...(org.mpesa_methods ?? [])];
+            const isFirst = methods.length === 0;
+            methods.push({
+                id: newMpesaMethodId(),
+                type: "till",
+                till_number: "",
+                is_default: isFirst,
+            });
+            return { ...org, mpesa_methods: methods };
+        });
+    };
+
+    const removeMpesaMethod = (id: string) => {
+        setOrganisation((org) => {
+            let methods = (org.mpesa_methods ?? []).filter((m) => m.id !== id);
+            if (methods.length && !methods.some((m) => m.is_default)) {
+                methods = methods.map((m, i) => ({ ...m, is_default: i === 0 }));
+            }
+            return { ...org, mpesa_methods: methods };
+        });
+    };
+
+    const patchMpesaMethod = (id: string, patch: Partial<OrganisationMpesaMethod>) => {
+        setOrganisation((org) => ({
+            ...org,
+            mpesa_methods: (org.mpesa_methods ?? []).map((m) => (m.id === id ? { ...m, ...patch } : m)),
+        }));
+    };
+
+    const setDefaultMpesaMethod = (id: string) => {
+        setOrganisation((org) => ({
+            ...org,
+            mpesa_methods: (org.mpesa_methods ?? []).map((m) => ({ ...m, is_default: m.id === id })),
+        }));
+    };
+
     const handleActivateLicense = async () => {
         if (!licenseCode.trim()) return;
         setLicenseActivating(true);
@@ -304,6 +416,134 @@ export default function AdminSettingsPage() {
                     </Col>
                 </Row>
 
+                <Card className="shadow-sm mb-4">
+                    <Card.Header className="bg-light fw-bold">Organisation &amp; receipts</Card.Header>
+                    <Card.Body>
+                        <p className="text-muted small mb-3">
+                            Business name and tagline appear on printed and downloaded receipts. The M-PESA method marked <strong>Default</strong>
+                            is printed above the thank-you footer. Staff with the print permission receive branding via the same API as printer prefs.
+                        </p>
+                        {organisationResult && (
+                            <Alert variant={organisationResult.success ? "success" : "danger"} dismissible onClose={() => setOrganisationResult(null)} className="mb-3">
+                                {organisationResult.success ? "Organisation settings saved." : organisationResult.error}
+                            </Alert>
+                        )}
+                        <Row className="g-3 mb-3">
+                            <Col md={6}>
+                                <Form.Label className="fw-medium">Organisation name (receipt header)</Form.Label>
+                                <Form.Control
+                                    type="text"
+                                    value={organisation.name ?? ""}
+                                    onChange={(e) => setOrganisation((o) => ({ ...o, name: e.target.value }))}
+                                    placeholder="e.g. Emirates Restaurant & Bar"
+                                />
+                            </Col>
+                            <Col md={6}>
+                                <Form.Label className="fw-medium">Tagline <span className="text-muted fw-normal">(optional)</span></Form.Label>
+                                <Form.Control
+                                    type="text"
+                                    value={organisation.tagline ?? ""}
+                                    onChange={(e) => setOrganisation((o) => ({ ...o, tagline: e.target.value }))}
+                                    placeholder="Shown under the name; leave blank for none"
+                                />
+                            </Col>
+                        </Row>
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                            <h6 className="fw-bold mb-0">M-PESA payment options</h6>
+                            <Button variant="outline-primary" size="sm" onClick={addMpesaMethod}>
+                                Add method
+                            </Button>
+                        </div>
+                        {(organisation.mpesa_methods ?? []).length === 0 ? (
+                            <p className="text-muted small">No M-PESA lines on the receipt. Add a method to show Till, Pochi la biashara, or Paybill details.</p>
+                        ) : (
+                            <Table responsive bordered size="sm" className="mb-0 align-middle">
+                                <thead className="table-light">
+                                    <tr>
+                                        <th style={{ width: "9rem" }}>Default</th>
+                                        <th style={{ width: "11rem" }}>Type</th>
+                                        <th>Details</th>
+                                        <th style={{ width: "4rem" }} />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(organisation.mpesa_methods ?? []).map((m) => (
+                                        <tr key={m.id}>
+                                            <td>
+                                                <Form.Check
+                                                    type="radio"
+                                                    name="org-mpesa-default"
+                                                    checked={!!m.is_default}
+                                                    onChange={() => setDefaultMpesaMethod(m.id)}
+                                                    label="Use on receipt"
+                                                />
+                                            </td>
+                                            <td>
+                                                <Form.Select
+                                                    value={m.type}
+                                                    onChange={(e) =>
+                                                        patchMpesaMethod(m.id, {
+                                                            type: e.target.value as MpesaMethodType,
+                                                        })
+                                                    }
+                                                >
+                                                    <option value="till">Till number</option>
+                                                    <option value="pochi_la_biashara">Pochi la biashara</option>
+                                                    <option value="paybill">Paybill + account</option>
+                                                </Form.Select>
+                                            </td>
+                                            <td>
+                                                {m.type === "till" && (
+                                                    <Form.Control
+                                                        size="sm"
+                                                        placeholder="Till number"
+                                                        value={m.till_number ?? ""}
+                                                        onChange={(e) => patchMpesaMethod(m.id, { till_number: e.target.value })}
+                                                    />
+                                                )}
+                                                {m.type === "pochi_la_biashara" && (
+                                                    <Form.Control
+                                                        size="sm"
+                                                        placeholder="Pochi number"
+                                                        value={m.pochi_la_biashara ?? ""}
+                                                        onChange={(e) => patchMpesaMethod(m.id, { pochi_la_biashara: e.target.value })}
+                                                    />
+                                                )}
+                                                {m.type === "paybill" && (
+                                                    <div className="d-flex flex-wrap gap-2">
+                                                        <Form.Control
+                                                            size="sm"
+                                                            placeholder="Paybill"
+                                                            value={m.paybill ?? ""}
+                                                            onChange={(e) => patchMpesaMethod(m.id, { paybill: e.target.value })}
+                                                            style={{ maxWidth: "10rem" }}
+                                                        />
+                                                        <Form.Control
+                                                            size="sm"
+                                                            placeholder="Account no."
+                                                            value={m.paybill_account ?? ""}
+                                                            onChange={(e) => patchMpesaMethod(m.id, { paybill_account: e.target.value })}
+                                                            style={{ maxWidth: "10rem" }}
+                                                        />
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="text-end">
+                                                <Button variant="outline-danger" size="sm" onClick={() => removeMpesaMethod(m.id)}>
+                                                    Remove
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </Table>
+                        )}
+                        <Button className="mt-3" variant="primary" onClick={handleSaveOrganisation} disabled={organisationSaving}>
+                            {organisationSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save organisation"}
+                        </Button>
+                    </Card.Body>
+                </Card>
+
                 {/* System Configuration card — Printer + DB Backup side by side, Logs below */}
                 <Card className="shadow-sm mb-4">
                     <Card.Header className="bg-light fw-bold">System Configuration</Card.Header>
@@ -321,14 +561,14 @@ export default function AdminSettingsPage() {
                                 <Form.Check
                                     type="switch"
                                     id="auto-print-switch"
-                                    label="Auto-print when creating a new bill (kitchen + customer copy)"
+                                    label="Auto-print when creating a new bill (customer + kitchen copy)"
                                     checked={printerSettings.print_after_create_bill}
                                     onChange={(e) => setPrinterSettings((s) => ({ ...s, print_after_create_bill: e.target.checked }))}
                                     className="mb-2"
                                 />
                                 <p className="text-muted small mb-3">
-                                    When on, saving a new bill from billing prints two jobs (kitchen ticket + customer copy). Closing a bill never prints automatically.
-                                    My Sales → Print: one customer copy with totals. Billing → Print on a pending bill: kitchen + customer (same pair as auto-print).
+                                    When on, saving a new bill from billing prints two jobs (customer copy with totals first, then kitchen/captain ticket). Closing a bill never prints automatically.
+                                    My Sales → Print: one customer copy with totals. Billing → Print on a pending bill: same pair as auto-print.
                                 </p>
                                 <Form.Group className="mb-3">
                                     <Form.Label className="fw-medium small">Printer</Form.Label>
@@ -411,6 +651,9 @@ export default function AdminSettingsPage() {
                             <h6 className="fw-bold mb-2">Log Settings</h6>
                             <p className="text-muted small mb-3">
                                 How long application log files are kept on disk. Files older than the retention window are deleted automatically when the log viewer is opened.
+                                Admins can open the{" "}
+                                <Link href="/admin/logs">application log viewer</Link>
+                                {" "}to diagnose desktop (Electron) issues. Access requires the <code>can_view_logs</code> permission (assigned to admin by default).
                             </p>
                             <Row className="g-2 align-items-end" style={{ maxWidth: 340 }}>
                                 <Col>

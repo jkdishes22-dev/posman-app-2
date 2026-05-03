@@ -10,6 +10,7 @@
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
     "start": "NODE_ENV=production next start",
     "lint": "next lint",
+    "test": "npm run test:unit && npm run test:e2e",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/backend/config/data-source.ts",
     "migration:run": "NODE_OPTIONS=\"--loader ts-node/esm\" node src/backend/config/run-migrations.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/backend/config/data-source.ts",

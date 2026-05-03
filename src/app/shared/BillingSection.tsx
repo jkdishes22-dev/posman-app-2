@@ -10,7 +10,7 @@ import { Button, Modal, Alert, Row, Col, Spinner } from "react-bootstrap";
 const ViewItems = lazy(() => import("../admin/menu/category/components/items/items-view"));
 const Categories = lazy(() => import("../admin/menu/category/components/category/categories"));
 const CategoryDeleteModal = lazy(() => import("../admin/menu/category/components/category/category-delete"));
-import ReceiptPrint, { CustomerCopyPrint } from "./ReceiptPrint";
+import ReceiptPrint, { CustomerCopyPrint, defaultReceiptBranding, type ReceiptBranding } from "./ReceiptPrint";
 import { printCaptainOrderAndCustomerCopy, downloadReceiptAsFile, logClientFromRenderer } from "./printUtils";
 import { normalizePrinterSettings } from "./printerSettings";
 import ReactDOM from "react-dom/client";
@@ -81,10 +81,11 @@ const BillingSection = () => {
   );
   const canDeleteCategoryOnBill = hasPermission(userRoleNames, "can_delete_category");
 
-  /** When true, print captain + customer (2 jobs) after creating a pending bill from billing. Cashier close bill never prints; My Sales Print is customer copy only. */
+  /** When true, print customer + captain (2 jobs) after creating a pending bill from billing. Cashier close bill never prints; My Sales Print is customer copy only. */
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintPrinterName, setAutoPrintPrinterName] = useState("");
   const [showTax, setShowTax] = useState(true);
+  const [receiptBranding, setReceiptBranding] = useState<ReceiptBranding>(() => defaultReceiptBranding());
 
   /** While a pending bill is open, exclude it from pending-demand so totals match server validation. */
   const pendingBillExcludeIdRef = useRef<number | undefined>(undefined);
@@ -132,6 +133,9 @@ const BillingSection = () => {
         const p = normalizePrinterSettings(res.data.value);
         setAutoPrintEnabled(p.print_after_create_bill);
         setAutoPrintPrinterName(p.printer_name);
+      }
+      if (res.status === 200 && res.data?.receipt_display) {
+        setReceiptBranding(res.data.receipt_display);
       }
     }).catch(() => {});
     apiCall("/api/system/settings?key=bill_settings").then((res) => {
@@ -634,7 +638,7 @@ const BillingSection = () => {
               const { captain: captainPrint, customer: customerPrint } = await printCaptainOrderAndCustomerCopy(
                 billForReceipt,
                 autoPrintPrinterName || undefined,
-                { showTax }
+                { showTax, receiptBranding }
               );
               if (!captainPrint.success || !customerPrint.success) {
                 logClientFromRenderer(
@@ -691,15 +695,15 @@ const BillingSection = () => {
 
   const handlePrint = async () => {
     if (!createdBill) return;
-    logClientFromRenderer(`print: manual pending bill (billing) captain+customer billId=${createdBill.id}`);
-    await printCaptainOrderAndCustomerCopy(createdBill, undefined, { showTax });
+    logClientFromRenderer(`print: manual pending bill (billing) customer+captain billId=${createdBill.id}`);
+    await printCaptainOrderAndCustomerCopy(createdBill, undefined, { showTax, receiptBranding });
   };
 
   const handleDownload = async () => {
     if (!createdBill) return;
 
     // Download Customer Copy
-    await downloadReceiptAsFile(CustomerCopyPrint, createdBill, "customer", { showTax });
+    await downloadReceiptAsFile(CustomerCopyPrint, createdBill, "customer", { showTax, receiptBranding });
   };
 
   const handleConfirmCancel = useCallback(() => {
@@ -1142,7 +1146,7 @@ const BillingSection = () => {
 
       {/* Hidden Receipt Component */}
       <div style={{ display: "none" }}>
-        {createdBill && <ReceiptPrint ref={receiptRef} bill={createdBill} showTax={showTax} />}
+        {createdBill && <ReceiptPrint ref={receiptRef} bill={createdBill} showTax={showTax} receiptBranding={receiptBranding} />}
       </div>
 
       {/* Quantity Modal */}

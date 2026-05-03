@@ -641,7 +641,7 @@ function runDailyAutoBackup() {
 }
 
 /** ESC/POS trailer: feed paper to cutter, then full cut (GS V 0). Partial/GDI drivers often ignore bytes appended to raster jobs. */
-function buildEscPosCutFooter(feedLines = 8) {
+function buildEscPosCutFooter(feedLines = 16) {
     const n = Math.max(0, Math.min(255, Number(feedLines) || 0));
     return Buffer.concat([Buffer.from([0x1b, 0x64, n]), Buffer.from([0x1d, 0x56, 0x00])]).toString("latin1");
 }
@@ -677,10 +677,10 @@ ipcMain.handle("print-receipt", async (event, htmlContent, printerName, options 
             const feedLinesBeforeCut = Number(options.feedLinesBeforeCut);
             const cutBlock = appendEscPosCut
                 ? `<pre class="escpos-trailer" style="font-family:'Courier New',monospace;font-size:1px;line-height:1px;margin:0;padding:0;border:0;color:#010101;white-space:pre;display:block;width:100%;height:6px;overflow:hidden">${buildEscPosCutFooter(
-                      Number.isFinite(feedLinesBeforeCut) ? feedLinesBeforeCut : 8
+                      Number.isFinite(feedLinesBeforeCut) ? feedLinesBeforeCut : 16
                   )}</pre>`
                 : "";
-            const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Courier New",monospace;width:80mm}@page{size:80mm auto;margin:0}</style></head><body>${htmlContent}${cutBlock}</body></html>`;
+            const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Courier New",Courier,monospace;font-weight:600;width:72mm;max-width:72mm;margin:0;padding:0}@page{size:72mm auto;margin:0}</style></head><body>${htmlContent}${cutBlock}</body></html>`;
             printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
 
             printWin.webContents.once("did-finish-load", () => {

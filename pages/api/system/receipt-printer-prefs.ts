@@ -3,6 +3,7 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import permissions from "@backend/config/permissions";
+import { parseOrganisationSettingsRow } from "@backend/utils/organisationReceiptBranding";
 
 /**
  * Read-only printer prefs for receipt auto-print (billing UIs).
@@ -33,7 +34,18 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 printer = JSON.parse(legacy[0].value);
             }
         }
-        return res.status(200).json({ value: printer });
+        let organisationValue: string | undefined;
+        try {
+            const orgRows: { value: string }[] = await req.db.query(
+                "SELECT value FROM system_settings WHERE key = ?",
+                ["organisation_settings"],
+            );
+            organisationValue = orgRows?.length ? orgRows[0].value : undefined;
+        } catch {
+            organisationValue = undefined;
+        }
+        const receipt_display = parseOrganisationSettingsRow(organisationValue);
+        return res.status(200).json({ value: printer, receipt_display });
     } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         console.error("[receipt-printer-prefs GET]", msg);

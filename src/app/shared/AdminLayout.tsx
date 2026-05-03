@@ -243,6 +243,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         { label: "System Settings", path: "/admin/settings" }
       ];
     }
+    else if (path.includes("/admin/logs")) {
+      activeItemId = "system-logs";
+      breadcrumbItems = [
+        { label: "Dashboard", path: "/admin" },
+        { label: "Application Logs", path: "/admin/logs" }
+      ];
+    }
     // License diagnostics
     else if (path.includes("/admin/license")) {
       activeItemId = "license-diagnostics";
@@ -395,6 +402,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       label: "System Settings",
       icon: "bi-sliders",
       path: "/admin/settings",
+    },
+    {
+      id: "system-logs",
+      label: "Application Logs",
+      icon: "bi-journal-text",
+      path: "/admin/logs",
     },
     {
       id: "license-diagnostics",

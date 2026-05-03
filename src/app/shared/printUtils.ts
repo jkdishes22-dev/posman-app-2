@@ -4,7 +4,12 @@
 
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { CaptainOrderPrint, CustomerCopyPrint } from "./ReceiptPrint";
+import {
+    CaptainOrderPrint,
+    CustomerCopyPrint,
+    RECEIPT_DOUBLE_PRINT_GAP_AFTER_CUSTOMER_MM,
+    RECEIPT_DOUBLE_PRINT_GAP_BEFORE_CAPTAIN_MM,
+} from "./ReceiptPrint";
 
 export interface PrintOptions {
     bill: any;
@@ -19,8 +24,8 @@ export type PrintReceiptResult = {
 };
 
 /**
- * Pause between kitchen (captain) and customer jobs so the first spool job can finish
- * before the second is sent (80mm thermal, ~120mm typical ticket length).
+ * Pause between the two thermal jobs so the first spool finishes before the second
+ * (80mm thermal, ~120mm typical ticket length).
  */
 export const DOUBLE_RECEIPT_GAP_MS = 750;
 
@@ -32,7 +37,8 @@ export type ElectronPrintOpts = {
 
 const defaultElectronPrintOpts: ElectronPrintOpts = {
     appendEscPosCut: true,
-    feedLinesBeforeCut: 8,
+    /** Larger default: GDI/raster drivers often need more feed before a cut command bites. */
+    feedLinesBeforeCut: 16,
 };
 
 export function delay(ms: number): Promise<void> {
@@ -64,8 +70,9 @@ function billIdForLog(bill: any): string | number {
 }
 
 /**
- * Two print jobs: Captain Order (kitchen line list, no bill totals) then Customer Copy (with totals).
- * Use when creating a pending bill: auto-print (if enabled in settings) or manual Print on the billing screen.
+ * Two print jobs: Customer Copy (with totals) first, then Captain Order (kitchen list, no totals).
+ * ESC/POS cut (if the driver honors it) is appended only on the last job. Includes extra blank
+ * bands between jobs for tear/cut room.
  */
 export async function printCaptainOrderAndCustomerCopy(
     bill: any,
@@ -78,24 +85,33 @@ export async function printCaptainOrderAndCustomerCopy(
         `print: double-copy start billId=${bid} printer=${printerName?.trim() ? printerName : "default"}`,
     );
     const opts = { ...defaultElectronPrintOpts, ...electronPrintOpts };
-    const captain = await printReceiptWithTimestamp(
-        CaptainOrderPrint,
-        bill,
-        "Captain Order",
-        "captain",
-        printerName,
-        extraProps as Record<string, any>,
-        { ...opts, appendEscPosCut: false },
-    );
-    await delay(DOUBLE_RECEIPT_GAP_MS);
+    const base = (extraProps ?? {}) as Record<string, any>;
+    const customerExtras = {
+        ...base,
+        spacerAfterMm: RECEIPT_DOUBLE_PRINT_GAP_AFTER_CUSTOMER_MM,
+    };
+    const captainExtras = {
+        ...base,
+        spacerBeforeMm: RECEIPT_DOUBLE_PRINT_GAP_BEFORE_CAPTAIN_MM,
+    };
     const customer = await printReceiptWithTimestamp(
         CustomerCopyPrint,
         bill,
         "Customer Copy",
         "customer",
         printerName,
-        extraProps as Record<string, any>,
-        opts
+        customerExtras,
+        { ...opts, appendEscPosCut: false },
+    );
+    await delay(DOUBLE_RECEIPT_GAP_MS);
+    const captain = await printReceiptWithTimestamp(
+        CaptainOrderPrint,
+        bill,
+        "Captain Order",
+        "captain",
+        printerName,
+        captainExtras,
+        opts,
     );
     const ok = captain.success && customer.success;
     logClientFromRenderer(

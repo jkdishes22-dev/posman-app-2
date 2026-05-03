@@ -49,7 +49,7 @@ export const ROLE_PERMISSIONS = {
         // System settings
         "can_view_system_settings",
         "can_edit_system_settings",
-        // Read-only access to business data
+        "can_view_logs",
         "can_view_bill",
         "can_view_bill_item",
         "can_view_bill_payment",

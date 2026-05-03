@@ -74,6 +74,8 @@ const permissions = {
     // System Settings
     CAN_VIEW_SYSTEM_SETTINGS: "can_view_system_settings",
     CAN_EDIT_SYSTEM_SETTINGS: "can_edit_system_settings",
+    /** Application log files (Electron diagnostics); admin-only by default. */
+    CAN_VIEW_LOGS: "can_view_logs",
     /** Receipt printer prefs + related read-only billing display (e.g. tax on receipt) without full system settings. */
     CAN_PRINT: "can_print",
 

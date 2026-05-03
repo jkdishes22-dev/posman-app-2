@@ -11,7 +11,7 @@ import TimeZoneAwareDatePicker from "src/app/shared/TimezoneAwareDatePicker";
 import DatePicker from "react-datepicker";
 import { Bill, BillItem, VoidRequestPayload, VoidRequestResponse } from "src/app/types/types";
 import Pagination from "src/app/components/Pagination";
-import { CustomerCopyPrint } from "../../shared/ReceiptPrint";
+import { CustomerCopyPrint, defaultReceiptBranding, type ReceiptBranding } from "../../shared/ReceiptPrint";
 import { printCustomerCopyOnly, downloadReceiptAsFile, logClientFromRenderer } from "../../shared/printUtils";
 import ReactDOM from "react-dom/client";
 import { useApiCall } from "../../utils/apiUtils";
@@ -81,6 +81,7 @@ const MySales = () => {
   const [isLoadingBillDetails, setIsLoadingBillDetails] = useState(false);
   /** Matches admin “Show tax details on receipt” (`bill_settings.show_tax_on_receipt`). */
   const [showTax, setShowTax] = useState(true);
+  const [receiptBranding, setReceiptBranding] = useState<ReceiptBranding>(() => defaultReceiptBranding());
 
   // Void request state
   const [showVoidModal, setShowVoidModal] = useState<boolean>(false);
@@ -122,6 +123,16 @@ const MySales = () => {
       .then((res) => {
         if (res.status === 200 && res.data?.value) {
           setShowTax(res.data.value.show_tax_on_receipt !== false);
+        }
+      })
+      .catch(() => {});
+  }, [apiCall]);
+
+  useEffect(() => {
+    apiCall("/api/system/receipt-printer-prefs")
+      .then((res) => {
+        if (res.status === 200 && res.data?.receipt_display) {
+          setReceiptBranding(res.data.receipt_display);
         }
       })
       .catch(() => {});
@@ -411,14 +422,14 @@ const MySales = () => {
   const handlePrint = async () => {
     if (!selectedBill) return;
     logClientFromRenderer(`print: my-sales customer-copy-only billId=${selectedBill.id}`);
-    await printCustomerCopyOnly(selectedBill, undefined, { showTax });
+    await printCustomerCopyOnly(selectedBill, undefined, { showTax, receiptBranding });
   };
 
   const handleDownload = async () => {
     if (!selectedBill) return;
 
     // Download Customer Copy
-    await downloadReceiptAsFile(CustomerCopyPrint, selectedBill, "customer", { showTax });
+    await downloadReceiptAsFile(CustomerCopyPrint, selectedBill, "customer", { showTax, receiptBranding });
   };
 
   // Void request functions
