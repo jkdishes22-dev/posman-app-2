@@ -21,11 +21,13 @@ vi.mock("@backend/service/SupplierService", () => ({
 
 import { PurchaseOrderService } from "@backend/service/PurchaseOrderService";
 import { PurchaseOrderStatus } from "@backend/entities/PurchaseOrder";
+import { Item } from "@backend/entities/Item";
 
 describe("PurchaseOrderService", () => {
   let mockPORepo: ReturnType<typeof createMockRepository>;
   let mockPOItemRepo: ReturnType<typeof createMockRepository>;
   let mockSupplierRepo: ReturnType<typeof createMockRepository>;
+  let mockItemRepo: ReturnType<typeof createMockRepository>;
   let service: PurchaseOrderService;
 
   beforeEach(() => {
@@ -33,6 +35,17 @@ describe("PurchaseOrderService", () => {
     mockPORepo = createMockRepository();
     mockPOItemRepo = createMockRepository();
     mockSupplierRepo = createMockRepository();
+    mockItemRepo = createMockRepository();
+    mockItemRepo.findOne.mockImplementation(async ({ where: { id } }: any) => ({
+      id,
+      name: "Test item",
+      isStock: true,
+      isGroup: false,
+    }));
+    mockPORepo.manager.getRepository = vi.fn().mockImplementation((entity: any) => {
+      if (entity === Item || entity?.name === "Item") return mockItemRepo;
+      return createMockRepository();
+    });
     const mockDs = createMockDataSource({
       PurchaseOrder: mockPORepo,
       PurchaseOrderItem: mockPOItemRepo,
@@ -60,6 +73,42 @@ describe("PurchaseOrderService", () => {
           items: [{ item_id: 1, quantity_ordered: 10, unit_price: 100 }],
         }, 1)
       ).rejects.toThrow("exceeds available credit");
+    });
+
+    it("throws when line item is not suppliable (not stock)", async () => {
+      mockSupplierRepo.findOne.mockResolvedValue({ id: 1, credit_limit: 0 });
+      mockGetSupplierBalance.mockResolvedValue({ available_credit: 99999 });
+      mockItemRepo.findOne.mockResolvedValueOnce({
+        id: 7,
+        name: "Cake",
+        isStock: false,
+        isGroup: false,
+      });
+
+      await expect(
+        service.createPurchaseOrder(
+          { supplier_id: 1, items: [{ item_id: 7, quantity_ordered: 1, unit_price: 10 }] },
+          1
+        )
+      ).rejects.toThrow("not marked as suppliable");
+    });
+
+    it("throws when line item is a group", async () => {
+      mockSupplierRepo.findOne.mockResolvedValue({ id: 1, credit_limit: 0 });
+      mockGetSupplierBalance.mockResolvedValue({ available_credit: 99999 });
+      mockItemRepo.findOne.mockResolvedValueOnce({
+        id: 8,
+        name: "Combo",
+        isStock: true,
+        isGroup: true,
+      });
+
+      await expect(
+        service.createPurchaseOrder(
+          { supplier_id: 1, items: [{ item_id: 8, quantity_ordered: 1, unit_price: 10 }] },
+          1
+        )
+      ).rejects.toThrow("group product");
     });
 
     it("allows PO creation when supplier has no credit limit (credit_limit = 0)", async () => {

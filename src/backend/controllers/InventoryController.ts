@@ -1,4 +1,5 @@
 import { InventoryService } from "@backend/service/InventoryService";
+import { ItemService } from "@backend/service/ItemService";
 import { NextApiRequest, NextApiResponse } from "next";
 import { handleApiError } from "@backend/utils/errorHandler";
 import { parseStartDateInAppTz, parseEndDateInAppTz } from "@backend/utils/dateRange";
@@ -261,6 +262,23 @@ export const getInventoryHistoryHandler = async (
         const { userMessage, errorCode } = handleApiError(error, {
             operation: "fetching",
             resource: "inventory history"
+        });
+        res.status(500).json({ error: userMessage, code: errorCode });
+    }
+};
+
+export const getInventoryTransactionFilterItemsHandler = async (
+    req: NextApiRequest,
+    res: NextApiResponse,
+) => {
+    const itemService = new ItemService(req.db);
+    try {
+        const items = await itemService.fetchNonGroupActiveItemsForSelect();
+        res.status(200).json({ items });
+    } catch (error: any) {
+        const { userMessage, errorCode } = handleApiError(error, {
+            operation: "fetching",
+            resource: "inventory transaction filter items",
         });
         res.status(500).json({ error: userMessage, code: errorCode });
     }

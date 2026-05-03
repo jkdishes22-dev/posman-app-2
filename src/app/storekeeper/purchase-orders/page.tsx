@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
@@ -55,14 +55,11 @@ export default function PurchaseOrdersPage() {
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
     const [filteredPOs, setFilteredPOs] = useState<PurchaseOrder[]>([]);
     const [suppliers, setSuppliers] = useState<any[]>([]);
-    const [items, setItems] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Item search states for type-ahead
-    const [itemSearchQueries, setItemSearchQueries] = useState<Record<number, string>>({});
-    const [itemSearchResults, setItemSearchResults] = useState<Record<number, any[]>>({});
-    const [itemSearchLoading, setItemSearchLoading] = useState<Record<number, boolean>>({});
-    const [showItemDropdowns, setShowItemDropdowns] = useState<Record<number, boolean>>({});
+    /** Active non-group items marked as stock (suppliable) — full list for PO line dropdowns. */
+    const [suppliableCatalog, setSuppliableCatalog] = useState<{ id: number; name: string; code: string }[]>([]);
+    const [suppliableCatalogLoading, setSuppliableCatalogLoading] = useState(false);
 
     // Supplier search states for type-ahead
     const [supplierSearchQuery, setSupplierSearchQuery] = useState<string>("");
@@ -110,6 +107,39 @@ export default function PurchaseOrdersPage() {
     useEffect(() => {
         filterPurchaseOrders();
     }, [purchaseOrders, searchTerm, statusFilter, supplierFilter, startDate, endDate]);
+
+    useEffect(() => {
+        if (!showCreateModal) return;
+        let cancelled = false;
+        (async () => {
+            setSuppliableCatalogLoading(true);
+            try {
+                const result = await apiCall("/api/items/suppliable?limit=5000");
+                if (cancelled) return;
+                if (result.status >= 200 && result.status < 300) {
+                    const raw = Array.isArray(result.data?.items) ? result.data.items : [];
+                    const byId = new Map<number, { id: number; name: string; code: string }>();
+                    for (const row of raw) {
+                        const id = Number(row?.id);
+                        if (!Number.isFinite(id) || byId.has(id)) continue;
+                        byId.set(id, {
+                            id,
+                            name: String(row?.name ?? ""),
+                            code: String(row?.code ?? ""),
+                        });
+                    }
+                    setSuppliableCatalog([...byId.values()].sort((a, b) => a.name.localeCompare(b.name)));
+                } else {
+                    setSuppliableCatalog([]);
+                }
+            } finally {
+                if (!cancelled) setSuppliableCatalogLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [showCreateModal, apiCall]);
 
     const fetchPurchaseOrders = async () => {
         setIsLoading(true);
@@ -191,9 +221,6 @@ export default function PurchaseOrdersPage() {
             items: [{ item_id: "", quantity_ordered: "", unit_price: "" }],
         });
         clearFormErrorState();
-        setItemSearchQueries({});
-        setItemSearchResults({});
-        setShowItemDropdowns({});
         setSupplierSearchQuery("");
         setShowSupplierDropdown(false);
         setShowCreateModal(true);
@@ -240,65 +267,6 @@ export default function PurchaseOrdersPage() {
         const newItems = [...formData.items];
         newItems[index] = { ...newItems[index], [field]: value };
         setFormData({ ...formData, items: newItems });
-
-        // Trigger search for item_id field
-        if (field === "item_id") {
-            if (value.length >= 2) {
-                searchSuppliableItems(index, value);
-            } else if (value.length === 0) {
-                // Clear item selection and search state when field is cleared
-                newItems[index] = { ...newItems[index], item_id: "" };
-                setFormData({ ...formData, items: newItems });
-                setItemSearchResults(prev => ({ ...prev, [index]: [] }));
-                setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
-                setItemSearchQueries(prev => ({ ...prev, [index]: "" }));
-            } else {
-                // For single character, just update query but don't search yet
-                setItemSearchQueries(prev => ({ ...prev, [index]: value }));
-                setItemSearchResults(prev => ({ ...prev, [index]: [] }));
-                setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
-            }
-        }
-    };
-
-    const searchSuppliableItems = async (index: number, query: string) => {
-        if (query.length < 2) {
-            setItemSearchResults(prev => ({ ...prev, [index]: [] }));
-            setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
-            return;
-        }
-
-        setItemSearchLoading(prev => ({ ...prev, [index]: true }));
-        setItemSearchQueries(prev => ({ ...prev, [index]: query }));
-
-        try {
-            const result = await apiCall(`/api/items/suppliable?q=${encodeURIComponent(query)}&limit=10`);
-            if (result.status >= 200 && result.status < 300) {
-                setItemSearchResults(prev => ({ ...prev, [index]: result.data?.items || [] }));
-                setShowItemDropdowns(prev => ({ ...prev, [index]: true }));
-            } else {
-                setItemSearchResults(prev => ({ ...prev, [index]: [] }));
-                setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
-            }
-        } catch (error: any) {
-            setItemSearchResults(prev => ({ ...prev, [index]: [] }));
-            setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
-        } finally {
-            setItemSearchLoading(prev => ({ ...prev, [index]: false }));
-        }
-    };
-
-    const selectItem = (index: number, item: any) => {
-        const newItems = [...formData.items];
-        newItems[index] = {
-            ...newItems[index],
-            item_id: item.id.toString()
-        };
-        setFormData({ ...formData, items: newItems });
-        setItemSearchResults(prev => ({ ...prev, [index]: [] }));
-        setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
-        // Store the item name for display
-        setItemSearchQueries(prev => ({ ...prev, [index]: `${item.name} (${item.code})` }));
     };
 
     const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -656,9 +624,6 @@ export default function PurchaseOrdersPage() {
                     onHide={() => {
                         setShowCreateModal(false);
                         clearFormErrorState();
-                        setItemSearchQueries({});
-                        setItemSearchResults({});
-                        setShowItemDropdowns({});
                         setSupplierSearchQuery("");
                         setShowSupplierDropdown(false);
                     }}
@@ -791,70 +756,28 @@ export default function PurchaseOrdersPage() {
                                         <Card.Body>
                                             <Row>
                                                 <Col md={4}>
-                                                    <Form.Group className="position-relative">
-                                                        <Form.Label>Item (Suppliable Only) <span className="text-danger">*</span></Form.Label>
-                                                        <Form.Control
-                                                            type="text"
-                                                            placeholder="Search by name or code..."
-                                                            value={itemSearchQueries[index] !== undefined ? itemSearchQueries[index] : ""}
-                                                            onChange={(e) => {
-                                                                const value = e.target.value;
-                                                                // Allow deletion - user can clear and search again
-                                                                setItemSearchQueries(prev => ({ ...prev, [index]: value }));
-                                                                updateItemRow(index, "item_id", value);
-                                                            }}
-                                                            onFocus={() => {
-                                                                // If there's already a selected item, keep showing it
-                                                                // Otherwise, if there's a query, search
-                                                                const currentQuery = itemSearchQueries[index] || "";
-                                                                if (currentQuery.length >= 2 && !item.item_id) {
-                                                                    searchSuppliableItems(index, currentQuery);
-                                                                }
-                                                            }}
-                                                            onBlur={() => {
-                                                                // Delay closing dropdown to allow click on dropdown items
-                                                                setTimeout(() => {
-                                                                    setShowItemDropdowns(prev => ({ ...prev, [index]: false }));
-                                                                }, 200);
-                                                            }}
+                                                    <Form.Group>
+                                                        <Form.Label>
+                                                            Suppliable item <span className="text-danger">*</span>
+                                                        </Form.Label>
+                                                        <Form.Select
+                                                            value={item.item_id}
+                                                            onChange={(e) => updateItemRow(index, "item_id", e.target.value)}
                                                             required
-                                                            autoComplete="off"
-                                                        />
-                                                        {itemSearchLoading[index] && (
-                                                            <div className="position-absolute end-0 top-50 translate-middle-y me-2">
-                                                                <Spinner animation="border" size="sm" />
-                                                            </div>
-                                                        )}
-                                                        {showItemDropdowns[index] && itemSearchResults[index] && itemSearchResults[index].length > 0 && (
-                                                            <div
-                                                                className="position-absolute w-100 bg-white border rounded shadow-lg"
-                                                                style={{ zIndex: 1050, maxHeight: "200px", overflowY: "auto", top: "100%" }}
-                                                            >
-                                                                {itemSearchResults[index].map((resultItem: any) => (
-                                                                    <div
-                                                                        key={resultItem.id}
-                                                                        className="p-2 border-bottom cursor-pointer hover-bg-light"
-                                                                        style={{ cursor: "pointer" }}
-                                                                        onClick={() => selectItem(index, resultItem)}
-                                                                        onMouseEnter={(e) => e.currentTarget.classList.add("bg-light")}
-                                                                        onMouseLeave={(e) => e.currentTarget.classList.remove("bg-light")}
-                                                                    >
-                                                                        <div className="fw-semibold">{resultItem.name}</div>
-                                                                        <small className="text-muted">
-                                                                            Code: <code>{resultItem.code}</code> | Category: {resultItem.category}
-                                                                        </small>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                        {showItemDropdowns[index] && itemSearchResults[index] && itemSearchResults[index].length === 0 && itemSearchQueries[index] && itemSearchQueries[index].length >= 2 && (
-                                                            <div
-                                                                className="position-absolute w-100 bg-white border rounded shadow-lg p-2"
-                                                                style={{ zIndex: 1050, top: "100%" }}
-                                                            >
-                                                                <div className="text-muted">No suppliable items found</div>
-                                                            </div>
-                                                        )}
+                                                            disabled={suppliableCatalogLoading}
+                                                        >
+                                                            <option value="">
+                                                                {suppliableCatalogLoading ? "Loading items…" : "Select item…"}
+                                                            </option>
+                                                            {suppliableCatalog.map((opt) => (
+                                                                <option key={opt.id} value={String(opt.id)}>
+                                                                    {opt.name} ({opt.code})
+                                                                </option>
+                                                            ))}
+                                                        </Form.Select>
+                                                        <Form.Text className="text-muted">
+                                                            Only items marked as stock (suppliable) appear here. Other non-group items are received via production.
+                                                        </Form.Text>
                                                     </Form.Group>
                                                 </Col>
                                                 <Col md={3}>

@@ -4,12 +4,13 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { ReportService } from "@backend/service/ReportService";
 import { parseStartDateInAppTz, parseEndDateInAppTz } from "@backend/utils/dateRange";
+import { parseReportPeriod } from "@backend/utils/reportPeriodBucket";
 import permissions from "@backend/config/permissions";
 
 const getItemsSoldCount = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     const reportService = new ReportService(req.db);
-    const { startDate, endDate, itemId, userId } = req.query;
+    const { startDate, endDate, itemId, userId, period } = req.query;
 
     if (!startDate || !endDate) {
       return res.status(400).json({ message: "Start date and end date are required" });
@@ -26,6 +27,7 @@ const getItemsSoldCount = async (req: NextApiRequest, res: NextApiResponse) => {
       endDate: parsedEnd,
       itemId: itemId ? parseInt(itemId as string, 10) : undefined,
       userId: userId ? parseInt(userId as string, 10) : undefined,
+      period: parseReportPeriod(period),
     };
 
     const report = await reportService.getItemsSoldCountReport(filters);

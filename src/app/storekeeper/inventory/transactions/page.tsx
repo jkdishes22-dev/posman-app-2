@@ -87,10 +87,16 @@ export default function InventoryTransactionsPage() {
     }, [apiCall, page, itemIdFilter, debouncedSearchTerm, startDate, endDate]);
 
     useEffect(() => {
-        apiCall("/api/menu/items").then((result) => {
+        apiCall("/api/inventory/transaction-filter-items").then((result) => {
             if (result.status === 200) {
-                const items = Array.isArray(result.data) ? result.data : (result.data?.items || []);
-                setInventoryItems(items.map((i: any) => ({ id: i.id, name: i.name, code: i.code })));
+                const raw = Array.isArray(result.data?.items) ? result.data.items : [];
+                const byId = new Map<number, { id: number; name: string; code: string }>();
+                for (const i of raw) {
+                    const id = Number(i?.id);
+                    if (!Number.isFinite(id) || byId.has(id)) continue;
+                    byId.set(id, { id, name: String(i?.name ?? ""), code: String(i?.code ?? "") });
+                }
+                setInventoryItems([...byId.values()]);
             }
         }).catch(() => {});
     }, [apiCall]);

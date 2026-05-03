@@ -76,6 +76,27 @@ describe("ItemService", () => {
     });
   });
 
+  describe("fetchNonGroupActiveItemsForSelect", () => {
+    it("returns id, name, code from getMany with active non-group filter", async () => {
+      const qb = createMockQueryBuilder();
+      qb.getMany.mockResolvedValue([
+        { id: 1, name: "Sugar", code: "SUG" },
+        { id: 2, name: "Tea", code: "TEA" },
+      ]);
+      mockItemRepo.createQueryBuilder.mockReturnValue(qb);
+
+      const result = await service.fetchNonGroupActiveItemsForSelect();
+
+      expect(result).toEqual([
+        { id: 1, name: "Sugar", code: "SUG" },
+        { id: 2, name: "Tea", code: "TEA" },
+      ]);
+      expect(qb.where).toHaveBeenCalled();
+      expect(qb.andWhere).toHaveBeenCalled();
+      expect(qb.orderBy).toHaveBeenCalledWith("item.name", "ASC");
+    });
+  });
+
   describe("createItem", () => {
     it("runs inside a transaction and invalidates items cache", async () => {
       const invalidateSpy = vi.spyOn(cache, "invalidate");

@@ -58,6 +58,7 @@ export default function ProductionSalesReconciliationReportPage() {
     startDate: todayEAT(),
     endDate: todayEAT(),
   });
+  const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("day");
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [items, setItems] = useState<Item[]>([]);
   const [loadingFilters, setLoadingFilters] = useState(false);
@@ -98,6 +99,7 @@ export default function ProductionSalesReconciliationReportPage() {
       const params = new URLSearchParams({
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
+        period,
       });
 
       if (selectedItemId) {
@@ -237,7 +239,7 @@ export default function ProductionSalesReconciliationReportPage() {
             <div className="card">
               <div className="card-body">
                 <div className="row align-items-end g-3">
-                  <div className="col-md-3">
+                  <div className="col-md-2">
                     <Form.Label>Start Date</Form.Label>
                     <Form.Control
                       type="date"
@@ -247,7 +249,7 @@ export default function ProductionSalesReconciliationReportPage() {
                       }
                     />
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-md-2">
                     <Form.Label>End Date</Form.Label>
                     <Form.Control
                       type="date"
@@ -257,7 +259,21 @@ export default function ProductionSalesReconciliationReportPage() {
                       }
                     />
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-md-2">
+                    <Form.Label>Period</Form.Label>
+                    <Form.Select
+                      value={period}
+                      onChange={(e) =>
+                        setPeriod(e.target.value as "day" | "week" | "month" | "year")
+                      }
+                    >
+                      <option value="day">Day</option>
+                      <option value="week">Week</option>
+                      <option value="month">Month</option>
+                      <option value="year">Year</option>
+                    </Form.Select>
+                  </div>
+                  <div className="col-md-4">
                     <Form.Group>
                       <Form.Label>Item</Form.Label>
                       {loadingFilters ? (
@@ -282,7 +298,7 @@ export default function ProductionSalesReconciliationReportPage() {
                       )}
                     </Form.Group>
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-md-2">
                     <Button
                       variant="primary"
                       onClick={fetchReport}

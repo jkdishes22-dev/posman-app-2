@@ -42,6 +42,32 @@ export class PurchaseOrderService {
         this.supplierService = new SupplierService(dataSource);
     }
 
+    /** Only non-group items marked as stock (suppliable) may appear on purchase orders. */
+    private async assertItemsEligibleForPurchaseOrder(items: PurchaseOrderItemInput[]): Promise<void> {
+        if (!items?.length) {
+            return;
+        }
+        const itemRepo = this.purchaseOrderRepository.manager.getRepository(Item);
+        for (const line of items) {
+            const item = await itemRepo.findOne({ where: { id: line.item_id } });
+            if (!item) {
+                throw new Error(`Item ${line.item_id} not found`);
+            }
+            const isGroup = Boolean(item.isGroup) || Number((item as any).is_group) === 1;
+            if (isGroup) {
+                throw new Error(
+                    `Item "${item.name}" is a group product; acquire it through production, not purchase orders`,
+                );
+            }
+            const isStock = Boolean(item.isStock) || Number((item as any).is_stock) === 1;
+            if (!isStock) {
+                throw new Error(
+                    `Item "${item.name}" is not marked as suppliable (stock); acquire it through production, not purchase orders`,
+                );
+            }
+        }
+    }
+
     /**
      * Generate unique PO number (format: PO-YYYYMMDD-XXX)
      */
@@ -82,6 +108,8 @@ export class PurchaseOrderService {
         if (!supplier) {
             throw new Error(`Supplier ${input.supplier_id} not found`);
         }
+
+        await this.assertItemsEligibleForPurchaseOrder(input.items);
 
         // Check supplier credit limit (only if credit_limit > 0)
         const balance = await this.supplierService.getSupplierBalance(input.supplier_id);
@@ -192,6 +220,8 @@ export class PurchaseOrderService {
 
         // Update items if provided
         if (data.items) {
+            await this.assertItemsEligibleForPurchaseOrder(data.items);
+
             // Delete existing items
             await this.purchaseOrderItemRepository.delete({ purchase_order_id: poId });
 

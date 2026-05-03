@@ -1,5 +1,6 @@
 "use client";
 import { todayEAT } from "../../../shared/eatDate";
+import { formatReportPeriodLabel } from "../../../shared/reportPeriodLabel";
 
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
@@ -46,6 +47,7 @@ export default function VoidedItemsReportPage() {
     startDate: todayEAT(),
     endDate: todayEAT()
   });
+  const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("day");
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [items, setItems] = useState<Item[]>([]);
@@ -83,7 +85,8 @@ export default function VoidedItemsReportPage() {
 
       const params = new URLSearchParams({
         startDate: dateRange.startDate,
-        endDate: dateRange.endDate
+        endDate: dateRange.endDate,
+        period
       });
 
       if (selectedItemId) {
@@ -167,7 +170,19 @@ export default function VoidedItemsReportPage() {
                       onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
                     />
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-md-2">
+                    <Form.Label>Period</Form.Label>
+                    <Form.Select
+                      value={period}
+                      onChange={(e) => setPeriod(e.target.value as "day" | "week" | "month" | "year")}
+                    >
+                      <option value="day">Day</option>
+                      <option value="week">Week</option>
+                      <option value="month">Month</option>
+                      <option value="year">Year</option>
+                    </Form.Select>
+                  </div>
+                  <div className="col-md-2">
                     <Form.Label>Item</Form.Label>
                     <Form.Select
                       value={selectedItemId}
@@ -181,7 +196,7 @@ export default function VoidedItemsReportPage() {
                       ))}
                     </Form.Select>
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-md-2">
                     <Form.Label>Sales User</Form.Label>
                     <Form.Select
                       value={selectedUserId}
@@ -270,7 +285,7 @@ export default function VoidedItemsReportPage() {
                       <tbody>
                         {reports.map((report, index) => (
                           <tr key={index}>
-                            <td>{new Date(report.date).toLocaleDateString()}</td>
+                            <td>{formatReportPeriodLabel(report.date)}</td>
                             <td>{report.itemName}</td>
                             <td>{report.quantity}</td>
                             <td>${(Number(report.subtotal) || 0).toFixed(2)}</td>

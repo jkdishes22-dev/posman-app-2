@@ -7,7 +7,10 @@ import { Item } from "@backend/entities/Item";
 import { User } from "@backend/entities/User";
 import { Supplier } from "@backend/entities/Supplier";
 import { ProductionPreparation, ProductionPreparationStatus } from "@backend/entities/ProductionPreparation";
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
+import { getAppTimezone } from "../config/timezone";
+import { reportPeriodBucketKey } from "../utils/reportPeriodBucket";
 
 export interface ReportFilters {
   startDate?: Date;
@@ -187,21 +190,68 @@ export class ReportService {
   }
 
   private getDateRange(startDate: Date, endDate: Date, period?: "day" | "week" | "month" | "year"): { start: Date; end: Date } {
-    // Trust callers to pass already-zoned start/end dates (see backend/utils/dateRange).
-    // Only apply period-based widening here so we don't accidentally re-snap to the
-    // server's local timezone and exclude same-day data for users in other zones.
-    const start = startDate;
-    const end = endDate;
-
-    if (period === "week") {
-      return { start: startOfWeek(start), end: endOfWeek(end) };
-    } else if (period === "month") {
-      return { start: startOfMonth(start), end: endOfMonth(end) };
-    } else if (period === "year") {
-      return { start: startOfYear(start), end: endOfYear(end) };
+    if (!period || period === "day") {
+      return { start: startDate, end: endDate };
     }
+    const tz = getAppTimezone();
+    const zStart = toZonedTime(startDate, tz);
+    const zEnd = toZonedTime(endDate, tz);
+    if (period === "week") {
+      return {
+        start: fromZonedTime(startOfWeek(zStart, { weekStartsOn: 1 }), tz),
+        end: fromZonedTime(endOfWeek(zEnd, { weekStartsOn: 1 }), tz),
+      };
+    }
+    if (period === "month") {
+      return {
+        start: fromZonedTime(startOfMonth(zStart), tz),
+        end: fromZonedTime(endOfMonth(zEnd), tz),
+      };
+    }
+    if (period === "year") {
+      return {
+        start: fromZonedTime(startOfYear(zStart), tz),
+        end: fromZonedTime(endOfYear(zEnd), tz),
+      };
+    }
+    return { start: startDate, end: endDate };
+  }
 
-    return { start, end };
+  private rollupPnLReportByPeriod(rows: PnLReportItem[], period?: ReportFilters["period"]): PnLReportItem[] {
+    if (!period || period === "day") {
+      return [...rows].sort((a, b) => a.date.localeCompare(b.date));
+    }
+    const m = new Map<string, PnLReportItem>();
+    for (const r of rows) {
+      const day = new Date(`${r.date}T12:00:00.000Z`);
+      const bucket = reportPeriodBucketKey(day, period);
+      const cur = m.get(bucket);
+      if (!cur) {
+        m.set(bucket, {
+          date: bucket,
+          actualRevenue: r.actualRevenue,
+          projectedRevenue: r.projectedRevenue,
+          totalRevenue: r.totalRevenue,
+          expenses: r.expenses,
+          voids: r.voids,
+          actualPnL: r.actualPnL,
+          projectedPnL: r.projectedPnL,
+        });
+      } else {
+        cur.actualRevenue += r.actualRevenue;
+        cur.projectedRevenue += r.projectedRevenue;
+        cur.expenses += r.expenses;
+        cur.voids += r.voids;
+      }
+    }
+    return Array.from(m.values())
+      .map((report) => {
+        report.totalRevenue = report.actualRevenue + report.projectedRevenue;
+        report.actualPnL = report.actualRevenue - report.expenses;
+        report.projectedPnL = report.totalRevenue - report.expenses;
+        return report;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date));
   }
 
   async getSalesRevenueReport(filters: ReportFilters): Promise<SalesRevenueReportItem[]> {
@@ -250,12 +300,12 @@ export class ReportService {
     const actualBills = await actualQuery.getMany();
     const projectedBills = await projectedQuery.getMany();
 
-    // Group by date period
+    // Group by calendar period (day / ISO week / month / year) in app timezone
     const reportMap = new Map<string, SalesRevenueReportItem>();
 
     // Process actual revenue
     actualBills.forEach(bill => {
-      const billDate = new Date(bill.created_at).toISOString().split("T")[0];
+      const billDate = reportPeriodBucketKey(new Date(bill.created_at), period);
       if (!reportMap.has(billDate)) {
         reportMap.set(billDate, {
           date: billDate,
@@ -280,7 +330,7 @@ export class ReportService {
 
     // Process projected revenue
     projectedBills.forEach(bill => {
-      const billDate = new Date(bill.created_at).toISOString().split("T")[0];
+      const billDate = reportPeriodBucketKey(new Date(bill.created_at), period);
       if (!reportMap.has(billDate)) {
         reportMap.set(billDate, {
           date: billDate,
@@ -306,13 +356,13 @@ export class ReportService {
   }
 
   async getProductionStockRevenueReport(filters: ReportFilters): Promise<ProductionStockRevenueReportItem[]> {
-    const { startDate, endDate, itemId } = filters;
+    const { startDate, endDate, itemId, period } = filters;
 
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
 
-    const { start, end } = this.getDateRange(startDate, endDate);
+    const { start, end } = this.getDateRange(startDate, endDate, period);
 
     let query = this.billRepository
       .createQueryBuilder("bill")
@@ -332,7 +382,7 @@ export class ReportService {
     const reportMap = new Map<string, ProductionStockRevenueReportItem>();
 
     bills.forEach(bill => {
-      const billDate = new Date(bill.created_at).toISOString().split("T")[0];
+      const billDate = reportPeriodBucketKey(new Date(bill.created_at), period);
 
       bill.bill_items?.forEach(billItem => {
         if (billItem.status === BillItemStatus.VOIDED || !billItem.item) return;
@@ -364,13 +414,13 @@ export class ReportService {
   }
 
   async getItemsSoldCountReport(filters: ReportFilters): Promise<ItemsSoldCountReportItem[]> {
-    const { startDate, endDate, itemId, userId } = filters;
+    const { startDate, endDate, itemId, userId, period } = filters;
 
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
 
-    const { start, end } = this.getDateRange(startDate, endDate);
+    const { start, end } = this.getDateRange(startDate, endDate, period);
 
     let query = this.billItemRepository
       .createQueryBuilder("billItem")
@@ -397,7 +447,7 @@ export class ReportService {
     billItems.forEach(billItem => {
       if (!billItem.item || !billItem.bill) return;
 
-      const date = new Date(billItem.bill.created_at).toISOString().split("T")[0];
+      const date = reportPeriodBucketKey(new Date(billItem.bill.created_at), period);
       const uid = billItem.bill.user_id;
       const key = `${date}_${billItem.item.id}_${uid ?? 0}`;
 
@@ -457,13 +507,13 @@ export class ReportService {
   }
 
   async getVoidedItemsReport(filters: ReportFilters): Promise<VoidedItemsReportItem[]> {
-    const { startDate, endDate, itemId, userId } = filters;
+    const { startDate, endDate, itemId, userId, period } = filters;
 
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
 
-    const { start, end } = this.getDateRange(startDate, endDate);
+    const { start, end } = this.getDateRange(startDate, endDate, period);
 
     let query = this.billItemRepository
       .createQueryBuilder("billItem")
@@ -495,39 +545,73 @@ export class ReportService {
     }) : [];
     const userMap = new Map(users.map(u => [u.id, u]));
 
-    return billItems.map(billItem => {
+    const rowMap = new Map<string, VoidedItemsReportItem>();
+
+    billItems.forEach(billItem => {
+      const at = billItem.void_requested_at || billItem.created_at;
+      const bucket = reportPeriodBucketKey(new Date(at), period);
+      const key = `${bucket}|${billItem.item?.id ?? 0}|${billItem.void_requested_by ?? 0}`;
       const requestedBy = userMap.get(billItem.void_requested_by || 0);
       const approvedBy = billItem.void_approved_by ? userMap.get(billItem.void_approved_by) : undefined;
+      const requestedByName = requestedBy
+        ? `${requestedBy.firstName || ""} ${requestedBy.lastName || ""}`.trim() || "Unknown"
+        : "Unknown";
+      const approvedByName = approvedBy
+        ? `${approvedBy.firstName || ""} ${approvedBy.lastName || ""}`.trim() || undefined
+        : undefined;
 
-      return {
-        date: new Date(billItem.void_requested_at || billItem.created_at).toISOString().split("T")[0],
-        itemId: billItem.item?.id || 0,
-        itemName: billItem.item?.name || "Unknown",
-        quantity: billItem.quantity || 0,
-        subtotal: billItem.subtotal || 0,
-        voidReason: billItem.void_reason || "",
-        requestedBy: billItem.void_requested_by || 0,
-        requestedByName: requestedBy ? `${requestedBy.firstName || ""} ${requestedBy.lastName || ""}`.trim() || "Unknown" : "Unknown",
-        approvedBy: billItem.void_approved_by,
-        approvedByName: approvedBy ? `${approvedBy.firstName || ""} ${approvedBy.lastName || ""}`.trim() || undefined : undefined,
-        voidRequestedAt: billItem.void_requested_at || billItem.created_at,
-        voidApprovedAt: billItem.void_approved_at,
-        billId: billItem.bill_id || 0
-      };
-    }).sort((a, b) => {
+      const existing = rowMap.get(key);
+      if (!existing) {
+        rowMap.set(key, {
+          date: bucket,
+          itemId: billItem.item?.id || 0,
+          itemName: billItem.item?.name || "Unknown",
+          quantity: billItem.quantity || 0,
+          subtotal: billItem.subtotal || 0,
+          voidReason: billItem.void_reason || "",
+          requestedBy: billItem.void_requested_by || 0,
+          requestedByName,
+          approvedBy: billItem.void_approved_by,
+          approvedByName,
+          voidRequestedAt: at,
+          voidApprovedAt: billItem.void_approved_at,
+          billId: billItem.bill_id || 0,
+        });
+        return;
+      }
+
+      existing.quantity += billItem.quantity || 0;
+      existing.subtotal += billItem.subtotal || 0;
+      const r2 = billItem.void_reason || "";
+      if (r2) {
+        if (!existing.voidReason) existing.voidReason = r2;
+        else if (!existing.voidReason.split("; ").includes(r2)) {
+          existing.voidReason = `${existing.voidReason}; ${r2}`;
+        }
+      }
+      const tNew = at?.getTime() || 0;
+      if (tNew > (existing.voidRequestedAt?.getTime() || 0)) {
+        existing.voidRequestedAt = at;
+        existing.approvedBy = billItem.void_approved_by;
+        existing.approvedByName = approvedByName;
+        existing.voidApprovedAt = billItem.void_approved_at;
+      }
+    });
+
+    return Array.from(rowMap.values()).sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return (b.voidRequestedAt?.getTime() || 0) - (a.voidRequestedAt?.getTime() || 0);
     });
   }
 
   async getExpenditureReport(filters: ReportFilters): Promise<ExpenditureReportItem[]> {
-    const { startDate, endDate, itemId, supplierId } = filters;
+    const { startDate, endDate, itemId, supplierId, period } = filters;
 
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
 
-    const { start, end } = this.getDateRange(startDate, endDate);
+    const { start, end } = this.getDateRange(startDate, endDate, period);
 
     let query = this.purchaseOrderRepository
       .createQueryBuilder("po")
@@ -549,29 +633,40 @@ export class ReportService {
 
     const purchaseOrders = await query.getMany();
 
-    const results: ExpenditureReportItem[] = [];
+    const agg = new Map<string, ExpenditureReportItem>();
 
     purchaseOrders.forEach(po => {
-      const poDate = new Date(po.created_at).toISOString().split("T")[0];
+      const poDate = reportPeriodBucketKey(new Date(po.created_at), period);
 
       po.items?.forEach(poItem => {
         if (!poItem.item || !poItem.item.isStock) return;
 
-        results.push({
-          date: poDate,
-          supplierId: po.supplier_id || 0,
-          supplierName: po.supplier?.name || "Unknown",
-          itemId: poItem.item.id,
-          itemName: poItem.item.name,
-          quantity: poItem.quantity_received || 0,
-          unitPrice: Number(poItem.unit_price) || 0,
-          subtotal: Number(poItem.subtotal) || 0,
-          totalAmount: Number(po.total_amount) || 0
-        });
+        const key = `${poDate}|${po.supplier_id ?? 0}|${poItem.item.id}`;
+        const qty = poItem.quantity_received || 0;
+        const sub = Number(poItem.subtotal) || 0;
+        const prev = agg.get(key);
+        if (!prev) {
+          agg.set(key, {
+            date: poDate,
+            supplierId: po.supplier_id || 0,
+            supplierName: po.supplier?.name || "Unknown",
+            itemId: poItem.item.id,
+            itemName: poItem.item.name,
+            quantity: qty,
+            unitPrice: Number(poItem.unit_price) || 0,
+            subtotal: sub,
+            totalAmount: sub,
+          });
+        } else {
+          prev.quantity += qty;
+          prev.subtotal += sub;
+          prev.totalAmount = prev.subtotal;
+          prev.unitPrice = prev.quantity > 0 ? prev.subtotal / prev.quantity : prev.unitPrice;
+        }
       });
     });
 
-    return results.sort((a, b) => {
+    return Array.from(agg.values()).sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       if (a.supplierId !== b.supplierId) return a.supplierId - b.supplierId;
       return a.itemId - b.itemId;
@@ -579,13 +674,13 @@ export class ReportService {
   }
 
   async getInvoicesPendingBillsReport(filters: ReportFilters): Promise<InvoicesPendingBillsReportItem[]> {
-    const { startDate, endDate, itemId } = filters;
+    const { startDate, endDate, itemId, period } = filters;
 
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
 
-    const { start, end } = this.getDateRange(startDate, endDate);
+    const { start, end } = this.getDateRange(startDate, endDate, period);
 
     const results: InvoicesPendingBillsReportItem[] = [];
 
@@ -605,7 +700,7 @@ export class ReportService {
     const invoices = await invoiceQuery.getMany();
 
     invoices.forEach(po => {
-      const poDate = new Date(po.created_at).toISOString().split("T")[0];
+      const poDate = reportPeriodBucketKey(new Date(po.created_at), period);
       const itemBreakdown = po.items?.map(item => ({
         itemId: item.item?.id || 0,
         itemName: item.item?.name || "Unknown",
@@ -641,7 +736,7 @@ export class ReportService {
     const pendingBills = await pendingBillsQuery.getMany();
 
     pendingBills.forEach(bill => {
-      const billDate = new Date(bill.created_at).toISOString().split("T")[0];
+      const billDate = reportPeriodBucketKey(new Date(bill.created_at), period);
       const itemBreakdown = bill.bill_items
         ?.filter(item => item.status !== BillItemStatus.VOIDED)
         .map(item => ({
@@ -668,13 +763,13 @@ export class ReportService {
   }
 
   async getPurchaseOrdersReport(filters: ReportFilters): Promise<PurchaseOrdersReportItem[]> {
-    const { startDate, endDate, itemId, supplierId } = filters;
+    const { startDate, endDate, itemId, supplierId, period } = filters;
 
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
 
-    const { start, end } = this.getDateRange(startDate, endDate);
+    const { start, end } = this.getDateRange(startDate, endDate, period);
 
     let query = this.purchaseOrderRepository
       .createQueryBuilder("po")
@@ -695,7 +790,7 @@ export class ReportService {
     const purchaseOrders = await query.getMany();
 
     return purchaseOrders.map(po => {
-      const poDate = new Date(po.created_at).toISOString().split("T")[0];
+      const poDate = reportPeriodBucketKey(new Date(po.created_at), period);
       const itemBreakdown = po.items?.map(item => ({
         itemId: item.item?.id || 0,
         itemName: item.item?.name || "Unknown",
@@ -855,13 +950,14 @@ export class ReportService {
       reportMap.get(date)!.voids = Number(row.voids) || 0;
     });
 
-    // Calculate totals and PnL
-    return Array.from(reportMap.values()).map(report => {
+    // Calculate totals and PnL (daily rows), then roll up week/month/year in app TZ
+    const daily = Array.from(reportMap.values()).map(report => {
       report.totalRevenue = report.actualRevenue + report.projectedRevenue;
       report.actualPnL = report.actualRevenue - report.expenses;
       report.projectedPnL = report.totalRevenue - report.expenses;
       return report;
-    }).sort((a, b) => a.date.localeCompare(b.date));
+    });
+    return this.rollupPnLReportByPeriod(daily, period);
   }
 
   /**
@@ -872,13 +968,13 @@ export class ReportService {
   async getProductionSalesReconciliationReport(
     filters: ReportFilters
   ): Promise<ProductionSalesReconciliationReportItem[]> {
-    const { startDate, endDate, itemId } = filters;
+    const { startDate, endDate, itemId, period } = filters;
 
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
     }
 
-    const { start, end } = this.getDateRange(startDate, endDate);
+    const { start, end } = this.getDateRange(startDate, endDate, period);
 
     // Get all production issues/preparations (issued items)
     let productionQuery = this.productionPreparationRepository

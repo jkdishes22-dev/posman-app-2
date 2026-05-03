@@ -1,5 +1,6 @@
 "use client";
 import { todayEAT } from "../../../shared/eatDate";
+import { formatReportPeriodLabel } from "../../../shared/reportPeriodLabel";
 
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
@@ -39,6 +40,7 @@ export default function ItemsSoldCountReportPage() {
     startDate: todayEAT(),
     endDate: todayEAT()
   });
+  const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("day");
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [selectedUserId, setSelectedUserId] = useState<string>("");
   const [items, setItems] = useState<Item[]>([]);
@@ -86,7 +88,8 @@ export default function ItemsSoldCountReportPage() {
       setErrorDetails(null);
       const params = new URLSearchParams({
         startDate: dateRange.startDate,
-        endDate: dateRange.endDate
+        endDate: dateRange.endDate,
+        period
       });
       if (selectedItemId) params.append("itemId", selectedItemId);
       if (selectedUserId) params.append("userId", selectedUserId);
@@ -122,8 +125,9 @@ export default function ItemsSoldCountReportPage() {
                 <div className="row align-items-end g-3">
                   <div className="col-md-2"><Form.Label>Start Date</Form.Label><Form.Control type="date" value={dateRange.startDate} onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))} /></div>
                   <div className="col-md-2"><Form.Label>End Date</Form.Label><Form.Control type="date" value={dateRange.endDate} onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))} /></div>
-                  <div className="col-md-3"><Form.Label>Item</Form.Label><Form.Select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}><option value="">All Items</option>{items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ""}</option>)}</Form.Select></div>
-                  <div className="col-md-3"><Form.Label>Sales User</Form.Label><Form.Select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)}><option value="">All Users</option>{users.map((user) => <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>)}</Form.Select></div>
+                  <div className="col-md-2"><Form.Label>Period</Form.Label><Form.Select value={period} onChange={(e) => setPeriod(e.target.value as "day" | "week" | "month" | "year")}><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option><option value="year">Year</option></Form.Select></div>
+                  <div className="col-md-2"><Form.Label>Item</Form.Label><Form.Select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}><option value="">All Items</option>{items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ""}</option>)}</Form.Select></div>
+                  <div className="col-md-2"><Form.Label>Sales User</Form.Label><Form.Select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)}><option value="">All Users</option>{users.map((user) => <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>)}</Form.Select></div>
                   <div className="col-md-2"><Button variant="primary" onClick={fetchReport} disabled={loading || loadingFilters} className="w-100"><i className="bi bi-search me-1"></i>{loading ? "Loading..." : "Generate Report"}</Button></div>
                 </div>
               </div>
@@ -144,7 +148,7 @@ export default function ItemsSoldCountReportPage() {
                     <table className="table table-striped">
                       <thead><tr><th>Date</th><th>Item</th><th>Quantity</th><th>Sales User</th></tr></thead>
                       <tbody>
-                        {reports.map((r, i) => <tr key={i}><td>{new Date(r.date).toLocaleDateString()}</td><td>{r.itemName}</td><td>{r.quantity}</td><td>{r.userName || "N/A"}</td></tr>)}
+                        {reports.map((r, i) => <tr key={i}><td>{formatReportPeriodLabel(r.date)}</td><td>{r.itemName}</td><td>{r.quantity}</td><td>{r.userName || "N/A"}</td></tr>)}
                       </tbody>
                     </table>
                     {reports.length === 0 && <div className="text-center text-muted py-4"><i className="bi bi-box fs-1"></i><p className="mt-2">No data found</p></div>}

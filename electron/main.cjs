@@ -22,6 +22,35 @@ let nextServer = null;
 const PORT = process.env.PORT || 2026;
 const HOST = "localhost";
 
+/** IANA timezone for log line timestamps and daily log / backup filenames (matches backend APP_TIMEZONE). */
+const APP_LOG_TIMEZONE = process.env.APP_TIMEZONE || "Africa/Nairobi";
+
+function formatDateYmdInTimeZone(date, timeZone) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).formatToParts(date);
+    const v = (t) => parts.find((p) => p.type === t)?.value ?? "";
+    return `${v("year")}-${v("month")}-${v("day")}`;
+}
+
+/** ISO-like wall time in APP_LOG_TIMEZONE (not UTC / no trailing Z). */
+function formatLogTimestamp(date = new Date()) {
+    const ymd = formatDateYmdInTimeZone(date, APP_LOG_TIMEZONE);
+    const timeParts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: APP_LOG_TIMEZONE,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+        hourCycle: "h23",
+    }).formatToParts(date);
+    const tv = (t) => timeParts.find((p) => p.type === t)?.value ?? "";
+    return `${ymd}T${tv("hour")}:${tv("minute")}:${tv("second")} ${APP_LOG_TIMEZONE}`;
+}
+
 // Cross-platform log directory under the user's app-data folder (writable on all installs)
 function resolveLogDir() {
     if (process.platform === "win32") {
@@ -36,12 +65,9 @@ function resolveLogDir() {
     return path.join(os.homedir(), ".local", "share", "JK PosMan", "logs");
 }
 
-// One log file per day in EAT timezone (UTC+3).  Named app-YYYY-MM-DD.log so listing by date is trivial.
+// One log file per calendar day in APP_LOG_TIMEZONE. Named app-YYYY-MM-DD.log so listing by date is trivial.
 function getTodayLogFilename() {
-    const eatOffset = 3 * 60 * 60 * 1000; // EAT = UTC+3
-    const eatNow = new Date(Date.now() + eatOffset);
-    const dateStr = eatNow.toISOString().slice(0, 10); // "YYYY-MM-DD"
-    return `app-${dateStr}.log`;
+    return `app-${formatDateYmdInTimeZone(new Date(), APP_LOG_TIMEZONE)}.log`;
 }
 
 const logDir = resolveLogDir();
@@ -57,7 +83,7 @@ function ensureLogDir() {
 }
 
 function logToFile(message, level = "INFO") {
-    const timestamp = new Date().toISOString();
+    const timestamp = formatLogTimestamp();
     const logMessage = `[${timestamp}] [${level}] ${message}\n`;
 
     if (level === "ERROR") {
@@ -608,7 +634,7 @@ function getDbPath() {
 function performBackup() {
     const dbPath = getDbPath();
     const backupDir = getBackupDir();
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const today = formatDateYmdInTimeZone(new Date(), APP_LOG_TIMEZONE);
     const backupPath = path.join(backupDir, `posman-backup-${today}.db`);
 
     if (!fs.existsSync(dbPath)) {
@@ -628,7 +654,7 @@ function performBackup() {
 function runDailyAutoBackup() {
     try {
         const backupDir = getBackupDir();
-        const today = new Date().toISOString().slice(0, 10);
+        const today = formatDateYmdInTimeZone(new Date(), APP_LOG_TIMEZONE);
         const backupPath = path.join(backupDir, `posman-backup-${today}.db`);
         if (fs.existsSync(backupPath)) {
             logToFile("Auto-backup skipped: today's backup already exists");

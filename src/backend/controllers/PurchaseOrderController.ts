@@ -16,11 +16,17 @@ export const createPurchaseOrderHandler = async (
         const purchaseOrder = await poService.createPurchaseOrder(req.body, userId);
         res.status(201).json(purchaseOrder);
     } catch (error: any) {
+        const msg = error?.message || "";
+        const isValidation =
+            msg.includes("not found") ||
+            msg.includes("group product") ||
+            msg.includes("not marked as suppliable") ||
+            msg.includes("exceeds available credit");
         const { userMessage, errorCode } = handleApiError(error, {
             operation: "creating",
             resource: "purchase order"
         });
-        res.status(500).json({ error: userMessage, code: errorCode });
+        res.status(isValidation ? 400 : 500).json({ error: userMessage, code: errorCode });
     }
 };
 

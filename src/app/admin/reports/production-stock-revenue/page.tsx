@@ -1,5 +1,6 @@
 "use client";
 import { todayEAT } from "../../../shared/eatDate";
+import { formatReportPeriodLabel } from "../../../shared/reportPeriodLabel";
 
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
@@ -30,6 +31,7 @@ export default function ProductionStockRevenueReportPage() {
     startDate: todayEAT(),
     endDate: todayEAT()
   });
+  const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("day");
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [items, setItems] = useState<Item[]>([]);
   const [loadingFilters, setLoadingFilters] = useState(false);
@@ -60,7 +62,8 @@ export default function ProductionStockRevenueReportPage() {
 
       const params = new URLSearchParams({
         startDate: dateRange.startDate,
-        endDate: dateRange.endDate
+        endDate: dateRange.endDate,
+        period
       });
 
       if (selectedItemId) {
@@ -109,22 +112,31 @@ export default function ProductionStockRevenueReportPage() {
             <div className="card">
               <div className="card-body">
                 <div className="row align-items-end g-3">
-                  <div className="col-md-3">
+                  <div className="col-md-2">
                     <Form.Label>Start Date</Form.Label>
                     <Form.Control type="date" value={dateRange.startDate} onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))} />
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-md-2">
                     <Form.Label>End Date</Form.Label>
                     <Form.Control type="date" value={dateRange.endDate} onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))} />
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-md-2">
+                    <Form.Label>Period</Form.Label>
+                    <Form.Select value={period} onChange={(e) => setPeriod(e.target.value as "day" | "week" | "month" | "year")}>
+                      <option value="day">Day</option>
+                      <option value="week">Week</option>
+                      <option value="month">Month</option>
+                      <option value="year">Year</option>
+                    </Form.Select>
+                  </div>
+                  <div className="col-md-4">
                     <Form.Label>Item</Form.Label>
                     <Form.Select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}>
                       <option value="">All Items</option>
                       {items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ""}</option>)}
                     </Form.Select>
                   </div>
-                  <div className="col-md-3">
+                  <div className="col-md-2">
                     <Button variant="primary" onClick={fetchReport} disabled={loading || loadingFilters} className="w-100">
                       <i className="bi bi-search me-1"></i>{loading ? "Loading..." : "Generate Report"}
                     </Button>
@@ -174,7 +186,7 @@ export default function ProductionStockRevenueReportPage() {
                       <tbody>
                         {reports.map((r, i) => (
                           <tr key={i}>
-                            <td>{new Date(r.date).toLocaleDateString()}</td>
+                            <td>{formatReportPeriodLabel(r.date)}</td>
                             <td>${(Number(r.productionRevenue) || 0).toFixed(2)}</td>
                             <td>${(Number(r.stockRevenue) || 0).toFixed(2)}</td>
                             <td>${(Number(r.totalRevenue) || 0).toFixed(2)}</td>

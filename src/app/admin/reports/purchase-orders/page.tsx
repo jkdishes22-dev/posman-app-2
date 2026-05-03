@@ -1,5 +1,6 @@
 "use client";
 import { todayEAT } from "../../../shared/eatDate";
+import { formatReportPeriodLabel } from "../../../shared/reportPeriodLabel";
 
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import Link from "next/link";
@@ -46,6 +47,7 @@ export default function PurchaseOrdersReportPage() {
     startDate: todayEAT(),
     endDate: todayEAT()
   });
+  const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("day");
   const [selectedItemId, setSelectedItemId] = useState<string>("");
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("");
   const [items, setItems] = useState<Item[]>([]);
@@ -81,7 +83,8 @@ export default function PurchaseOrdersReportPage() {
       setErrorDetails(null);
       const params = new URLSearchParams({
         startDate: dateRange.startDate,
-        endDate: dateRange.endDate
+        endDate: dateRange.endDate,
+        period
       });
       if (selectedItemId) params.append("itemId", selectedItemId);
       if (selectedSupplierId) params.append("supplierId", selectedSupplierId);
@@ -116,8 +119,9 @@ export default function PurchaseOrdersReportPage() {
                 <div className="row align-items-end g-3">
                   <div className="col-md-2"><Form.Label>Start Date</Form.Label><Form.Control type="date" value={dateRange.startDate} onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))} /></div>
                   <div className="col-md-2"><Form.Label>End Date</Form.Label><Form.Control type="date" value={dateRange.endDate} onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))} /></div>
-                  <div className="col-md-3"><Form.Label>Item</Form.Label><Form.Select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}><option value="">All Items</option>{items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ""}</option>)}</Form.Select></div>
-                  <div className="col-md-3"><Form.Label>Supplier</Form.Label><Form.Select value={selectedSupplierId} onChange={(e) => setSelectedSupplierId(e.target.value)}><option value="">All Suppliers</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id.toString()}>{supplier.name}</option>)}</Form.Select></div>
+                  <div className="col-md-2"><Form.Label>Period</Form.Label><Form.Select value={period} onChange={(e) => setPeriod(e.target.value as "day" | "week" | "month" | "year")}><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option><option value="year">Year</option></Form.Select></div>
+                  <div className="col-md-2"><Form.Label>Item</Form.Label><Form.Select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}><option value="">All Items</option>{items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ""}</option>)}</Form.Select></div>
+                  <div className="col-md-2"><Form.Label>Supplier</Form.Label><Form.Select value={selectedSupplierId} onChange={(e) => setSelectedSupplierId(e.target.value)}><option value="">All Suppliers</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id.toString()}>{supplier.name}</option>)}</Form.Select></div>
                   <div className="col-md-2"><Button variant="primary" onClick={fetchReport} disabled={loading || loadingFilters} className="w-100"><i className="bi bi-search me-1"></i>{loading ? "Loading..." : "Generate Report"}</Button></div>
                 </div>
               </div>
@@ -138,7 +142,7 @@ export default function PurchaseOrdersReportPage() {
                     <table className="table table-striped">
                       <thead><tr><th>Date</th><th>Order Number</th><th>Supplier</th><th>Status</th><th>Total Amount</th></tr></thead>
                       <tbody>
-                        {reports.map((r, i) => <tr key={i}><td>{new Date(r.date).toLocaleDateString()}</td><td><Link href={`/storekeeper/purchase-orders?search=${encodeURIComponent(r.orderNumber)}`} className="text-primary">{r.orderNumber}</Link></td><td>{r.supplierName}</td><td><span className={`badge bg-${r.status === "received" ? "success" : r.status === "cancelled" ? "danger" : "warning"}`}>{r.status}</span></td><td>${(Number(r.totalAmount) || 0).toFixed(2)}</td></tr>)}
+                        {reports.map((r, i) => <tr key={i}><td>{formatReportPeriodLabel(r.date)}</td><td><Link href={`/storekeeper/purchase-orders?search=${encodeURIComponent(r.orderNumber)}`} className="text-primary">{r.orderNumber}</Link></td><td>{r.supplierName}</td><td><span className={`badge bg-${r.status === "received" ? "success" : r.status === "cancelled" ? "danger" : "warning"}`}>{r.status}</span></td><td>${(Number(r.totalAmount) || 0).toFixed(2)}</td></tr>)}
                       </tbody>
                     </table>
                     {reports.length === 0 && <div className="text-center text-muted py-4"><i className="bi bi-cart-check fs-1"></i><p className="mt-2">No data found</p></div>}

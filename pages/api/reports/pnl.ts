@@ -4,6 +4,7 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { ReportService } from "@backend/service/ReportService";
 import { parseStartDateInAppTz, parseEndDateInAppTz } from "@backend/utils/dateRange";
+import { parseReportPeriod } from "@backend/utils/reportPeriodBucket";
 import permissions from "@backend/config/permissions";
 
 const getPnL = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -24,7 +25,7 @@ const getPnL = async (req: NextApiRequest, res: NextApiResponse) => {
     const filters = {
       startDate: parsedStart,
       endDate: parsedEnd,
-      period: period as "day" | "week" | "month" | "year" | undefined,
+      period: parseReportPeriod(period),
     };
 
     const report = await reportService.getPnLReport(filters);

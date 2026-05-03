@@ -121,6 +121,23 @@ export class ItemService {
   }
 
   /**
+   * Distinct active, non-group catalog items for inventory transaction filters.
+   * Uses the item table only (no pricelist/station joins) so each line appears once and
+   * items with no inventory row are still listed.
+   */
+  public async fetchNonGroupActiveItemsForSelect(): Promise<{ id: number; name: string; code: string }[]> {
+    const rows = await this.itemRepository
+      .createQueryBuilder("item")
+      .select(["item.id", "item.name", "item.code"])
+      .where("item.status = :status", { status: ItemStatus.ACTIVE })
+      .andWhere("(item.isGroup = :notGroup OR item.isGroup IS NULL)", { notGroup: false })
+      .orderBy("item.name", "ASC")
+      .addOrderBy("item.code", "ASC")
+      .getMany();
+    return rows.map((i) => ({ id: i.id, name: i.name, code: i.code }));
+  }
+
+  /**
    * Fetch items for a specific pricelist
    */
   public async fetchItemsForPricelist(

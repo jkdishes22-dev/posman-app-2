@@ -4,6 +4,7 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { ReportService } from "@backend/service/ReportService";
 import { parseStartDateInAppTz, parseEndDateInAppTz } from "@backend/utils/dateRange";
+import { parseReportPeriod } from "@backend/utils/reportPeriodBucket";
 import permissions from "@backend/config/permissions";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -15,7 +16,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     await authorize([permissions.CAN_VIEW_VOIDED_ITEMS_REPORT])(async (request, response) => {
         const reportService = new ReportService(request.db);
-        const { startDate, endDate, itemId, userId } = request.query;
+        const { startDate, endDate, itemId, userId, period } = request.query;
 
         if (!startDate || !endDate) {
           return response.status(400).json({
@@ -34,6 +35,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           endDate: parsedEnd,
           itemId: itemId ? parseInt(itemId as string, 10) : undefined,
           userId: userId ? parseInt(userId as string, 10) : undefined,
+          period: parseReportPeriod(period),
         };
 
         const report = await reportService.getVoidedItemsReport(filters);

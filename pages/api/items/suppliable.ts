@@ -11,18 +11,20 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "GET") {
         return authorize([permissions.CAN_VIEW_ITEM])(async (request, response) => {
         try {
-            const { q, limit = "20" } = req.query;
+            const { q, limit = "5000" } = req.query;
             const db = await getConnection();
             const itemRepository = db.getRepository(Item);
 
-            // Build query for suppliable items (isStock === true)
+            const lim = Math.min(10000, Math.max(1, parseInt(String(limit), 10) || 5000));
+
+            // Suppliable = stock/raw items purchased via PO (not menu groups; those are fulfilled via production).
             const queryBuilder = itemRepository
                 .createQueryBuilder("item")
                 .leftJoinAndSelect("item.category", "category")
                 .where("item.is_stock = :isStock", { isStock: true })
-                .andWhere("item.status = :status", { status: ItemStatus.ACTIVE });
+                .andWhere("item.status = :status", { status: ItemStatus.ACTIVE })
+                .andWhere("(item.isGroup = :notGroup OR item.isGroup IS NULL)", { notGroup: false });
 
-            // Add search filter if query provided
             if (q && typeof q === "string" && q.trim().length > 0) {
                 queryBuilder.andWhere(
                     "(item.name LIKE :search OR item.code LIKE :search)",
@@ -30,9 +32,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 );
             }
 
-            queryBuilder
-                .orderBy("item.name", "ASC")
-                .limit(parseInt(limit as string, 10));
+            queryBuilder.orderBy("item.name", "ASC").limit(lim);
 
             const items = await queryBuilder.getMany();
 

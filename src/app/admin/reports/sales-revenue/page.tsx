@@ -1,5 +1,6 @@
 "use client";
 import { todayEAT } from "../../../shared/eatDate";
+import { formatReportPeriodLabel } from "../../../shared/reportPeriodLabel";
 
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
@@ -289,7 +290,7 @@ export default function SalesRevenueReportPage() {
                       <tbody>
                         {reports.map((report, index) => (
                           <tr key={index}>
-                            <td>{new Date(report.date).toLocaleDateString()}</td>
+                            <td>{formatReportPeriodLabel(report.date)}</td>
                             <td>${(Number(report.actualRevenue) || 0).toFixed(2)}</td>
                             <td>${(Number(report.projectedRevenue) || 0).toFixed(2)}</td>
                             <td>${(Number(report.totalRevenue) || 0).toFixed(2)}</td>

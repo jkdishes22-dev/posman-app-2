@@ -4,6 +4,7 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { ReportService } from "@backend/service/ReportService";
 import { parseStartDateInAppTz, parseEndDateInAppTz } from "@backend/utils/dateRange";
+import { parseReportPeriod } from "@backend/utils/reportPeriodBucket";
 import permissions from "@backend/config/permissions";
 
 const getSalesRevenue = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -26,7 +27,7 @@ const getSalesRevenue = async (req: NextApiRequest, res: NextApiResponse) => {
       endDate: parsedEnd,
       itemId: itemId ? parseInt(itemId as string, 10) : undefined,
       userId: userId ? parseInt(userId as string, 10) : undefined,
-      period: period as "day" | "week" | "month" | "year" | undefined,
+      period: parseReportPeriod(period),
     };
 
     const report = await reportService.getSalesRevenueReport(filters);
