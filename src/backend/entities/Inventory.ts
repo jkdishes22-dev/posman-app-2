@@ -1,4 +1,4 @@
-import { Entity, Column, OneToOne, JoinColumn, Index, RelationId } from "typeorm";
+import { Entity, Column, OneToOne, JoinColumn, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Item } from "./Item";
 
@@ -9,7 +9,7 @@ export class Inventory extends BaseEntity {
     @JoinColumn({ name: "item_id" })
     item: Item;
 
-    @RelationId((inv: Inventory) => inv.item)
+    @Column({ name: "item_id", type: "int" })
     item_id: number;
 
     @Column({ type: "int", default: 0 })
