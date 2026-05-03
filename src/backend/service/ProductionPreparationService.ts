@@ -3,6 +3,11 @@ import { Item } from "@backend/entities/Item";
 import { User } from "@backend/entities/User";
 import { InventoryService } from "./InventoryService";
 import { DataSource, Repository } from "typeorm";
+import {
+    assignBaseEntityDates,
+    mapItemRowWithPrefix,
+    mapUserRowWithPrefix,
+} from "@backend/utils/sqlEntityMappers";
 
 export interface CreatePreparationInput {
     item_id: number;
@@ -91,7 +96,6 @@ export class ProductionPreparationService {
     ): Promise<ProductionPreparation> {
         const preparation = await this.preparationRepository.findOne({
             where: { id: preparationId },
-            relations: ["item"],
         });
 
         if (!preparation) {
@@ -233,65 +237,198 @@ export class ProductionPreparationService {
     }
 
     /**
-     * Fetch preparations with filters
+     * Fetch preparations with filters (raw SQL — avoids TypeORM relation hydration issues on SQLite / standalone).
      */
     public async fetchPreparations(
         filters: PreparationFilters = {},
         limit: number = 100,
         offset: number = 0
     ): Promise<{ preparations: ProductionPreparation[]; total: number }> {
-        const queryBuilder = this.preparationRepository
-            .createQueryBuilder("prep")
-            .leftJoinAndSelect("prep.item", "item")
-            .leftJoinAndSelect("prep.prepared_by_user", "prepared_by_user")
-            .leftJoinAndSelect("prep.issued_by_user", "issued_by_user");
+        const filterParams: unknown[] = [];
+        const filterSql = ProductionPreparationService.buildPreparationFilterClause(filters, filterParams);
 
-        if (filters.item_id) {
-            queryBuilder.andWhere("prep.item_id = :item_id", { item_id: filters.item_id });
-        }
+        const countRows = (await this.preparationRepository.manager.query(
+            `SELECT COUNT(*) AS cnt FROM production_preparation prep WHERE 1 = 1${filterSql}`,
+            filterParams,
+        )) as Array<{ cnt: number | string }>;
+        const total = Number(countRows[0]?.cnt ?? 0);
 
-        if (filters.status) {
-            queryBuilder.andWhere("prep.status = :status", { status: filters.status });
-        }
+        const selectSql = `
+      SELECT
+        prep.id,
+        prep.item_id,
+        prep.quantity_prepared,
+        prep.status,
+        prep.prepared_by,
+        prep.prepared_at,
+        prep.issued_by,
+        prep.issued_at,
+        prep.notes,
+        prep.rejection_reason,
+        prep.created_at,
+        prep.updated_at,
+        prep.created_by,
+        prep.updated_by,
+        it.id AS it_id,
+        it.name AS it_name,
+        it.code AS it_code,
+        it.status AS it_status,
+        it.item_category_id AS it_category_id,
+        it.default_unit_id AS it_default_unit_id,
+        it.is_group AS it_is_group,
+        it.is_stock AS it_is_stock,
+        it.allow_negative_inventory AS it_allow_negative_inventory,
+        it.created_at AS it_created_at,
+        it.updated_at AS it_updated_at,
+        it.created_by AS it_created_by,
+        it.updated_by AS it_updated_by,
+        pu.id AS pu_id,
+        pu.firstName AS pu_firstName,
+        pu.lastName AS pu_lastName,
+        pu.username AS pu_username,
+        iu.id AS iu_id,
+        iu.firstName AS iu_firstName,
+        iu.lastName AS iu_lastName,
+        iu.username AS iu_username
+      FROM production_preparation prep
+      LEFT JOIN item it ON it.id = prep.item_id
+      LEFT JOIN user pu ON pu.id = prep.prepared_by
+      LEFT JOIN user iu ON iu.id = prep.issued_by
+      WHERE 1 = 1${filterSql}
+      ORDER BY prep.prepared_at DESC, prep.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
 
-        if (filters.prepared_by) {
-            queryBuilder.andWhere("prep.prepared_by = :prepared_by", { prepared_by: filters.prepared_by });
-        }
+        const rows = (await this.preparationRepository.manager.query(selectSql, [
+            ...filterParams,
+            limit,
+            offset,
+        ])) as Record<string, unknown>[];
 
-        if (filters.issued_by) {
-            queryBuilder.andWhere("prep.issued_by = :issued_by", { issued_by: filters.issued_by });
-        }
-
-        if (filters.start_date) {
-            queryBuilder.andWhere("prep.prepared_at >= :start_date", { start_date: filters.start_date });
-        }
-
-        if (filters.end_date) {
-            // Set end_date to end of day for inclusive date range
-            const endDate = new Date(filters.end_date);
-            endDate.setHours(23, 59, 59, 999);
-            queryBuilder.andWhere("prep.prepared_at <= :end_date", { end_date: endDate });
-        }
-
-        queryBuilder
-            .orderBy("prep.prepared_at", "DESC")
-            .addOrderBy("prep.created_at", "DESC")
-            .skip(offset)
-            .take(limit);
-
-        const [preparations, total] = await queryBuilder.getManyAndCount();
+        const preparations = Array.isArray(rows)
+            ? rows.map((row) => ProductionPreparationService.mapRowToProductionPreparation(row))
+            : [];
 
         return { preparations, total };
+    }
+
+    private static buildPreparationFilterClause(
+        filters: PreparationFilters,
+        params: unknown[],
+    ): string {
+        const parts: string[] = [];
+        if (filters.item_id != null) {
+            parts.push("prep.item_id = ?");
+            params.push(filters.item_id);
+        }
+        if (filters.status) {
+            parts.push("prep.status = ?");
+            params.push(filters.status);
+        }
+        if (filters.prepared_by != null) {
+            parts.push("prep.prepared_by = ?");
+            params.push(filters.prepared_by);
+        }
+        if (filters.issued_by != null) {
+            parts.push("prep.issued_by = ?");
+            params.push(filters.issued_by);
+        }
+        if (filters.start_date) {
+            parts.push("prep.prepared_at >= ?");
+            params.push(filters.start_date);
+        }
+        if (filters.end_date) {
+            const endDate = new Date(filters.end_date);
+            endDate.setHours(23, 59, 59, 999);
+            parts.push("prep.prepared_at <= ?");
+            params.push(endDate);
+        }
+        return parts.length ? ` AND ${parts.join(" AND ")}` : "";
+    }
+
+    private static mapRowToProductionPreparation(row: Record<string, unknown>): ProductionPreparation {
+        const p = new ProductionPreparation();
+        p.id = Number(row.id);
+        p.item_id = Number(row.item_id);
+        p.quantity_prepared = Number(row.quantity_prepared);
+        p.status = row.status as ProductionPreparationStatus;
+        p.prepared_by = row.prepared_by != null ? Number(row.prepared_by) : 0;
+        p.prepared_at = (row.prepared_at as Date) ?? null;
+        p.issued_by = row.issued_by == null ? null : Number(row.issued_by);
+        p.issued_at = (row.issued_at as Date) ?? null;
+        p.notes = row.notes != null ? String(row.notes) : null;
+        p.rejection_reason = row.rejection_reason != null ? String(row.rejection_reason) : null;
+        assignBaseEntityDates(p, row.created_at, row.updated_at);
+        if (row.created_by != null) p.created_by = Number(row.created_by);
+        if (row.updated_by != null) p.updated_by = Number(row.updated_by);
+
+        p.item =
+            row.it_id != null
+                ? mapItemRowWithPrefix(row, "it")
+                : ({ id: p.item_id } as Item);
+
+        p.prepared_by_user = mapUserRowWithPrefix(row, "pu") ?? ({ id: p.prepared_by } as User);
+        p.issued_by_user = mapUserRowWithPrefix(row, "iu");
+
+        return p;
     }
 
     /**
      * Fetch a single preparation by ID
      */
     public async fetchPreparationById(id: number): Promise<ProductionPreparation | null> {
-        return await this.preparationRepository.findOne({
-            where: { id },
-            relations: ["item", "prepared_by_user", "issued_by_user"],
-        });
+        const selectSql = `
+      SELECT
+        prep.id,
+        prep.item_id,
+        prep.quantity_prepared,
+        prep.status,
+        prep.prepared_by,
+        prep.prepared_at,
+        prep.issued_by,
+        prep.issued_at,
+        prep.notes,
+        prep.rejection_reason,
+        prep.created_at,
+        prep.updated_at,
+        prep.created_by,
+        prep.updated_by,
+        it.id AS it_id,
+        it.name AS it_name,
+        it.code AS it_code,
+        it.status AS it_status,
+        it.item_category_id AS it_category_id,
+        it.default_unit_id AS it_default_unit_id,
+        it.is_group AS it_is_group,
+        it.is_stock AS it_is_stock,
+        it.allow_negative_inventory AS it_allow_negative_inventory,
+        it.created_at AS it_created_at,
+        it.updated_at AS it_updated_at,
+        it.created_by AS it_created_by,
+        it.updated_by AS it_updated_by,
+        pu.id AS pu_id,
+        pu.firstName AS pu_firstName,
+        pu.lastName AS pu_lastName,
+        pu.username AS pu_username,
+        iu.id AS iu_id,
+        iu.firstName AS iu_firstName,
+        iu.lastName AS iu_lastName,
+        iu.username AS iu_username
+      FROM production_preparation prep
+      LEFT JOIN item it ON it.id = prep.item_id
+      LEFT JOIN user pu ON pu.id = prep.prepared_by
+      LEFT JOIN user iu ON iu.id = prep.issued_by
+      WHERE prep.id = ?
+      LIMIT 1
+    `;
+        const rows = (await this.preparationRepository.manager.query(selectSql, [id])) as Record<
+            string,
+            unknown
+        >[];
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return null;
+        }
+        return ProductionPreparationService.mapRowToProductionPreparation(rows[0]);
     }
 }
 

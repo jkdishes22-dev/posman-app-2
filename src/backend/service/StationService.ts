@@ -5,6 +5,7 @@ import { StationPricelist, StationPricelistStatus } from "@backend/entities/Stat
 import { UserStation, UserStationStatus } from "@backend/entities/UserStation";
 import { DataSource, Repository } from "typeorm";
 import { cache } from "@backend/utils/cache";
+import { assignBaseEntityDates } from "@backend/utils/sqlEntityMappers";
 
 export class StationService {
   private stationRepository: Repository<Station>;
@@ -126,6 +127,22 @@ export class StationService {
   // New methods for default station and pricelist management
 
   /**
+   * Map a station row from raw SQL into a Station-shaped object (avoids TypeORM relation
+   * hydration bugs with better-sqlite3 in some standalone builds).
+   */
+  private mapRowToStation(row: Record<string, unknown>): Station {
+    const s = new Station();
+    s.id = Number(row.id);
+    s.name = String(row.name ?? "");
+    s.status = (row.status as StationStatus) ?? StationStatus.INACTIVE;
+    s.description = row.description != null ? String(row.description) : "";
+    assignBaseEntityDates(s, row.created_at, row.updated_at);
+    if (row.created_by != null) s.created_by = Number(row.created_by);
+    if (row.updated_by != null) s.updated_by = Number(row.updated_by);
+    return s;
+  }
+
+  /**
    * Get user's default station
    */
   async getUserDefaultStation(userId: number): Promise<Station | null> {
@@ -138,23 +155,22 @@ export class StationService {
     }
 
     try {
-      // Optimized query with explicit join and select (only fetch needed fields)
-      const userStation = await this.userStationRepository
-        .createQueryBuilder("userStation")
-        .innerJoinAndSelect("userStation.station", "station")
-        .where("userStation.user_id = :userId", { userId })
-        .andWhere("userStation.is_default = :isDefault", { isDefault: true })
-        .andWhere("userStation.status = :status", { status: UserStationStatus.ACTIVE })
-        .andWhere("station.status = :stationStatus", { stationStatus: StationStatus.ACTIVE })
-        .select([
-          "userStation.id",
-          "station.id",
-          "station.name",
-          "station.status"
-        ])
-        .getOne();
+      const rows = (await this.userStationRepository.manager.query(
+        `
+        SELECT s.id, s.name, s.status, s.description, s.created_at, s.updated_at, s.created_by, s.updated_by
+        FROM user_station us
+        INNER JOIN station s ON s.id = us.station_id
+        WHERE us.user_id = ?
+          AND us.is_default = 1
+          AND us.status = ?
+          AND s.status = ?
+        LIMIT 1
+      `,
+        [userId, UserStationStatus.ACTIVE, StationStatus.ACTIVE],
+      )) as Record<string, unknown>[];
 
-      const result = userStation?.station || null;
+      const result =
+        rows?.length > 0 ? this.mapRowToStation(rows[0]) : null;
 
       // Cache the result
       cache.set(cacheKey, result);
@@ -249,7 +265,7 @@ export class StationService {
   }
 
   /**
-   * Get user's available stations (optimized query)
+   * Get user's available stations (raw SQL — stable with better-sqlite3 / bundled server).
    */
   async getUserStations(userId: number): Promise<Station[]> {
     const cacheKey = `user_stations_${userId}`;
@@ -260,20 +276,27 @@ export class StationService {
       return cached;
     }
 
-    // Optimized query: filter by status in database instead of JavaScript
-    const activeUserStations = await this.userStationRepository.find({
-      where: {
-        user: { id: userId },
-        status: UserStationStatus.ACTIVE
-      },
-      relations: ["station"],
-    });
+    try {
+      const rows = (await this.userStationRepository.manager.query(
+        `
+        SELECT s.id, s.name, s.status, s.description, s.created_at, s.updated_at, s.created_by, s.updated_by
+        FROM user_station us
+        INNER JOIN station s ON s.id = us.station_id
+        WHERE us.user_id = ? AND us.status = ?
+        ORDER BY s.name ASC
+      `,
+        [userId, UserStationStatus.ACTIVE],
+      )) as Record<string, unknown>[];
 
-    const result = activeUserStations.map(us => us.station);
+      const result = Array.isArray(rows) ? rows.map((r) => this.mapRowToStation(r)) : [];
 
-    // Cache the result (15 min TTL — user-station assignments rarely change mid-session)
-    cache.set(cacheKey, result, 900000);
-    return result;
+      // Cache the result (15 min TTL — user-station assignments rarely change mid-session)
+      cache.set(cacheKey, result, 900000);
+      return result;
+    } catch (error) {
+      console.error("Error fetching user stations:", error);
+      return [];
+    }
   }
 
   // Link a pricelist to a station

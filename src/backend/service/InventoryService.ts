@@ -6,6 +6,7 @@ import { BillItem, BillItemStatus } from "@backend/entities/BillItem";
 import { ItemGroup } from "@backend/entities/ItemGroup";
 import { DataSource, Repository } from "typeorm";
 import { cache } from "@backend/utils/cache";
+import { mapItemRowWithPrefix } from "@backend/utils/sqlEntityMappers";
 
 export interface InventoryLevel {
     item_id: number;
@@ -958,30 +959,62 @@ export class InventoryService {
     }
 
     /**
-     * Check for low stock items
+     * Check for low stock items (raw SQL + explicit item mapping — stable on SQLite / standalone).
      */
     public async checkLowStock(): Promise<LowStockItem[]> {
-        const inventories = await this.inventoryRepository
-            .createQueryBuilder("inventory")
-            .leftJoinAndSelect("inventory.item", "item")
-            .where("inventory.reorder_point IS NOT NULL")
-            .getMany();
+        const selectSql = `
+SELECT
+  inv.item_id,
+  inv.quantity,
+  inv.min_stock_level,
+  inv.max_stock_level,
+  inv.reorder_point,
+  it.id AS it_id,
+  it.name AS it_name,
+  it.code AS it_code,
+  it.status AS it_status,
+  it.item_category_id AS it_category_id,
+  it.default_unit_id AS it_default_unit_id,
+  it.is_group AS it_is_group,
+  it.is_stock AS it_is_stock,
+  it.allow_negative_inventory AS it_allow_negative_inventory,
+  it.created_at AS it_created_at,
+  it.updated_at AS it_updated_at,
+  it.created_by AS it_created_by,
+  it.updated_by AS it_updated_by
+FROM inventory inv
+LEFT JOIN item it ON it.id = inv.item_id
+WHERE inv.reorder_point IS NOT NULL
+`;
+        const rows = (await this.inventoryRepository.manager.query(selectSql)) as Record<
+            string,
+            unknown
+        >[];
+        const list = Array.isArray(rows) ? rows : [];
 
         const lowStockItems: LowStockItem[] = [];
 
-        for (const inventory of inventories) {
-            const available_quantity = inventory.quantity;
+        for (const row of list) {
+            const reorderPoint = row.reorder_point == null ? null : Number(row.reorder_point);
+            const quantity = Number(row.quantity ?? 0);
+            const itemId = Number(row.item_id);
 
-            if (inventory.reorder_point !== null && available_quantity <= inventory.reorder_point) {
+            if (reorderPoint !== null && quantity <= reorderPoint) {
+                const item =
+                    row.it_id != null
+                        ? mapItemRowWithPrefix(row, "it")
+                        : ({ id: itemId } as Item);
                 lowStockItems.push({
-                    item_id: inventory.item_id,
-                    quantity: inventory.quantity,
-                    available_quantity,
-                    min_stock_level: inventory.min_stock_level,
-                    max_stock_level: inventory.max_stock_level,
-                    reorder_point: inventory.reorder_point,
+                    item_id: itemId,
+                    quantity,
+                    available_quantity: quantity,
+                    min_stock_level:
+                        row.min_stock_level == null ? null : Number(row.min_stock_level),
+                    max_stock_level:
+                        row.max_stock_level == null ? null : Number(row.max_stock_level),
+                    reorder_point: reorderPoint,
                     is_low_stock: true,
-                    item: inventory.item,
+                    item,
                 });
             }
         }

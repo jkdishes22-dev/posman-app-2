@@ -9,6 +9,8 @@ vi.mock("@backend/config/data-source", () => ({
 
 import { StationService } from "@backend/service/StationService";
 import { cache } from "@backend/utils/cache";
+import { UserStationStatus } from "@backend/entities/UserStation";
+import { StationStatus } from "@backend/entities/Station";
 
 describe("StationService", () => {
   let mockStationRepo: ReturnType<typeof createMockRepository>;
@@ -18,6 +20,7 @@ describe("StationService", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    cache.clear();
     mockStationRepo = createMockRepository();
     mockStationPricelistRepo = createMockRepository();
     mockUserStationRepo = createMockRepository();
@@ -120,6 +123,108 @@ describe("StationService", () => {
       await service.setUserDefaultStation(1, 3);
 
       expect(invalidateSpy).toHaveBeenCalledWith("user_default_station_1");
+    });
+  });
+
+  describe("getUserStations", () => {
+    it("runs raw SQL join and maps rows to Station instances", async () => {
+      const row = {
+        id: 2,
+        name: "Kitchen",
+        status: StationStatus.ACTIVE,
+        description: "Main",
+        created_at: new Date("2024-06-01T12:00:00Z"),
+        updated_at: null,
+        created_by: null,
+        updated_by: null,
+      };
+      mockUserStationRepo.manager.query.mockResolvedValue([row]);
+
+      const result = await service.getUserStations(99);
+
+      expect(mockUserStationRepo.manager.query).toHaveBeenCalledTimes(1);
+      expect(mockUserStationRepo.manager.query).toHaveBeenCalledWith(
+        expect.stringMatching(/FROM user_station us[\s\S]*INNER JOIN station s/),
+        [99, UserStationStatus.ACTIVE],
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(2);
+      expect(result[0].name).toBe("Kitchen");
+      expect(result[0].status).toBe(StationStatus.ACTIVE);
+    });
+
+    it("caches and does not query twice for same userId", async () => {
+      const row = {
+        id: 1,
+        name: "A",
+        status: StationStatus.ACTIVE,
+        description: "",
+        created_at: new Date(),
+        updated_at: null,
+        created_by: null,
+        updated_by: null,
+      };
+      mockUserStationRepo.manager.query.mockResolvedValue([row]);
+      await service.getUserStations(501);
+      await service.getUserStations(501);
+      expect(mockUserStationRepo.manager.query).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns empty array on query failure", async () => {
+      mockUserStationRepo.manager.query.mockRejectedValue(new Error("db down"));
+      const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const result = await service.getUserStations(77);
+      expect(result).toEqual([]);
+      errSpy.mockRestore();
+    });
+  });
+
+  describe("getUserDefaultStation", () => {
+    it("returns null when no default row", async () => {
+      mockUserStationRepo.manager.query.mockResolvedValue([]);
+      const result = await service.getUserDefaultStation(1);
+      expect(result).toBeNull();
+    });
+
+    it("returns mapped Station for first row and filters is_default + active", async () => {
+      const row = {
+        id: 3,
+        name: "Bar",
+        status: StationStatus.ACTIVE,
+        description: "",
+        created_at: new Date(),
+        updated_at: null,
+        created_by: null,
+        updated_by: null,
+      };
+      mockUserStationRepo.manager.query.mockResolvedValue([row]);
+
+      const result = await service.getUserDefaultStation(7);
+
+      expect(mockUserStationRepo.manager.query).toHaveBeenCalledWith(
+        expect.stringMatching(/is_default\s*=\s*1/),
+        [7, UserStationStatus.ACTIVE, StationStatus.ACTIVE],
+      );
+      expect(result?.id).toBe(3);
+      expect(result?.name).toBe("Bar");
+    });
+
+    it("uses cache on second call", async () => {
+      mockUserStationRepo.manager.query.mockResolvedValue([
+        {
+          id: 9,
+          name: "Cached",
+          status: StationStatus.ACTIVE,
+          description: "",
+          created_at: new Date(),
+          updated_at: null,
+          created_by: null,
+          updated_by: null,
+        },
+      ]);
+      await service.getUserDefaultStation(888);
+      await service.getUserDefaultStation(888);
+      expect(mockUserStationRepo.manager.query).toHaveBeenCalledTimes(1);
     });
   });
 });

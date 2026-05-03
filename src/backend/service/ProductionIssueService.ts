@@ -1,7 +1,13 @@
 import { ProductionIssue, ProductionIssueStatus } from "@backend/entities/ProductionIssue";
 import { Item } from "@backend/entities/Item";
+import { User } from "@backend/entities/User";
 import { InventoryService } from "./InventoryService";
 import { DataSource, Repository } from "typeorm";
+import {
+    assignBaseEntityDates,
+    mapItemRowWithPrefix,
+    mapUserRowWithPrefix,
+} from "@backend/utils/sqlEntityMappers";
 
 export interface CreateProductionIssueInput {
     item_id: number;
@@ -82,57 +88,172 @@ export class ProductionIssueService {
     }
 
     /**
-     * Fetch production issues with filters
+     * Fetch production issues with filters (raw SQL — stable on SQLite / standalone).
      */
     public async fetchProductionIssues(
         filters: ProductionIssueFilters = {},
         limit: number = 100,
         offset: number = 0
     ): Promise<{ issues: ProductionIssue[]; total: number }> {
-        const queryBuilder = this.productionIssueRepository
-            .createQueryBuilder("issue")
-            .leftJoinAndSelect("issue.item", "item")
-            .leftJoinAndSelect("issue.issued_by_user", "user");
+        const filterParams: unknown[] = [];
+        const filterSql = ProductionIssueService.buildIssueFilterClause(filters, filterParams);
 
-        if (filters.item_id) {
-            queryBuilder.andWhere("issue.item_id = :item_id", { item_id: filters.item_id });
-        }
+        const countRows = (await this.productionIssueRepository.manager.query(
+            `SELECT COUNT(*) AS cnt FROM production_issue iss WHERE 1 = 1${filterSql}`,
+            filterParams,
+        )) as Array<{ cnt: number | string }>;
+        const total = Number(countRows[0]?.cnt ?? 0);
 
-        if (filters.status) {
-            queryBuilder.andWhere("issue.status = :status", { status: filters.status });
-        }
+        const selectSql = `
+      SELECT
+        iss.id,
+        iss.item_id,
+        iss.quantity_produced,
+        iss.status,
+        iss.issued_by,
+        iss.issued_at,
+        iss.notes,
+        iss.created_at,
+        iss.updated_at,
+        iss.created_by,
+        iss.updated_by,
+        it.id AS it_id,
+        it.name AS it_name,
+        it.code AS it_code,
+        it.status AS it_status,
+        it.item_category_id AS it_category_id,
+        it.default_unit_id AS it_default_unit_id,
+        it.is_group AS it_is_group,
+        it.is_stock AS it_is_stock,
+        it.allow_negative_inventory AS it_allow_negative_inventory,
+        it.created_at AS it_created_at,
+        it.updated_at AS it_updated_at,
+        it.created_by AS it_created_by,
+        it.updated_by AS it_updated_by,
+        u.id AS u_id,
+        u.firstName AS u_firstName,
+        u.lastName AS u_lastName,
+        u.username AS u_username
+      FROM production_issue iss
+      LEFT JOIN item it ON it.id = iss.item_id
+      LEFT JOIN user u ON u.id = iss.issued_by
+      WHERE 1 = 1${filterSql}
+      ORDER BY iss.issued_at DESC, iss.created_at DESC
+      LIMIT ? OFFSET ?
+    `;
 
-        if (filters.issued_by) {
-            queryBuilder.andWhere("issue.issued_by = :issued_by", { issued_by: filters.issued_by });
-        }
+        const rows = (await this.productionIssueRepository.manager.query(selectSql, [
+            ...filterParams,
+            limit,
+            offset,
+        ])) as Record<string, unknown>[];
 
-        if (filters.start_date) {
-            queryBuilder.andWhere("issue.issued_at >= :start_date", { start_date: filters.start_date });
-        }
-
-        if (filters.end_date) {
-            queryBuilder.andWhere("issue.issued_at <= :end_date", { end_date: filters.end_date });
-        }
-
-        queryBuilder
-            .orderBy("issue.issued_at", "DESC")
-            .addOrderBy("issue.created_at", "DESC")
-            .skip(offset)
-            .take(limit);
-
-        const [issues, total] = await queryBuilder.getManyAndCount();
+        const issues = Array.isArray(rows) ? rows.map((r) => ProductionIssueService.mapRowToIssue(r)) : [];
 
         return { issues, total };
+    }
+
+    private static buildIssueFilterClause(filters: ProductionIssueFilters, params: unknown[]): string {
+        const parts: string[] = [];
+        if (filters.item_id != null) {
+            parts.push("iss.item_id = ?");
+            params.push(filters.item_id);
+        }
+        if (filters.status) {
+            parts.push("iss.status = ?");
+            params.push(filters.status);
+        }
+        if (filters.issued_by != null) {
+            parts.push("iss.issued_by = ?");
+            params.push(filters.issued_by);
+        }
+        if (filters.start_date) {
+            parts.push("iss.issued_at >= ?");
+            params.push(filters.start_date);
+        }
+        if (filters.end_date) {
+            parts.push("iss.issued_at <= ?");
+            params.push(filters.end_date);
+        }
+        return parts.length ? ` AND ${parts.join(" AND ")}` : "";
+    }
+
+    private static mapRowToIssue(row: Record<string, unknown>): ProductionIssue {
+        const iss = new ProductionIssue();
+        iss.id = Number(row.id);
+        iss.item_id = Number(row.item_id);
+        iss.quantity_produced = Number(row.quantity_produced);
+        iss.status = row.status as ProductionIssueStatus;
+        (iss as { issued_by: number | null }).issued_by =
+            row.issued_by == null ? null : Number(row.issued_by);
+        iss.issued_at = (row.issued_at as Date) ?? null;
+        iss.notes = row.notes != null ? String(row.notes) : "";
+        assignBaseEntityDates(iss, row.created_at, row.updated_at);
+        if (row.created_by != null) iss.created_by = Number(row.created_by);
+        if (row.updated_by != null) iss.updated_by = Number(row.updated_by);
+
+        iss.item =
+            row.it_id != null ? mapItemRowWithPrefix(row, "it") : ({ id: iss.item_id } as Item);
+        const issuer = mapUserRowWithPrefix(row, "u");
+        const issuedId = row.issued_by == null ? null : Number(row.issued_by);
+        iss.issued_by_user =
+            issuer ??
+            ({
+                id: issuedId ?? 0,
+                firstName: "",
+                lastName: "",
+                username: "",
+            } as User);
+
+        return iss;
     }
 
     /**
      * Fetch a single production issue by ID
      */
     public async fetchProductionIssueById(id: number): Promise<ProductionIssue | null> {
-        return await this.productionIssueRepository.findOne({
-            where: { id },
-            relations: ["item", "issued_by_user"],
-        });
+        const selectSql = `
+      SELECT
+        iss.id,
+        iss.item_id,
+        iss.quantity_produced,
+        iss.status,
+        iss.issued_by,
+        iss.issued_at,
+        iss.notes,
+        iss.created_at,
+        iss.updated_at,
+        iss.created_by,
+        iss.updated_by,
+        it.id AS it_id,
+        it.name AS it_name,
+        it.code AS it_code,
+        it.status AS it_status,
+        it.item_category_id AS it_category_id,
+        it.default_unit_id AS it_default_unit_id,
+        it.is_group AS it_is_group,
+        it.is_stock AS it_is_stock,
+        it.allow_negative_inventory AS it_allow_negative_inventory,
+        it.created_at AS it_created_at,
+        it.updated_at AS it_updated_at,
+        it.created_by AS it_created_by,
+        it.updated_by AS it_updated_by,
+        u.id AS u_id,
+        u.firstName AS u_firstName,
+        u.lastName AS u_lastName,
+        u.username AS u_username
+      FROM production_issue iss
+      LEFT JOIN item it ON it.id = iss.item_id
+      LEFT JOIN user u ON u.id = iss.issued_by
+      WHERE iss.id = ?
+      LIMIT 1
+    `;
+        const rows = (await this.productionIssueRepository.manager.query(selectSql, [id])) as Record<
+            string,
+            unknown
+        >[];
+        if (!Array.isArray(rows) || rows.length === 0) return null;
+        return ProductionIssueService.mapRowToIssue(rows[0]);
     }
 
     /**

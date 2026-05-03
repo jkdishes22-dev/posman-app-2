@@ -199,6 +199,66 @@ describe("InventoryService", () => {
     });
   });
 
+  describe("checkLowStock", () => {
+    it("returns rows where quantity <= reorder_point via raw query", async () => {
+      mockInventoryRepo.manager.query.mockResolvedValue([
+        {
+          item_id: 1,
+          quantity: 3,
+          min_stock_level: 5,
+          max_stock_level: 100,
+          reorder_point: 10,
+          it_id: 1,
+          it_name: "Low",
+          it_code: "L",
+          it_status: "ACTIVE",
+          it_category_id: null,
+          it_default_unit_id: null,
+          it_is_group: 0,
+          it_is_stock: 1,
+          it_allow_negative_inventory: 0,
+          it_created_at: new Date(),
+          it_updated_at: new Date(),
+          it_created_by: null,
+          it_updated_by: null,
+        },
+        {
+          item_id: 2,
+          quantity: 50,
+          min_stock_level: null,
+          max_stock_level: null,
+          reorder_point: 10,
+          it_id: 2,
+          it_name: "Ok",
+          it_code: "O",
+          it_status: "ACTIVE",
+          it_category_id: null,
+          it_default_unit_id: null,
+          it_is_group: 0,
+          it_is_stock: 1,
+          it_allow_negative_inventory: 0,
+          it_created_at: new Date(),
+          it_updated_at: new Date(),
+          it_created_by: null,
+          it_updated_by: null,
+        },
+      ]);
+
+      const result = await service.checkLowStock();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].item_id).toBe(1);
+      expect(result[0].item.name).toBe("Low");
+      expect(mockInventoryRepo.manager.query).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns empty array when query returns no rows", async () => {
+      mockInventoryRepo.manager.query.mockResolvedValue([]);
+      const result = await service.checkLowStock();
+      expect(result).toEqual([]);
+    });
+  });
+
   describe("deductInventoryForSale", () => {
     it("deducts item quantity from inventory on bill submission", async () => {
       mockBillRepo.findOne.mockResolvedValue({
