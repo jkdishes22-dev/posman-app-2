@@ -1,6 +1,12 @@
 import React from "react";
+import {
+    THERMAL_WIDTH_80MM,
+    centerTextLine,
+    lineLabelValue,
+    receiptItemTablePre,
+} from "./receiptThermalLayout";
 
-/** Shared 80mm thermal styles: flex rows survive raster/GDI better than HTML tables. */
+/** Monospace + preformatted columns: flex/grid collapses when Windows rasterizes to many thermal drivers. */
 const THERMAL_RECEIPT_CSS = `
   @page { size: 80mm auto; margin: 0; }
   .receipt-container {
@@ -23,81 +29,29 @@ const THERMAL_RECEIPT_CSS = `
     margin: 0 auto 4px auto;
     display: block;
   }
-  .receipt-meta-row {
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 4px 8px;
+  .receipt-pre {
+    font-family: "Courier New", Courier, Consolas, monospace;
     font-size: 11px;
-    margin-bottom: 4px;
+    line-height: 1.35;
+    margin: 0;
+    padding: 0;
+    white-space: pre;
+    overflow: visible;
+    width: 100%;
+    max-width: ${THERMAL_WIDTH_80MM}ch;
+    word-wrap: normal;
+    overflow-wrap: normal;
+    box-sizing: border-box;
+    color: #000;
   }
   .receipt-hr {
     border: none;
     border-top: 1px solid #000;
     margin: 8px 0;
   }
-  .receipt-grid-head,
-  .receipt-grid-row {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    width: 100%;
-    gap: 4px;
-    font-size: 11px;
-    box-sizing: border-box;
-  }
-  .receipt-grid-head {
-    font-weight: bold;
-    border-bottom: 1px solid #000;
-    padding-bottom: 4px;
-    margin-bottom: 4px;
-  }
-  .receipt-grid-row {
-    padding: 3px 0;
-    border-bottom: 1px dotted #999;
-  }
-  .receipt-col-no {
-    flex: 0 0 1.4rem;
-    min-width: 1.4rem;
-    text-align: left;
-  }
-  .receipt-col-item {
-    flex: 1 1 6rem;
-    min-width: 0;
-    text-align: left;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-    padding-right: 2px;
-  }
-  .receipt-col-qty {
-    flex: 0 0 1.6rem;
-    text-align: right;
-  }
-  .receipt-col-price {
-    flex: 0 0 2.4rem;
-    text-align: right;
-  }
-  .receipt-col-sub {
-    flex: 0 0 2.8rem;
-    text-align: right;
-  }
-  .receipt-totals {
-    text-align: right;
-    font-weight: bold;
-    margin: 6px 0;
-    font-size: 12px;
-  }
-  .receipt-footer {
-    text-align: center;
+  .receipt-footer-pre {
     margin-top: 10px;
-    font-size: 11px;
-    line-height: 1.5;
-  }
-  .receipt-stars {
-    letter-spacing: 0.02em;
-    word-break: break-all;
-    max-width: 100%;
-    margin: 4px 0;
+    text-align: center;
   }
   @media print {
     .receipt-container {
@@ -107,6 +61,7 @@ const THERMAL_RECEIPT_CSS = `
       box-shadow: none !important;
     }
     .receipt-brand-logo { display: none !important; }
+    .receipt-pre { font-size: 11px !important; }
   }
 `;
 
@@ -118,7 +73,40 @@ const ReceiptContent = ({ bill, label, showTotals = true, showTax = true }: { bi
     const tax = grossTotal * 0.16;
     const finalTotal = showTax ? grossTotal + tax : grossTotal;
 
+    const serverName =
+        [bill.user?.firstName, bill.user?.lastName].filter(Boolean).join(" ").trim() || "—";
     const billId = bill.id || bill.bill_id || bill.billId || bill.bill_number || "N/A";
+    const currency = bill.currency ?? "";
+
+    const headerPre = [
+        centerTextLine("JKPOSMAN"),
+        centerTextLine("World Leader of Restaurant Software"),
+        "",
+        centerTextLine(label),
+        "",
+        `Date: ${dateStr}   Time: ${timeStr}`,
+        `Bill ID: ${billId}`,
+        `Served By: ${serverName}`,
+    ].join("\n");
+
+    const itemBlock = receiptItemTablePre(bill.bill_items);
+
+    const totalsLines =
+        showTotals &&
+        [
+            lineLabelValue("Gross:", `${currency} ${(Number(grossTotal) || 0).toFixed(2)}`.trim()),
+            ...(showTax
+                ? [lineLabelValue("Tax (16%):", `${currency} ${(Number(tax) || 0).toFixed(2)}`.trim())]
+                : []),
+            lineLabelValue("Total:", `${currency} ${(Number(finalTotal) || 0).toFixed(2)}`.trim()),
+        ].join("\n");
+
+    const footerPre = [
+        "",
+        centerTextLine("********************************"),
+        centerTextLine("Thank you for dining with us!"),
+        centerTextLine("********************************"),
+    ].join("\n");
 
     return (
         <div className="receipt-container">
@@ -129,55 +117,17 @@ const ReceiptContent = ({ bill, label, showTotals = true, showTax = true }: { bi
                     alt=""
                     className="receipt-brand-logo"
                 />
-                <div style={{ fontWeight: "bold", fontSize: 18, letterSpacing: 0.5 }}>JKPOSMAN</div>
-                <div style={{ fontSize: 10, marginBottom: 2 }}>World Leader of Restaurant Software</div>
-                <div style={{ fontWeight: "bold", fontSize: 14, margin: "8px 0 4px 0", color: "#111" }}>{label}</div>
             </div>
-            <div className="receipt-meta-row">
-                <span>Date: {dateStr}</span>
-                <span>Time: {timeStr}</span>
-            </div>
-            <div style={{ fontSize: 11, marginBottom: 2 }}>Bill ID: <b>{billId}</b></div>
-            <div style={{ fontSize: 11, marginBottom: 2 }}>Served By: {bill.user?.firstName ?? "—"}</div>
+            <pre className="receipt-pre">{headerPre}</pre>
             <hr className="receipt-hr" />
-
-            <div className="receipt-grid-head">
-                <span className="receipt-col-no">#</span>
-                <span className="receipt-col-item">Item</span>
-                <span className="receipt-col-qty">Qty</span>
-                <span className="receipt-col-price">Price</span>
-                <span className="receipt-col-sub">Sub</span>
-            </div>
-            {bill.bill_items?.map((item: any, index: number) => (
-                <div key={item.id ?? index} className="receipt-grid-row">
-                    <span className="receipt-col-no">{index + 1}.</span>
-                    <span className="receipt-col-item">{item.item?.name ?? "—"}</span>
-                    <span className="receipt-col-qty">{item.quantity}</span>
-                    <span className="receipt-col-price">{item.item?.price ?? ""}</span>
-                    <span className="receipt-col-sub">{item.subtotal}</span>
-                </div>
-            ))}
-            <hr className="receipt-hr" />
-            {showTotals && (
+            <pre className="receipt-pre">{itemBlock}</pre>
+            {showTotals ? (
                 <>
-                    <div className="receipt-totals">
-                        Gross: {bill.currency} {(Number(grossTotal) || 0).toFixed(2)}
-                    </div>
-                    {showTax && (
-                        <div className="receipt-totals" style={{ fontSize: 11 }}>
-                            Tax (16%): {bill.currency} {(Number(tax) || 0).toFixed(2)}
-                        </div>
-                    )}
-                    <div className="receipt-totals" style={{ fontSize: 14 }}>
-                        Total: {bill.currency} {(Number(finalTotal) || 0).toFixed(2)}
-                    </div>
+                    <hr className="receipt-hr" />
+                    <pre className="receipt-pre">{totalsLines}</pre>
                 </>
-            )}
-            <div className="receipt-footer">
-                <div className="receipt-stars">********************************</div>
-                <div>Thank you for dining with us!</div>
-                <div className="receipt-stars">********************************</div>
-            </div>
+            ) : null}
+            <pre className="receipt-pre receipt-footer-pre">{footerPre}</pre>
         </div>
     );
 };

@@ -32,7 +32,7 @@ export type ElectronPrintOpts = {
 
 const defaultElectronPrintOpts: ElectronPrintOpts = {
     appendEscPosCut: true,
-    feedLinesBeforeCut: 4,
+    feedLinesBeforeCut: 8,
 };
 
 export function delay(ms: number): Promise<void> {
@@ -85,7 +85,7 @@ export async function printCaptainOrderAndCustomerCopy(
         "captain",
         printerName,
         extraProps as Record<string, any>,
-        opts
+        { ...opts, appendEscPosCut: false },
     );
     await delay(DOUBLE_RECEIPT_GAP_MS);
     const customer = await printReceiptWithTimestamp(
