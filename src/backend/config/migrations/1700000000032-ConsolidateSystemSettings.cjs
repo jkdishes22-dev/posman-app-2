@@ -25,7 +25,7 @@ module.exports = class ConsolidateSystemSettings1700000000032 {
 
     const printerSettings = printerRows.length
       ? JSON.parse(printerRows[0].value)
-      : { print_after_close_bill: false, printer_name: "" };
+      : { print_after_create_bill: false, printer_name: "" };
 
     const logSettings = logRows.length
       ? JSON.parse(logRows[0].value)

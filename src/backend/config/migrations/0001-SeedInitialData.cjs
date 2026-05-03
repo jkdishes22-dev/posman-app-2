@@ -77,6 +77,9 @@ const rolePermissionsBaseline = {
     "can_view_supplier_payment",
     "can_issue_production",
     "can_view_production_history",
+    "can_view_expense",
+    "can_add_expense",
+    "can_edit_expense",
   ],
   supervisor: [
     // Full billing management
@@ -99,6 +102,9 @@ const rolePermissionsBaseline = {
     "can_add_payment",
     "can_edit_payment",
     "can_delete_payment",
+    "can_view_expense",
+    "can_add_expense",
+    "can_edit_expense",
     // Catalogue access
     "can_view_pricelist",
     "can_view_category",
@@ -508,6 +514,9 @@ module.exports = class SeedInitialDataConsolidated1700000000001 {
         "can_add_payment",
         "can_edit_payment",
         "can_delete_payment",
+        "can_view_expense",
+        "can_add_expense",
+        "can_edit_expense",
         ...REPORT_PERMISSION_NAMES,
         "can_view_production_sales_reconciliation_report",
       ],

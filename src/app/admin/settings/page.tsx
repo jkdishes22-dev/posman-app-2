@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import { Card, Button, Alert, Spinner, Form, Badge, Row, Col } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
+import { normalizePrinterSettings, toPrinterSettingsPayload } from "../../shared/printerSettings";
 
 interface PrinterInfo {
     name: string;
@@ -12,7 +13,7 @@ interface PrinterInfo {
 }
 
 interface PrinterSettings {
-    print_after_close_bill: boolean;
+    print_after_create_bill: boolean;
     printer_name: string;
 }
 
@@ -33,7 +34,7 @@ export default function AdminSettingsPage() {
     const apiCall = useApiCall();
 
     // Printer settings
-    const [printerSettings, setPrinterSettings] = useState<PrinterSettings>({ print_after_close_bill: false, printer_name: "" });
+    const [printerSettings, setPrinterSettings] = useState<PrinterSettings>({ print_after_create_bill: false, printer_name: "" });
     const [printers, setPrinters] = useState<PrinterInfo[]>([]);
     const [printerSaving, setPrinterSaving] = useState(false);
     const [printerResult, setPrinterResult] = useState<{ success: boolean; error?: string } | null>(null);
@@ -68,7 +69,7 @@ export default function AdminSettingsPage() {
     useEffect(() => {
         // Load consolidated system_settings — each sub-property is a separate API call using ?sub=
         apiCall("/api/system/settings?key=system_settings&sub=printer_settings").then((res) => {
-            if (res.status === 200 && res.data?.value) setPrinterSettings(res.data.value);
+            if (res.status === 200 && res.data?.value) setPrinterSettings(normalizePrinterSettings(res.data.value));
         });
         apiCall("/api/system/settings?key=system_settings&sub=db_backup").then((res) => {
             if (res.status === 200 && res.data?.value) setDbBackup(res.data.value);
@@ -102,7 +103,7 @@ export default function AdminSettingsPage() {
         try {
             const result = await apiCall("/api/system/settings?key=system_settings&sub=printer_settings", {
                 method: "PUT",
-                body: JSON.stringify(printerSettings),
+                body: JSON.stringify(toPrinterSettingsPayload(printerSettings)),
             });
             setPrinterResult(result.status === 200 ? { success: true } : { success: false, error: result.error || "Failed to save" });
         } catch {
@@ -320,11 +321,14 @@ export default function AdminSettingsPage() {
                                 <Form.Check
                                     type="switch"
                                     id="auto-print-switch"
-                                    label="Auto-print receipt after submitting a bill"
-                                    checked={printerSettings.print_after_close_bill}
-                                    onChange={(e) => setPrinterSettings((s) => ({ ...s, print_after_close_bill: e.target.checked }))}
-                                    className="mb-3"
+                                    label="Auto-print when creating a new bill (kitchen + customer copy)"
+                                    checked={printerSettings.print_after_create_bill}
+                                    onChange={(e) => setPrinterSettings((s) => ({ ...s, print_after_create_bill: e.target.checked }))}
+                                    className="mb-2"
                                 />
+                                <p className="text-muted small mb-3">
+                                    Applies when a pending bill is first saved from billing. Submitting or closing bills does not auto-print; use the Print button on the bill screen.
+                                </p>
                                 <Form.Group className="mb-3">
                                     <Form.Label className="fw-medium small">Printer</Form.Label>
                                     {printers.length > 0 ? (

@@ -12,6 +12,7 @@ const Categories = lazy(() => import("../admin/menu/category/components/category
 const CategoryDeleteModal = lazy(() => import("../admin/menu/category/components/category/category-delete"));
 import ReceiptPrint, { CaptainOrderPrint, CustomerCopyPrint } from "./ReceiptPrint";
 import { printReceiptWithTimestamp, downloadReceiptAsFile } from "./printUtils";
+import { normalizePrinterSettings } from "./printerSettings";
 import ReactDOM from "react-dom/client";
 import { useStation } from "../contexts/StationContext";
 import { usePricelist } from "../contexts/PricelistContext";
@@ -80,6 +81,7 @@ const BillingSection = () => {
   );
   const canDeleteCategoryOnBill = hasPermission(userRoleNames, "can_delete_category");
 
+  /** When true, print captain + customer receipts after creating a new bill (pending). Submit/close stay manual. */
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintPrinterName, setAutoPrintPrinterName] = useState("");
   const [showTax, setShowTax] = useState(true);
@@ -127,8 +129,9 @@ const BillingSection = () => {
   useEffect(() => {
     apiCall("/api/system/settings?key=system_settings&sub=printer_settings").then((res) => {
       if (res.status === 200 && res.data?.value) {
-        setAutoPrintEnabled(!!res.data.value.print_after_close_bill);
-        setAutoPrintPrinterName(res.data.value.printer_name || "");
+        const p = normalizePrinterSettings(res.data.value);
+        setAutoPrintEnabled(p.print_after_create_bill);
+        setAutoPrintPrinterName(p.printer_name);
       }
     }).catch(() => {});
     apiCall("/api/system/settings?key=bill_settings").then((res) => {
@@ -613,7 +616,7 @@ const BillingSection = () => {
           };
           setCreatedBill(billForReceipt);
 
-          // Auto-print then auto-reset; without auto-print, reset immediately.
+          // Auto-print on create (optional) then auto-reset; otherwise reset immediately.
           if (autoPrintEnabled) {
             (async () => {
               const captainPrint = await printReceiptWithTimestamp(CaptainOrderPrint, billForReceipt, "Captain Order", "captain", autoPrintPrinterName || undefined, { showTax });

@@ -59,7 +59,10 @@ export const ROLE_PERMISSIONS = {
         "can_view_purchase_order",
         "can_view_supplier",
         "can_issue_production",
-        "can_view_production_history"
+        "can_view_production_history",
+        "can_view_expense",
+        "can_add_expense",
+        "can_edit_expense"
     ],
 
     supervisor: [
@@ -261,7 +264,10 @@ export const PERMISSION_CATEGORIES = {
         "can_view_payment",
         "can_add_payment",
         "can_edit_payment",
-        "can_delete_payment"
+        "can_delete_payment",
+        "can_view_expense",
+        "can_add_expense",
+        "can_edit_expense"
     ],
     inventory: [
         "can_view_inventory",

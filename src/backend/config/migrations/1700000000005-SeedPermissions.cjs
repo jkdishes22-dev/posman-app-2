@@ -48,7 +48,8 @@ class SeedPermissions1700000000005 {
             ],
             // Financial scope
             financial: [
-                "can_view_payment", "can_add_payment", "can_edit_payment", "can_delete_payment"
+                "can_view_payment", "can_add_payment", "can_edit_payment", "can_delete_payment",
+                "can_view_expense", "can_add_expense", "can_edit_expense"
             ],
             // Inventory scope (includes supplier, purchase order, and production permissions)
             inventory: [
@@ -134,6 +135,7 @@ class SeedPermissions1700000000005 {
             "can_view_bill_payment", "can_add_bill_payment", "can_edit_bill_payment", "can_delete_bill_payment",
             // Financial
             "can_view_payment", "can_add_payment", "can_edit_payment", "can_delete_payment",
+            "can_view_expense", "can_add_expense", "can_edit_expense",
             // Inventory
             "can_view_inventory", "can_add_inventory", "can_edit_inventory", "can_delete_inventory", "can_adjust_inventory",
             "can_view_item", "can_add_item", "can_edit_item", "can_delete_item",

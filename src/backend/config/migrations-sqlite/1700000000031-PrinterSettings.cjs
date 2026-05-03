@@ -8,7 +8,7 @@ module.exports = class PrinterSettingsSqlite1700000000031 {
   async up(queryRunner) {
     await queryRunner.query(`
       INSERT OR IGNORE INTO "system_settings" ("key", "value")
-      VALUES ('printer_settings', '{"print_after_close_bill":false,"printer_name":""}');
+      VALUES ('printer_settings', '{"print_after_create_bill":false,"printer_name":""}');
     `);
   }
 
