@@ -147,7 +147,7 @@ describe("InventoryService", () => {
       await service.addInventoryFromProduction(1, 5, 10, 1);
 
       expect(mockInventoryRepo.insert).toHaveBeenCalledWith(
-        expect.objectContaining({ item_id: 1, quantity: 5 })
+        expect.objectContaining({ item: { id: 1 }, quantity: 5 })
       );
     });
 
@@ -159,7 +159,7 @@ describe("InventoryService", () => {
 
       expect(existing.quantity).toBe(15);
       expect(mockInventoryRepo.update).toHaveBeenCalledWith(
-        { item_id: 1 },
+        { item: { id: 1 } },
         expect.objectContaining({ quantity: 15 })
       );
     });

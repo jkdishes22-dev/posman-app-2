@@ -53,7 +53,7 @@ export class InventoryService {
     ): Promise<Inventory> {
         // Check if inventory already exists
         const existing = await this.inventoryRepository.findOne({
-            where: { item_id: itemId },
+            where: { item: { id: itemId } },
         });
 
         if (existing) {
@@ -90,7 +90,7 @@ export class InventoryService {
         }
 
         const inventory = await this.inventoryRepository.findOne({
-            where: { item_id: itemId },
+            where: { item: { id: itemId } },
         });
 
         if (!inventory) {
@@ -131,7 +131,7 @@ export class InventoryService {
         }
 
         const inventory = await this.inventoryRepository.findOne({
-            where: { item_id: itemId },
+            where: { item: { id: itemId } },
         });
 
         if (!inventory) {
@@ -382,7 +382,8 @@ export class InventoryService {
         const allItemIds = [...new Set([...itemIds, ...Array.from(constituentItemIds)])];
         const inventories = await this.inventoryRepository
             .createQueryBuilder("inventory")
-            .where("inventory.item_id IN (:...itemIds)", { itemIds: allItemIds })
+            .innerJoin("inventory.item", "invItemForIds")
+            .where("invItemForIds.id IN (:...itemIds)", { itemIds: allItemIds })
             .getMany();
 
         // On-hand quantities (physical rows)
@@ -657,7 +658,7 @@ export class InventoryService {
 
             // Get or create inventory for the constituent item
             let stockInventory = await transactionalEntityManager.findOne(Inventory, {
-                where: { item_id: constituentItem.id },
+                where: { item: { id: constituentItem.id } },
             });
 
             if (!stockInventory) {
@@ -754,7 +755,7 @@ export class InventoryService {
                 // This handles both simple items (no ratios) and composite items (with ratios)
                 // ALL items are now tracked, so always create inventory record if it doesn't exist
                 let inventory = await transactionalEntityManager.findOne(Inventory, {
-                    where: { item_id: item.id },
+                    where: { item: { id: item.id } },
                 });
 
                 if (!inventory) {
@@ -863,7 +864,7 @@ export class InventoryService {
 
             // Always return the sellable item itself 1:1
             let inventory = await transactionalEntityManager.findOne(Inventory, {
-                where: { item_id: item.id },
+                where: { item: { id: item.id } },
             });
 
             if (!inventory) {
@@ -925,7 +926,7 @@ export class InventoryService {
             const quantityToReturn = quantity * ratio.portion_size;
 
             let inventory = await transactionalEntityManager.findOne(Inventory, {
-                where: { item_id: constituentItem.id },
+                where: { item: { id: constituentItem.id } },
             });
 
             if (!inventory) {
@@ -1189,7 +1190,7 @@ export class InventoryService {
         userId: number
     ): Promise<Inventory> {
         const inventory = await this.inventoryRepository.findOne({
-            where: { item_id: itemId },
+            where: { item: { id: itemId } },
         });
 
         if (!inventory) {
@@ -1200,7 +1201,7 @@ export class InventoryService {
 
         // Use update() to bypass TypeORM topological sorter (cyclic dependency with minified class names)
         await this.inventoryRepository.update(
-            { item_id: itemId },
+            { item: { id: itemId } },
             { quantity: newQuantity, updated_by: userId }
         );
         inventory.quantity = newQuantity;
@@ -1232,7 +1233,7 @@ export class InventoryService {
         userId: number
     ): Promise<Inventory> {
         const inventory = await this.inventoryRepository.findOne({
-            where: { item_id: itemId },
+            where: { item: { id: itemId } },
         });
 
         if (!inventory) {
@@ -1253,7 +1254,7 @@ export class InventoryService {
 
         const newQuantity = inventory.quantity - quantity;
         await this.inventoryRepository.update(
-            { item_id: itemId },
+            { item: { id: itemId } },
             { quantity: newQuantity, updated_by: userId }
         );
         inventory.quantity = newQuantity;
@@ -1285,12 +1286,12 @@ export class InventoryService {
     ): Promise<Inventory> {
         // Get or create inventory
         let inventory = await this.inventoryRepository.findOne({
-            where: { item_id: itemId },
+            where: { item: { id: itemId } },
         });
 
         if (!inventory) {
             const result = await this.inventoryRepository.insert({
-                item_id: itemId,
+                item: { id: itemId } as Item,
                 quantity: quantity,
                 last_restocked_at: new Date(),
                 created_by: userId,
@@ -1299,7 +1300,7 @@ export class InventoryService {
         } else {
             const newQuantity = inventory.quantity + quantity;
             await this.inventoryRepository.update(
-                { item_id: itemId },
+                { item: { id: itemId } },
                 { quantity: newQuantity, last_restocked_at: new Date(), updated_by: userId }
             );
             inventory.quantity = newQuantity;
@@ -1330,12 +1331,12 @@ export class InventoryService {
     ): Promise<Inventory> {
         // Get or create inventory (works for both isStock: true and isStock: false items)
         let inventory = await this.inventoryRepository.findOne({
-            where: { item_id: itemId },
+            where: { item: { id: itemId } },
         });
 
         if (!inventory) {
             const result = await this.inventoryRepository.insert({
-                item_id: itemId,
+                item: { id: itemId } as Item,
                 quantity: quantity,
                 last_restocked_at: new Date(),
                 created_by: userId,
@@ -1344,7 +1345,7 @@ export class InventoryService {
         } else {
             const newQuantity = inventory.quantity + quantity;
             await this.inventoryRepository.update(
-                { item_id: itemId },
+                { item: { id: itemId } },
                 { quantity: newQuantity, last_restocked_at: new Date(), updated_by: userId }
             );
             inventory.quantity = newQuantity;

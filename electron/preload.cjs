@@ -11,7 +11,8 @@ contextBridge.exposeInMainWorld('electron', {
     chrome: process.versions.chrome,
     electron: process.versions.electron,
   },
-  printReceipt: (html, printerName) => ipcRenderer.invoke('print-receipt', html, printerName),
+  printReceipt: (html, printerName, options) =>
+    ipcRenderer.invoke('print-receipt', html, printerName ?? '', options ?? {}),
   getPrinters: () => ipcRenderer.invoke('get-printers'),
 });
 

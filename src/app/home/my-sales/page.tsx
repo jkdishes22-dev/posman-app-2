@@ -11,8 +11,8 @@ import TimeZoneAwareDatePicker from "src/app/shared/TimezoneAwareDatePicker";
 import DatePicker from "react-datepicker";
 import { Bill, BillItem, VoidRequestPayload, VoidRequestResponse } from "src/app/types/types";
 import Pagination from "src/app/components/Pagination";
-import { CaptainOrderPrint, CustomerCopyPrint } from "../../shared/ReceiptPrint";
-import { printReceiptWithTimestamp, downloadReceiptAsFile } from "../../shared/printUtils";
+import { CustomerCopyPrint } from "../../shared/ReceiptPrint";
+import { printCaptainOrderAndCustomerCopy, downloadReceiptAsFile } from "../../shared/printUtils";
 import ReactDOM from "react-dom/client";
 import { useApiCall } from "../../utils/apiUtils";
 import { ApiErrorResponse } from "../../utils/errorUtils";
@@ -398,26 +398,7 @@ const MySales = () => {
 
   const handlePrint = async () => {
     if (!selectedBill) return;
-
-    // Print Captain Order first
-    await printReceipt(CaptainOrderPrint, selectedBill, "Captain Order");
-
-    // Wait a moment, then print Customer Copy
-    setTimeout(async () => {
-      await printReceipt(CustomerCopyPrint, selectedBill, "Customer Copy");
-    }, 1000);
-  };
-
-  const printReceipt = async (Component: any, bill: any, title: string) => {
-    // Determine the type based on the component
-    let type: "customer" | "captain" | "receipt" = "receipt";
-    if (Component === CustomerCopyPrint) {
-      type = "customer";
-    } else if (Component === CaptainOrderPrint) {
-      type = "captain";
-    }
-
-    return printReceiptWithTimestamp(Component, bill, title, type);
+    await printCaptainOrderAndCustomerCopy(selectedBill, undefined, {});
   };
 
   const handleDownload = async () => {

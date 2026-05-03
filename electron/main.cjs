@@ -640,8 +640,15 @@ function runDailyAutoBackup() {
     }
 }
 
+/** ESC/POS: feed n lines (ESC d n) then partial cut (GS V 1). Best-effort for thermal drivers; raster/GDI may ignore. */
+function buildEscPosCutFooter(feedLines = 4) {
+    const n = Math.max(0, Math.min(255, Number(feedLines) || 0));
+    const buf = Buffer.from([0x1b, 0x64, n, 0x1d, 0x56, 0x01]);
+    return buf.toString("latin1");
+}
+
 // IPC: silent thermal print via Electron — dedicated hidden window, prints only receipt HTML
-ipcMain.handle("print-receipt", async (event, htmlContent, printerName) => {
+ipcMain.handle("print-receipt", async (event, htmlContent, printerName, options = {}) => {
     return new Promise((resolve) => {
         let printWin;
         try {
@@ -655,7 +662,14 @@ ipcMain.handle("print-receipt", async (event, htmlContent, printerName) => {
                 },
             });
 
-            const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Courier New",monospace;width:80mm}@page{size:80mm auto;margin:0}</style></head><body>${htmlContent}</body></html>`;
+            const appendEscPosCut = options.appendEscPosCut !== false;
+            const feedLinesBeforeCut = Number(options.feedLinesBeforeCut);
+            const cutBlock = appendEscPosCut
+                ? `<pre class="escpos-trailer" aria-hidden="true" style="height:0;margin:0;padding:0;overflow:hidden;opacity:0;font-size:0;line-height:0;color:#fff;white-space:pre-wrap">${buildEscPosCutFooter(
+                      Number.isFinite(feedLinesBeforeCut) ? feedLinesBeforeCut : 4
+                  )}</pre>`
+                : "";
+            const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Courier New",monospace;width:80mm}@page{size:80mm auto;margin:0}</style></head><body>${htmlContent}${cutBlock}</body></html>`;
             printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fullHtml)}`);
 
             printWin.webContents.once("did-finish-load", () => {

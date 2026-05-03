@@ -10,8 +10,8 @@ import { Button, Modal, Alert, Row, Col, Spinner } from "react-bootstrap";
 const ViewItems = lazy(() => import("../admin/menu/category/components/items/items-view"));
 const Categories = lazy(() => import("../admin/menu/category/components/category/categories"));
 const CategoryDeleteModal = lazy(() => import("../admin/menu/category/components/category/category-delete"));
-import ReceiptPrint, { CaptainOrderPrint, CustomerCopyPrint } from "./ReceiptPrint";
-import { printReceiptWithTimestamp, downloadReceiptAsFile } from "./printUtils";
+import ReceiptPrint, { CustomerCopyPrint } from "./ReceiptPrint";
+import { printCaptainOrderAndCustomerCopy, downloadReceiptAsFile } from "./printUtils";
 import { normalizePrinterSettings } from "./printerSettings";
 import ReactDOM from "react-dom/client";
 import { useStation } from "../contexts/StationContext";
@@ -619,8 +619,11 @@ const BillingSection = () => {
           // Auto-print on create (optional) then auto-reset; otherwise reset immediately.
           if (autoPrintEnabled) {
             (async () => {
-              const captainPrint = await printReceiptWithTimestamp(CaptainOrderPrint, billForReceipt, "Captain Order", "captain", autoPrintPrinterName || undefined, { showTax });
-              const customerPrint = await printReceiptWithTimestamp(CustomerCopyPrint, billForReceipt, "Customer Copy", "customer", autoPrintPrinterName || undefined, { showTax });
+              const { captain: captainPrint, customer: customerPrint } = await printCaptainOrderAndCustomerCopy(
+                billForReceipt,
+                autoPrintPrinterName || undefined,
+                { showTax }
+              );
               if (!captainPrint.success || !customerPrint.success) {
                 console.warn("Auto-print: one or more copies failed", {
                   captain: captainPrint,
@@ -661,26 +664,7 @@ const BillingSection = () => {
 
   const handlePrint = async () => {
     if (!createdBill) return;
-
-    // Print Captain Order first
-    await printReceipt(CaptainOrderPrint, createdBill, "Captain Order");
-
-    // Wait a moment, then print Customer Copy
-    setTimeout(async () => {
-      await printReceipt(CustomerCopyPrint, createdBill, "Customer Copy");
-    }, 1000);
-  };
-
-  const printReceipt = async (Component: any, bill: any, title: string) => {
-    // Determine the type based on the component
-    let type: "customer" | "captain" | "receipt" = "receipt";
-    if (Component === CustomerCopyPrint) {
-      type = "customer";
-    } else if (Component === CaptainOrderPrint) {
-      type = "captain";
-    }
-
-    return printReceiptWithTimestamp(Component, bill, title, type, undefined, { showTax });
+    await printCaptainOrderAndCustomerCopy(createdBill, undefined, { showTax });
   };
 
   const handleDownload = async () => {

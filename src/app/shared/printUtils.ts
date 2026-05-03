@@ -4,6 +4,7 @@
 
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { CaptainOrderPrint, CustomerCopyPrint } from "./ReceiptPrint";
 
 export interface PrintOptions {
     bill: any;
@@ -16,6 +17,60 @@ export type PrintReceiptResult = {
     failureReason?: string | null;
     mode: "electron" | "browser" | "blocked" | "error";
 };
+
+/**
+ * Pause between kitchen (captain) and customer jobs so the first spool job can finish
+ * before the second is sent (80mm thermal, ~120mm typical ticket length).
+ */
+export const DOUBLE_RECEIPT_GAP_MS = 750;
+
+export type ElectronPrintOpts = {
+    /** Append ESC/POS feed + partial cut after raster content (Electron only; may be ignored by some drivers). */
+    appendEscPosCut?: boolean;
+    feedLinesBeforeCut?: number;
+};
+
+const defaultElectronPrintOpts: ElectronPrintOpts = {
+    appendEscPosCut: true,
+    feedLinesBeforeCut: 4,
+};
+
+export function delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Two print jobs: Captain Order (kitchen line list, no bill totals) then Customer Copy (with totals).
+ * Use after create-bill auto-print and for manual Print.
+ */
+export async function printCaptainOrderAndCustomerCopy(
+    bill: any,
+    printerName: string | undefined,
+    extraProps?: Record<string, unknown>,
+    electronPrintOpts?: ElectronPrintOpts
+): Promise<{ captain: PrintReceiptResult; customer: PrintReceiptResult }> {
+    const opts = { ...defaultElectronPrintOpts, ...electronPrintOpts };
+    const captain = await printReceiptWithTimestamp(
+        CaptainOrderPrint,
+        bill,
+        "Captain Order",
+        "captain",
+        printerName,
+        extraProps,
+        opts
+    );
+    await delay(DOUBLE_RECEIPT_GAP_MS);
+    const customer = await printReceiptWithTimestamp(
+        CustomerCopyPrint,
+        bill,
+        "Customer Copy",
+        "customer",
+        printerName,
+        extraProps,
+        opts
+    );
+    return { captain, customer };
+}
 
 /**
  * Generate a timestamp-based filename for receipts
@@ -51,8 +106,10 @@ export const printReceiptWithTimestamp = async (
     title: string,
     type: "customer" | "captain" | "receipt" = "receipt",
     printerName?: string,
-    extraProps?: Record<string, any>
+    extraProps?: Record<string, any>,
+    electronPrintOpts?: ElectronPrintOpts
 ): Promise<PrintReceiptResult> => {
+    const mergedElectronOpts = { ...defaultElectronPrintOpts, ...electronPrintOpts };
     return new Promise<PrintReceiptResult>((resolve) => {
         const tempDiv = document.createElement("div");
         tempDiv.style.position = "absolute";
@@ -71,7 +128,8 @@ export const printReceiptWithTimestamp = async (
             // Electron path: silent print via main-process IPC
             const electronAPI = (window as any).electron;
             if (electronAPI?.printReceipt) {
-                electronAPI.printReceipt(printContents, printerName || "")
+                electronAPI
+                    .printReceipt(printContents, printerName || "", mergedElectronOpts)
                     .then((outcome: { success?: boolean; failureReason?: string | null } | undefined) => {
                         const success = outcome?.success !== false;
                         resolve({
