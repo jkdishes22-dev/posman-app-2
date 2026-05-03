@@ -107,7 +107,7 @@ function LogsContent() {
         const days = Number(retentionInput);
         if (!Number.isFinite(days) || days < 1 || days > 365) return;
         setSavingRetention(true);
-        const result = await apiCall("/api/system/settings?key=log_settings", {
+        const result = await apiCall("/api/system/settings?key=system_settings&sub=log_settings", {
             method: "PUT",
             body: JSON.stringify({ retention_days: days }),
         });
