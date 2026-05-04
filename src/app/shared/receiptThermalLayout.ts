@@ -1,11 +1,11 @@
 /**
  * Fixed-width monospace receipt lines for 80mm-class thermal rolls.
  * Many models (e.g. Xprinter XP-Q807K) have ~72mm print width on 80mm paper; 48× monospace
- * at 11pt was getting clipped on the right with vendor GDI drivers. 42 columns fits that head.
- * Item rows use a single space after "#" only; padded columns abut so we do not waste width.
+ * at 11pt was getting clipped on the right with vendor GDI drivers. 40 columns is safer.
+ * Item rows keep spacing tight so we preserve right-side room for totals.
  */
 
-export const THERMAL_WIDTH_80MM = 42;
+export const THERMAL_WIDTH_80MM = 40;
 
 export function padLeft(s: string, w: number): string {
     const t = String(s);
@@ -38,17 +38,16 @@ export function lineLabelValue(label: string, value: string, width = THERMAL_WID
 
 const COL_IDX = 3;
 /** Slightly wider name + subtotal after dropping redundant gaps between padded columns. */
-const COL_NAME = 17;
+const COL_NAME = 15;
 const COL_QTY = 4;
 const COL_PRICE = 7;
-const COL_SUB = 10;
+const COL_SUB = 11;
 
 export function receiptItemTablePre(billItems: unknown[] | undefined): string {
     const items = Array.isArray(billItems) ? billItems : [];
     const lines: string[] = [];
     lines.push(
         padRight("#", COL_IDX) +
-            " " +
             padRight("Item", COL_NAME) +
             padLeft("Qty", COL_QTY) +
             padLeft("Price", COL_PRICE) +
@@ -72,7 +71,6 @@ export function receiptItemTablePre(billItems: unknown[] | undefined): string {
         const nm = name.length > COL_NAME ? name.slice(0, COL_NAME) : name;
         lines.push(
             padRight(`${index + 1}.`, COL_IDX) +
-                " " +
                 padRight(nm, COL_NAME) +
                 padLeft(String(qty), COL_QTY) +
                 padLeft(priceStr, COL_PRICE) +

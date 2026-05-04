@@ -105,6 +105,8 @@ export class ItemService {
       name: item.item_name,
       code: item.item_code,
       isGroup: Boolean(item.item_isGroup),
+      isStock: Boolean(item.item_isStock),
+      allowNegativeInventory: Boolean(item.item_allowNegativeInventory),
       category: {
         id: item.category_id,
         name: item.category_name,
