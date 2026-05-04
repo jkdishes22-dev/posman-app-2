@@ -189,12 +189,17 @@ export class PricelistService {
 
     try {
 
-      // Get pricelists linked to this specific station through junction table
-      const stationPricelists = await this.stationPricelistRepository.find({
-        where: { station: { id: stationId } },
-        relations: ["pricelist"],
-        order: { is_default: "DESC", created_at: "ASC" }
-      });
+      // Use QueryBuilder (FK columns) instead of nested relation `where` + `find()`.
+      // Bundled production builds can throw inside TypeORM's executeEntitiesAndRawResults
+      // (e.g. Cannot read properties of undefined reading 'length') — see UserService raw SQL note.
+      const stationPricelists = await this.stationPricelistRepository
+        .createQueryBuilder("sp")
+        .leftJoinAndSelect("sp.station", "station")
+        .leftJoinAndSelect("sp.pricelist", "pricelist")
+        .where("sp.station_id = :stationId", { stationId })
+        .orderBy("sp.is_default", "DESC")
+        .addOrderBy("sp.created_at", "ASC")
+        .getMany();
 
       let allPricelists = stationPricelists.map(sp => ({
         id: sp.pricelist.id,
@@ -293,11 +298,13 @@ export class PricelistService {
     }
 
     try {
-      const stationPricelists = await this.stationPricelistRepository.find({
-        where: { pricelist: { id: pricelistId } },
-        relations: ["station"],
-        order: { created_at: "ASC" }
-      });
+      const stationPricelists = await this.stationPricelistRepository
+        .createQueryBuilder("sp")
+        .leftJoinAndSelect("sp.station", "station")
+        .leftJoinAndSelect("sp.pricelist", "pricelist")
+        .where("sp.pricelist_id = :pricelistId", { pricelistId })
+        .orderBy("sp.created_at", "ASC")
+        .getMany();
 
       const result = stationPricelists.map(sp => ({
         id: sp.station.id,

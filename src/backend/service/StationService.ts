@@ -319,10 +319,12 @@ export class StationService {
       throw new Error("Station not found");
     }
 
-    // Check if relationship already exists
-    const existingRelation = await this.stationPricelistRepository.findOne({
-      where: { station: { id: stationId }, pricelist: { id: pricelistId } }
-    });
+    // Check if relationship already exists (avoid nested relation find — see PricelistService)
+    const existingRelation = await this.stationPricelistRepository
+      .createQueryBuilder("sp")
+      .where("sp.station_id = :stationId", { stationId })
+      .andWhere("sp.pricelist_id = :pricelistId", { pricelistId })
+      .getOne();
 
     if (existingRelation) {
       throw new Error("Pricelist is already linked to this station");
@@ -407,11 +409,14 @@ export class StationService {
       return cached;
     }
 
-    const stationPricelists = await this.stationPricelistRepository.find({
-      where: { station: { id: stationId } },
-      relations: ["pricelist"],
-      order: { is_default: "DESC", created_at: "ASC" }
-    });
+    const stationPricelists = await this.stationPricelistRepository
+      .createQueryBuilder("sp")
+      .leftJoinAndSelect("sp.station", "station")
+      .leftJoinAndSelect("sp.pricelist", "pricelist")
+      .where("sp.station_id = :stationId", { stationId })
+      .orderBy("sp.is_default", "DESC")
+      .addOrderBy("sp.created_at", "ASC")
+      .getMany();
 
     const result = stationPricelists.map(sp => ({
       id: sp.pricelist.id,
@@ -439,14 +444,14 @@ export class StationService {
       return cached;
     }
 
-    const defaultPricelist = await this.stationPricelistRepository.findOne({
-      where: {
-        station: { id: stationId },
-        is_default: true,
-        status: StationPricelistStatus.ACTIVE
-      },
-      relations: ["pricelist"]
-    });
+    const defaultPricelist = await this.stationPricelistRepository
+      .createQueryBuilder("sp")
+      .leftJoinAndSelect("sp.station", "station")
+      .leftJoinAndSelect("sp.pricelist", "pricelist")
+      .where("sp.station_id = :stationId", { stationId })
+      .andWhere("sp.is_default = :isDefault", { isDefault: true })
+      .andWhere("sp.status = :spStatus", { spStatus: StationPricelistStatus.ACTIVE })
+      .getOne();
 
     if (!defaultPricelist) {
       cache.set(cacheKey, null);
@@ -502,11 +507,13 @@ export class StationService {
       return cached;
     }
 
-    const stationPricelists = await this.stationPricelistRepository.find({
-      where: { pricelist: { id: pricelistId } },
-      relations: ["station"],
-      order: { created_at: "ASC" }
-    });
+    const stationPricelists = await this.stationPricelistRepository
+      .createQueryBuilder("sp")
+      .leftJoinAndSelect("sp.station", "station")
+      .leftJoinAndSelect("sp.pricelist", "pricelist")
+      .where("sp.pricelist_id = :pricelistId", { pricelistId })
+      .orderBy("sp.created_at", "ASC")
+      .getMany();
 
     const result = stationPricelists.map(sp => ({
       id: sp.station.id,
