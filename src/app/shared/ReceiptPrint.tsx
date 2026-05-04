@@ -96,6 +96,14 @@ const THERMAL_RECEIPT_CSS = `
   }
 `;
 
+function formatReceiptDate(date: Date): string {
+    if (Number.isNaN(date.getTime())) return "";
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const yyyy = String(date.getFullYear());
+    return `${dd}/${mm}/${yyyy}`;
+}
+
 const ReceiptContent = ({
     bill,
     label,
@@ -117,7 +125,7 @@ const ReceiptContent = ({
 }) => {
     const b = branding ?? defaultReceiptBranding();
     const dateObj = bill.created_at ? new Date(bill.created_at) : new Date();
-    const dateStr = dateObj.toLocaleDateString();
+    const dateStr = formatReceiptDate(dateObj);
     const timeStr = dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const grossTotal = bill.bill_items?.reduce((sum: number, item: any) => sum + Number(item.subtotal), 0) || 0;
     const tax = grossTotal * 0.16;
