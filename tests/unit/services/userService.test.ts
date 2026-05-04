@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { UserService } from "@backend/service/UserService";
+import { UserStationStatus } from "@backend/entities/UserStation";
 import { cache } from "@backend/utils/cache";
 import {
   createMockDataSource,
@@ -11,6 +12,7 @@ describe("UserService", () => {
   let mockUserRepo: ReturnType<typeof createMockRepository>;
   let mockRoleRepo: ReturnType<typeof createMockRepository>;
   let mockUserStationRepo: ReturnType<typeof createMockRepository>;
+  let mockStationPricelistRepo: ReturnType<typeof createMockRepository>;
   let service: UserService;
 
   beforeEach(() => {
@@ -18,6 +20,12 @@ describe("UserService", () => {
     mockUserRepo = createMockRepository();
     mockRoleRepo = createMockRepository();
     mockUserStationRepo = createMockRepository();
+    mockStationPricelistRepo = createMockRepository();
+    mockUserRepo.manager.getRepository = vi.fn().mockImplementation((entity: string | { name?: string }) => {
+      const name = typeof entity === "string" ? entity : entity?.name;
+      if (name === "StationPricelist") return mockStationPricelistRepo;
+      return createMockRepository();
+    });
     const mockDs = createMockDataSource({
       User: mockUserRepo,
       Role: mockRoleRepo,
@@ -163,6 +171,49 @@ describe("UserService", () => {
       expect(result.id).toBe(1);
       expect(result.roles).toHaveLength(1);
       expect(result.permissions).toHaveLength(1);
+    });
+  });
+
+  describe("getUserWithRolesAndStations", () => {
+    it("loads user stations with user_id-based query builder and attaches default pricelist", async () => {
+      vi.spyOn(cache, "get").mockReturnValue(null);
+      mockUserRepo.findOne.mockResolvedValue({
+        id: 42,
+        username: "alice",
+        roles: [{ id: 1, name: "sales" }],
+        password: "secret",
+      });
+
+      const usQb = mockUserStationRepo.createQueryBuilder();
+      usQb.getMany.mockResolvedValue([
+        {
+          station: { id: 2, name: "Kitchen" },
+          isDefault: true,
+          status: UserStationStatus.ACTIVE,
+        },
+      ]);
+
+      const spQb = mockStationPricelistRepo.createQueryBuilder();
+      spQb.getMany.mockResolvedValue([
+        {
+          station: { id: 2 },
+          pricelist: { id: 9, name: "Menu A" },
+          status: "active",
+          is_default: true,
+        },
+      ]);
+
+      const result = await service.getUserWithRolesAndStations(42);
+
+      expect(usQb.where).toHaveBeenCalledWith("us.user_id = :userId", { userId: 42 });
+      expect(usQb.leftJoinAndSelect).toHaveBeenCalledWith("us.station", "station");
+      expect(spQb.where).toHaveBeenCalledWith("station.id IN (:...stationIds)", { stationIds: [2] });
+      expect(result.stations).toHaveLength(1);
+      expect(result.stations[0]).toMatchObject({
+        id: 2,
+        name: "Kitchen",
+        defaultPricelist: { id: 9, name: "Menu A" },
+      });
     });
   });
 });

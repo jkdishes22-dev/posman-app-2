@@ -85,7 +85,11 @@ export class RoleService {
 
   async assignRoleToUser(userId: number, roleId: number) {
     await this.userRoleRepository.delete({ user: { id: userId } });
-    const existing = await this.userRoleRepository.findOne({ where: { user: { id: userId }, role: { id: roleId } } });
+    const existing = await this.userRoleRepository
+      .createQueryBuilder("ur")
+      .where("ur.user_id = :userId", { userId })
+      .andWhere("ur.role_id = :roleId", { roleId })
+      .getOne();
     if (!existing) {
       const userRole = new UserRole();
       userRole.user = { id: userId } as any;

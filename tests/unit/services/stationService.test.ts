@@ -179,6 +179,52 @@ describe("StationService", () => {
     });
   });
 
+  describe("validateUserStationAccess", () => {
+    it("returns true when an active user_station row exists", async () => {
+      const qb = mockUserStationRepo.createQueryBuilder();
+      qb.getOne.mockResolvedValue({ id: 99 });
+
+      const result = await service.validateUserStationAccess(3, 10);
+
+      expect(result).toBe(true);
+      expect(mockUserStationRepo.createQueryBuilder).toHaveBeenCalledWith("us");
+      expect(qb.where).toHaveBeenCalledWith("us.user_id = :userId", { userId: 3 });
+      expect(qb.andWhere).toHaveBeenCalledWith("us.station_id = :stationId", { stationId: 10 });
+      expect(qb.andWhere).toHaveBeenCalledWith("us.status = :status", { status: UserStationStatus.ACTIVE });
+    });
+
+    it("returns false when no matching row", async () => {
+      const qb = mockUserStationRepo.createQueryBuilder();
+      qb.getOne.mockResolvedValue(null);
+
+      const result = await service.validateUserStationAccess(1, 2);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("addUserToStation", () => {
+    it("saves a new user_station when no existing link", async () => {
+      const qb = mockUserStationRepo.createQueryBuilder();
+      qb.getOne.mockResolvedValue(null);
+      mockUserStationRepo.create.mockReturnValue({});
+      mockUserStationRepo.save.mockResolvedValue({ id: 1 });
+
+      await service.addUserToStation(4, 7);
+
+      expect(qb.where).toHaveBeenCalledWith("us.station_id = :stationId", { stationId: 4 });
+      expect(qb.andWhere).toHaveBeenCalledWith("us.user_id = :userId", { userId: 7 });
+      expect(mockUserStationRepo.save).toHaveBeenCalled();
+    });
+
+    it("throws when user is already linked to the station", async () => {
+      const qb = mockUserStationRepo.createQueryBuilder();
+      qb.getOne.mockResolvedValue({ id: 1 });
+
+      await expect(service.addUserToStation(4, 7)).rejects.toThrow("already linked");
+    });
+  });
+
   describe("getAvailableUsers", () => {
     it("queries with sales, admin, and supervisor roles", async () => {
       mockAppDataSourceQuery.mockResolvedValue([]);
