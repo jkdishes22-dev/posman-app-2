@@ -316,11 +316,12 @@ export class UserService {
     });
     if (!user) throw new Error("User not found");
 
-    // Get stations for the user
-    const stations = await this.userStationRepository.find({
-      where: { user: { id: userId } },
-      relations: ["station"],
-    });
+    // Get stations for the user (FK-based QB — avoids bundled TypeORM find + nested where issues)
+    const stations = await this.userStationRepository
+      .createQueryBuilder("us")
+      .leftJoinAndSelect("us.station", "station")
+      .where("us.user_id = :userId", { userId })
+      .getMany();
 
     // Get default pricelists for each station using junction table
     const stationIds = stations.map(us => us.station.id);
@@ -452,12 +453,11 @@ export class UserService {
     const userId = typeof payload.user === "object" ? payload.user.id : payload.user;
     const stationId = typeof payload.station === "object" ? payload.station.id : payload.station;
 
-    const existingUserStation = await this.userStationRepository.findOne({
-      where: {
-        user: { id: userId },
-        station: { id: stationId },
-      },
-    });
+    const existingUserStation = await this.userStationRepository
+      .createQueryBuilder("us")
+      .where("us.user_id = :userId", { userId })
+      .andWhere("us.station_id = :stationId", { stationId })
+      .getOne();
 
     if (existingUserStation) {
       // If it exists but is inactive, reactivate it instead of creating duplicate
@@ -505,12 +505,11 @@ export class UserService {
         ) => any;
         save: (arg0: typeof UserStation, arg1: any) => any;
       }) => {
-        const existingStation = await this.userStationRepository.findOne({
-          where: {
-            user: { id: userStationRequest.user },
-            station: { id: userStationRequest.station },
-          },
-        });
+        const existingStation = await this.userStationRepository
+          .createQueryBuilder("us")
+          .where("us.user_id = :userId", { userId: userStationRequest.user })
+          .andWhere("us.station_id = :stationId", { stationId: userStationRequest.station })
+          .getOne();
 
         if (!existingStation) {
           throw new Error("User station not found");

@@ -253,13 +253,12 @@ export class StationService {
    * Validate if user can bill at station
    */
   async validateUserStationAccess(userId: number, stationId: number): Promise<boolean> {
-    const userStation = await this.userStationRepository.findOne({
-      where: {
-        user: { id: userId },
-        station: { id: stationId },
-        status: UserStationStatus.ACTIVE
-      }
-    });
+    const userStation = await this.userStationRepository
+      .createQueryBuilder("us")
+      .where("us.user_id = :userId", { userId })
+      .andWhere("us.station_id = :stationId", { stationId })
+      .andWhere("us.status = :status", { status: UserStationStatus.ACTIVE })
+      .getOne();
 
     return !!userStation;
   }
@@ -537,12 +536,11 @@ export class StationService {
    */
   async addUserToStation(stationId: number, userId: number): Promise<void> {
     // Check if user is already linked to this station
-    const existingLink = await this.userStationRepository.findOne({
-      where: {
-        station: { id: stationId },
-        user: { id: userId }
-      }
-    });
+    const existingLink = await this.userStationRepository
+      .createQueryBuilder("us")
+      .where("us.station_id = :stationId", { stationId })
+      .andWhere("us.user_id = :userId", { userId })
+      .getOne();
 
     if (existingLink) {
       throw new Error("User is already linked to this station");

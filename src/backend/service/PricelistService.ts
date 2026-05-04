@@ -359,10 +359,12 @@ export class PricelistService {
       return cached;
     }
 
-    const result = await this.pricelistRepository.findOne({
-      where: { id },
-      relations: ["stationPricelists", "stationPricelists.station"],
-    });
+    const result = await this.pricelistRepository
+      .createQueryBuilder("pricelist")
+      .leftJoinAndSelect("pricelist.stationPricelists", "sp")
+      .leftJoinAndSelect("sp.station", "station")
+      .where("pricelist.id = :id", { id })
+      .getOne();
 
     // Cache the result
     cache.set(cacheKey, result);
