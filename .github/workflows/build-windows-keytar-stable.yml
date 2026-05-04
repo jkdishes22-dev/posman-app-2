@@ -1,0 +1,188 @@
+name: Build Windows Installer (Keytar Stable)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number (e.g., 1.0.2)"
+        required: true
+        type: string
+      prerelease:
+        description: "Publish as prerelease"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build-and-release:
+    name: Build keytar-stable Windows installer and publish release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    env:
+      ELECTRON_VERSION: "39.2.7"
+      KEYTAR_STABLE_TAG: keytar-stable-v${{ inputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: "npm"
+
+      - name: Cache Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-cache-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', 'next.config.mjs') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-cache-${{ hashFiles('package-lock.json') }}-
+
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            %LOCALAPPDATA%\electron\Cache
+            %USERPROFILE%\.cache\electron-builder
+          key: ${{ runner.os }}-electron-x64-v39.2.7
+          restore-keys: |
+            ${{ runner.os }}-electron-x64-
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-22-modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci --legacy-peer-deps
+
+      - name: Create and push keytar-stable tag
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          $tag = "${{ env.KEYTAR_STABLE_TAG }}"
+          if (git rev-parse --verify --quiet "refs/tags/$tag") {
+            Write-Error "Tag $tag already exists. Use a new version."
+            exit 1
+          }
+          git tag -a $tag -m "Keytar stable build ${{ inputs.version }}"
+          git push origin "refs/tags/$tag"
+
+      - name: Build Next.js in standalone mode
+        run: npm run build
+        env:
+          ELECTRON_BUILD: "true"
+          NODE_ENV: "production"
+          DATABASE_URL: ${{ secrets.DATABASE_URL || '' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'build-token' }}
+
+      - name: Verify standalone build exists
+        run: |
+          if (-not (Test-Path ".next\standalone\server.js")) {
+            Write-Error "Standalone build not found"
+            exit 1
+          }
+          Write-Host "standalone/server.js found"
+
+      - name: Rebuild keytar for Electron win32 x64
+        shell: pwsh
+        run: |
+          Push-Location ".next/standalone"
+          if (-not (Test-Path "node_modules/keytar")) {
+            Write-Error "keytar not found in .next/standalone/node_modules"
+            exit 1
+          }
+          Remove-Item -Recurse -Force "node_modules/keytar/build" -ErrorAction SilentlyContinue
+          npx --yes @electron/rebuild --module-dir "." --only keytar --arch x64 --version $env:ELECTRON_VERSION --force
+          $keytarPath = "node_modules/keytar/build/Release/keytar.node"
+          if (-not (Test-Path $keytarPath)) {
+            Write-Error "keytar.node not found after rebuild"
+            exit 1
+          }
+          Write-Host "keytar rebuilt: $keytarPath"
+          Pop-Location
+
+      - name: Swap better-sqlite3 binary for Electron ABI
+        shell: pwsh
+        run: |
+          Push-Location ".next/standalone/node_modules/better-sqlite3"
+          Remove-Item -Recurse -Force "build" -ErrorAction SilentlyContinue
+          npx --yes prebuild-install --runtime electron --target 39.2.7 --arch x64 --platform win32 --tag-prefix v
+          Write-Host "better-sqlite3 binary swapped for Electron 39 target"
+          Pop-Location
+
+      - name: Print native module artifact info
+        shell: pwsh
+        run: |
+          $keytarPath = ".next/standalone/node_modules/keytar/build/Release/keytar.node"
+          $sqlitePath = ".next/standalone/node_modules/better-sqlite3/build/Release/better_sqlite3.node"
+          Get-Item $keytarPath | Select-Object FullName, Length, LastWriteTime
+          Get-Item $sqlitePath | Select-Object FullName, Length, LastWriteTime
+          Write-Host "Electron target: $env:ELECTRON_VERSION, architecture: x64"
+
+      - name: Decode signing certificate
+        shell: pwsh
+        run: |
+          $cert = "${{ secrets.WINDOWS_CERTIFICATE }}"
+          if ($cert) {
+            $bytes = [Convert]::FromBase64String($cert)
+            [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\cert.pfx", $bytes)
+            "CERT_PATH=$env:RUNNER_TEMP\cert.pfx" | Out-File -Append $env:GITHUB_ENV
+            Write-Host "✅ Certificate decoded — installer will be signed as 'JK PosMan'"
+          } else {
+            Write-Host "⚠️ No WINDOWS_CERTIFICATE secret — building unsigned"
+          }
+
+      - name: Build Windows NSIS Installer (x64)
+        run: npx electron-builder --win --x64 --config electron-builder.config.cjs --config.compression=store --config.npmRebuild=false --publish never
+        env:
+          NODE_ENV: "production"
+          BUILD_VERSION: ${{ env.KEYTAR_STABLE_TAG }}
+          GH_TOKEN: ""
+          CSC_LINK: ${{ env.CERT_PATH }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          ELECTRON_CACHE: "%LOCALAPPDATA%\\electron\\Cache"
+          ELECTRON_BUILDER_CACHE: "%USERPROFILE%\\.cache\\electron-builder"
+
+      - name: Verify installer was produced
+        shell: pwsh
+        run: |
+          $exes = Get-ChildItem -Path dist-electron -Filter *.exe -ErrorAction SilentlyContinue
+          if ($exes.Count -eq 0) {
+            Write-Error "No .exe found in dist-electron — build failed"
+            exit 1
+          }
+          foreach ($exe in $exes) {
+            Write-Host "Produced: $($exe.Name) ($([math]::Round($exe.Length / 1MB, 2)) MB)"
+          }
+
+      - name: Create GitHub release and attach installer
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.KEYTAR_STABLE_TAG }}
+          name: Keytar Stable ${{ env.KEYTAR_STABLE_TAG }}
+          files: |
+            dist-electron/*.exe
+            dist-electron/*.exe.blockmap
+          draft: false
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true
+          body: |
+            Keytar-stable Windows build.
+            - Channel: keytar-stable
+            - Tag: ${{ env.KEYTAR_STABLE_TAG }}
+            - Electron target: ${{ env.ELECTRON_VERSION }}
+            - Node build runtime: 22.x
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
