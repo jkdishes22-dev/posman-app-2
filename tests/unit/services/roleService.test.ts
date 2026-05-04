@@ -124,17 +124,22 @@ describe("RoleService", () => {
 
   describe("assignRoleToUser", () => {
     it("deletes all existing user roles before assigning new one", async () => {
-      mockUserRoleRepo.findOne.mockResolvedValue(null);
+      const qb = mockUserRoleRepo.createQueryBuilder();
+      qb.getOne.mockResolvedValue(null);
       mockUserRoleRepo.save.mockResolvedValue({});
 
       await service.assignRoleToUser(5, 2);
 
       expect(mockUserRoleRepo.delete).toHaveBeenCalledWith({ user: { id: 5 } });
+      expect(mockUserRoleRepo.createQueryBuilder).toHaveBeenCalledWith("ur");
+      expect(qb.where).toHaveBeenCalledWith("ur.user_id = :userId", { userId: 5 });
+      expect(qb.andWhere).toHaveBeenCalledWith("ur.role_id = :roleId", { roleId: 2 });
     });
 
     it("invalidates user-related caches after role assignment", async () => {
       const invalidateSpy = vi.spyOn(cache, "invalidate");
-      mockUserRoleRepo.findOne.mockResolvedValue(null);
+      const qb = mockUserRoleRepo.createQueryBuilder();
+      qb.getOne.mockResolvedValue(null);
       mockUserRoleRepo.save.mockResolvedValue({});
 
       await service.assignRoleToUser(5, 2);

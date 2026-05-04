@@ -71,6 +71,23 @@ describe("PricelistService", () => {
     });
   });
 
+  describe("getPricelistById", () => {
+    it("loads pricelist with stationPricelists and station via query builder", async () => {
+      vi.spyOn(cache, "get").mockReturnValue(null);
+      const pricelist = { id: 3, name: "Standard" };
+      const qb = mockPricelistRepo.createQueryBuilder();
+      qb.getOne.mockResolvedValue(pricelist);
+
+      const result = await service.getPricelistById(3);
+
+      expect(mockPricelistRepo.createQueryBuilder).toHaveBeenCalledWith("pricelist");
+      expect(qb.leftJoinAndSelect).toHaveBeenCalledWith("pricelist.stationPricelists", "sp");
+      expect(qb.leftJoinAndSelect).toHaveBeenCalledWith("sp.station", "station");
+      expect(qb.where).toHaveBeenCalledWith("pricelist.id = :id", { id: 3 });
+      expect(result).toBe(pricelist);
+    });
+  });
+
   describe("updatePricelistStatus", () => {
     it("updates pricelist status field", async () => {
       mockPricelistRepo.update.mockResolvedValue({ affected: 1 });
