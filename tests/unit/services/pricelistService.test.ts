@@ -127,7 +127,8 @@ describe("PricelistService", () => {
 
   describe("removeItemFromPricelist", () => {
     it("throws when item is not in pricelist", async () => {
-      mockPricelistItemRepo.delete.mockResolvedValue({ affected: 0 });
+      const qb = mockPricelistItemRepo.createQueryBuilder();
+      qb.execute.mockResolvedValue({ affected: 0 });
 
       await expect(service.removeItemFromPricelist(1, 99)).rejects.toThrow(
         "Item not found in this pricelist"
