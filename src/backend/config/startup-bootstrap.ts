@@ -1,5 +1,6 @@
 import { DataSource } from "typeorm";
 import { AppDataSource } from "@backend/config/data-source";
+import { assertSqliteQuickCheckOrThrow } from "@backend/utils/sqliteIntegrity";
 
 type SetupState =
   | "ready"
@@ -437,6 +438,7 @@ async function checkSqliteStatus(): Promise<SetupStatusPayload> {
     // expenses). Previously we only checked five tables and skipped runMigrations forever after
     // first boot, leaving DBs stuck at an old migration revision.
     await AppDataSource.runMigrations();
+    await assertSqliteQuickCheckOrThrow(AppDataSource);
     const requiredTables = ["user", "roles", "permissions", "user_roles", "role_permissions"];
     const placeholders = requiredTables.map(() => "?").join(",");
     const result = await AppDataSource.query(
@@ -457,6 +459,7 @@ async function runSqliteInitialization(): Promise<SetupStatusPayload> {
       await AppDataSource.initialize();
     }
     await AppDataSource.runMigrations();
+    await assertSqliteQuickCheckOrThrow(AppDataSource);
     await ensureBaselineData();
     return getReadyStatus();
   } catch (error: any) {

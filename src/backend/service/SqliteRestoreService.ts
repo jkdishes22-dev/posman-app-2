@@ -9,6 +9,7 @@ import {
   isLatestEligibleBackupFilename,
   resolveSafeBackupDatabasePath,
 } from "@backend/utils/sqliteBackupPaths";
+import { getSqliteQuickCheckResult } from "@backend/utils/sqliteIntegrity";
 
 export interface BackupListEntry {
   filename: string;
@@ -48,19 +49,7 @@ function copyMainAndMaybeWal(sourceDb: string, targetDb: string): void {
 
 async function runQuickCheck(): Promise<{ ok: boolean; message: string }> {
   const rows = await AppDataSource.query("PRAGMA quick_check");
-  if (!Array.isArray(rows) || rows.length === 0) {
-    return { ok: false, message: "PRAGMA quick_check returned no rows" };
-  }
-  for (const row of rows) {
-    const v =
-      (row as Record<string, unknown>).quick_check ??
-      (row as Record<string, unknown>).QUICK_CHECK ??
-      Object.values(row as Record<string, unknown>)[0];
-    if (v !== "ok") {
-      return { ok: false, message: String(v) };
-    }
-  }
-  return { ok: true, message: "ok" };
+  return getSqliteQuickCheckResult(rows);
 }
 
 export class SqliteRestoreService {
