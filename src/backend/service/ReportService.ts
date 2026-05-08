@@ -3,6 +3,8 @@ import { Bill, BillStatus } from "@backend/entities/Bill";
 import { BillItem, BillItemStatus } from "@backend/entities/BillItem";
 import { PurchaseOrder, PurchaseOrderStatus } from "@backend/entities/PurchaseOrder";
 import { PurchaseOrderItem } from "@backend/entities/PurchaseOrderItem";
+import { BillPayment } from "@backend/entities/BillPayment";
+import { Payment, PaymentType } from "@backend/entities/Payment";
 import { Item } from "@backend/entities/Item";
 import { User } from "@backend/entities/User";
 import { Supplier } from "@backend/entities/Supplier";
@@ -19,6 +21,13 @@ export interface ReportFilters {
   userId?: number;
   supplierId?: number;
   period?: "day" | "week" | "month" | "year";
+}
+
+export interface BillPaymentsReportFilters {
+  paymentType?: PaymentType;
+  reference?: string;
+  paymentDate?: Date;
+  userId?: number;
 }
 
 export interface SalesRevenueReportItem {
@@ -168,11 +177,28 @@ export interface ProductionSalesReconciliationReportItem {
   };
 }
 
+export interface BillPaymentReportItem {
+  billId: number;
+  billNumber: string;
+  paymentId: number;
+  paymentType: PaymentType;
+  amount: number;
+  reference: string | null;
+  paidAt: Date;
+  paymentDate: string;
+  billedBy?: {
+    id: number;
+    name: string;
+    username: string;
+  };
+}
+
 export class ReportService {
   private billRepository: Repository<Bill>;
   private billItemRepository: Repository<BillItem>;
   private purchaseOrderRepository: Repository<PurchaseOrder>;
   private purchaseOrderItemRepository: Repository<PurchaseOrderItem>;
+  private billPaymentRepository: Repository<BillPayment>;
   private itemRepository: Repository<Item>;
   private userRepository: Repository<User>;
   private supplierRepository: Repository<Supplier>;
@@ -183,6 +209,7 @@ export class ReportService {
     this.billItemRepository = dataSource.getRepository(BillItem);
     this.purchaseOrderRepository = dataSource.getRepository(PurchaseOrder);
     this.purchaseOrderItemRepository = dataSource.getRepository(PurchaseOrderItem);
+    this.billPaymentRepository = dataSource.getRepository(BillPayment);
     this.itemRepository = dataSource.getRepository(Item);
     this.userRepository = dataSource.getRepository(User);
     this.supplierRepository = dataSource.getRepository(Supplier);
@@ -355,6 +382,68 @@ export class ReportService {
     return Array.from(reportMap.values()).sort((a, b) => a.date.localeCompare(b.date));
   }
 
+  async getBillPaymentsReport(filters: BillPaymentsReportFilters): Promise<BillPaymentReportItem[]> {
+    const { paymentType, reference, paymentDate, userId } = filters;
+
+    let query = this.billPaymentRepository
+      .createQueryBuilder("billPayment")
+      .leftJoinAndSelect("billPayment.payment", "payment")
+      .leftJoinAndSelect("billPayment.bill", "bill")
+      .leftJoinAndSelect("bill.user", "user")
+      .orderBy("payment.paidAt", "DESC")
+      .addOrderBy("billPayment.id", "DESC");
+
+    if (paymentType) {
+      query = query.andWhere("payment.payment_type = :paymentType", { paymentType });
+    }
+
+    if (reference) {
+      query = query.andWhere("LOWER(COALESCE(payment.reference, '')) LIKE :reference", {
+        reference: `%${reference.trim().toLowerCase()}%`,
+      });
+    }
+
+    if (paymentDate) {
+      const start = new Date(paymentDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(paymentDate);
+      end.setHours(23, 59, 59, 999);
+      query = query
+        .andWhere("payment.paid_at >= :start", { start })
+        .andWhere("payment.paid_at <= :end", { end });
+    }
+
+    if (userId) {
+      query = query.andWhere("bill.user_id = :userId", { userId });
+    }
+
+    const rows = await query.getMany();
+    return rows
+      .filter((row) => !!row.payment && !!row.bill)
+      .map((row) => {
+        const fullName = row.bill.user
+          ? `${row.bill.user.firstName || ""} ${row.bill.user.lastName || ""}`.trim()
+          : "";
+        return {
+          billId: row.bill.id,
+          billNumber: row.bill.request_id || `BILL-${row.bill.id}`,
+          paymentId: row.payment.id,
+          paymentType: row.payment.paymentType,
+          amount: Number(row.payment.creditAmount) || 0,
+          reference: row.payment.reference || null,
+          paidAt: row.payment.paidAt,
+          paymentDate: reportPeriodBucketKey(new Date(row.payment.paidAt), "day"),
+          billedBy: row.bill.user
+            ? {
+                id: row.bill.user.id,
+                name: fullName || row.bill.user.username || `User #${row.bill.user.id}`,
+                username: row.bill.user.username,
+              }
+            : undefined,
+        };
+      });
+  }
+
   async getProductionStockRevenueReport(filters: ReportFilters): Promise<ProductionStockRevenueReportItem[]> {
     const { startDate, endDate, itemId, period } = filters;
 
@@ -491,6 +580,29 @@ export class ReportService {
       .createQueryBuilder("user")
       .innerJoin(Bill, "bill", "bill.user_id = user.id")
       .where("bill.status = :closed", { closed: BillStatus.CLOSED })
+      .select(["user.id", "user.firstName", "user.lastName", "user.username"])
+      .distinct(true)
+      .orderBy("user.firstName", "ASC")
+      .addOrderBy("user.lastName", "ASC")
+      .addOrderBy("user.username", "ASC")
+      .getMany();
+
+    return users.map((u) => ({
+      id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      username: u.username,
+    }));
+  }
+
+  async getBillPaymentUserOptions(): Promise<
+    Array<{ id: number; firstName: string; lastName: string; username: string }>
+  > {
+    const users = await this.userRepository
+      .createQueryBuilder("user")
+      .innerJoin(Bill, "bill", "bill.user_id = user.id")
+      .innerJoin(BillPayment, "bp", "bp.bill_id = bill.id")
+      .innerJoin(Payment, "payment", "payment.id = bp.payment_id")
       .select(["user.id", "user.firstName", "user.lastName", "user.username"])
       .distinct(true)
       .orderBy("user.firstName", "ASC")

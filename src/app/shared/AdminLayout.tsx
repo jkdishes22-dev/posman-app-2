@@ -184,6 +184,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           { label: "Reports", path: "/admin/reports" },
           { label: "Sales Revenue", path: "/admin/reports/sales-revenue" }
         ];
+      } else if (path.includes("/admin/reports/bill-payments")) {
+        activeItemId = "reports-bill-payments";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Reports", path: "/admin/reports" },
+          { label: "Bill Payments", path: "/admin/reports/bill-payments" }
+        ];
       } else if (path.includes("/admin/reports/production-stock-revenue")) {
         activeItemId = "reports-production-stock-revenue";
         breadcrumbItems = [
@@ -431,6 +438,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           label: "Sales Revenue",
           icon: "bi-currency-dollar",
           path: "/admin/reports/sales-revenue",
+        },
+        {
+          id: "reports-bill-payments",
+          label: "Bill Payments",
+          icon: "bi-receipt-cutoff",
+          path: "/admin/reports/bill-payments",
         },
         {
           id: "reports-production-stock-revenue",

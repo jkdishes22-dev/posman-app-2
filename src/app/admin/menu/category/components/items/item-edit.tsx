@@ -72,14 +72,24 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
 
   useEffect(() => {
     if (item) {
+      const itemAny = item as any;
+      const normalizedIsGroup =
+        itemAny.isGroup ?? itemAny.is_group ?? false;
+      const normalizedIsStock =
+        itemAny.isStock ?? itemAny.is_stock ?? false;
+      const normalizedAllowNegativeInventory =
+        itemAny.allowNegativeInventory ?? itemAny.allow_negative_inventory ?? false;
+      const normalizedPricelistId =
+        itemAny.pricelistId ?? itemAny.pricelist_id ?? null;
+
       const itemWithDefaults = {
         ...item,
-        isGroup: item.isGroup ?? false,
-        isStock: (item as any).isStock ?? false,
-        allowNegativeInventory: item.allowNegativeInventory ?? false,
+        isGroup: normalizedIsGroup,
+        isStock: normalizedIsStock,
+        allowNegativeInventory: normalizedAllowNegativeInventory,
       };
       setEditedItem(itemWithDefaults);
-      setPricelistId(item.pricelistId || null);
+      setPricelistId(normalizedPricelistId);
       setPricelistItemId(item.pricelistItemId);
       setCategoryId(item.category?.id || "");
       setError(null);

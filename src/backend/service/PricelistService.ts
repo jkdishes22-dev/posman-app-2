@@ -111,10 +111,13 @@ export class PricelistService {
           "pi.price AS price",
           "pi.currency AS currency",
           "pi.is_enabled AS isEnabled",
+          "pi.pricelist_id AS pricelist_id",
           "item.id AS item_id",
           "item.name AS item_name",
           "item.code AS item_code",
           "item.isGroup AS item_isGroup",
+          "item.isStock AS item_isStock",
+          "item.allowNegativeInventory AS item_allowNegativeInventory",
           "category.id AS category_id",
           "category.name AS category_name",
           "pricelist.name AS pricelist_name",
@@ -141,10 +144,13 @@ export class PricelistService {
             "pi.price AS price",
             "pi.currency AS currency",
             "pi.is_enabled AS isEnabled",
+            "pi.pricelist_id AS pricelist_id",
             "item.id AS item_id",
             "item.name AS item_name",
             "item.code AS item_code",
             "item.isGroup AS item_isGroup",
+            "item.isStock AS item_isStock",
+            "item.allowNegativeInventory AS item_allowNegativeInventory",
             "pricelist.name AS pricelist_name",
           ])
           .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) });
@@ -153,11 +159,25 @@ export class PricelistService {
         // Items found but not processed (fallback query)
       }
 
+      const toBoolean = (value: any): boolean =>
+        value === true ||
+        value === 1 ||
+        value === "1" ||
+        value === "true" ||
+        value === "TRUE";
+
       const mappedItems = rawItems.map((item) => ({
         id: item.item_id,
         name: item.item_name,
         code: item.item_code,
-        isGroup: Boolean(item.item_isGroup),
+        // Raw keys can differ by driver/build aliases; normalize all likely variants.
+        isGroup: toBoolean(item.item_isGroup ?? item.item_is_group ?? item.is_group),
+        isStock: toBoolean(item.item_isStock ?? item.item_is_stock ?? item.is_stock),
+        allowNegativeInventory: toBoolean(
+          item.item_allowNegativeInventory ??
+          item.item_allow_negative_inventory ??
+          item.allow_negative_inventory
+        ),
         category: item.category_id ? {
           id: item.category_id,
           name: item.category_name,
@@ -165,6 +185,7 @@ export class PricelistService {
         price: item.price,
         currency: item.currency,
         pricelistItemId: item.pricelistItemId,
+        pricelistId: item.pricelist_id ? Number(item.pricelist_id) : undefined,
         pricelistName: item.pricelist_name,
       }));
 

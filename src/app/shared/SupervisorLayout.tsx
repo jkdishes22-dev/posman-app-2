@@ -77,6 +77,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             { path: "/admin/reports", item: "reports-dashboard" },
             { path: "/admin/reports/", item: "reports-dashboard" },
             { path: "/admin/reports/sales-revenue", item: "reports-sales-revenue" },
+            { path: "/admin/reports/bill-payments", item: "reports-bill-payments" },
             { path: "/admin/reports/production-stock-revenue", item: "reports-production-stock-revenue" },
             { path: "/admin/reports/items-sold-count", item: "reports-items-sold-count" },
             { path: "/admin/reports/voided-items", item: "reports-voided-items" },
@@ -182,6 +183,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     { label: "Dashboard", path: "/supervisor" },
                     { label: "Reports", path: "/admin/reports" },
                     { label: "Sales Revenue", path: "/admin/reports/sales-revenue" }
+                ];
+            } else if (path.includes("/admin/reports/bill-payments")) {
+                breadcrumbItems = [
+                    { label: "Dashboard", path: "/supervisor" },
+                    { label: "Reports", path: "/admin/reports" },
+                    { label: "Bill Payments", path: "/admin/reports/bill-payments" }
                 ];
             } else if (path.includes("/admin/reports/production-stock-revenue")) {
                 breadcrumbItems = [
@@ -447,6 +454,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     label: "Sales Revenue",
                     icon: "bi-graph-up",
                     path: "/admin/reports/sales-revenue",
+                },
+                {
+                    id: "reports-bill-payments",
+                    label: "Bill Payments",
+                    icon: "bi-receipt-cutoff",
+                    path: "/admin/reports/bill-payments",
                 },
             ],
         },

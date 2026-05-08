@@ -59,9 +59,7 @@ export const closeConnection = async (): Promise<void> => {
  */
 export const suspendDatabaseForFileOperations = async (): Promise<void> => {
   const { clearDbMiddlewareCache } = await import("@backend/middleware/dbMiddleware");
-  const { invalidateAuthUserDetailsCache } = await import("@backend/middleware/auth");
   clearDbMiddlewareCache();
-  invalidateAuthUserDetailsCache();
   await closeConnection();
 };
 

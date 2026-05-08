@@ -16,6 +16,14 @@ interface ReportCard {
 
 const reportCards: ReportCard[] = [
   {
+    id: "bill-payments",
+    title: "Bill Payments",
+    description: "List all bill payments with payment type, reference, and date filters",
+    icon: "bi-receipt-cutoff",
+    path: "/admin/reports/bill-payments",
+    color: "success"
+  },
+  {
     id: "pnl",
     title: "Profit & Loss",
     description: "Comprehensive P&L analysis with actual and projected revenue",
