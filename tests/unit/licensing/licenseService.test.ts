@@ -7,22 +7,14 @@ import { licenseService } from "@backend/licensing/LicenseService";
 
 const keytarStore = new Map<string, string>();
 
-vi.mock("keytar", () => {
-  const getPassword = vi.fn(async (service: string, account: string) => {
+const mockKeytarClient = {
+  getPassword: vi.fn(async (service: string, account: string) => {
     return keytarStore.get(`${service}:${account}`) ?? null;
-  });
-  const setPassword = vi.fn(async (service: string, account: string, value: string) => {
+  }),
+  setPassword: vi.fn(async (service: string, account: string, value: string) => {
     keytarStore.set(`${service}:${account}`, value);
-  });
-  return {
-    default: {
-      getPassword,
-      setPassword,
-    },
-    getPassword,
-    setPassword,
-  };
-});
+  }),
+};
 
 function makeSignedCode(
   payload: Record<string, any>,
@@ -47,6 +39,8 @@ describe("LicenseService", () => {
 
   beforeEach(() => {
     keytarStore.clear();
+    mockKeytarClient.getPassword.mockClear();
+    mockKeytarClient.setPassword.mockClear();
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "posman-license-test-"));
     licensePath = path.join(tempDir, "license.dat");
     const keyPair = crypto.generateKeyPairSync("ed25519", {
@@ -60,6 +54,10 @@ describe("LicenseService", () => {
     process.env.LICENSE_ENFORCEMENT = "1";
     process.env.LICENSE_CERT_PATH = licensePath;
     process.env.LICENSE_PUBLIC_KEY = publicKey;
+
+    vi.spyOn(licenseService as any, "getKeytarClient").mockResolvedValue(
+      mockKeytarClient as any,
+    );
   });
 
   it("returns license_required when no stored certificate exists", async () => {
