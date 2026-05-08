@@ -47,11 +47,35 @@ export const getConnection = async (): Promise<DataSource> => {
 };
 
 export const closeConnection = async (): Promise<void> => {
-  if (connectionInstance && connectionInstance.isInitialized) {
-    await connectionInstance.destroy();
-    connectionInstance = null;
+  if (AppDataSource.isInitialized) {
+    await AppDataSource.destroy();
     console.log("Database connection closed");
   }
+  connectionInstance = null;
+};
+
+/**
+ * Close TypeORM + clear Next API route connection cache. Use before replacing the SQLite file on disk.
+ */
+export const suspendDatabaseForFileOperations = async (): Promise<void> => {
+  const { clearDbMiddlewareCache } = await import("@backend/middleware/dbMiddleware");
+  const { invalidateAuthUserDetailsCache } = await import("@backend/middleware/auth");
+  clearDbMiddlewareCache();
+  invalidateAuthUserDetailsCache();
+  await closeConnection();
+};
+
+/**
+ * Re-open DB after file swap: startup checks, initialize, migrations.
+ */
+export const resumeDatabaseAfterFileOperations = async (): Promise<void> => {
+  const { ensureStartupReadyForRequest } = await import("./startup-bootstrap");
+  await ensureStartupReadyForRequest();
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize();
+  }
+  await AppDataSource.runMigrations();
+  connectionInstance = AppDataSource;
 };
 
 // Graceful shutdown handler - only set up if process.on exists (Node.js environment)

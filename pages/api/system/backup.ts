@@ -12,7 +12,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         return res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 
-    return authorize([permissions.CAN_VIEW_PERMISSION])(async (request: NextApiRequest, response: NextApiResponse) => {
+    return authorize([permissions.CAN_EDIT_SYSTEM_SETTINGS])(async (request: NextApiRequest, response: NextApiResponse) => {
             try {
                 const dbPath = process.env.SQLITE_DB_PATH;
                 if (!dbPath) {

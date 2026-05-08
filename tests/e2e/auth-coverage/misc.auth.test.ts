@@ -34,7 +34,7 @@ const permissionCases = [
   { name: "GET /api/items/sellable", method: "GET", handler: sellableItemsHandler, wrong: () => salesToken, ok: () => storekeeperToken, forbiddenMode: "auth-gated" as const },
   { name: "GET /api/items/suppliable", method: "GET", handler: suppliableItemsHandler, wrong: () => salesToken, ok: () => storekeeperToken, forbiddenMode: "auth-gated" as const },
   { name: "POST /api/payments/check-reference", method: "POST", handler: checkReferenceHandler, body: { reference: "AUTH-REF", billId: 1 }, wrong: () => storekeeperToken, ok: () => salesToken },
-  { name: "GET /api/system/backup", method: "GET", handler: systemBackupHandler, wrong: () => salesToken, ok: () => adminToken, forbiddenMode: "auth-gated" as const },
+  { name: "POST /api/system/backup", method: "POST", handler: systemBackupHandler, wrong: () => salesToken, ok: () => adminToken, forbiddenMode: "auth-gated" as const },
 ];
 
 describe("Misc API permission auth coverage", () => {

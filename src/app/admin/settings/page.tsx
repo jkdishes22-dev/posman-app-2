@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
-import { Card, Button, Alert, Spinner, Form, Badge, Row, Col, Table } from "react-bootstrap";
+import { Card, Button, Alert, Spinner, Form, Badge, Row, Col, Table, Modal } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
+import type { ApiErrorResponse } from "../../utils/errorUtils";
+import ErrorDisplay from "../../components/ErrorDisplay";
 import { normalizePrinterSettings, toPrinterSettingsPayload } from "../../shared/printerSettings";
 import type {
     OrganisationSettingsValue,
@@ -30,6 +32,18 @@ interface BillSettings {
 interface DbBackupSettings {
     frequency: "daily" | "weekly" | "manual";
 }
+
+interface BackupListEntry {
+    filename: string;
+    size: number;
+    mtimeMs: number;
+}
+
+type RestoreConfirm =
+    | null
+    | "latest"
+    | { kind: "upload"; file: File }
+    | { kind: "list"; filename: string };
 
 interface LicenseStatus {
     state: "ready" | "license_required" | "license_expired" | "license_invalid";
@@ -91,6 +105,44 @@ export default function AdminSettingsPage() {
     const [dbBackupSaving, setDbBackupSaving] = useState(false);
     const [dbBackupResult, setDbBackupResult] = useState<{ success: boolean; error?: string } | null>(null);
 
+    const [backups, setBackups] = useState<BackupListEntry[]>([]);
+    const [sqliteRestoreAvailable, setSqliteRestoreAvailable] = useState<boolean | null>(null);
+    const [backupsLoading, setBackupsLoading] = useState(false);
+    const [restoreConfirm, setRestoreConfirm] = useState<RestoreConfirm>(null);
+    const [restoreBusy, setRestoreBusy] = useState(false);
+    const [restoreError, setRestoreError] = useState<string | null>(null);
+    const [restoreErrorDetails, setRestoreErrorDetails] = useState<ApiErrorResponse | null>(null);
+    const [restoreSuccessMessage, setRestoreSuccessMessage] = useState<string | null>(null);
+    const [selectedBackupFilename, setSelectedBackupFilename] = useState("");
+    const fileRestoreInputRef = useRef<HTMLInputElement>(null);
+
+    const clearRestoreErrors = () => {
+        setRestoreError(null);
+        setRestoreErrorDetails(null);
+    };
+
+    const loadBackups = async () => {
+        setBackupsLoading(true);
+        clearRestoreErrors();
+        try {
+            const res = await apiCall("/api/system/restore");
+            if (res.status === 200 && Array.isArray(res.data?.backups)) {
+                setSqliteRestoreAvailable(true);
+                setBackups(res.data.backups);
+            } else {
+                setSqliteRestoreAvailable(false);
+                setBackups([]);
+            }
+        } catch {
+            setSqliteRestoreAvailable(false);
+            setBackups([]);
+            setRestoreError("Network error occurred");
+            setRestoreErrorDetails({ networkError: true, status: 0, message: "Network error occurred" });
+        } finally {
+            setBackupsLoading(false);
+        }
+    };
+
     // Log settings
     const [logRetentionDays, setLogRetentionDays] = useState(14);
     const [logRetentionInput, setLogRetentionInput] = useState("14");
@@ -147,6 +199,9 @@ export default function AdminSettingsPage() {
         if (electronAPI?.getPrinters) {
             electronAPI.getPrinters().then((list: PrinterInfo[]) => setPrinters(list || []));
         }
+
+        void loadBackups();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- initial settings + backup list load
     }, []);
 
     const handleSavePrinterSettings = async () => {
@@ -227,6 +282,7 @@ export default function AdminSettingsPage() {
             const result = await apiCall("/api/system/backup", { method: "POST" });
             if (result.status === 200 && result.data?.success) {
                 setBackupResult({ success: true, path: result.data.path });
+                await loadBackups();
             } else {
                 setBackupResult({ success: false, error: result.error || "Backup failed" });
             }
@@ -234,6 +290,89 @@ export default function AdminSettingsPage() {
             setBackupResult({ success: false, error: "Network error occurred" });
         } finally {
             setBackupLoading(false);
+        }
+    };
+
+    const executeRestoreLatest = async () => {
+        setRestoreBusy(true);
+        clearRestoreErrors();
+        setRestoreSuccessMessage(null);
+        try {
+            const result = await apiCall("/api/system/restore", {
+                method: "POST",
+                body: JSON.stringify({ mode: "latest" }),
+            });
+            if (result.status === 200 && result.data?.success) {
+                setRestoreConfirm(null);
+                setRestoreSuccessMessage(result.data.message || "Database restored.");
+                window.setTimeout(() => {
+                    window.location.reload();
+                }, 800);
+            } else {
+                setRestoreError(result.error || "Restore failed");
+                setRestoreErrorDetails(result.errorDetails ?? { status: result.status, message: result.error || "" });
+            }
+        } catch {
+            setRestoreError("Network error occurred");
+            setRestoreErrorDetails({ networkError: true, status: 0, message: "Network error occurred" });
+        } finally {
+            setRestoreBusy(false);
+        }
+    };
+
+    const executeRestoreFromBackup = async (filename: string) => {
+        setRestoreBusy(true);
+        clearRestoreErrors();
+        setRestoreSuccessMessage(null);
+        try {
+            const result = await apiCall("/api/system/restore", {
+                method: "POST",
+                body: JSON.stringify({ mode: "from_backup", filename }),
+            });
+            if (result.status === 200 && result.data?.success) {
+                setRestoreConfirm(null);
+                setRestoreSuccessMessage(result.data.message || "Database restored.");
+                window.setTimeout(() => {
+                    window.location.reload();
+                }, 800);
+            } else {
+                setRestoreError(result.error || "Restore failed");
+                setRestoreErrorDetails(result.errorDetails ?? { status: result.status, message: result.error || "" });
+            }
+        } catch {
+            setRestoreError("Network error occurred");
+            setRestoreErrorDetails({ networkError: true, status: 0, message: "Network error occurred" });
+        } finally {
+            setRestoreBusy(false);
+        }
+    };
+
+    const executeRestoreUpload = async (file: File) => {
+        setRestoreBusy(true);
+        clearRestoreErrors();
+        setRestoreSuccessMessage(null);
+        const fd = new FormData();
+        fd.append("file", file);
+        try {
+            const result = await apiCall("/api/system/restore-upload", {
+                method: "POST",
+                body: fd,
+            });
+            if (result.status === 200 && result.data?.success) {
+                setRestoreConfirm(null);
+                setRestoreSuccessMessage(result.data.message || "Database restored.");
+                window.setTimeout(() => {
+                    window.location.reload();
+                }, 800);
+            } else {
+                setRestoreError(result.error || "Restore failed");
+                setRestoreErrorDetails(result.errorDetails ?? { status: result.status, message: result.error || "" });
+            }
+        } catch {
+            setRestoreError("Network error occurred");
+            setRestoreErrorDetails({ networkError: true, status: 0, message: "Network error occurred" });
+        } finally {
+            setRestoreBusy(false);
         }
     };
 
@@ -609,6 +748,8 @@ export default function AdminSettingsPage() {
                                 <h6 className="fw-bold mb-3">Database Backup</h6>
                                 <p className="text-muted small mb-3">
                                     Backups are stored alongside the database file. A backup is also created automatically on the first daily launch.
+                                    {" "}
+                                    <Link href="/help/admin">Admin Help</Link> explains restore options and manual recovery.
                                 </p>
                                 <Form.Group className="mb-3">
                                     <Form.Label className="fw-medium small">Automatic backup frequency</Form.Label>
@@ -632,6 +773,85 @@ export default function AdminSettingsPage() {
                                             <><strong>Backup created.</strong>{backupResult.path && <div className="small mt-1 font-monospace">{backupResult.path}</div>}</>
                                         ) : backupResult.error}
                                     </Alert>
+                                )}
+                                {restoreSuccessMessage && (
+                                    <Alert variant="success" className="mb-3">{restoreSuccessMessage}</Alert>
+                                )}
+                                <ErrorDisplay
+                                    error={restoreError}
+                                    errorDetails={restoreErrorDetails}
+                                    onDismiss={clearRestoreErrors}
+                                />
+                                {sqliteRestoreAvailable === true && (
+                                    <div className="mb-3 p-3 border rounded bg-light">
+                                        <div className="fw-medium small mb-2">Restore (SQLite desktop)</div>
+                                        <p className="text-muted small mb-2">
+                                            Restoring replaces the live database. Create a backup first. You may need to sign in again afterward.
+                                        </p>
+                                        <input
+                                            ref={fileRestoreInputRef}
+                                            type="file"
+                                            accept=".db,application/octet-stream"
+                                            className="d-none"
+                                            onChange={(e) => {
+                                                const f = e.target.files?.[0];
+                                                e.target.value = "";
+                                                if (f) setRestoreConfirm({ kind: "upload", file: f });
+                                            }}
+                                        />
+                                        <div className="d-flex flex-wrap gap-2 mb-2">
+                                            <Button
+                                                variant="outline-danger"
+                                                size="sm"
+                                                disabled={restoreBusy || backupsLoading}
+                                                onClick={() => setRestoreConfirm("latest")}
+                                            >
+                                                Restore latest backup
+                                            </Button>
+                                            <Button
+                                                variant="outline-danger"
+                                                size="sm"
+                                                disabled={restoreBusy}
+                                                onClick={() => fileRestoreInputRef.current?.click()}
+                                            >
+                                                Restore from file…
+                                            </Button>
+                                            <Button variant="outline-secondary" size="sm" disabled={backupsLoading} onClick={() => loadBackups()}>
+                                                {backupsLoading ? <Spinner animation="border" size="sm" /> : "Refresh backup list"}
+                                            </Button>
+                                        </div>
+                                        <Form.Group className="mb-2">
+                                            <Form.Label className="small text-muted mb-1">Or choose a backup on this computer</Form.Label>
+                                            <div className="d-flex gap-2 flex-wrap align-items-center">
+                                                <Form.Select
+                                                    size="sm"
+                                                    style={{ maxWidth: "16rem" }}
+                                                    value={selectedBackupFilename}
+                                                    onChange={(e) => setSelectedBackupFilename(e.target.value)}
+                                                >
+                                                    <option value="">Select backup…</option>
+                                                    {backups.map((b) => (
+                                                        <option key={b.filename} value={b.filename}>
+                                                            {b.filename} ({(b.size / 1024).toFixed(0)} KB)
+                                                        </option>
+                                                    ))}
+                                                </Form.Select>
+                                                <Button
+                                                    variant="danger"
+                                                    size="sm"
+                                                    disabled={restoreBusy || !selectedBackupFilename}
+                                                    onClick={() =>
+                                                        setRestoreConfirm({ kind: "list", filename: selectedBackupFilename })
+                                                    }
+                                                >
+                                                    Restore selected
+                                                </Button>
+                                            </div>
+                                        </Form.Group>
+                                    </div>
+                                )}
+                                {sqliteRestoreAvailable === false && (
+                                    <p className="text-muted small mb-3">Database restore from this screen is only available when the app runs in SQLite mode (desktop).</p>
                                 )}
                                 <div className="d-flex gap-2">
                                     <Button variant="outline-secondary" onClick={handleBackupNow} disabled={backupLoading}>
@@ -685,6 +905,51 @@ export default function AdminSettingsPage() {
 
                     </Card.Body>
                 </Card>
+
+                <Modal show={restoreConfirm !== null} onHide={() => !restoreBusy && setRestoreConfirm(null)} centered>
+                    <Modal.Header closeButton={!restoreBusy}>
+                        <Modal.Title>Confirm database restore</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        {restoreConfirm === "latest" && (
+                            <p className="mb-0">
+                                Replace the live database with the <strong>newest</strong> automatic backup in the backups folder.
+                                This cannot be undone except by restoring another backup. Active users may need to sign in again.
+                            </p>
+                        )}
+                        {restoreConfirm && typeof restoreConfirm === "object" && restoreConfirm.kind === "upload" && (
+                            <p className="mb-0">
+                                Replace the live database with <strong className="font-monospace">{restoreConfirm.file.name}</strong>.
+                                Only use a SQLite file you trust (for example from this application&apos;s backup). You may need to sign in again.
+                            </p>
+                        )}
+                        {restoreConfirm && typeof restoreConfirm === "object" && restoreConfirm.kind === "list" && (
+                            <p className="mb-0">
+                                Replace the live database with <strong className="font-monospace">{restoreConfirm.filename}</strong>.
+                                You may need to sign in again.
+                            </p>
+                        )}
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button variant="secondary" disabled={restoreBusy} onClick={() => setRestoreConfirm(null)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="danger"
+                            disabled={restoreBusy}
+                            onClick={() => {
+                                if (restoreConfirm === "latest") void executeRestoreLatest();
+                                else if (restoreConfirm && typeof restoreConfirm === "object" && restoreConfirm.kind === "upload") {
+                                    void executeRestoreUpload(restoreConfirm.file);
+                                } else if (restoreConfirm && typeof restoreConfirm === "object" && restoreConfirm.kind === "list") {
+                                    void executeRestoreFromBackup(restoreConfirm.filename);
+                                }
+                            }}
+                        >
+                            {restoreBusy ? <><Spinner animation="border" size="sm" className="me-1" />Restoring…</> : "Restore now"}
+                        </Button>
+                    </Modal.Footer>
+                </Modal>
             </div>
         </RoleAwareLayout>
     );

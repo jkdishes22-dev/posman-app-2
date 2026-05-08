@@ -12,6 +12,11 @@ declare module "next" {
 // Global connection cache
 let cachedConnection: DataSource | null = null;
 
+/** Clears cached connection so the next request opens a fresh DataSource (e.g. after SQLite file restore). */
+export const clearDbMiddlewareCache = (): void => {
+  cachedConnection = null;
+};
+
 export const dbMiddleware = (handler) => {
   return async (req: NextApiRequest, res: NextApiResponse) => {
     try {

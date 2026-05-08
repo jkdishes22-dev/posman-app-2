@@ -366,10 +366,11 @@ export default function AdminHelpPage() {
             ],
         },
         {
-            title: "Back Up the Database",
+            title: "Back up and restore the database (SQLite)",
             icon: "bi-database",
             prerequisites: [
                 { description: "You are logged in as Admin" },
+                { description: "Desktop app using SQLite (restore controls only appear in this mode)" },
             ],
             steps: [
                 {
@@ -379,24 +380,39 @@ export default function AdminHelpPage() {
                     ],
                 },
                 {
-                    description: "Find the 'Backup Database' button and click it",
+                    description: "Create a backup before any restore",
                     details: [
-                        "A confirmation prompt will appear",
+                        "In the Database Backup section, click 'Backup Now'",
+                        "Backups are stored under the same folder as your live database, in a subfolder named backups",
+                        "On Windows, user data is typically under %APPDATA%\\JK PosMan\\ (see the application log for the exact 'User data' path at startup)",
                     ],
                 },
                 {
-                    description: "Confirm the backup",
+                    description: "Restore from the app (recommended)",
                     details: [
-                        "Click 'Confirm' to start the backup",
-                        "The backup file is saved automatically to the userData/backups/ folder on this machine",
-                        "A success message will confirm the backup completed",
+                        "Restore latest backup — replaces the live database with the newest posman-backup-*.db file; no need to open File Explorer",
+                        "Restore from file — choose a .db file from USB or another location; only the main .db file is required (you do not need separate WAL/SHM files)",
+                        "Or pick a specific backup from the dropdown and click 'Restore selected'",
+                        "Read the confirmation carefully, then confirm; you may need to sign in again afterward",
+                    ],
+                },
+                {
+                    description: "If restore from the app does not work (manual fallback)",
+                    details: [
+                        "Quit JK PosMan completely (including the system tray) so the database file is not in use",
+                        "Open your userData folder (same folder as posman.db)",
+                        "Copy the current posman.db (and posman.db-wal / posman.db-shm if they exist) to a safe place as an emergency copy",
+                        "Copy your chosen backup .db over posman.db",
+                        "If your backup included a matching file named like posman-backup-… .db-wal, copy it to posman.db-wal; otherwise delete stale posman.db-wal and posman.db-shm so SQLite does not mix old WAL with the restored file",
+                        "Start the app again; migrations run automatically on startup",
+                        "If problems continue, put your emergency copy back, then use Admin > Application log viewer for details",
                     ],
                 },
                 {
                     description: "Note on automatic backups",
                     details: [
-                        "The system also runs an automatic daily backup without any manual action",
-                        "Manual backup is recommended before major configuration changes (e.g., bulk pricelist updates, role changes)",
+                        "The system can run automatic backups on a schedule you set in Settings",
+                        "Take a manual backup before major configuration changes (for example bulk pricelist updates or role changes)",
                     ],
                 },
             ],
@@ -671,7 +687,7 @@ export default function AdminHelpPage() {
                                     <li className="mb-2">
                                         <a href="/admin/settings" className="text-decoration-none">
                                             <i className="bi bi-gear me-2"></i>
-                                            System Settings &amp; Backup
+                                            System Settings — backup, restore, logs
                                         </a>
                                     </li>
                                 </ul>
