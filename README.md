@@ -110,6 +110,22 @@ yarn dev
 
 The application will be available at [http://localhost:3000](http://localhost:3000).
 
+### License behavior (dev vs prod)
+
+- **Development (`npm run dev`)**: license enforcement should be disabled.
+- **Production (`npm run build && npm run start`)**: license enforcement is enabled.
+- Override with env when needed:
+
+```bash
+# Force no license checks (local/dev troubleshooting)
+LICENSE_ENFORCEMENT=0 npm run dev
+
+# Force license checks (staging/prod validation)
+LICENSE_ENFORCEMENT=1 npm run start
+```
+
+- Electron packaged runtime is aligned to this behavior: packaged app defaults to enforcing license, while local development remains non-enforcing unless explicitly overridden.
+
 ### Type Checking
 
 Run TypeScript compiler to check for type errors:
@@ -158,6 +174,8 @@ The production build includes:
 This application can be packaged as a Windows x64 desktop application using Electron. The build can be run locally on macOS or Linux (cross-compilation) or via GitHub Actions.
 
 **Supported Windows versions:** Windows 10 and Windows 11 (x64).
+
+**Operator handbook (licensing, desktop deploy, backup/restore, CI/logs):** see [`operator-handbook.md`](operator-handbook.md). The short [`license.md`](license.md) file only redirects there.
 
 ### Local build on macOS (cross-compilation)
 
@@ -275,12 +293,12 @@ The workflow will build and attach the installer to a GitHub Release automatical
 If the app fails to launch on Windows, check logs at:
 
 ```
-%LOCALAPPDATA%\JK PosMan\logs\
+%APPDATA%\JK PosMan\logs\
 ```
 
 Via PowerShell:
 ```powershell
-cd $env:LOCALAPPDATA\JK PosMan\logs
+cd $env:APPDATA\JK PosMan\logs
 Get-Content (Get-ChildItem -Filter "app-*.log" | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
 ```
 

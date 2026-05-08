@@ -15,8 +15,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "GET") {
     return authorize([permissions.CAN_EDIT_SYSTEM_SETTINGS])(async (_req, response) => {
       try {
+        const rawLimit = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+        const parsedLimit = rawLimit ? Number.parseInt(String(rawLimit), 10) : undefined;
+        const limit = Number.isFinite(parsedLimit) && parsedLimit! > 0 ? parsedLimit : undefined;
         const backups = SqliteRestoreService.listBackups();
-        return response.status(200).json({ backups });
+        const limitedBackups = typeof limit === "number" ? backups.slice(0, limit) : backups;
+        return response.status(200).json({ backups: limitedBackups });
       } catch (error: unknown) {
         const { userMessage, errorCode } = handleApiError(error, {
           operation: "fetching",

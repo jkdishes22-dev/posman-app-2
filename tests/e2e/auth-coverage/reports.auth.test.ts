@@ -9,6 +9,8 @@ import invoicesPendingHandler from "../../../pages/api/reports/invoices-pending-
 import purchaseOrdersReportHandler from "../../../pages/api/reports/purchase-orders.js";
 import pnlHandler from "../../../pages/api/reports/pnl.js";
 import productionSalesReconHandler from "../../../pages/api/reports/production-sales-reconciliation.js";
+import billPaymentsHandler from "../../../pages/api/reports/bill-payments.js";
+import billPaymentsUsersHandler from "../../../pages/api/reports/bill-payments-users.js";
 import { getCashierToken, getSalesToken } from "../setup/helpers.js";
 import { assert401, assert403, assertAllowed } from "./utils.js";
 
@@ -31,6 +33,8 @@ const reportCases = [
   { name: "GET /api/reports/purchase-orders", method: "GET", handler: purchaseOrdersReportHandler, wrong: () => salesToken, ok: () => cashierToken },
   { name: "GET /api/reports/pnl", method: "GET", handler: pnlHandler, wrong: () => salesToken, ok: () => cashierToken },
   { name: "GET /api/reports/production-sales-reconciliation", method: "GET", handler: productionSalesReconHandler, wrong: () => salesToken, ok: () => cashierToken },
+  { name: "GET /api/reports/bill-payments", method: "GET", handler: billPaymentsHandler, wrong: () => salesToken, ok: () => cashierToken, forbiddenMode: "auth-gated" as const },
+  { name: "GET /api/reports/bill-payments-users", method: "GET", handler: billPaymentsUsersHandler, wrong: () => salesToken, ok: () => cashierToken, forbiddenMode: "auth-gated" as const },
 ];
 
 describe("Reports API auth coverage", () => {

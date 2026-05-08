@@ -280,6 +280,11 @@ function startNextServer() {
             PORT: PORT.toString(),
             HOST: HOST,
             NODE_ENV: "production",
+            // Explicit runtime license behavior:
+            // - packaged/prod app enforces license unless overridden externally
+            LICENSE_ENFORCEMENT:
+                process.env.LICENSE_ENFORCEMENT ||
+                (isProduction ? "1" : "0"),
             DB_MODE: process.env.DB_MODE || "sqlite",
             // For SQLite: store DB file in user data directory so it persists across app updates
             SQLITE_DB_PATH: path.join(app.getPath("userData"), "posman.db"),

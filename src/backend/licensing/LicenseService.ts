@@ -70,8 +70,9 @@ class LicenseService {
     }
 
     try {
-      // Lazy-load to avoid module-load crashes when native binary is missing/incompatible.
-      const loaded = (await import("keytar")) as any;
+      // Runtime-load keytar only on server execution path; avoid bundler resolving native .node in dev.
+      const runtimeRequire = eval("require") as NodeRequire;
+      const loaded = runtimeRequire("keytar") as any;
       const client = (loaded?.default || loaded) as KeytarClient;
       if (
         !client ||

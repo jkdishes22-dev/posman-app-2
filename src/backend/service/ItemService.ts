@@ -100,13 +100,25 @@ export class ItemService {
 
     const items = await query.getRawMany();
 
+    const toBoolean = (value: any): boolean =>
+      value === true ||
+      value === 1 ||
+      value === "1" ||
+      value === "true" ||
+      value === "TRUE";
+
     const result = items.map((item) => ({
       id: item.item_id,
       name: item.item_name,
       code: item.item_code,
-      isGroup: Boolean(item.item_isGroup),
-      isStock: Boolean(item.item_isStock),
-      allowNegativeInventory: Boolean(item.item_allowNegativeInventory),
+      // Raw alias names can vary by driver/build mode; normalize all known keys.
+      isGroup: toBoolean(item.item_isGroup ?? item.item_is_group ?? item.is_group),
+      isStock: toBoolean(item.item_isStock ?? item.item_is_stock ?? item.is_stock),
+      allowNegativeInventory: toBoolean(
+        item.item_allowNegativeInventory ??
+        item.item_allow_negative_inventory ??
+        item.allow_negative_inventory
+      ),
       category: {
         id: item.category_id,
         name: item.category_name,
