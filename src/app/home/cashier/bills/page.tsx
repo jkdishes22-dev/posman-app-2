@@ -659,7 +659,7 @@ const CashierBillsPage = () => {
   };
 
   return (
-    <div className="container-fluid" style={{ overflowX: "hidden" }}>
+    <div className="container-fluid cashier-bills-screen" style={{ overflowX: "hidden" }}>
       {/* Error Display */}
       <ErrorDisplay
         error={error}

@@ -549,7 +549,7 @@ const MySales = () => {
   return (
     <RoleAwareLayout>
       <SecureRoute roleRequired="sales">
-        <div className="container-fluid px-3 py-2">
+        <div className="container-fluid px-3 py-2 my-sales-screen">
           {/* Filter row */}
           <div className="row mb-2">
             <div className="col-12">

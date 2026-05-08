@@ -150,7 +150,7 @@ const SupervisorBillsPage: React.FC = () => {
 
     return (
         <RoleAwareLayout>
-            <div className="container-fluid" style={{ overflowX: "hidden" }}>
+            <div className="container-fluid supervisor-bills-screen" style={{ overflowX: "hidden" }}>
                 <div className="row">
                     <div className="col-12">
                         <div className="d-flex justify-content-between align-items-center mb-4">
