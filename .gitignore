@@ -62,5 +62,5 @@ dist-electron/
 # E2E test database
 .test-db/
 
-# Local tool caches (e.g. better-sqlite3 prebuilds)
+# Local tool caches - (e.g. better-sqlite3 prebuilds)
 .cache/
