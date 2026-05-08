@@ -30,10 +30,9 @@ const nextConfig = {
     // breaks TypeORM's decorator-based entity metadata lookup at runtime (entities become
     // "p", "q", etc. and can no longer be matched by name or constructor reference).
     // Externalising these packages ensures a single shared module instance and intact names.
-    serverExternalPackages: ['typeorm', 'better-sqlite3', 'reflect-metadata'],
+    // keytar is native and must stay external for local dev server startup.
+    serverExternalPackages: ['typeorm', 'better-sqlite3', 'reflect-metadata', 'keytar'],
     experimental: {
-        // Run src/instrumentation.ts on Node server startup (migrations before first request)
-        instrumentationHook: true,
         // Prevent server bundle class-name mangling that breaks TypeORM targetName lookups.
         serverMinification: false,
     },

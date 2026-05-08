@@ -125,7 +125,7 @@ export default function AdminSettingsPage() {
         setBackupsLoading(true);
         clearRestoreErrors();
         try {
-            const res = await apiCall("/api/system/restore");
+            const res = await apiCall("/api/system/restore?limit=5");
             if (res.status === 200 && Array.isArray(res.data?.backups)) {
                 setSqliteRestoreAvailable(true);
                 setBackups(res.data.backups);
@@ -821,7 +821,7 @@ export default function AdminSettingsPage() {
                                             </Button>
                                         </div>
                                         <Form.Group className="mb-2">
-                                            <Form.Label className="small text-muted mb-1">Or choose a backup on this computer</Form.Label>
+                                            <Form.Label className="small text-muted mb-1">Or choose a backup on this computer (latest 5 shown)</Form.Label>
                                             <div className="d-flex gap-2 flex-wrap align-items-center">
                                                 <Form.Select
                                                     size="sm"
