@@ -145,7 +145,7 @@ const UserHomePage = () => {
 
   return (
     <RoleAwareLayout>
-      <div className="container-fluid p-0">
+      <div className="container-fluid p-0 sales-home-screen">
         <ErrorDisplay
           error={error}
           errorDetails={errorDetails}

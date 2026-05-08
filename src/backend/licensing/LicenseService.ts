@@ -42,6 +42,7 @@ export class LicenseValidationError extends Error {
 class LicenseService {
   private cache: { at: number; result: LicenseValidationResult } | null = null;
   private keytarClient: KeytarClient | null = null;
+  private warnedAboutKeytarFallback = false;
 
   private enforcementEnabled(): boolean {
     if (process.env.LICENSE_ENFORCEMENT === "0") return false;
@@ -64,6 +65,45 @@ class LicenseService {
     return path.join(process.cwd(), ".license", "license.dat");
   }
 
+  private getFallbackSecretsFilePath(): string {
+    return path.join(path.dirname(this.getLicenseFilePath()), "license.secrets.json");
+  }
+
+  private readFallbackSecrets(): Record<string, string> {
+    const filePath = this.getFallbackSecretsFilePath();
+    try {
+      if (!fs.existsSync(filePath)) {
+        return {};
+      }
+      const raw = fs.readFileSync(filePath, "utf8");
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private writeFallbackSecrets(data: Record<string, string>): void {
+    const filePath = this.getFallbackSecretsFilePath();
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(data), { encoding: "utf8", mode: 0o600 });
+  }
+
+  private createFallbackKeytarClient(): KeytarClient {
+    const keyFor = (service: string, account: string) => `${service}:${account}`;
+    return {
+      getPassword: async (service: string, account: string) => {
+        const store = this.readFallbackSecrets();
+        return store[keyFor(service, account)] ?? null;
+      },
+      setPassword: async (service: string, account: string, password: string) => {
+        const store = this.readFallbackSecrets();
+        store[keyFor(service, account)] = password;
+        this.writeFallbackSecrets(store);
+      },
+    };
+  }
+
   private async getKeytarClient(): Promise<KeytarClient> {
     if (this.keytarClient) {
       return this.keytarClient;
@@ -84,12 +124,21 @@ class LicenseService {
       this.keytarClient = client;
       return client;
     } catch (error: any) {
-      throw new LicenseValidationError(
-        "LICENSE_INVALID",
-        `Secure license storage is unavailable (${error?.message || "keytar load failure"}). ` +
-          `Install a build that matches this system (Node/Electron process arch: ${process.platform} ${process.arch}). ` +
-          "If you use the 32-bit (x86) installer, rebuild with the ia32 target so keytar matches; 64-bit Windows normally uses the x64 installer.",
-      );
+      if (!this.warnedAboutKeytarFallback) {
+        this.warnedAboutKeytarFallback = true;
+        console.warn(
+          "[license] keytar unavailable; using local fallback secret storage.",
+          {
+            reason: error?.message || "keytar load failure",
+            platform: process.platform,
+            arch: process.arch,
+            fallbackFile: this.getFallbackSecretsFilePath(),
+          },
+        );
+      }
+      const fallback = this.createFallbackKeytarClient();
+      this.keytarClient = fallback;
+      return fallback;
     }
   }
 

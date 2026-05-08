@@ -100,7 +100,7 @@ export default function SupervisorBillPaymentsReportPage() {
 
   return (
     <RoleAwareLayout>
-      <div className="container-fluid">
+      <div className="container-fluid supervisor-bill-payments-screen">
         <div className="row mb-4">
           <div className="col-12">
             <h1 className="h3 mb-0">Bill Payments Report</h1>
