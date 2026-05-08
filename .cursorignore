@@ -45,7 +45,7 @@ Thumbs.db
 *.ico
 
 # Documentation that's not code
-*.md
+# *.md
 !README.md
 docs/
 documentation/
