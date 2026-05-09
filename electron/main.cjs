@@ -193,6 +193,11 @@ function ensureLogDir() {
     }
 }
 
+/** Full path to today's log file (same rule as logToFile — rotates by calendar day in APP_LOG_TIMEZONE). */
+function getCurrentLogFilePath() {
+    return path.join(logDir, getTodayLogFilename());
+}
+
 function logToFile(message, level = "INFO") {
     const timestamp = formatLogTimestamp();
     const logMessage = `[${timestamp}] [${level}] ${message}\n`;
@@ -206,7 +211,7 @@ function logToFile(message, level = "INFO") {
     try {
         ensureLogDir();
         // Resolve log filename at write-time so daily rotation happens automatically
-        const logFile = path.join(logDir, getTodayLogFilename());
+        const logFile = getCurrentLogFilePath();
         fs.appendFileSync(logFile, logMessage);
     } catch (_) {
         // Continue without file logging if write fails
@@ -392,6 +397,8 @@ function startNextServer() {
             PORT: PORT.toString(),
             HOST: HOST,
             NODE_ENV: "production",
+            // Run DB init + migrations during server startup so the first API request is instant.
+            ENABLE_STARTUP_MIGRATIONS_HOOK: "1",
             // Explicit runtime license behavior:
             // - packaged/prod app enforces license unless overridden externally
             LICENSE_ENFORCEMENT:
@@ -484,7 +491,8 @@ function startNextServer() {
                 if (code !== null) {
                     const error = `Next.js server exited unexpectedly with code ${code}`;
                     logToFile(error, "ERROR");
-                    reject(new Error(error));
+                    // Give stdout/stderr pipes a moment to flush (Windows often needs this for startup errors).
+                    setTimeout(() => reject(new Error(error)), 150);
                 }
             } else {
                 logToFile(`Next.js server exited normally`);
@@ -500,16 +508,34 @@ function startNextServer() {
             }
         }, 1000);
 
-        // Wait for server to be ready
+        // Wait for server to be ready — adaptive interval: 200ms for first 30 attempts, then 500ms.
+        // Covers slow first-boot SQLite migration on cold hardware (up to 120 seconds total).
         let attempts = 0;
-        const maxAttempts = 240; // 120 seconds (240 * 500ms) — first cold start with SQLite init takes > 30s
-        const checkServer = setInterval(() => {
+        const maxAttempts = 300; // ~120s at mixed intervals (30×200ms + 270×500ms)
+        let pollTimedOut = false;
+
+        const overallTimeout = setTimeout(() => {
+            pollTimedOut = true;
+            const error = "Server startup timeout after 120 seconds";
+            logToFile(error, "ERROR");
+            reject(new Error(error));
+        }, 120000);
+
+        function scheduleNextPoll() {
+            if (pollTimedOut) return;
+            const delay = attempts < 30 ? 200 : 500;
+            setTimeout(pollOnce, delay);
+        }
+
+        function pollOnce() {
+            if (pollTimedOut) return;
             attempts++;
             const http = require("http");
             if (verboseStartup || attempts === 1 || attempts % 20 === 0) {
                 logToFile(`Checking server readiness (attempt ${attempts}/${maxAttempts}) at http://${HOST}:${PORT}...`);
             }
             const req = http.get(`http://${HOST}:${PORT}`, (res) => {
+                if (pollTimedOut) return;
                 if (verboseStartup) {
                     logToFile(`Server responded with status ${res.statusCode}`);
                 }
@@ -525,9 +551,10 @@ function startNextServer() {
                 // Next.js typically sets x-powered-by: Next.js
                 if (xPoweredBy.includes("Next.js") || contentType.includes("text/html")) {
                     if (res.statusCode === 200) {
-                        clearInterval(checkServer);
+                        clearTimeout(overallTimeout);
                         logToFile("Next.js server started successfully!");
                         resolve();
+                        return;
                     } else if (verboseStartup) {
                         logToFile(`Server responded with status ${res.statusCode} (expected 200)`);
                     }
@@ -535,24 +562,20 @@ function startNextServer() {
                     logToFile(`WARNING: Server response doesn't look like Next.js!`, "ERROR");
                     logToFile(`This might be another service (like Metabase) running on port ${PORT}`, "ERROR");
                 }
+                if (attempts < maxAttempts) scheduleNextPoll();
             });
             req.on("error", (error) => {
                 if (verboseStartup || attempts % 20 === 0) {
                     logToFile(`Server not ready yet: ${error.message}`);
                 }
+                if (!pollTimedOut && attempts < maxAttempts) scheduleNextPoll();
             });
             req.setTimeout(2000, () => {
                 req.destroy();
             });
-        }, 500);
+        }
 
-        // Timeout after 120 seconds — covers slow first-boot SQLite migration on cold hardware
-        setTimeout(() => {
-            clearInterval(checkServer);
-            const error = "Server startup timeout after 120 seconds";
-            logToFile(error, "ERROR");
-            reject(new Error(error));
-        }, 120000);
+        scheduleNextPoll();
     });
 }
 
@@ -595,7 +618,9 @@ function checkStartupBootstrapStatus() {
 function checkLicenseStatus() {
     return new Promise((resolve) => {
         const http = require("http");
-        const req = http.get(`http://${HOST}:${PORT}/api/system/license-status?refresh=1`, (res) => {
+        // No ?refresh=1 — disk cache handles cross-restart persistence; full re-validation
+        // only triggers when the disk cache expires or the license's expiresAt has passed.
+        const req = http.get(`http://${HOST}:${PORT}/api/system/license-status`, (res) => {
             let body = "";
             res.on("data", (chunk) => {
                 body += chunk;
@@ -934,8 +959,7 @@ border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
 
         // Warm bootstrap + backup without blocking first paint
         void (async () => {
-            await checkStartupBootstrapStatus();
-            await checkLicenseStatus();
+            await Promise.all([checkStartupBootstrapStatus(), checkLicenseStatus()]);
             runDailyAutoBackup();
         })();
 
@@ -969,7 +993,7 @@ button:hover{background:#2563eb}</style></head>
 <h2>Failed to start JK PosMan</h2>
 <p>${error.message.replace(/</g,"&lt;")}</p>
 <p>Check the log file for details:</p>
-<div class="path">${logFile}</div>
+<div class="path">${getCurrentLogFilePath()}</div>
 <button onclick="location.reload()">Retry</button>
 </div></body></html>`);
         if (mainWindow && !mainWindow.isDestroyed()) {

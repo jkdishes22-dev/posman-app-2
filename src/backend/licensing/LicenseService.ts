@@ -18,6 +18,16 @@ const STORAGE_KEY_ACCOUNT = "license-storage-key";
 const MACHINE_BINDING_ACCOUNT = "license-machine-binding";
 const ENCRYPTION_ALGO = "aes-256-gcm";
 const CACHE_TTL_MS = 10 * 60 * 1000;
+// Disk cache TTLs — survive process restarts so Electron relaunches skip crypto verification
+const DISK_CACHE_LIFETIME_TTL_MS = 45 * 24 * 60 * 60 * 1000;   // 45 days for lifetime/no-expiry
+const DISK_CACHE_MAX_EXPIRING_TTL_MS = 30 * 24 * 60 * 60 * 1000; // cap at 30 days for expiring
+
+interface LicenseDiskCache {
+  cachedAt: string;
+  cacheExpiresAt: string;
+  result: LicenseValidationResult;
+  payload: LicensePayload | null;
+}
 
 type EncryptedLicenseBlob = {
   v: 1;
@@ -43,6 +53,59 @@ class LicenseService {
   private cache: { at: number; result: LicenseValidationResult } | null = null;
   private keytarClient: KeytarClient | null = null;
   private warnedAboutKeytarFallback = false;
+
+  private getDiskCacheFilePath(): string {
+    return path.join(path.dirname(this.getLicenseFilePath()), "license.cache.json");
+  }
+
+  private computeDiskCacheTtlMs(payload: LicensePayload | null): number {
+    if (!payload || !payload.expiresAt || payload.planType === "lifetime") {
+      return DISK_CACHE_LIFETIME_TTL_MS;
+    }
+    const msUntilExpiry = new Date(payload.expiresAt).getTime() - Date.now();
+    if (msUntilExpiry <= 0) return 0;
+    return Math.min(msUntilExpiry, DISK_CACHE_MAX_EXPIRING_TTL_MS);
+  }
+
+  private readDiskCache(): LicenseDiskCache | null {
+    try {
+      const filePath = this.getDiskCacheFilePath();
+      if (!fs.existsSync(filePath)) return null;
+      const raw = fs.readFileSync(filePath, "utf8");
+      const parsed = JSON.parse(raw) as LicenseDiskCache;
+      if (!parsed?.cacheExpiresAt || !parsed?.result) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeDiskCache(result: LicenseValidationResult, payload: LicensePayload | null): void {
+    const ttlMs = this.computeDiskCacheTtlMs(payload);
+    if (ttlMs <= 0) return;
+    try {
+      const entry: LicenseDiskCache = {
+        cachedAt: new Date().toISOString(),
+        cacheExpiresAt: new Date(Date.now() + ttlMs).toISOString(),
+        result,
+        payload,
+      };
+      const filePath = this.getDiskCacheFilePath();
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(filePath, JSON.stringify(entry), { encoding: "utf8", mode: 0o600 });
+    } catch {
+      // Non-fatal — fall back to in-memory cache on next restart
+    }
+  }
+
+  private clearDiskCache(): void {
+    try {
+      const filePath = this.getDiskCacheFilePath();
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch {
+      // Non-fatal
+    }
+  }
 
   private enforcementEnabled(): boolean {
     if (process.env.LICENSE_ENFORCEMENT === "0") return false;
@@ -347,6 +410,7 @@ class LicenseService {
 
     const result = this.successResult(certificate.payload);
     this.cache = { at: Date.now(), result };
+    this.writeDiskCache(result, certificate.payload);
     return result;
   }
 
@@ -361,8 +425,31 @@ async getStatus(forceRefresh = false): Promise<LicenseValidationResult> {
       };
     }
 
+    // In-memory cache — fast path for repeated calls within the same server session
     if (!forceRefresh && this.cache && Date.now() - this.cache.at < CACHE_TTL_MS) {
       return this.cache.result;
+    }
+
+    // Disk cache — survives process restarts (Electron relaunches) so crypto verification
+    // and keytar reads only happen when the cache is cold or the license actually expires
+    if (!forceRefresh) {
+      const diskCache = this.readDiskCache();
+      if (diskCache && new Date(diskCache.cacheExpiresAt).getTime() > Date.now()) {
+        // Cheap expiry re-check using the cached payload — no file I/O or crypto needed
+        if (diskCache.payload?.expiresAt) {
+          const licenseExpiry = new Date(diskCache.payload.expiresAt).getTime();
+          if (Date.now() > licenseExpiry) {
+            // License expired since we last cached — force full re-validation
+            this.clearDiskCache();
+          } else {
+            this.cache = { at: Date.now(), result: diskCache.result };
+            return diskCache.result;
+          }
+        } else {
+          this.cache = { at: Date.now(), result: diskCache.result };
+          return diskCache.result;
+        }
+      }
     }
 
     let rawCode: string | null;
@@ -398,6 +485,7 @@ async getStatus(forceRefresh = false): Promise<LicenseValidationResult> {
       await this.enforceMachineBinding(certificate.payload);
       const valid = this.successResult(certificate.payload);
       this.cache = { at: Date.now(), result: valid };
+      this.writeDiskCache(valid, certificate.payload);
       return valid;
     } catch (error: any) {
       const failure: LicenseValidationResult =
