@@ -20,6 +20,7 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
     const [activeItem, setActiveItem] = useState("");
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
     const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
+    const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
     const { user, logout } = useAuth();
     const { currentStation } = useStation();
     const router = useRouter();
@@ -235,6 +236,35 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
         },
     ];
 
+    useEffect(() => {
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        if (!token) return;
+        fetch("/api/system/module-visibility?role=cashier", {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+                if (data?.visibility && typeof data.visibility === "object") {
+                    setHiddenMenuIds(
+                        new Set(
+                            Object.entries(data.visibility as Record<string, boolean>)
+                                .filter(([, v]) => v === false)
+                                .map(([id]) => id)
+                        )
+                    );
+                }
+            })
+            .catch(() => {});
+    }, []);
+
+    const visibleMenuItems = menuItems
+        .filter((item) => !hiddenMenuIds.has(item.id))
+        .map((item) => ({
+            ...item,
+            submenu: item.submenu?.filter((sub) => !hiddenMenuIds.has(sub.id)),
+        }))
+        .filter((item) => !item.submenu || item.submenu.length > 0);
+
     return (
         <div className="d-flex vh-100">
             {/* Sidebar */}
@@ -282,7 +312,7 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
                 {/* Navigation */}
                 <nav className="flex-grow-1 p-3">
                     <ul className="nav nav-pills flex-column">
-                        {menuItems.map((item) => (
+                        {visibleMenuItems.map((item) => (
                             <li key={item.id} className="nav-item mb-2">
                                 {item.submenu ? (
                                     <div>
