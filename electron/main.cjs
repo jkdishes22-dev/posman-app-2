@@ -618,7 +618,9 @@ function checkStartupBootstrapStatus() {
 function checkLicenseStatus() {
     return new Promise((resolve) => {
         const http = require("http");
-        const req = http.get(`http://${HOST}:${PORT}/api/system/license-status?refresh=1`, (res) => {
+        // No ?refresh=1 — disk cache handles cross-restart persistence; full re-validation
+        // only triggers when the disk cache expires or the license's expiresAt has passed.
+        const req = http.get(`http://${HOST}:${PORT}/api/system/license-status`, (res) => {
             let body = "";
             res.on("data", (chunk) => {
                 body += chunk;
