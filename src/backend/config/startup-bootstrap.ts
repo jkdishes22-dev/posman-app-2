@@ -2,6 +2,10 @@ import { DataSource } from "typeorm";
 import { AppDataSource } from "@backend/config/data-source";
 import { assertSqliteQuickCheckOrThrow } from "@backend/utils/sqliteIntegrity";
 
+// Set to true by applyPendingMigrationsAtStartup so checkSqliteStatus skips a redundant
+// runMigrations() call when the instrumentation hook already ran them in this process.
+let migrationsAppliedThisProcess = false;
+
 type SetupState =
   | "ready"
   | "db_server_unavailable"
@@ -421,6 +425,7 @@ export async function applyPendingMigrationsAtStartup(): Promise<void> {
         `[startup] Applied ${executedList.length} pending migration(s): ${executedList.map((m) => m.name).join(", ")}`,
       );
     }
+    migrationsAppliedThisProcess = true;
   } catch (err: any) {
     if (sqlite) {
       console.error("[startup] SQLite migrations failed:", err?.message || err);
@@ -438,7 +443,10 @@ async function checkSqliteStatus(): Promise<SetupStatusPayload> {
     // Always apply pending migrations — core tables alone are not enough (e.g. system_settings,
     // expenses). Previously we only checked five tables and skipped runMigrations forever after
     // first boot, leaving DBs stuck at an old migration revision.
-    await AppDataSource.runMigrations();
+    // Skip if the instrumentation hook already ran migrations in this process.
+    if (!migrationsAppliedThisProcess) {
+      await AppDataSource.runMigrations();
+    }
     await assertSqliteQuickCheckOrThrow(AppDataSource);
     const requiredTables = ["user", "roles", "permissions", "user_roles", "role_permissions"];
     const placeholders = requiredTables.map(() => "?").join(",");
