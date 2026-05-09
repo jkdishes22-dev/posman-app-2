@@ -12,6 +12,23 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         if (!role || typeof role !== "string") {
             return res.status(400).json({ error: "Missing required query param: role" });
         }
+
+        const userRoleNames: string[] = (req.user?.roles ?? []).map(
+            (r: { name: string } | string) => (typeof r === "string" ? r : r?.name)
+        );
+        const isOwnRole = userRoleNames.includes(role);
+        const hasViewPermission = (req.user?.permissions ?? []).some(
+            (p: { name: string } | string) =>
+                (typeof p === "string" ? p : p?.name) === permissions.CAN_VIEW_SYSTEM_SETTINGS
+        );
+
+        if (!isOwnRole && !hasViewPermission) {
+            return res.status(403).json({
+                error: "Forbidden",
+                message: "Reading another role's visibility requires CAN_VIEW_SYSTEM_SETTINGS",
+            });
+        }
+
         try {
             const rows: unknown[] = await req.db.query(
                 "SELECT value FROM system_settings WHERE key = ?",
