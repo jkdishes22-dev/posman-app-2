@@ -238,8 +238,7 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
 
     // Load stations if needed (when user is authenticated and stations not loaded)
     const loadStationsIfNeeded = useCallback(async (): Promise<void> => {
-        const token = localStorage.getItem("token");
-        if (token && availableStations.length === 0 && !isLoading && !isRefreshing) {
+        if (availableStations.length === 0 && !isLoading && !isRefreshing) {
             await refreshStations();
         }
     }, [availableStations.length, isLoading, isRefreshing, refreshStations]);
@@ -248,102 +247,9 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     useEffect(() => {
         if (isAuthenticated && !hasInitiallyLoaded.current) {
             hasInitiallyLoaded.current = true;
-
-            const loadStations = async () => {
-                // Token should already be available from auth context
-
-                // Double-check token exists before making API call
-                const token = localStorage.getItem("token");
-                if (!token || token === "null" || token === "undefined" || token.trim() === "") {
-                    console.warn("No valid token found when loading stations");
-                    setError("Authentication token not found");
-                    setIsLoading(false);
-                    return;
-                }
-
-                setIsRefreshing(true);
-                setIsLoading(true);
-                setError(null);
-
-                try {
-                    // Fetch stations
-                    // Note: 401 (token expired) is handled by apiUtils - it will logout automatically
-                    // 403 (permission denied) means user doesn't have access - return empty array, show error, don't logout
-                    const stationsResult = await apiCall("/api/users/me/stations");
-                    let stations: Station[] = [];
-
-                    if (stationsResult.status === 200) {
-                        stations = stationsResult.data.stations || [];
-                    } else if (stationsResult.status === 403) {
-                        // 403 Forbidden: User is authenticated but doesn't have permission
-                        // This is fine - some users (e.g., admin) might not have stations assigned
-                        console.warn("User does not have permission to access stations (non-critical):", stationsResult.error);
-                        setError(stationsResult.error || "You do not have permission to access stations");
-                        setErrorDetails(stationsResult.errorDetails);
-                        stations = [];
-                    } else if (stationsResult.status === 401) {
-                        // 401 Unauthorized: Token expired/invalid - apiUtils should handle logout
-                        // If we get here, apiUtils didn't handle it, so set error
-                        console.warn("Authentication failed when fetching stations:", stationsResult.error);
-                        setError(stationsResult.error || "Authentication failed");
-                        setErrorDetails(stationsResult.errorDetails);
-                        stations = [];
-                    } else {
-                        // Other errors (500, etc.)
-                        console.warn("Failed to fetch stations (non-blocking):", stationsResult.error);
-                        setError(stationsResult.error || "Failed to fetch stations");
-                        setErrorDetails(stationsResult.errorDetails);
-                        stations = [];
-                    }
-
-                    // Fetch default station - handle errors gracefully
-                    let defaultStation: Station | null = null;
-                    try {
-                        const defaultResult = await apiCall("/api/users/me/default-station");
-                        if (defaultResult.status === 200) {
-                            defaultStation = defaultResult.data?.station || null;
-                        } else if (defaultResult.status === 403) {
-                            // 403 Forbidden: User is authenticated but doesn't have permission
-                            console.warn("User does not have permission to access default station (non-critical):", defaultResult.error);
-                            defaultStation = null;
-                        } else if (defaultResult.status === 401) {
-                            // 401 Unauthorized: Token expired/invalid - apiUtils should handle logout
-                            console.warn("Authentication failed when fetching default station:", defaultResult.error);
-                            defaultStation = null;
-                        } else if (defaultResult.status === 404) {
-                            defaultStation = null; // No default station set
-                        } else {
-                            // Other errors - log but don't block
-                            console.warn("Failed to fetch default station (non-blocking):", defaultResult.error);
-                            defaultStation = null;
-                        }
-                    } catch (err) {
-                        // Network errors - log but don't block
-                        console.warn("Error fetching default station (non-blocking):", err);
-                        defaultStation = null;
-                    }
-
-                    setAvailableStations(stations);
-
-                    // Set current station to default if available, otherwise first available station
-                    if (defaultStation) {
-                        setCurrentStation(defaultStation);
-                    } else if (stations.length > 0) {
-                        setCurrentStation(stations[0]);
-                    } else {
-                        setCurrentStation(null);
-                    }
-                } catch (err: any) {
-                    setError(err.message || "Failed to load stations");
-                    console.error("Error refreshing stations:", err);
-                } finally {
-                    setIsLoading(false);
-                    setIsRefreshing(false);
-                }
-            };
-            loadStations();
+            refreshStations();
         }
-    }, [isAuthenticated]); // Only depend on isAuthenticated
+    }, [isAuthenticated, refreshStations]);
 
     const contextValue: StationContextType = {
         currentStation,
