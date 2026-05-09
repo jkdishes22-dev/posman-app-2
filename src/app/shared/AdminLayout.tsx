@@ -28,8 +28,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [activeItem, setActiveItem] = useState("");
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
-  const [, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
-  const { user } = useAuth();
+  const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
+  const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
+  const { user, logout } = useAuth();
   const { currentStation } = useStation();
   const router = useRouter();
   const pathname = usePathname();
@@ -69,6 +70,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           { label: "Dashboard", path: "/admin" },
           { label: "Users", path: "/admin/users" },
           { label: "Roles & Permissions", path: "/admin/users/permission" }
+        ];
+      } else if (path.includes("/admin/users/module-settings")) {
+        activeItemId = "users-module-settings";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Users", path: "/admin/users" },
+          { label: "Module Settings", path: "/admin/users/module-settings" }
         ];
       }
     }
@@ -291,6 +299,27 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
     setExpandedMenus(expandedMenuIds);
   }, [pathname]);
 
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!token) return;
+    fetch("/api/system/module-visibility?role=admin", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.visibility && typeof data.visibility === "object") {
+          setHiddenMenuIds(
+            new Set(
+              Object.entries(data.visibility as Record<string, boolean>)
+                .filter(([, v]) => v === false)
+                .map(([id]) => id)
+            )
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const menuItems = [
     {
       id: "dashboard",
@@ -314,6 +343,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           label: "Roles & Permissions",
           icon: "bi-shield-check",
           path: "/admin/users/permission",
+        },
+        {
+          id: "users-module-settings",
+          label: "Module Settings",
+          icon: "bi-toggles",
+          path: "/admin/users/module-settings",
         },
       ],
     },
@@ -574,6 +609,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
     });
   };
 
+  const visibleMenuItems = menuItems
+    .filter((item) => !hiddenMenuIds.has(item.id))
+    .map((item) => ({
+      ...item,
+      submenu: item.submenu?.filter((sub) => !hiddenMenuIds.has(sub.id)),
+    }))
+    .filter((item) => !item.submenu || item.submenu.length > 0);
+
   return (
     <div className="d-flex vh-100">
       {/* Sidebar */}
@@ -629,7 +672,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         {/* Navigation */}
         <nav className="flex-grow-1 px-3 pt-1 pb-3" style={{ overflowY: "auto" }}>
           <ul className="nav nav-pills flex-column">
-            {menuItems.map((item) => (
+            {visibleMenuItems.map((item) => (
               <li key={item.id} className="nav-item mb-2">
                 {item.submenu ? (
                   <div>
