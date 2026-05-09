@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { authMiddleware, authorize, authorizeAny } from "@backend/middleware/auth";
+import { authMiddleware, authorize } from "@backend/middleware/auth";
 import {
   createUserHandler,
   getUsersHandler,
@@ -17,15 +17,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     cache.invalidate("users");
     return authorize([permissions.CAN_ADD_USER])(createUserHandler)(req, res);
   } else if (req.method === "GET") {
-    // User list is needed for User Management (CAN_VIEW_USER) and Station Users UI
-    // (supervisors often have user–station permissions without full user view).
-    return authorizeAny([
-      permissions.CAN_VIEW_USER,
-      permissions.CAN_VIEW_USER_STATION,
-      permissions.CAN_ADD_USER_STATION,
-      permissions.CAN_EDIT_USER_STATION,
-      permissions.CAN_DELETE_USER_STATION,
-    ])(async (req, res) => {
+    return authorize([permissions.CAN_VIEW_USER])(async (req, res) => {
       const search = Array.isArray(req.query.search) ? req.query.search[0] : req.query.search;
       const role = Array.isArray(req.query.role) ? req.query.role[0] : req.query.role;
       const page = req.query.page || 1;
