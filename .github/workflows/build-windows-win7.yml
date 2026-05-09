@@ -1,0 +1,145 @@
+name: Build Windows 7 Installer (Legacy x64)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Legacy release version label (e.g., 1.0.10)"
+        required: true
+        type: string
+      prerelease:
+        description: "Publish as prerelease"
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  build-win7:
+    name: Build Win7 Legacy Installer (x64)
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    env:
+      ELECTRON_VERSION: "22.3.27"
+      LEGACY_TAG: win7-v${{ inputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18.x"
+          cache: "npm"
+
+      - name: Cache Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-cache-win7-${{ hashFiles('package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', 'next.config.mjs') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-cache-win7-${{ hashFiles('package-lock.json') }}-
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Pin legacy desktop runtime dependencies
+        shell: pwsh
+        run: |
+          npm install --no-save electron@$env:ELECTRON_VERSION better-sqlite3@8.7.0 keytar@7.9.0
+
+      - name: Build Next.js in standalone mode
+        run: npm run build
+        env:
+          ELECTRON_BUILD: "true"
+          NODE_ENV: "production"
+          DATABASE_URL: ${{ secrets.DATABASE_URL || '' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'build-token' }}
+
+      - name: Verify standalone build exists
+        shell: pwsh
+        run: |
+          if (-not (Test-Path ".next\standalone\server.js")) {
+            Write-Error "Standalone build not found"
+            exit 1
+          }
+
+      - name: Rebuild keytar for legacy Electron
+        shell: pwsh
+        run: |
+          Push-Location ".next/standalone"
+          npx --yes @electron/rebuild --module-dir "." --only keytar --arch x64 --version $env:ELECTRON_VERSION --force
+          Pop-Location
+
+      - name: Swap better-sqlite3 binary for legacy Electron ABI
+        shell: pwsh
+        run: |
+          Push-Location ".next/standalone/node_modules/better-sqlite3"
+          Remove-Item -Recurse -Force "build" -ErrorAction SilentlyContinue
+          npx --yes prebuild-install --runtime electron --target $env:ELECTRON_VERSION --arch x64 --platform win32 --tag-prefix v
+          Pop-Location
+
+      - name: Decode signing certificate
+        shell: pwsh
+        run: |
+          $cert = "${{ secrets.WINDOWS_CERTIFICATE }}"
+          if ($cert) {
+            $bytes = [Convert]::FromBase64String($cert)
+            [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\cert.pfx", $bytes)
+            "CERT_PATH=$env:RUNNER_TEMP\cert.pfx" | Out-File -Append $env:GITHUB_ENV
+            Write-Host "Certificate loaded"
+          } else {
+            Write-Host "No certificate secret found; producing unsigned installer"
+          }
+
+      - name: Build Win7 legacy NSIS installer
+        run: >
+          npx electron-builder
+          --win --x64
+          --config electron-builder.config.cjs
+          --config.npmRebuild=false
+          --config.compression=store
+          --config.win.artifactName="JK PosMan Setup ${{ inputs.version }}-win7-\${arch}.\${ext}"
+          --publish never
+        env:
+          NODE_ENV: "production"
+          BUILD_VERSION: ${{ env.LEGACY_TAG }}
+          GH_TOKEN: ""
+          CSC_LINK: ${{ env.CERT_PATH }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Verify Win7 installer output
+        shell: pwsh
+        run: |
+          $exes = Get-ChildItem -Path dist-electron -Filter "*-win7-*.exe" -ErrorAction SilentlyContinue
+          if ($exes.Count -eq 0) {
+            Write-Error "No Win7-labeled installer produced"
+            exit 1
+          }
+          $exes | ForEach-Object {
+            Write-Host "Produced: $($_.Name) ($([math]::Round($_.Length / 1MB, 2)) MB)"
+          }
+
+      - name: Create legacy release and attach installer
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.LEGACY_TAG }}
+          name: Windows 7 Legacy ${{ env.LEGACY_TAG }}
+          files: |
+            dist-electron/*-win7-*.exe
+            dist-electron/*-win7-*.exe.blockmap
+          draft: false
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true
+          body: |
+            Legacy Windows 7 x64 installer line.
+            - Support scope: security/critical fixes only
+            - Channel: win7_branch
+            - Electron: ${{ env.ELECTRON_VERSION }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
