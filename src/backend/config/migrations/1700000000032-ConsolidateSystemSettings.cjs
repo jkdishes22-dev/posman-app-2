@@ -12,15 +12,25 @@ module.exports = class ConsolidateSystemSettings1700000000032 {
   name = "ConsolidateSystemSettings1700000000032";
 
   async up(queryRunner) {
-    // Read existing separate rows (may not exist on fresh installs)
+    // 0. Create table if this is a fresh MySQL install (SQLite has migration 024 for this)
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS \`system_settings\` (
+        \`key\`        VARCHAR(191) NOT NULL,
+        \`value\`      LONGTEXT     NOT NULL,
+        \`updated_at\` DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`key\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // 1. Read existing separate rows (may not exist on fresh installs)
     const printerRows = await queryRunner.query(
-      "SELECT value FROM system_settings WHERE key = 'printer_settings'"
+      "SELECT `value` FROM `system_settings` WHERE `key` = 'printer_settings'"
     );
     const logRows = await queryRunner.query(
-      "SELECT value FROM system_settings WHERE key = 'log_settings'"
+      "SELECT `value` FROM `system_settings` WHERE `key` = 'log_settings'"
     );
     const adminRows = await queryRunner.query(
-      "SELECT value FROM system_settings WHERE key = 'admin_settings'"
+      "SELECT `value` FROM `system_settings` WHERE `key` = 'admin_settings'"
     );
 
     const printerSettings = printerRows.length
@@ -39,18 +49,17 @@ module.exports = class ConsolidateSystemSettings1700000000032 {
       db_backup: { frequency: adminSettings.db_backup_frequency || "daily" },
     };
 
-    // Check if system_settings already exists (idempotent)
+    // 2. Check if system_settings row already exists (idempotent)
     const existing = await queryRunner.query(
-      "SELECT value FROM system_settings WHERE key = 'system_settings'"
+      "SELECT `value` FROM `system_settings` WHERE `key` = 'system_settings'"
     );
 
     if (existing.length === 0) {
       await queryRunner.query(
-        "INSERT INTO system_settings (key, value) VALUES ('system_settings', ?)",
+        "INSERT INTO `system_settings` (`key`, `value`) VALUES ('system_settings', ?)",
         [JSON.stringify(systemSettings)]
       );
     } else {
-      // Merge preserving any sub-keys that were already written
       const current = JSON.parse(existing[0].value);
       const merged = {
         printer_settings: current.printer_settings || systemSettings.printer_settings,
@@ -58,14 +67,14 @@ module.exports = class ConsolidateSystemSettings1700000000032 {
         db_backup: current.db_backup || systemSettings.db_backup,
       };
       await queryRunner.query(
-        "UPDATE system_settings SET value = ? WHERE key = 'system_settings'",
+        "UPDATE `system_settings` SET `value` = ? WHERE `key` = 'system_settings'",
         [JSON.stringify(merged)]
       );
     }
 
-    // Remove the old separate rows
+    // 3. Remove the old separate rows
     await queryRunner.query(
-      "DELETE FROM system_settings WHERE key IN ('printer_settings', 'log_settings', 'admin_settings')"
+      "DELETE FROM `system_settings` WHERE `key` IN ('printer_settings', 'log_settings', 'admin_settings')"
     );
 
     console.log("[ConsolidateSystemSettings] Merged printer_settings, log_settings, admin_settings → system_settings");
@@ -73,7 +82,7 @@ module.exports = class ConsolidateSystemSettings1700000000032 {
 
   async down(queryRunner) {
     const rows = await queryRunner.query(
-      "SELECT value FROM system_settings WHERE key = 'system_settings'"
+      "SELECT `value` FROM `system_settings` WHERE `key` = 'system_settings'"
     );
     if (!rows.length) return;
 
@@ -92,13 +101,13 @@ module.exports = class ConsolidateSystemSettings1700000000032 {
 
     for (const [key, value] of restore) {
       await queryRunner.query(
-        "INSERT INTO system_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        "INSERT INTO `system_settings` (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
         [key, value]
       );
     }
 
     await queryRunner.query(
-      "DELETE FROM system_settings WHERE key = 'system_settings'"
+      "DELETE FROM `system_settings` WHERE `key` = 'system_settings'"
     );
   }
 };

@@ -22,8 +22,9 @@ class AddProductionPermissionsToRoles1700000000017 {
 
         // Get all role IDs
         const roles = await queryRunner.query(`SELECT id, name FROM \`roles\``);
+        const roleRows = Array.isArray(roles) ? roles : [];
         const roleMap = {};
-        for (const role of roles) {
+        for (const role of roleRows) {
             roleMap[role.name] = role.id;
         }
 
@@ -33,8 +34,9 @@ class AddProductionPermissionsToRoles1700000000017 {
              WHERE \`name\` IN ('can_issue_production', 'can_view_production_history')
                 OR LOWER(\`name\`) IN ('can_issue_production', 'can_view_production_history')`
         );
+        const permissionRows = Array.isArray(permissions) ? permissions : [];
         const permissionMap = {};
-        for (const perm of permissions) {
+        for (const perm of permissionRows) {
             permissionMap[perm.name] = perm.id;
         }
 
@@ -75,13 +77,14 @@ class AddProductionPermissionsToRoles1700000000017 {
                 }
 
                 // Check if this role-permission link already exists
-                const existing = await queryRunner.query(
+                const existingLink = await queryRunner.query(
                     `SELECT id FROM \`role_permissions\` 
                      WHERE \`role_id\` = ? AND \`permission_id\` = ?`,
                     [roleId, permissionId]
                 );
+                const linkRows = Array.isArray(existingLink) ? existingLink : [];
 
-                if (existing.length === 0) {
+                if (linkRows.length === 0) {
                     // Create the role-permission link
                     await queryRunner.query(
                         `INSERT INTO \`role_permissions\` 
@@ -113,7 +116,8 @@ class AddProductionPermissionsToRoles1700000000017 {
             `SELECT id, name FROM \`permissions\` 
              WHERE \`name\` IN ('can_issue_production', 'can_view_production_history')`
         );
-        const permissionIds = permissions.map(p => p.id);
+        const permissionRows = Array.isArray(permissions) ? permissions : [];
+        const permissionIds = permissionRows.map(p => p.id);
 
         if (permissionIds.length === 0) {
             console.log("   ⚠️  No production permissions found, nothing to remove");

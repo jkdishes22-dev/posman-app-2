@@ -24,13 +24,14 @@ class EnsureProductionPermissionsExist1700000000018 {
         const scopes = await queryRunner.query(
             "SELECT id, name FROM `permission_scope` WHERE `name` = 'inventory'"
         );
+        const scopeRows = Array.isArray(scopes) ? scopes : [];
 
-        if (scopes.length === 0) {
+        if (scopeRows.length === 0) {
             console.log("   ⚠️  Warning: 'inventory' scope not found, cannot create permissions");
             return;
         }
 
-        const inventoryScopeId = scopes[0].id;
+        const inventoryScopeId = scopeRows[0].id;
 
         // Production permissions to ensure
         const productionPermissions = [
@@ -46,8 +47,9 @@ class EnsureProductionPermissionsExist1700000000018 {
                 "SELECT id, name FROM `permissions` WHERE `name` = ?",
                 [perm.name]
             );
+            const existingRows = Array.isArray(existing) ? existing : [];
 
-            if (existing.length === 0) {
+            if (existingRows.length === 0) {
                 await queryRunner.query(
                     `INSERT INTO \`permissions\` (\`name\`, \`scope_id\`, \`created_at\`, \`updated_at\`) 
                      VALUES (?, ?, NOW(), NULL)`,
@@ -60,10 +62,11 @@ class EnsureProductionPermissionsExist1700000000018 {
                     "SELECT id FROM `permissions` WHERE `name` = ?",
                     [perm.name]
                 );
-                permissionMap[perm.name] = newPerm[0].id;
+                const newPermRows = Array.isArray(newPerm) ? newPerm : [];
+                permissionMap[perm.name] = newPermRows[0].id;
             } else {
                 console.log(`   ⏭️  Permission already exists: ${perm.name}`);
-                permissionMap[perm.name] = existing[0].id;
+                permissionMap[perm.name] = existingRows[0].id;
             }
         }
 
@@ -72,8 +75,9 @@ class EnsureProductionPermissionsExist1700000000018 {
 
         // Get all role IDs
         const roles = await queryRunner.query(`SELECT id, name FROM \`roles\``);
+        const roleRows = Array.isArray(roles) ? roles : [];
         const roleMap = {};
-        for (const role of roles) {
+        for (const role of roleRows) {
             roleMap[role.name] = role.id;
         }
 
@@ -114,13 +118,14 @@ class EnsureProductionPermissionsExist1700000000018 {
                 }
 
                 // Check if this role-permission link already exists
-                const existing = await queryRunner.query(
+                const existingLink = await queryRunner.query(
                     `SELECT id FROM \`role_permissions\` 
                      WHERE \`role_id\` = ? AND \`permission_id\` = ?`,
                     [roleId, permissionId]
                 );
+                const linkRows = Array.isArray(existingLink) ? existingLink : [];
 
-                if (existing.length === 0) {
+                if (linkRows.length === 0) {
                     // Create the role-permission link
                     await queryRunner.query(
                         `INSERT INTO \`role_permissions\` 
@@ -152,7 +157,8 @@ class EnsureProductionPermissionsExist1700000000018 {
             `SELECT id, name FROM \`permissions\` 
              WHERE \`name\` IN ('can_issue_production', 'can_view_production_history')`
         );
-        const permissionIds = permissions.map(p => p.id);
+        const permissionRows = Array.isArray(permissions) ? permissions : [];
+        const permissionIds = permissionRows.map(p => p.id);
 
         if (permissionIds.length === 0) {
             console.log("   ⚠️  No production permissions found, nothing to remove");
@@ -169,14 +175,14 @@ class EnsureProductionPermissionsExist1700000000018 {
         }
 
         // Remove the permissions themselves
-        for (const perm of permissions) {
+        for (const perm of permissionRows) {
             await queryRunner.query(
                 "DELETE FROM `permissions` WHERE `id` = ?",
                 [perm.id]
             );
         }
 
-        console.log(`   🗑️  Removed ${permissions.length} production permissions`);
+        console.log(`   🗑️  Removed ${permissionRows.length} production permissions`);
         console.log("✅ Production permissions removal completed!");
     }
 }
