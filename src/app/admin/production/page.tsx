@@ -261,20 +261,7 @@ export default function AdminProductionPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <PageHeaderStrip
-                    actions={
-                        <Button
-                            variant="light"
-                            onClick={() => setShowIssueModal(true)}
-                            data-bs-toggle="tooltip"
-                            data-bs-placement="left"
-                            title="Create a new production issue record"
-                        >
-                            <i className="bi bi-plus-circle me-2"></i>
-                            Issue Production
-                        </Button>
-                    }
-                >
+                <PageHeaderStrip>
                     <h1 className="h4 mb-0 fw-bold d-flex align-items-center gap-2 flex-wrap">
                         Production History
                         <HelpPopover id="production-history-intro" title="Production history" className="text-white">
@@ -405,8 +392,19 @@ export default function AdminProductionPage() {
                 </Card>
 
                 <Card className="shadow-sm">
-                    <Card.Header className="bg-light fw-bold">
+                    <Card.Header className="bg-light fw-bold d-flex justify-content-between align-items-center">
                         <span>Production History ({total})</span>
+                        <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => setShowIssueModal(true)}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="left"
+                            title="Create a new production issue record"
+                        >
+                            <i className="bi bi-plus-circle me-1"></i>
+                            Issue Production
+                        </Button>
                     </Card.Header>
                     <Card.Body>
                         {isLoadingHistory ? (

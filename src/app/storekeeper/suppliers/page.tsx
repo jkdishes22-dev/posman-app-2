@@ -412,20 +412,7 @@ export default function SuppliersPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <PageHeaderStrip
-          actions={
-            <>
-              <Link href="/storekeeper/suppliers/transactions" className="btn btn-outline-light btn-sm">
-                <i className="bi bi-cash-coin me-1"></i>
-                Supplier payments
-              </Link>
-              <Button variant="light" onClick={handleAdd}>
-                <i className="bi bi-plus-circle me-1"></i>
-                Add Supplier
-              </Button>
-            </>
-          }
-        >
+        <PageHeaderStrip>
           <h1 className="h4 mb-0 fw-bold">
             <i className="bi bi-truck me-2"></i>
             Supplier Management
@@ -488,6 +475,15 @@ export default function SuppliersPage() {
 
         {/* Suppliers Table */}
         <Card>
+          <Card.Header className="bg-light fw-bold d-flex justify-content-between align-items-center">
+            <span>Suppliers ({filteredSuppliers.length})</span>
+            <div className="d-flex gap-2">
+              <Button variant="primary" size="sm" onClick={handleAdd}>
+                <i className="bi bi-plus-circle me-1"></i>
+                Add Supplier
+              </Button>
+            </div>
+          </Card.Header>
           <Card.Body>
             {filteredSuppliers.length === 0 ? (
               <div className="text-center py-5">

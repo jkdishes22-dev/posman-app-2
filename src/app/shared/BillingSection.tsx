@@ -11,7 +11,13 @@ const ViewItems = lazy(() => import("../admin/menu/category/components/items/ite
 const Categories = lazy(() => import("../admin/menu/category/components/category/categories"));
 const CategoryDeleteModal = lazy(() => import("../admin/menu/category/components/category/category-delete"));
 import ReceiptPrint, { CustomerCopyPrint, defaultReceiptBranding, type ReceiptBranding } from "./ReceiptPrint";
-import { printCaptainOrderAndCustomerCopy, downloadReceiptAsFile, logClientFromRenderer } from "./printUtils";
+import {
+  printCaptainCopyOnly,
+  printCaptainOrderAndCustomerCopy,
+  printCustomerCopyOnly,
+  downloadReceiptAsFile,
+  logClientFromRenderer
+} from "./printUtils";
 import { normalizePrinterSettings } from "./printerSettings";
 import ReactDOM from "react-dom/client";
 import { useStation } from "../contexts/StationContext";
@@ -84,6 +90,7 @@ const BillingSection = () => {
   /** When true, print customer + captain (2 jobs) after creating a pending bill from billing. Cashier close bill never prints; My Sales Print is customer copy only. */
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintPrinterName, setAutoPrintPrinterName] = useState("");
+  const [autoPrintCopyMode, setAutoPrintCopyMode] = useState<"customer" | "kitchen" | "both">("both");
   const [showTax, setShowTax] = useState(true);
   const [receiptBranding, setReceiptBranding] = useState<ReceiptBranding>(() => defaultReceiptBranding());
 
@@ -133,6 +140,7 @@ const BillingSection = () => {
         const p = normalizePrinterSettings(res.data.value);
         setAutoPrintEnabled(p.print_after_create_bill);
         setAutoPrintPrinterName(p.printer_name);
+        setAutoPrintCopyMode(p.auto_print_copy_mode || "both");
       }
       if (res.status === 200 && res.data?.receipt_display) {
         setReceiptBranding(res.data.receipt_display);
@@ -632,25 +640,51 @@ const BillingSection = () => {
           // Auto-print on create (optional) then auto-reset; otherwise reset immediately.
           if (autoPrintEnabled) {
             logClientFromRenderer(
-              `create-bill: auto-print starting billId=${billForReceipt.id} printer=${autoPrintPrinterName?.trim() ? autoPrintPrinterName : "default"}`,
+              `create-bill: auto-print starting billId=${billForReceipt.id} mode=${autoPrintCopyMode} printer=${autoPrintPrinterName?.trim() ? autoPrintPrinterName : "default"}`,
             );
             (async () => {
-              const { captain: captainPrint, customer: customerPrint } = await printCaptainOrderAndCustomerCopy(
-                billForReceipt,
-                autoPrintPrinterName || undefined,
-                { showTax, receiptBranding }
-              );
-              if (!captainPrint.success || !customerPrint.success) {
-                logClientFromRenderer(
-                  `create-bill: auto-print finished with errors billId=${billForReceipt.id} captain=${captainPrint.success} customer=${customerPrint.success}`,
-                  "WARN",
+              if (autoPrintCopyMode === "customer") {
+                const customerPrint = await printCustomerCopyOnly(
+                  billForReceipt,
+                  autoPrintPrinterName || undefined,
+                  { showTax, receiptBranding }
                 );
-                console.warn("Auto-print: one or more copies failed", {
-                  captain: captainPrint,
-                  customer: customerPrint,
-                });
+                if (!customerPrint.success) {
+                  logClientFromRenderer(
+                    `create-bill: auto-print finished with errors billId=${billForReceipt.id} customer=${customerPrint.success}`,
+                    "WARN",
+                  );
+                } else {
+                  logClientFromRenderer(`create-bill: auto-print finished OK billId=${billForReceipt.id} mode=customer`);
+                }
+              } else if (autoPrintCopyMode === "kitchen") {
+                const captainPrint = await printCaptainCopyOnly(
+                  billForReceipt,
+                  autoPrintPrinterName || undefined,
+                  { showTax, receiptBranding }
+                );
+                if (!captainPrint.success) {
+                  logClientFromRenderer(
+                    `create-bill: auto-print finished with errors billId=${billForReceipt.id} captain=${captainPrint.success}`,
+                    "WARN",
+                  );
+                } else {
+                  logClientFromRenderer(`create-bill: auto-print finished OK billId=${billForReceipt.id} mode=kitchen`);
+                }
               } else {
-                logClientFromRenderer(`create-bill: auto-print finished OK billId=${billForReceipt.id}`);
+                const { captain: captainPrint, customer: customerPrint } = await printCaptainOrderAndCustomerCopy(
+                  billForReceipt,
+                  autoPrintPrinterName || undefined,
+                  { showTax, receiptBranding }
+                );
+                if (!captainPrint.success || !customerPrint.success) {
+                  logClientFromRenderer(
+                    `create-bill: auto-print finished with errors billId=${billForReceipt.id} captain=${captainPrint.success} customer=${customerPrint.success}`,
+                    "WARN",
+                  );
+                } else {
+                  logClientFromRenderer(`create-bill: auto-print finished OK billId=${billForReceipt.id} mode=both`);
+                }
               }
               resetForNewBill();
             })();

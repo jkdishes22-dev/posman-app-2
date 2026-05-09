@@ -8,6 +8,8 @@ import StationFilter from "./StationFilter";
 import StationSwitcher from "./StationSwitcher";
 import PricelistManager from "./PricelistManager";
 import ExpressItemSearchModal from "./ExpressItemSearchModal";
+import PageHeaderStrip from "./PageHeaderStrip";
+import CollapsibleFilterSectionCard from "./CollapsibleFilterSectionCard";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import ErrorDisplay from "./ErrorDisplay";
@@ -187,30 +189,8 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
 
     return (
         <div className={className}>
-            {/* Compact Header */}
-            <div className="bg-primary text-white rounded p-3 mb-3">
-                <div className="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 className="mb-1 fw-bold">
-                            <i className="bi bi-tags-fill me-2"></i>
-                            Pricelist Catalog
-                        </h4>
-                        <div className="d-flex align-items-center gap-3">
-                            <small className="text-white-50">
-                                Current Station: <strong>{currentStation.name}</strong>
-                                {process.env.NODE_ENV === "development" && (
-                                    <span className="ms-2">
-                                        (Stations: {availableStations.length}, Pricelists: {filteredPricelists.length}/{pricelists.length})
-                                    </span>
-                                )}
-                            </small>
-                            <StationSwitcher
-                                onStationChange={handleStationSwitch}
-                                showLabel={false}
-                                size="sm"
-                            />
-                        </div>
-                    </div>
+            <PageHeaderStrip
+                actions={
                     <Button
                         variant="light"
                         size="sm"
@@ -220,76 +200,90 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
                         <i className="bi bi-lightning-fill me-1 text-warning"></i>
                         Pricelist Item Quick Search
                     </Button>
+                }
+            >
+                <h1 className="h4 mb-1 fw-bold">
+                    <i className="bi bi-tags-fill me-2"></i>
+                    Pricelist Catalog
+                </h1>
+                <div className="d-flex align-items-center gap-3">
+                    <small className="text-white-50">
+                        Current Station: <strong>{currentStation.name}</strong>
+                        {process.env.NODE_ENV === "development" && (
+                            <span className="ms-2">
+                                (Stations: {availableStations.length}, Pricelists: {filteredPricelists.length}/{pricelists.length})
+                            </span>
+                        )}
+                    </small>
+                    <StationSwitcher
+                        onStationChange={handleStationSwitch}
+                        showLabel={false}
+                        size="sm"
+                    />
                 </div>
-            </div>
+            </PageHeaderStrip>
 
-            <Card className="mb-3 shadow-sm border-0">
-                <Card.Header className="bg-light fw-bold py-2 px-3 d-flex align-items-center">
-                    <i className="bi bi-funnel me-2 text-primary" aria-hidden />
-                    Filters
-                </Card.Header>
-                <Card.Body className="py-3">
-                    <Form
-                        noValidate
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                        }}
-                    >
-                        <div className="row g-3 align-items-end">
-                            <div className="col-md-4">
-                                <StationFilter
-                                    selectedStationId={selectedStationId}
-                                    availableStations={availableStations}
-                                    onStationFilterChange={handleStationFilterChange}
-                                />
-                            </div>
-                            <div className="col-md-4">
-                                <Form.Label className="fw-semibold small mb-1 d-block">
-                                    <i className="bi bi-funnel me-1 text-primary"></i>
-                                    Status
-                                </Form.Label>
-                                <Form.Select
-                                    value={statusFilter}
-                                    onChange={(e) => setStatusFilter(e.target.value)}
-                                    size="sm"
-                                >
-                                    <option value="all">All Status</option>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </Form.Select>
-                            </div>
-                            <div className="col-md-4">
-                                <div className="text-muted small mb-2">
-                                    <i className="bi bi-info-circle me-1"></i>
-                                    {selectedStationId ? (
-                                        <>
-                                            Showing {filteredPricelists.length} pricelist{filteredPricelists.length !== 1 ? "s" : ""} for{" "}
-                                            <strong>{availableStations.find((s) => s.id === selectedStationId)?.name}</strong>
-                                        </>
-                                    ) : (
-                                        <>
-                                            Showing all {filteredPricelists.length} pricelist{filteredPricelists.length !== 1 ? "s" : ""}
-                                        </>
-                                    )}
-                                </div>
-                                <Button
-                                    type="button"
-                                    variant="outline-secondary"
-                                    size="sm"
-                                    disabled={selectedStationId === null && statusFilter === "all"}
-                                    onClick={() => {
-                                        handleStationFilterChange(null);
-                                        setStatusFilter("all");
-                                    }}
-                                >
-                                    <i className="bi bi-x-lg me-1" aria-hidden />
-                                    Clear filters
-                                </Button>
-                            </div>
+            <CollapsibleFilterSectionCard className="mb-3 shadow-sm border-0">
+                <Form
+                    noValidate
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                    }}
+                >
+                    <div className="row g-3 align-items-end">
+                        <div className="col-md-4">
+                            <StationFilter
+                                selectedStationId={selectedStationId}
+                                availableStations={availableStations}
+                                onStationFilterChange={handleStationFilterChange}
+                            />
                         </div>
-                    </Form>
-                </Card.Body>
-            </Card>
+                        <div className="col-md-4">
+                            <Form.Label className="fw-semibold small mb-1 d-block">
+                                <i className="bi bi-funnel me-1 text-primary"></i>
+                                Status
+                            </Form.Label>
+                            <Form.Select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                size="sm"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </Form.Select>
+                        </div>
+                        <div className="col-md-4">
+                            <div className="text-muted small mb-2">
+                                <i className="bi bi-info-circle me-1"></i>
+                                {selectedStationId ? (
+                                    <>
+                                        Showing {filteredPricelists.length} pricelist{filteredPricelists.length !== 1 ? "s" : ""} for{" "}
+                                        <strong>{availableStations.find((s) => s.id === selectedStationId)?.name}</strong>
+                                    </>
+                                ) : (
+                                    <>
+                                        Showing all {filteredPricelists.length} pricelist{filteredPricelists.length !== 1 ? "s" : ""}
+                                    </>
+                                )}
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline-secondary"
+                                size="sm"
+                                disabled={selectedStationId === null && statusFilter === "all"}
+                                onClick={() => {
+                                    handleStationFilterChange(null);
+                                    setStatusFilter("all");
+                                }}
+                            >
+                                <i className="bi bi-x-lg me-1" aria-hidden />
+                                Clear filters
+                            </Button>
+                        </div>
+                    </div>
+                </Form>
+            </CollapsibleFilterSectionCard>
 
 
             <PricelistManager

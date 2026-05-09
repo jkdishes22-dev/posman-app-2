@@ -522,17 +522,6 @@ function UsersPage() {
                 <i className="bi bi-people-fill me-1"></i>
                 {total} Total Users
               </span>
-              <button
-                type="button"
-                className="btn btn-light btn-sm"
-                onClick={handleShow}
-                data-bs-toggle="tooltip"
-                data-bs-placement="bottom"
-                title="Create a new user account"
-              >
-                <i className="bi bi-person-plus me-1"></i>
-                Add User
-              </button>
             </>
           }
         >
@@ -580,39 +569,52 @@ function UsersPage() {
                       {filteredUsers.length} of {total}
                     </span>
                   </h5>
-                  <div
-                    className="position-relative flex-grow-1"
-                    style={{ flexBasis: "160px", maxWidth: "100%", minWidth: 0 }}
-                  >
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Search by name or username..."
-                      value={filter}
-                      onChange={(e) => setFilter(e.target.value)}
-                      style={{ width: "100%", paddingRight: "2.5rem" }}
-                    />
-                    <i className="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
-                    {filter && (
-                      <button
-                        type="button"
-                        className="btn btn-sm position-absolute top-50 end-0 translate-middle-y me-1"
-                        onClick={() => {
-                          setFilter("");
-                          setDebouncedFilter("");
-                        }}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "#6b7280",
-                          padding: "0.25rem",
-                          lineHeight: 1
-                        }}
-                        title="Clear search"
-                      >
-                        <i className="bi bi-x"></i>
-                      </button>
-                    )}
+                  <div className="d-flex align-items-center gap-2 flex-grow-1 justify-content-end">
+                    <div
+                      className="position-relative"
+                      style={{ flexBasis: "160px", maxWidth: "100%", minWidth: 0, flexGrow: 1 }}
+                    >
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Search by name or username..."
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        style={{ width: "100%", paddingRight: "2.5rem" }}
+                      />
+                      <i className="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
+                      {filter && (
+                        <button
+                          type="button"
+                          className="btn btn-sm position-absolute top-50 end-0 translate-middle-y me-1"
+                          onClick={() => {
+                            setFilter("");
+                            setDebouncedFilter("");
+                          }}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "#6b7280",
+                            padding: "0.25rem",
+                            lineHeight: 1
+                          }}
+                          title="Clear search"
+                        >
+                          <i className="bi bi-x"></i>
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm flex-shrink-0"
+                      onClick={handleShow}
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="left"
+                      title="Create a new user account"
+                    >
+                      <i className="bi bi-person-plus me-1"></i>
+                      Add User
+                    </button>
                   </div>
                 </div>
               </div>

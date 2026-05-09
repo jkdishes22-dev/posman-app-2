@@ -7,7 +7,6 @@ import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import AppVersion from "../components/AppVersion";
 import StationSwitcher from "../components/StationSwitcher";
-import HelpMenu from "../components/HelpMenu";
 import { AuthError } from "../types/types";
 
 interface CashierLayoutProps {
@@ -29,7 +28,7 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
     const [activeItem, setActiveItem] = useState("");
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
     const [, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const { currentStation } = useStation();
     const router = useRouter();
     const pathname = usePathname();
@@ -371,59 +370,6 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
 
             {/* Main Content */}
             <div className="flex-grow-1 d-flex flex-column">
-                {/* Top Navigation */}
-                <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom">
-                    <div className="container-fluid">
-                        <div className="d-flex align-items-center">
-                            <h4 className="mb-0">Dashboard</h4>
-                        </div>
-
-                        {/* Profile Dropdown */}
-                        <div className="dropdown">
-                            <button
-                                className="btn btn-outline-secondary dropdown-toggle"
-                                type="button"
-                                data-bs-toggle="dropdown"
-                                aria-expanded="false"
-                            >
-                                <i className="bi bi-person-circle me-2"></i>
-                                Profile
-                            </button>
-                            <ul className="dropdown-menu dropdown-menu-end">
-                                <li>
-                                    <a className="dropdown-item" href="/profile">
-                                        <i className="bi bi-gear me-2"></i>
-                                        Settings
-                                    </a>
-                                </li>
-                                <li>
-                                    <a className="dropdown-item" href="/profile">
-                                        <i className="bi bi-person me-2"></i>
-                                        Account
-                                    </a>
-                                </li>
-                                <li>
-                                    <a className="dropdown-item" href="/profile">
-                                        <i className="bi bi-sliders me-2"></i>
-                                        Preferences
-                                    </a>
-                                </li>
-                                <li><hr className="dropdown-divider" /></li>
-                                <li>
-                                    <HelpMenu />
-                                </li>
-                                <li><hr className="dropdown-divider" /></li>
-                                <li>
-                                    <button className="dropdown-item" onClick={logout}>
-                                        <i className="bi bi-box-arrow-right me-2"></i>
-                                        Logout
-                                    </button>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </nav>
-
                 {/* Page Content */}
                 <main className="flex-grow-1 p-4">
                     {authError && (

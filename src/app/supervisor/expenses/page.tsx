@@ -180,13 +180,7 @@ export default function ExpensesPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <PageHeaderStrip
-                    actions={
-                        <Button variant="light" onClick={() => setShowCreate(true)}>
-                            <i className="bi bi-plus-circle me-2"></i>Add Expense
-                        </Button>
-                    }
-                >
+                <PageHeaderStrip>
                     <div className="d-flex align-items-center gap-2 flex-wrap">
                         <h1 className="h4 mb-0 fw-bold">Expenses</h1>
                         <HelpPopover
@@ -205,6 +199,13 @@ export default function ExpensesPage() {
                 {error && <Alert variant="danger">{error}</Alert>}
 
                 <Card className="shadow-sm">
+                    <Card.Header className="bg-light fw-bold d-flex justify-content-between align-items-center">
+                        <span>Expenses</span>
+                        <Button variant="outline-primary" size="sm" onClick={() => setShowCreate(true)}>
+                            <i className="bi bi-plus-circle me-1"></i>
+                            Add Expense
+                        </Button>
+                    </Card.Header>
                     <Card.Body className="p-0">
                         {loading ? (
                             <div className="text-center py-5">

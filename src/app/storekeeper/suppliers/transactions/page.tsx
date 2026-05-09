@@ -16,6 +16,7 @@ import {
 } from "react-bootstrap";
 import { useApiCall } from "../../../utils/apiUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import Pagination from "../../../components/Pagination";
 import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
@@ -175,18 +176,13 @@ function SupplierTransactionsContent() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-          <div>
-            <Link href="/storekeeper/suppliers" className="text-decoration-none small text-muted d-inline-block mb-1">
-              ← Back to suppliers
-            </Link>
-            <h1 className="h4 mb-0 fw-bold">
-              <i className="bi bi-cash-coin me-2"></i>
-              Supplier payments
-            </h1>
-            <p className="text-muted small mb-0">All supplier financial transactions with filters.</p>
-          </div>
-        </div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-cash-coin me-2"></i>
+            Supplier Payments
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">All supplier financial transactions with filters.</p>
+        </PageHeaderStrip>
 
         <ErrorDisplay
           error={error}
@@ -267,7 +263,13 @@ function SupplierTransactionsContent() {
         <Card className="shadow-sm">
           <Card.Header className="bg-light d-flex justify-content-between align-items-center">
             <h6 className="mb-0">Transactions</h6>
-            {loading && <Spinner animation="border" size="sm" />}
+            <div className="d-flex gap-2 align-items-center">
+              <Link href="/storekeeper/suppliers" className="btn btn-outline-secondary btn-sm">
+                <i className="bi bi-arrow-left me-1"></i>
+                Back to suppliers
+              </Link>
+              {loading && <Spinner animation="border" size="sm" />}
+            </div>
           </Card.Header>
           <Card.Body className="p-0">
             <div className="table-responsive">

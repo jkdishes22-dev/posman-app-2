@@ -12,6 +12,7 @@ import { todayEAT } from "src/app/shared/eatDate";
 import { dateToYmdEat, ymdToDateEat } from "src/app/shared/filterDateUtils";
 import { Bill, BillItem, VoidRequestPayload, VoidRequestResponse } from "src/app/types/types";
 import Pagination from "src/app/components/Pagination";
+import PageHeaderStrip from "src/app/components/PageHeaderStrip";
 import { CustomerCopyPrint, defaultReceiptBranding, type ReceiptBranding } from "../../shared/ReceiptPrint";
 import { printCustomerCopyOnly, downloadReceiptAsFile, logClientFromRenderer } from "../../shared/printUtils";
 import ReactDOM from "react-dom/client";
@@ -571,6 +572,12 @@ const MySales = () => {
     <RoleAwareLayout>
       <SecureRoute roleRequired="sales">
         <div className="container-fluid px-3 py-2">
+          <PageHeaderStrip>
+            <h1 className="h4 mb-0 fw-bold">
+              <i className="bi bi-receipt me-2" aria-hidden></i>
+              My Sales
+            </h1>
+          </PageHeaderStrip>
           {/* Filter row */}
           <div className="row mb-2">
             <div className="col-12">

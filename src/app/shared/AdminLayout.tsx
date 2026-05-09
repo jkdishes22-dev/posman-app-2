@@ -7,7 +7,6 @@ import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import AppVersion from "../components/AppVersion";
 import StationSwitcher from "../components/StationSwitcher";
-import HelpMenu from "../components/HelpMenu";
 import { AuthError } from "../types/types";
 import { useTooltips } from "../hooks/useTooltips";
 
@@ -30,7 +29,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
   const [activeItem, setActiveItem] = useState("");
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { currentStation } = useStation();
   const router = useRouter();
   const pathname = usePathname();
@@ -141,7 +140,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
     // Suppliers section
     else if (path.includes("/storekeeper") && (path.includes("/storekeeper/suppliers") || path.includes("/storekeeper/purchase-orders"))) {
       expandedMenuIds.push("suppliers");
-      if (path.includes("/storekeeper/suppliers")) {
+      if (path.includes("/storekeeper/suppliers/transactions")) {
+        activeItemId = "suppliers-transactions";
+        breadcrumbItems = [
+          { label: "Dashboard", path: "/admin" },
+          { label: "Suppliers", path: "/storekeeper/suppliers" },
+          { label: "Supplier payments", path: "/storekeeper/suppliers/transactions" }
+        ];
+      } else if (path.includes("/storekeeper/suppliers")) {
         activeItemId = "suppliers-list";
         breadcrumbItems = [
           { label: "Dashboard", path: "/admin" },
@@ -175,11 +181,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           { label: "Inventory List", path: "/storekeeper/stock" }
         ];
       } else {
-        activeItemId = "inventory-dashboard";
+        activeItemId = "";
         breadcrumbItems = [
           { label: "Dashboard", path: "/admin" },
-          { label: "Inventory", path: "/storekeeper" },
-          { label: "Dashboard", path: "/storekeeper" }
+          { label: "Inventory", path: "/storekeeper" }
         ];
       }
     }
@@ -387,6 +392,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           path: "/storekeeper/suppliers",
         },
         {
+          id: "suppliers-transactions",
+          label: "Supplier payments",
+          icon: "bi-cash-coin",
+          path: "/storekeeper/suppliers/transactions",
+        },
+        {
           id: "suppliers-purchase-orders",
           label: "Purchase Orders",
           icon: "bi-cart-check",
@@ -399,12 +410,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       label: "Inventory",
       icon: "bi-boxes",
       submenu: [
-        {
-          id: "inventory-dashboard",
-          label: "Dashboard",
-          icon: "bi-speedometer2",
-          path: "/storekeeper",
-        },
         {
           id: "inventory-list",
           label: "Inventory List",
@@ -523,10 +528,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       "Issue Production": "Create a new production issue record",
       "Bill": "View and manage bills",
       "Suppliers": "Manage suppliers and purchase orders",
+      "Supplier payments": "Full ledger of supplier payments and balance transactions",
       "Supplier": "Manage supplier information",
       "Purchase Orders": "Create and manage purchase orders",
       "Inventory": "Manage inventory levels and transactions",
-      "Inventory Dashboard": "Overview of inventory levels and alerts",
       "Inventory List": "View all inventory items and their current levels",
       "Transactions": "View all inventory movement transactions",
       "Reports": "View reports and system analytics",
@@ -701,65 +706,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
 
       {/* Main Content */}
       <div className="flex-grow-1 d-flex flex-column">
-        {/* Top Navigation */}
-        <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom">
-          <div className="container-fluid">
-            <div className="d-flex align-items-center">
-              <h4 className="mb-0">Dashboard</h4>
-            </div>
-
-            <div className="d-flex align-items-center">
-
-              {/* Profile Dropdown */}
-              <div className="dropdown">
-                <button
-                  className="btn btn-outline-secondary dropdown-toggle"
-                  type="button"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                >
-                  <i className="bi bi-person-circle me-2"></i>
-                  Profile
-                </button>
-                <ul className="dropdown-menu dropdown-menu-end">
-                  <li>
-                    <a className="dropdown-item" href="/profile">
-                      <i className="bi bi-gear me-2"></i>
-                      Settings
-                    </a>
-                  </li>
-                  <li>
-                    <a className="dropdown-item" href="/profile/account">
-                      <i className="bi bi-person me-2"></i>
-                      Account
-                    </a>
-                  </li>
-                  <li>
-                    <a className="dropdown-item" href="/profile/preferences">
-                      <i className="bi bi-sliders me-2"></i>
-                      Preferences
-                    </a>
-                  </li>
-                  <li><hr className="dropdown-divider" /></li>
-                  <li>
-                    <HelpMenu />
-                  </li>
-                  <li><hr className="dropdown-divider" /></li>
-                  <li>
-                    <button
-                      className="dropdown-item text-danger"
-                      onClick={() => logout()}
-                    >
-                      <i className="bi bi-box-arrow-right me-2"></i>
-                      Logout
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </nav>
-
         {/* Page Content */}
         <main className="flex-grow-1 p-4">
           {authError && (

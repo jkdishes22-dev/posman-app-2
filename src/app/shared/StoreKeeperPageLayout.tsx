@@ -71,7 +71,7 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
           { label: "Inventory List", path: "/storekeeper/stock" }
         ];
       } else {
-        activeItemId = "inventory-dashboard";
+        activeItemId = "";
         breadcrumbItems = [
           { label: "Dashboard", path: "/storekeeper" },
           { label: "Inventory", path: "/storekeeper" }
@@ -178,12 +178,6 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
       label: "Inventory",
       icon: "bi-boxes",
       submenu: [
-        {
-          id: "inventory-dashboard",
-          label: "Overview",
-          icon: "bi-speedometer2",
-          path: "/storekeeper",
-        },
         {
           id: "inventory-list",
           label: "Inventory List",

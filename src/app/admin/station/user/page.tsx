@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { Card, Button, Form } from "react-bootstrap";
+import { Card, Button, Form, Modal } from "react-bootstrap";
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import { AuthError, User } from "../../../types/types";
 import { useApiCall } from "../../../utils/apiUtils";
@@ -24,6 +24,11 @@ function StationUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [showAddToStationModal, setShowAddToStationModal] = useState(false);
+  const [modalSelectedUserId, setModalSelectedUserId] = useState("");
+  const [modalSelectedStationId, setModalSelectedStationId] = useState("");
+  const [modalUserStations, setModalUserStations] = useState<any[]>([]);
+  const [isAddingFromModal, setIsAddingFromModal] = useState(false);
 
   const apiCall = useApiCall();
 
@@ -159,6 +164,79 @@ function StationUsersPage() {
     }
   };
 
+  const fetchUserStationsForModal = async (userId: number) => {
+    try {
+      const result = await apiCall(`/api/users/${userId}/stations`);
+      if (result.status === 200) {
+        const stationsData = Array.isArray(result.data) ? result.data : [];
+        setModalUserStations(stationsData);
+      } else {
+        setModalUserStations([]);
+        setError(result.error || "Failed to fetch user stations");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (err: any) {
+      setModalUserStations([]);
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    }
+  };
+
+  const handleModalUserChange = async (userId: string) => {
+    setModalSelectedUserId(userId);
+    setModalSelectedStationId("");
+    if (!userId) {
+      setModalUserStations([]);
+      return;
+    }
+    await fetchUserStationsForModal(Number(userId));
+  };
+
+  const handleAddUserToStationFromModal = async () => {
+    if (!modalSelectedUserId || !modalSelectedStationId) return;
+
+    const stationId = Number(modalSelectedStationId);
+    const isAlreadyAssigned = modalUserStations.some(
+      (us: any) => (us.station?.id || us.station_id) === stationId && us.status === "active"
+    );
+
+    if (isAlreadyAssigned) {
+      setError("This station is already assigned to the selected user");
+      setErrorDetails(null);
+      return;
+    }
+
+    setIsAddingFromModal(true);
+    try {
+      const result = await apiCall(`/api/users/${modalSelectedUserId}/stations`, {
+        method: "POST",
+        body: JSON.stringify({ station: modalSelectedStationId }),
+      });
+
+      if (result.status === 200 || result.status === 201) {
+        setError(null);
+        setErrorDetails(null);
+        setShowAddToStationModal(false);
+        setModalSelectedUserId("");
+        setModalSelectedStationId("");
+        setModalUserStations([]);
+
+        await fetchUsers();
+        if (selectedUser) {
+          await fetchUserStations(selectedUser.id);
+        }
+      } else {
+        setError(result.error || "Failed to add user to station");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch (err: any) {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    } finally {
+      setIsAddingFromModal(false);
+    }
+  };
+
   const makeDefaultSation = async (stationId: number) => {
     // Validate inputs
     if (!selectedUser) {
@@ -223,7 +301,27 @@ function StationUsersPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <PageHeaderStrip className="py-2">
+        <PageHeaderStrip
+          className="py-2"
+          actions={
+            <Button
+              variant="light"
+              size="sm"
+              onClick={() => {
+                setShowAddToStationModal(true);
+                setModalSelectedUserId("");
+                setModalSelectedStationId("");
+                setModalUserStations([]);
+              }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="left"
+              title="Open modal to assign a user to a station"
+            >
+              <i className="bi bi-person-plus me-1"></i>
+              Add User to Station
+            </Button>
+          }
+        >
           <h1 className="h5 mb-0 fw-bold">
             <i className="bi bi-people-fill me-2" aria-hidden></i>
             Station Users
@@ -475,6 +573,74 @@ function StationUsersPage() {
             </div>
           </div>
         </div>
+
+        <Modal
+          show={showAddToStationModal}
+          onHide={() => setShowAddToStationModal(false)}
+          centered
+        >
+          <Modal.Header closeButton>
+            <Modal.Title className="h6 mb-0">
+              <i className="bi bi-person-plus me-2"></i>
+              Add User to Station
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Form.Group className="mb-3">
+              <Form.Label>Select User</Form.Label>
+              <Form.Select
+                value={modalSelectedUserId}
+                onChange={(e) => handleModalUserChange(e.target.value)}
+              >
+                <option value="">Choose user</option>
+                {users.map((user: User) => (
+                  <option key={user.id} value={user.id}>
+                    {user.firstName} {user.lastName}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group>
+              <Form.Label>Select Station</Form.Label>
+              <Form.Select
+                value={modalSelectedStationId}
+                onChange={(e) => setModalSelectedStationId(e.target.value)}
+                disabled={!modalSelectedUserId}
+              >
+                <option value="">Choose station</option>
+                {stations
+                  .filter((station: any) => {
+                    return !modalUserStations.some(
+                      (us: any) =>
+                        (us.station?.id || us.station_id) === station.id &&
+                        us.status === "active"
+                    );
+                  })
+                  .map((station: any) => (
+                    <option key={station.id} value={station.id}>
+                      {station.name}
+                    </option>
+                  ))}
+              </Form.Select>
+            </Form.Group>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={() => setShowAddToStationModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleAddUserToStationFromModal}
+              disabled={!modalSelectedUserId || !modalSelectedStationId || isAddingFromModal}
+            >
+              {isAddingFromModal ? "Adding..." : "Add User to Station"}
+            </Button>
+          </Modal.Footer>
+        </Modal>
       </div>
     </RoleAwareLayout>
   );

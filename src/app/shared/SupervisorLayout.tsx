@@ -8,7 +8,6 @@ import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import AppVersion from "../components/AppVersion";
 import StationSwitcher from "../components/StationSwitcher";
-import HelpMenu from "../components/HelpMenu";
 import { AuthError } from "../types/types";
 import { useTooltips } from "../hooks/useTooltips";
 
@@ -31,7 +30,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
     const [activeItem, setActiveItem] = useState("");
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
     const [, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const { currentStation } = useStation();
     const router = useRouter();
     const pathname = usePathname();
@@ -69,9 +68,9 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             { path: "/admin/station", item: "stations-overview" },
             { path: "/admin/station/user", item: "station-users" },
             { path: "/storekeeper/suppliers", item: "suppliers-list" },
+            { path: "/storekeeper/suppliers/transactions", item: "suppliers-transactions" },
             { path: "/storekeeper/purchase-orders", item: "suppliers-purchase-orders" },
             { path: "/supervisor/expenses", item: "expenses" },
-            { path: "/storekeeper", item: "inventory-dashboard" },
             { path: "/storekeeper/stock", item: "inventory-list" },
             { path: "/storekeeper/inventory/transactions", item: "inventory-transactions" },
             { path: "/admin/reports", item: "reports-dashboard" },
@@ -164,8 +163,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             } else {
                 breadcrumbItems = [
                     { label: "Dashboard", path: "/supervisor" },
-                    { label: "Inventory", path: "/storekeeper" },
-                    { label: "Dashboard", path: "/storekeeper" }
+                    { label: "Inventory", path: "/storekeeper" }
                 ];
             }
         } else if (path.includes("/admin/reports") || path.includes("/supervisor/reports")) {
@@ -385,12 +383,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             icon: "bi-boxes",
             submenu: [
                 {
-                    id: "inventory-dashboard",
-                    label: "Dashboard",
-                    icon: "bi-speedometer2",
-                    path: "/storekeeper",
-                },
-                {
                     id: "inventory-list",
                     label: "Inventory List",
                     icon: "bi-list-ul",
@@ -414,6 +406,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     label: "Suppliers",
                     icon: "bi-building",
                     path: "/storekeeper/suppliers",
+                },
+                {
+                    id: "suppliers-transactions",
+                    label: "Supplier payments",
+                    icon: "bi-cash-coin",
+                    path: "/storekeeper/suppliers/transactions",
                 },
                 {
                     id: "suppliers-purchase-orders",
@@ -533,7 +531,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             "Purchase Orders": "Create and manage purchase orders",
             "Expenses": "Record operational expenses and payments",
             "Inventory": "Manage inventory levels and transactions",
-            "Inventory Dashboard": "Overview of inventory levels and alerts",
             "Inventory List": "View all inventory items and their current levels",
             "Transactions": "View all inventory movement transactions",
             "Reports": "View reports and system analytics",
@@ -683,65 +680,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
 
             {/* Main Content */}
             <div className="flex-grow-1 d-flex flex-column">
-                {/* Top Navigation */}
-                <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom">
-                    <div className="container-fluid">
-                        <div className="d-flex align-items-center">
-                            <h4 className="mb-0">Dashboard</h4>
-                        </div>
-
-                        <div className="d-flex align-items-center">
-
-                            {/* Profile Dropdown */}
-                            <div className="dropdown">
-                                <button
-                                    className="btn btn-outline-secondary dropdown-toggle"
-                                    type="button"
-                                    data-bs-toggle="dropdown"
-                                    aria-expanded="false"
-                                >
-                                    <i className="bi bi-person-circle me-2"></i>
-                                    Profile
-                                </button>
-                                <ul className="dropdown-menu dropdown-menu-end">
-                                    <li>
-                                        <a className="dropdown-item" href="/profile">
-                                            <i className="bi bi-gear me-2"></i>
-                                            Settings
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a className="dropdown-item" href="/profile/account">
-                                            <i className="bi bi-person me-2"></i>
-                                            Account
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a className="dropdown-item" href="/profile/preferences">
-                                            <i className="bi bi-sliders me-2"></i>
-                                            Preferences
-                                        </a>
-                                    </li>
-                                    <li><hr className="dropdown-divider" /></li>
-                                    <li>
-                                        <HelpMenu />
-                                    </li>
-                                    <li><hr className="dropdown-divider" /></li>
-                                    <li>
-                                        <button
-                                            className="dropdown-item text-danger"
-                                            onClick={() => logout()}
-                                        >
-                                            <i className="bi bi-box-arrow-right me-2"></i>
-                                            Logout
-                                        </button>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </nav>
-
                 {/* Page Content */}
                 <main className="flex-grow-1 p-4">
                     {authError && (
