@@ -104,7 +104,7 @@ export default function SupervisorBillPaymentsReportPage() {
 
   return (
     <RoleAwareLayout>
-      <div className="container-fluid">
+      <div className="container-fluid supervisor-bill-payments-screen">
         <PageHeaderStrip>
           <h1 className="h4 mb-0 fw-bold">
             <i className="bi bi-receipt-cutoff me-2" aria-hidden></i>

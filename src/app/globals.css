@@ -991,3 +991,138 @@
 .submit-bill-modal-dialog .modal-body {
     overflow-y: auto;
 }
+
+/* ============================================
+   14-inch billing-first optimization
+   Targets typical 1366x768 laptops
+   ============================================ */
+@media (min-width: 1200px) and (max-width: 1500px) {
+    .billing-screen .card-header,
+    .my-sales-screen .card-header,
+    .cashier-bills-screen .card-header,
+    .supervisor-bills-screen .card-header,
+    .supervisor-bill-payments-screen .card-header,
+    .sales-home-screen .card-header,
+    .sales-pricelist-screen .card-header {
+        padding-top: 0.55rem !important;
+        padding-bottom: 0.55rem !important;
+    }
+
+    .billing-screen .card-body,
+    .my-sales-screen .card-body,
+    .cashier-bills-screen .card-body,
+    .supervisor-bills-screen .card-body,
+    .supervisor-bill-payments-screen .card-body,
+    .sales-home-screen .card-body,
+    .sales-pricelist-screen .card-body {
+        padding: 0.7rem;
+    }
+
+    .billing-screen .table th,
+    .billing-screen .table td,
+    .my-sales-screen .table th,
+    .my-sales-screen .table td,
+    .cashier-bills-screen .table th,
+    .cashier-bills-screen .table td,
+    .supervisor-bills-screen .table th,
+    .supervisor-bills-screen .table td,
+    .supervisor-bill-payments-screen .table th,
+    .supervisor-bill-payments-screen .table td {
+        padding: 0.35rem 0.45rem;
+        font-size: 0.82rem;
+    }
+
+    .billing-screen .btn-sm,
+    .my-sales-screen .btn-sm,
+    .cashier-bills-screen .btn-sm,
+    .supervisor-bills-screen .btn-sm,
+    .supervisor-bill-payments-screen .btn-sm {
+        padding: 0.2rem 0.45rem;
+        font-size: 0.76rem;
+    }
+
+    .billing-screen .h4,
+    .my-sales-screen .h4,
+    .cashier-bills-screen .h4 {
+        font-size: 1.15rem;
+    }
+
+    .sales-home-screen h2 {
+        font-size: 1.3rem;
+    }
+
+    .sales-home-screen .card h3 {
+        font-size: 1.35rem;
+    }
+
+    .sales-home-screen .row.mb-1 {
+        margin-bottom: 0.45rem !important;
+    }
+
+    .sales-pricelist-screen .table th,
+    .sales-pricelist-screen .table td {
+        padding: 0.4rem 0.5rem;
+        font-size: 0.84rem;
+    }
+
+    .supervisor-bill-payments-screen .row.g-3>.col-md-3 {
+        min-width: 220px;
+    }
+
+    .supervisor-bill-payments-screen .card .h3 {
+        font-size: 1.35rem;
+    }
+
+    .supervisor-bills-screen .table-responsive {
+        overflow-x: auto;
+    }
+
+    .billing-current-bill-body {
+        max-height: min(47vh, 360px);
+        overflow-y: auto;
+    }
+
+    .my-sales-screen .pos-panel-height {
+        height: calc(100vh - 205px);
+    }
+
+    .cashier-bills-screen .pos-cashier-table-max {
+        max-height: calc(100vh - 235px);
+    }
+
+    .supervisor-bills-screen .table-responsive {
+        max-height: min(64vh, 560px);
+    }
+}
+
+@media (min-width: 1200px) and (max-width: 1500px) and (max-height: 820px) {
+    .items-section,
+    .bill-section {
+        min-height: 58vh;
+        max-height: 58vh;
+    }
+
+    .categories-section {
+        max-height: 33vh;
+    }
+
+    .categories-card {
+        max-height: 30vh;
+    }
+
+    .categories-card .card-body {
+        max-height: 26vh;
+    }
+
+    .my-sales-screen .pos-panel-height {
+        height: calc(100vh - 180px);
+    }
+
+    .cashier-bills-screen .pos-cashier-table-max {
+        max-height: calc(100vh - 210px);
+    }
+
+    .supervisor-bills-screen .table-responsive {
+        max-height: min(60vh, 500px);
+    }
+}

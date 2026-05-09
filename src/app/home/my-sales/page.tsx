@@ -571,7 +571,7 @@ const MySales = () => {
   return (
     <RoleAwareLayout>
       <SecureRoute roleRequired="sales">
-        <div className="container-fluid px-3 py-2">
+        <div className="container-fluid px-3 py-2 my-sales-screen">
           <PageHeaderStrip>
             <h1 className="h4 mb-0 fw-bold">
               <i className="bi bi-receipt me-2" aria-hidden></i>

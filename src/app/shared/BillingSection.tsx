@@ -880,7 +880,7 @@ const BillingSection = () => {
   }
 
   return (
-    <div className="container-fluid p-0">
+    <div className="container-fluid p-0 billing-screen">
       {/* Main Content - Improved Layout */}
       <div className="row g-1">
         {/* Available Items Section */}
@@ -1007,7 +1007,7 @@ const BillingSection = () => {
                 </div>
               </div>
             </div>
-            <div className="card-body p-3" style={{ maxHeight: "400px", overflowY: "auto" }}>
+            <div className="card-body p-3 billing-current-bill-body">
               <div className="table-responsive">
                 <table className="table table-hover mb-0">
                   <thead className="table-light sticky-top">
