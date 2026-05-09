@@ -6,6 +6,7 @@ import FilterDatePicker from "../../../shared/FilterDatePicker";
 import React, { useState, useEffect } from "react";
 import { Button, Form, Collapse } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
@@ -239,8 +240,7 @@ export default function ProductionSalesReconciliationReportPage() {
 
         <div className="row mb-4">
           <div className="col-12">
-            <div className="card">
-              <div className="card-body">
+            <CollapsibleFilterSectionCard className="card" title="Report filters" bodyClassName="card-body">
                 <Form noValidate onSubmit={(e) => e.preventDefault()}>
                 <div className="row align-items-end g-3">
                   <div className="col-md-2">
@@ -312,8 +312,7 @@ export default function ProductionSalesReconciliationReportPage() {
                   </div>
                 </div>
                 </Form>
-              </div>
-            </div>
+            </CollapsibleFilterSectionCard>
           </div>
         </div>
 

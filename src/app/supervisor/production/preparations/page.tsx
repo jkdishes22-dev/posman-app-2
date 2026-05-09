@@ -16,6 +16,7 @@ import {
 } from "react-bootstrap";
 import { useApiCall } from "../../../utils/apiUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { AuthError } from "../../../types/types";
@@ -288,12 +289,7 @@ export default function SupervisorPreparationsPage() {
                     </Alert>
                 )}
 
-                <Card className="shadow-sm mb-4 border-0">
-                    <Card.Header className="bg-light fw-bold py-2 px-3 d-flex align-items-center">
-                        <i className="bi bi-funnel me-2 text-primary" aria-hidden />
-                        Filters
-                    </Card.Header>
-                    <Card.Body>
+                <CollapsibleFilterSectionCard>
                         <Form
                             noValidate
                             onSubmit={(e) => {
@@ -342,8 +338,7 @@ export default function SupervisorPreparationsPage() {
                                 </Col>
                             </Row>
                         </Form>
-                    </Card.Body>
-                </Card>
+                </CollapsibleFilterSectionCard>
 
                 <Card className="shadow-sm">
                     <Card.Header className="bg-light fw-bold d-flex justify-content-between align-items-center">

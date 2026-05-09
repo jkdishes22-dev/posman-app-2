@@ -30,7 +30,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
     const [sidebarWidth, setSidebarWidth] = useState(280);
     const [activeItem, setActiveItem] = useState("");
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
-    const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
+    const [, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
     const { user, logout } = useAuth();
     const { currentStation } = useStation();
     const router = useRouter();
@@ -51,7 +51,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         const pathToActiveItemMap = [
             { path: "/supervisor", item: "dashboard" },
             { path: "/supervisor/", item: "dashboard" },
-            { path: "/supervisor/bills", item: "bills-overview" },
+            { path: "/supervisor/bills", item: "bills-manage" },
             { path: "/home/billing", item: "bills-create" },
             { path: "/home/cashier/bills", item: "bills-manage" },
             { path: "/supervisor/bills/change-requests", item: "change-requests" },
@@ -85,7 +85,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             { path: "/admin/reports/invoices-pending-bills", item: "reports-invoices-pending-bills" },
             { path: "/admin/reports/purchase-orders", item: "reports-purchase-orders" },
             { path: "/admin/reports/pnl", item: "reports-pnl" },
-            { path: "/supervisor/settings", item: "settings" },
         ];
 
         // Set breadcrumbs and expanded menus based on path
@@ -241,8 +240,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             if (path.includes("/supervisor/bills")) {
                 breadcrumbItems = [
                     { label: "Dashboard", path: "/supervisor" },
-                    { label: "Bills Management", path: "/supervisor/bills" },
-                    { label: "Bills Overview", path: "/supervisor/bills" }
+                    { label: "Bills Management", path: "/supervisor/bills" }
                 ];
             } else if (path.includes("/home/billing")) {
                 breadcrumbItems = [
@@ -291,12 +289,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     label: "Create Bill",
                     icon: "bi-plus-circle",
                     path: "/home/billing",
-                },
-                {
-                    id: "bills-overview",
-                    label: "Bills Overview",
-                    icon: "bi-receipt",
-                    path: "/supervisor/bills",
                 },
                 {
                     id: "bills-manage",
@@ -352,7 +344,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         {
             id: "stations",
             label: "Stations",
-            icon: "bi-gear",
+            icon: "bi-building",
             submenu: [
                 {
                     id: "stations-overview",
@@ -480,12 +472,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 },
             ],
         },
-        {
-            id: "settings",
-            label: "Settings",
-            icon: "bi-gear",
-            path: "/supervisor/settings",
-        },
     ];
 
     const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
@@ -526,17 +512,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         });
     };
 
-    const handleBreadcrumbClick = (path: string) => {
-        router.push(path);
-    };
-
     const getMenuTooltip = (label: string): string => {
         const tooltips: { [key: string]: string } = {
             "Dashboard": "View supervisor dashboard and system overview",
             "Bills Management": "Manage bills, payments, void requests, and reopened bills",
             "Create Bill": "Simple billing interface for creating new bills",
             "Process Bills": "Bills management: payments, closing, and bulk operations",
-            "Bills Overview": "Comprehensive bill management dashboard with analytics and oversight",
             "Void Requests": "Approve or reject void requests from sales team",
             "Reopened Bills": "View and manage bills that have been reopened",
             "Menu & Pricing": "Manage menu items and pricing",
@@ -559,7 +540,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             "Sales Reports": "View sales reports and analytics",
             "Bills Reports": "View bills reports and analytics",
             "Production Reports": "View production reports and analytics",
-            "Settings": "Manage supervisor settings and preferences",
         };
         return tooltips[label] || `Navigate to ${label}`;
     };
@@ -608,8 +588,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
 
                 {/* Separator and Navigation Label */}
                 {!isCollapsed && (
-                    <div className="px-3 pb-2">
-                        <hr className="text-white-50 mb-2" />
+                    <div className="px-3 pb-1">
                         <div className="text-muted small fw-semibold text-uppercase">
                             <i className="bi bi-list-ul me-1"></i>
                             Navigation
@@ -618,7 +597,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 )}
 
                 {/* Navigation */}
-                <nav className="flex-grow-1 p-3" style={{ overflowY: "auto" }}>
+                <nav className="flex-grow-1 px-3 pt-1 pb-3" style={{ overflowY: "auto" }}>
                     <ul className="nav nav-pills flex-column">
                         {menuItems.map((item) => (
                             <li key={item.id} className="nav-item mb-2">
@@ -708,29 +687,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom">
                     <div className="container-fluid">
                         <div className="d-flex align-items-center">
-                            <h4 className="mb-0 me-3">Dashboard</h4>
-                            {/* Breadcrumbs */}
-                            {breadcrumbs.length > 1 && (
-                                <nav aria-label="breadcrumb">
-                                    <ol className="breadcrumb mb-0">
-                                        {breadcrumbs.map((crumb, index) => (
-                                            <li key={index} className={`breadcrumb-item ${index === breadcrumbs.length - 1 ? "active" : ""}`}>
-                                                {index === breadcrumbs.length - 1 ? (
-                                                    crumb.label
-                                                ) : (
-                                                    <button
-                                                        className="btn btn-link p-0 text-decoration-none"
-                                                        onClick={() => handleBreadcrumbClick(crumb.path)}
-                                                        style={{ color: "var(--bs-primary)" }}
-                                                    >
-                                                        {crumb.label}
-                                                    </button>
-                                                )}
-                                            </li>
-                                        ))}
-                                    </ol>
-                                </nav>
-                            )}
+                            <h4 className="mb-0">Dashboard</h4>
                         </div>
 
                         <div className="d-flex align-items-center">

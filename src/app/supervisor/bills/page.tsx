@@ -7,6 +7,7 @@ import FilterDatePicker from "../../shared/FilterDatePicker";
 import { ymdToDateEat } from "../../shared/filterDateUtils";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import PageHeaderStrip from "../../components/PageHeaderStrip";
+import CollapsibleFilterSectionCard from "../../components/CollapsibleFilterSectionCard";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import Pagination from "../../components/Pagination";
@@ -179,8 +180,7 @@ const SupervisorBillsPage: React.FC = () => {
                         />
 
                         {/* Filters */}
-                        <div className="card mb-4">
-                            <div className="card-body">
+                        <CollapsibleFilterSectionCard className="mb-4" bodyClassName="p-3">
                                 <div className="row g-3">
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <label className="form-label">Status</label>
@@ -245,8 +245,7 @@ const SupervisorBillsPage: React.FC = () => {
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </CollapsibleFilterSectionCard>
 
                         {/* Bills Table */}
                         <div className="card">

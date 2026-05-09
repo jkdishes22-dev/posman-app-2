@@ -79,6 +79,7 @@ const MySales = () => {
   const [total, setTotal] = useState(0);
   const [selectedBills, setSelectedBills] = useState<number[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("pending");
+  const [showFilters, setShowFilters] = useState(true);
   const receiptRef = useRef<HTMLDivElement>(null);
   const isLoadingBillsRef = useRef(false);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -574,7 +575,20 @@ const MySales = () => {
           <div className="row mb-2">
             <div className="col-12">
               <div className="card shadow-sm p-2 bg-light border-primary filter-card">
-                <h6 className="card-title text-primary mb-2 fw-bold">Filter My Sales</h6>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <h6 className="card-title text-primary mb-0 fw-bold">Filter My Sales</h6>
+                  <Button
+                    type="button"
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={() => setShowFilters((prev) => !prev)}
+                    aria-expanded={showFilters}
+                  >
+                    <i className={`bi ${showFilters ? "bi-chevron-up" : "bi-chevron-down"} me-1`} />
+                    {showFilters ? "Hide" : "Show"}
+                  </Button>
+                </div>
+                {showFilters ? (
                 <Form
                   noValidate
                   onSubmit={(e) => {
@@ -668,6 +682,7 @@ const MySales = () => {
                   </Button>
                 </div>
                 </Form>
+                ) : null}
               </div>
             </div>
           </div>

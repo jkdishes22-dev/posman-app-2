@@ -168,12 +168,19 @@ export class ProductionIssueService {
             params.push(filters.issued_by);
         }
         if (filters.start_date) {
-            parts.push("iss.issued_at >= ?");
-            params.push(filters.start_date);
+            const startDate = new Date(filters.start_date);
+            if (!Number.isNaN(startDate.getTime())) {
+                parts.push("iss.issued_at >= ?");
+                params.push(startDate.toISOString());
+            }
         }
         if (filters.end_date) {
-            parts.push("iss.issued_at <= ?");
-            params.push(filters.end_date);
+            const endDate = new Date(filters.end_date);
+            if (!Number.isNaN(endDate.getTime())) {
+                endDate.setHours(23, 59, 59, 999);
+                parts.push("iss.issued_at <= ?");
+                params.push(endDate.toISOString());
+            }
         }
         return parts.length ? ` AND ${parts.join(" AND ")}` : "";
     }

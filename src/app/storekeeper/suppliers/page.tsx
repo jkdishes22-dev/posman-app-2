@@ -19,6 +19,7 @@ import {
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import HelpPopover from "../../components/HelpPopover";
+import CollapsibleFilterSectionCard from "../../components/CollapsibleFilterSectionCard";
 import PageHeaderStrip from "../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { AuthError } from "../../types/types";
@@ -438,8 +439,7 @@ export default function SuppliersPage() {
         />
 
         {/* Search and Filter */}
-        <Card className="mb-4">
-          <Card.Body>
+        <CollapsibleFilterSectionCard className="mb-4">
             <Form
               noValidate
               onSubmit={(e) => {
@@ -484,8 +484,7 @@ export default function SuppliersPage() {
                 </Col>
               </Row>
             </Form>
-          </Card.Body>
-        </Card>
+        </CollapsibleFilterSectionCard>
 
         {/* Suppliers Table */}
         <Card>

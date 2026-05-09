@@ -7,6 +7,7 @@ import FilterDatePicker from "../../../shared/FilterDatePicker";
 import React, { useState, useEffect } from "react";
 import { Button, Form, Row, Col } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
@@ -131,12 +132,7 @@ export default function ExpenditureReportPage() {
         <ErrorDisplay error={error} errorDetails={errorDetails} onDismiss={() => { setError(null); setErrorDetails(null); }} />
         <div className="row mb-4">
           <div className="col-12">
-            <div className="card shadow-sm border-0">
-              <div className="card-header bg-light fw-bold py-2 px-3 d-flex align-items-center">
-                <i className="bi bi-funnel me-2 text-primary" aria-hidden />
-                Report filters
-              </div>
-              <div className="card-body">
+            <CollapsibleFilterSectionCard className="shadow-sm border-0" title="Report filters">
                 <Form noValidate onSubmit={(e) => e.preventDefault()}>
                 <Row className="align-items-end g-3">
                   <Col md={2}>
@@ -164,8 +160,7 @@ export default function ExpenditureReportPage() {
                   </Col>
                 </Row>
                 </Form>
-              </div>
-            </div>
+            </CollapsibleFilterSectionCard>
           </div>
         </div>
         <div className="row mb-4">

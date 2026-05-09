@@ -20,6 +20,7 @@ import {
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import HelpPopover from "../../components/HelpPopover";
+import CollapsibleFilterSectionCard from "../../components/CollapsibleFilterSectionCard";
 import PageHeaderStrip from "../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { AuthError } from "../../types/types";
@@ -469,14 +470,7 @@ export default function PurchaseOrdersPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <PageHeaderStrip
-                    actions={
-                        <Button variant="light" onClick={handleCreate}>
-                            <i className="bi bi-plus-circle me-1"></i>
-                            Create PO
-                        </Button>
-                    }
-                >
+                <PageHeaderStrip>
                     <h1 className="h4 mb-0 fw-bold">
                         <i className="bi bi-cart-check me-2" aria-hidden></i>
                         Purchase Orders
@@ -490,8 +484,7 @@ export default function PurchaseOrdersPage() {
                 />
 
                 {/* Search and Filter */}
-                <Card className="mb-4">
-                    <Card.Body>
+                <CollapsibleFilterSectionCard className="mb-4">
                         <Form
                             noValidate
                             onSubmit={(e) => {
@@ -572,11 +565,17 @@ export default function PurchaseOrdersPage() {
                                 </Col>
                             </Row>
                         </Form>
-                    </Card.Body>
-                </Card>
+                </CollapsibleFilterSectionCard>
 
                 {/* Purchase Orders Table */}
                 <Card>
+                    <Card.Header className="bg-light d-flex justify-content-between align-items-center">
+                        <h6 className="mb-0 fw-bold">Purchase Orders ({filteredPOs.length})</h6>
+                        <Button variant="primary" size="sm" onClick={handleCreate}>
+                            <i className="bi bi-plus-circle me-1"></i>
+                            Create PO
+                        </Button>
+                    </Card.Header>
                     <Card.Body>
                         {filteredPOs.length === 0 ? (
                             <div className="text-center py-5">

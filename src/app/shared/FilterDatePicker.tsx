@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import DatePicker, { CalendarContainer } from "react-datepicker";
 import type { ComponentProps } from "react";
-import { endOfDay, startOfDay } from "date-fns";
+import { endOfDay, isValid, startOfDay } from "date-fns";
 import { Form } from "react-bootstrap";
 import { todayEAT } from "./eatDate";
 import { dateToYmdEat, ymdToDateEat } from "./filterDateUtils";
@@ -50,8 +50,19 @@ export default function FilterDatePicker({
     onChangeRef.current = onChange;
   });
 
-  const effectiveMinDate = minDate ? startOfDay(minDate) : undefined;
-  const effectiveMaxDate = maxDate ? endOfDay(maxDate) : undefined;
+  const { pickerMinDate, pickerMaxDate } = useMemo(() => {
+    let lo =
+      minDate && isValid(minDate) ? startOfDay(minDate) : undefined;
+    let hi =
+      maxDate && isValid(maxDate) ? endOfDay(maxDate) : undefined;
+    if (lo && !isValid(lo)) lo = undefined;
+    if (hi && !isValid(hi)) hi = undefined;
+    // Avoid min > max (can happen when mixing EAT-anchored instants with local startOfDay/endOfDay, or bad parent state).
+    if (lo && hi && lo.getTime() > hi.getTime()) {
+      lo = undefined;
+    }
+    return { pickerMinDate: lo, pickerMaxDate: hi };
+  }, [minDate, maxDate]);
 
   const selected = useMemo(() => {
     const raw = value?.trim();
@@ -59,20 +70,27 @@ export default function FilterDatePicker({
     if (raw) {
       d = ymdToDateEat(raw);
     }
-    if (!d && !allowEmpty) {
+    if ((!d || !isValid(d)) && !allowEmpty) {
       d = ymdToDateEat(todayEAT());
     }
-    if (!d) {
-      return null;
+    if (!d || !isValid(d)) {
+      return allowEmpty ? null : new Date();
     }
-    if (effectiveMaxDate && d.getTime() > effectiveMaxDate.getTime()) {
-      return effectiveMaxDate;
+    if (pickerMaxDate && isValid(pickerMaxDate) && d.getTime() > pickerMaxDate.getTime()) {
+      d = pickerMaxDate;
     }
-    if (effectiveMinDate && d.getTime() < effectiveMinDate.getTime()) {
-      return effectiveMinDate;
+    if (pickerMinDate && isValid(pickerMinDate) && d.getTime() < pickerMinDate.getTime()) {
+      d = pickerMinDate;
     }
-    return d;
-  }, [value, allowEmpty, effectiveMinDate, effectiveMaxDate]);
+    return isValid(d) ? d : null;
+  }, [value, allowEmpty, pickerMinDate, pickerMaxDate]);
+
+  const pickerSelected =
+    selected === null || isValid(selected)
+      ? selected
+      : allowEmpty
+        ? null
+        : ymdToDateEat(todayEAT()) ?? new Date();
 
   const CalendarWrapper = useMemo(() => {
     function Wrapper(p: CalendarContainerProps) {
@@ -113,11 +131,11 @@ export default function FilterDatePicker({
   }, [showFooterActions, allowEmpty]);
 
   return (
-    <div className={wrapperClassName}>
+    <div className={wrapperClassName} style={{ position: "relative" }}>
       {label ? <Form.Label htmlFor={id}>{label}</Form.Label> : null}
       <DatePicker
         id={id}
-        selected={selected}
+        selected={pickerSelected}
         onChange={(d: Date | null) => {
           if (!d) {
             if (allowEmpty) onChange("");
@@ -130,13 +148,14 @@ export default function FilterDatePicker({
         wrapperClassName="w-100"
         placeholderText={placeholderText}
         disabled={disabled}
-        minDate={effectiveMinDate}
-        maxDate={effectiveMaxDate}
+        minDate={pickerMinDate}
+        maxDate={pickerMaxDate}
         isClearable={allowEmpty}
         showIcon
         toggleCalendarOnIconClick
         calendarContainer={CalendarWrapper}
-        showMonthYearDropdown
+        showYearDropdown
+        showMonthDropdown
         dropdownMode="select"
       />
     </div>

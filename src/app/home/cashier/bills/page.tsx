@@ -13,6 +13,7 @@ import { decodeJwt } from "../../../utils/tokenUtils";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import BillActions from "../../../components/BillActions";
 import SubmitBillModal from "../../my-sales/submit-bill";
@@ -683,8 +684,7 @@ const CashierBillsPage = () => {
       {!searchBillId && (
         <div className="row mb-4" style={{ margin: 0 }}>
           <div className="col-12">
-            <div className="card shadow-sm">
-              <div className="card-body">
+            <CollapsibleFilterSectionCard className="card shadow-sm" bodyClassName="card-body">
                 <div className="row g-3 align-items-end">
                   <div className="col-12 col-md-6 col-lg-3">
                     <div className="form-group">
@@ -784,8 +784,7 @@ const CashierBillsPage = () => {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
+            </CollapsibleFilterSectionCard>
           </div>
         </div>
       )}

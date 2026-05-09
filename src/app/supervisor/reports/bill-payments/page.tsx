@@ -6,6 +6,7 @@ import FilterDatePicker from "../../../shared/FilterDatePicker";
 import React, { useEffect, useState } from "react";
 import { Button, Form } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import type { ApiErrorResponse } from "../../../utils/errorUtils";
@@ -121,8 +122,7 @@ export default function SupervisorBillPaymentsReportPage() {
           }}
         />
 
-        <div className="card mb-4">
-          <div className="card-body">
+        <CollapsibleFilterSectionCard className="mb-4" bodyClassName="p-3">
             <Form noValidate onSubmit={(e) => e.preventDefault()}>
             <div className="row g-3 align-items-end">
               <div className="col-md-3">
@@ -178,8 +178,7 @@ export default function SupervisorBillPaymentsReportPage() {
               </div>
             </div>
             </Form>
-          </div>
-        </div>
+        </CollapsibleFilterSectionCard>
 
         <div className="row mb-4">
           <div className="col-md-4">

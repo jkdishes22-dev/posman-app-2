@@ -29,7 +29,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [activeItem, setActiveItem] = useState("");
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
-  const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
+  const [, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
   const { user, logout } = useAuth();
   const { currentStation } = useStation();
   const router = useRouter();
@@ -315,7 +315,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
     {
       id: "stations",
       label: "Stations",
-      icon: "bi-gear",
+      icon: "bi-building",
       submenu: [
         {
           id: "stations-overview",
@@ -422,7 +422,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
     {
       id: "settings",
       label: "System Settings",
-      icon: "bi-sliders",
+      icon: "bi-gear",
       path: "/admin/settings",
     },
     {
@@ -569,10 +569,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
     });
   };
 
-  const handleBreadcrumbClick = (path: string) => {
-    router.push(path);
-  };
-
   return (
     <div className="d-flex vh-100">
       {/* Sidebar */}
@@ -617,8 +613,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
 
         {/* Separator and Navigation Label */}
         {!isCollapsed && (
-          <div className="px-3 pb-2">
-            <hr className="text-white-50 mb-2" />
+          <div className="px-3 pb-1">
             <div className="text-muted small fw-semibold text-uppercase">
               <i className="bi bi-list-ul me-1"></i>
               Navigation
@@ -627,7 +622,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         )}
 
         {/* Navigation */}
-        <nav className="flex-grow-1 p-3" style={{ overflowY: "auto" }}>
+        <nav className="flex-grow-1 px-3 pt-1 pb-3" style={{ overflowY: "auto" }}>
           <ul className="nav nav-pills flex-column">
             {menuItems.map((item) => (
               <li key={item.id} className="nav-item mb-2">
@@ -710,29 +705,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom">
           <div className="container-fluid">
             <div className="d-flex align-items-center">
-              <h4 className="mb-0 me-3">Dashboard</h4>
-              {/* Breadcrumbs */}
-              {breadcrumbs.length > 1 && (
-                <nav aria-label="breadcrumb">
-                  <ol className="breadcrumb mb-0">
-                    {breadcrumbs.map((crumb, index) => (
-                      <li key={index} className={`breadcrumb-item ${index === breadcrumbs.length - 1 ? "active" : ""}`}>
-                        {index === breadcrumbs.length - 1 ? (
-                          crumb.label
-                        ) : (
-                          <button
-                            className="btn btn-link p-0 text-decoration-none"
-                            onClick={() => handleBreadcrumbClick(crumb.path)}
-                            style={{ color: "var(--bs-primary)" }}
-                          >
-                            {crumb.label}
-                          </button>
-                        )}
-                      </li>
-                    ))}
-                  </ol>
-                </nav>
-              )}
+              <h4 className="mb-0">Dashboard</h4>
             </div>
 
             <div className="d-flex align-items-center">

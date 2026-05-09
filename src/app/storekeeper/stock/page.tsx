@@ -18,6 +18,7 @@ import {
 } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "../../components/CollapsibleFilterSectionCard";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { AuthError } from "../../types/types";
 import { useTooltips } from "../../hooks/useTooltips";
@@ -304,12 +305,7 @@ function StockManagementContent() {
                     </Alert>
                 )}
 
-                <Card className="mb-4 shadow-sm border-0">
-                    <Card.Header className="bg-light fw-bold py-2 px-3 d-flex align-items-center">
-                        <i className="bi bi-funnel me-2 text-primary" aria-hidden />
-                        Filters
-                    </Card.Header>
-                    <Card.Body>
+                <CollapsibleFilterSectionCard className="mb-4 shadow-sm border-0">
                         <Form
                             noValidate
                             onSubmit={(e) => {
@@ -369,8 +365,7 @@ function StockManagementContent() {
                             </Col>
                         </Row>
                         </Form>
-                    </Card.Body>
-                </Card>
+                </CollapsibleFilterSectionCard>
 
                 <Card>
                     <Card.Body>

@@ -10,6 +10,7 @@ import Pagination from "src/app/components/Pagination";
 import { useApiCall } from "src/app/utils/apiUtils";
 import { ApiErrorResponse } from "src/app/utils/errorUtils";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "src/app/components/CollapsibleFilterSectionCard";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 
 interface ChangeRequest {
@@ -269,8 +270,7 @@ const SupervisorChangeRequestsPage = () => {
         {/* Filtering Section */}
         <div className="row mb-4">
           <div className="col-12">
-            <div className="card shadow-sm">
-              <div className="card-body">
+            <CollapsibleFilterSectionCard className="card shadow-sm" bodyClassName="card-body">
                 <Form
                   noValidate
                   onSubmit={(e) => {
@@ -317,8 +317,7 @@ const SupervisorChangeRequestsPage = () => {
                   </div>
                 </div>
                 </Form>
-              </div>
-            </div>
+            </CollapsibleFilterSectionCard>
           </div>
         </div>
 

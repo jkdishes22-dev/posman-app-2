@@ -80,6 +80,7 @@ export default function AdminProductionPage() {
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [startDate, setStartDate] = useState(() => todayEAT());
     const [endDate, setEndDate] = useState(() => todayEAT());
+    const [showFilters, setShowFilters] = useState(true);
 
     const productionHistoryFiltersDirty =
         statusFilter !== "all" ||
@@ -299,12 +300,25 @@ export default function AdminProductionPage() {
                             <i className="bi bi-funnel me-2 text-primary" aria-hidden />
                             Filters
                         </span>
-                        <Button variant="outline-primary" size="sm" onClick={fetchPreparations} disabled={isLoadingHistory}>
-                            <i className="bi bi-arrow-clockwise me-1"></i>
-                            Refresh
-                        </Button>
+                        <div className="d-flex gap-2">
+                            <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                onClick={() => setShowFilters((prev) => !prev)}
+                                aria-expanded={showFilters}
+                                aria-controls="production-history-filters"
+                            >
+                                <i className={`bi ${showFilters ? "bi-chevron-up" : "bi-chevron-down"} me-1`} />
+                                {showFilters ? "Hide" : "Show"}
+                            </Button>
+                            <Button variant="outline-primary" size="sm" onClick={fetchPreparations} disabled={isLoadingHistory}>
+                                <i className="bi bi-arrow-clockwise me-1"></i>
+                                Refresh
+                            </Button>
+                        </div>
                     </Card.Header>
-                    <Card.Body>
+                    {showFilters ? (
+                    <Card.Body id="production-history-filters">
                         <Form
                             noValidate
                             onSubmit={(e) => {
@@ -387,6 +401,7 @@ export default function AdminProductionPage() {
                         </Row>
                         </Form>
                     </Card.Body>
+                    ) : null}
                 </Card>
 
                 <Card className="shadow-sm">

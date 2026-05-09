@@ -352,21 +352,7 @@ export default function PricelistPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <PageHeaderStrip
-          actions={
-            <button
-              type="button"
-              onClick={() => setShowExpressSearch(true)}
-              className="btn btn-outline-light btn-sm"
-              data-bs-toggle="tooltip"
-              data-bs-placement="bottom"
-              title="Search for items across all pricelists"
-            >
-              <i className="bi bi-lightning me-1"></i>
-              Pricelist Item Quick Search
-            </button>
-          }
-        >
+        <PageHeaderStrip>
           <h1 className="h4 mb-0 fw-bold">
             <i className="bi bi-tags me-2" aria-hidden></i>
             Pricelist Management
@@ -403,14 +389,27 @@ export default function PricelistPage() {
                     <i className="bi bi-list-ul me-2 text-primary"></i>
                     Pricelists
                   </h5>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleShowModal}
-                  >
-                    <i className="bi bi-plus-circle me-1"></i>
-                    Add Pricelist
-                  </Button>
+                  <div className="d-flex gap-2">
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() => setShowExpressSearch(true)}
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="bottom"
+                      title="Search for items across all pricelists"
+                    >
+                      <i className="bi bi-lightning me-1"></i>
+                      Quick Search
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleShowModal}
+                    >
+                      <i className="bi bi-plus-circle me-1"></i>
+                      Add Pricelist
+                    </Button>
+                  </div>
                 </div>
               </div>
               <div className="card-body p-0">

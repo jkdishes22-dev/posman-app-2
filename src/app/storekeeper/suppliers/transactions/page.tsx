@@ -18,6 +18,7 @@ import { useApiCall } from "../../../utils/apiUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import Pagination from "../../../components/Pagination";
+import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
 import { todayEAT } from "../../../shared/eatDate";
 import FilterDatePicker from "../../../shared/FilterDatePicker";
 import { ymdToDateEat } from "../../../shared/filterDateUtils";
@@ -196,12 +197,7 @@ function SupplierTransactionsContent() {
           }}
         />
 
-        <Card className="mb-4 shadow-sm border-0">
-          <Card.Header className="bg-light fw-bold py-2 px-3 d-flex align-items-center">
-            <i className="bi bi-funnel me-2 text-primary" aria-hidden />
-            Filters
-          </Card.Header>
-          <Card.Body>
+        <CollapsibleFilterSectionCard className="mb-4 shadow-sm border-0">
             <Form
               noValidate
               onSubmit={applyFilters}
@@ -266,8 +262,7 @@ function SupplierTransactionsContent() {
                 </Col>
               </Row>
             </Form>
-          </Card.Body>
-        </Card>
+        </CollapsibleFilterSectionCard>
 
         <Card className="shadow-sm">
           <Card.Header className="bg-light d-flex justify-content-between align-items-center">
