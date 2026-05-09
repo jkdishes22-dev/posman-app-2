@@ -96,17 +96,20 @@ jobs:
             Write-Host "No certificate secret found; producing unsigned installer"
           }
 
+      # artifactName: use pwsh single quotes so ${arch}.${ext} are passed to electron-builder (not expanded/corrupted by PowerShell). Escaped \${arch} broke NSIS output paths (Can't open output file).
       - name: Build Win7 legacy NSIS installer
-        run: >
-          npx electron-builder
-          --win --x64
-          --config electron-builder.config.cjs
-          --config.npmRebuild=false
-          --config.compression=store
-          --config.win.artifactName="JK PosMan Setup ${{ inputs.version }}-win7-\${arch}.\${ext}"
-          --publish never
+        shell: pwsh
+        run: |
+          npx electron-builder `
+            --win --x64 `
+            --config electron-builder.config.cjs `
+            --config.npmRebuild=false `
+            --config.compression=store `
+            --config.win.artifactName='JK PosMan Setup ${{ inputs.version }}-win7-${arch}.${ext}' `
+            --publish never
         env:
           NODE_ENV: "production"
+          ELECTRON_VERSION: ${{ env.ELECTRON_VERSION }}
           BUILD_VERSION: ${{ env.LEGACY_TAG }}
           GH_TOKEN: ""
           CSC_LINK: ${{ env.CERT_PATH }}

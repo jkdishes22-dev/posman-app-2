@@ -83,20 +83,53 @@ async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot,
     }
     const bsq3Version = JSON.parse(fs.readFileSync(bsq3PkgPath, "utf8")).version;
 
-    // Look up the Electron → ABI mapping from node-abi (ships with prebuild-install)
-    let abi = "140"; // safe fallback for Electron 39
-    try {
-        const abiRegistryPath = path.join(projectRoot, "node_modules", "node-abi", "abi_registry.json");
-        if (fs.existsSync(abiRegistryPath)) {
-            const registry = JSON.parse(fs.readFileSync(abiRegistryPath, "utf8"));
-            const electronVersion = context.packager?.electronVersion ?? "";
-            const major = electronVersion.split(".")[0];
-            const entry = registry.find(
-                (e) => e.runtime === "electron" && e.target.startsWith(major + ".")
-            );
-            if (entry) abi = entry.abi;
+    /** Prefer env / installed electron package — electron-builder context often tracks package.json devDependency, not CI-pinned Electron (e.g. Win7 legacy line). */
+    function resolveElectronVersionForPack() {
+        const envV = (process.env.ELECTRON_VERSION || "").trim();
+        if (envV) return envV;
+        try {
+            const ep = path.join(projectRoot, "node_modules", "electron", "package.json");
+            if (fs.existsSync(ep)) {
+                const v = JSON.parse(fs.readFileSync(ep, "utf8")).version;
+                if (v) return v;
+            }
+        } catch {
+            /* ignore */
         }
-    } catch { /* keep default */ }
+        return (context.packager && context.packager.electronVersion) || "";
+    }
+
+    const electronVersionResolved = resolveElectronVersionForPack();
+
+    // Electron ABI for prebuilt better-sqlite3 tarballs (must match packaged Electron, not wrong fallback).
+    let abi = "";
+    try {
+        const getAbi = require("node-abi").getAbi;
+        if (electronVersionResolved) {
+            abi = String(getAbi(electronVersionResolved, "electron"));
+        }
+    } catch {
+        /* fall through */
+    }
+    if (!abi) {
+        try {
+            const abiRegistryPath = path.join(projectRoot, "node_modules", "node-abi", "abi_registry.json");
+            if (fs.existsSync(abiRegistryPath) && electronVersionResolved) {
+                const registry = JSON.parse(fs.readFileSync(abiRegistryPath, "utf8"));
+                const major = electronVersionResolved.split(".")[0];
+                const entry = registry.find(
+                    (e) => e.runtime === "electron" && e.target.startsWith(`${major}.`),
+                );
+                if (entry) abi = String(entry.abi);
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+    if (!abi) {
+        abi = "140"; // last resort (modern Electron); prefer resolving version above
+        err(`   ⚠️ Could not resolve Electron ABI from version "${electronVersionResolved || "unknown"}" — using fallback ${abi}`);
+    }
 
     const tarFileName = `better-sqlite3-v${bsq3Version}-electron-v${abi}-win32-${arch}.tar.gz`;
     const tarUrl = `https://github.com/WiseLibs/better-sqlite3/releases/download/v${bsq3Version}/${tarFileName}`;
