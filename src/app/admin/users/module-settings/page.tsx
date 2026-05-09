@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { Accordion } from "react-bootstrap";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import { withSecureRoute } from "../../../components/withSecureRoute";
 import { useApiCall } from "../../../utils/apiUtils";
@@ -190,54 +191,106 @@ function collectAllIds(nodes: MenuNode[]): string[] {
     return ids;
 }
 
-function MenuToggleRow({
+function ToggleSwitch({
+    id,
+    checked,
+    onChange,
+}: {
+    id: string;
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+}) {
+    return (
+        <div
+            className="form-check form-switch mb-0"
+            onClick={(e) => e.stopPropagation()}
+        >
+            <input
+                className="form-check-input"
+                type="checkbox"
+                role="switch"
+                id={`toggle-${id}`}
+                checked={checked}
+                onChange={(e) => onChange(e.target.checked)}
+                style={{ cursor: "pointer" }}
+            />
+        </div>
+    );
+}
+
+function LeafRow({
     node,
     visibility,
     onChange,
-    depth = 0,
 }: {
     node: MenuNode;
     visibility: VisibilityMap;
     onChange: (id: string, visible: boolean) => void;
-    depth?: number;
 }) {
     const visible = visibility[node.id] !== false;
+    return (
+        <div className="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+            <span className={visible ? "" : "text-muted text-decoration-line-through"}>
+                {node.label}
+            </span>
+            <ToggleSwitch
+                id={node.id}
+                checked={visible}
+                onChange={(v) => onChange(node.id, v)}
+            />
+        </div>
+    );
+}
+
+function GroupAccordionItem({
+    node,
+    visibility,
+    onChange,
+}: {
+    node: MenuNode;
+    visibility: VisibilityMap;
+    onChange: (id: string, visible: boolean) => void;
+}) {
+    const parentVisible = visibility[node.id] !== false;
 
     return (
-        <>
-            <tr className={depth > 0 ? "table-light" : ""}>
-                <td style={{ paddingLeft: `${16 + depth * 24}px` }}>
-                    {depth > 0 && <i className="bi bi-arrow-return-right text-muted me-2 small"></i>}
-                    <span className={visible ? "" : "text-muted text-decoration-line-through"}>
+        <Accordion.Item eventKey={node.id} className="border-0 border-bottom rounded-0">
+            <Accordion.Header>
+                <div className="d-flex align-items-center justify-content-between w-100 pe-2">
+                    <span className={`fw-medium ${parentVisible ? "" : "text-muted text-decoration-line-through"}`}>
                         {node.label}
                     </span>
-                    {node.children && (
-                        <span className="badge bg-secondary ms-2 small">group</span>
-                    )}
-                </td>
-                <td className="text-center" style={{ width: "100px" }}>
-                    <div className="form-check form-switch d-inline-block mb-0">
-                        <input
-                            className="form-check-input"
-                            type="checkbox"
-                            role="switch"
-                            checked={visible}
-                            onChange={(e) => onChange(node.id, e.target.checked)}
-                            style={{ cursor: "pointer" }}
-                        />
-                    </div>
-                </td>
-            </tr>
-            {node.children?.map((child) => (
-                <MenuToggleRow
-                    key={child.id}
-                    node={child}
-                    visibility={visibility}
-                    onChange={onChange}
-                    depth={depth + 1}
-                />
-            ))}
-        </>
+                    <ToggleSwitch
+                        id={node.id}
+                        checked={parentVisible}
+                        onChange={(v) => onChange(node.id, v)}
+                    />
+                </div>
+            </Accordion.Header>
+            <Accordion.Body className="p-0 bg-light">
+                {node.children?.map((child) => {
+                    const childVisible = visibility[child.id] !== false;
+                    return (
+                        <div
+                            key={child.id}
+                            className="d-flex align-items-center justify-content-between px-4 py-2 border-bottom"
+                        >
+                            <div className="d-flex align-items-center">
+                                <i className="bi bi-arrow-return-right text-muted me-2 small"></i>
+                                <span className={childVisible ? "small" : "small text-muted text-decoration-line-through"}>
+                                    {child.label}
+                                </span>
+                            </div>
+                            <ToggleSwitch
+                                id={child.id}
+                                checked={childVisible}
+                                onChange={(v) => onChange(child.id, v)}
+                            />
+                        </div>
+                    );
+                })}
+            </Accordion.Body>
+        </Accordion.Item>
     );
 }
 
@@ -284,11 +337,10 @@ function ModuleSettingsContent() {
         setSavingRole(role);
         setError("");
         setSaveSuccess(null);
-        const visibility = visibilityByRole[role] ?? {};
         const result = await apiCall("/api/system/module-visibility", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ role, visibility }),
+            body: JSON.stringify({ role, visibility: visibilityByRole[role] ?? {} }),
         });
         setSavingRole(null);
         if (result.status === 200) {
@@ -299,9 +351,7 @@ function ModuleSettingsContent() {
     };
 
     const handleShowAll = (role: string) => {
-        const allIds = collectAllIds(ROLE_MENUS[role] ?? []);
-        const cleared: VisibilityMap = {};
-        setVisibilityByRole((prev) => ({ ...prev, [role]: cleared }));
+        setVisibilityByRole((prev) => ({ ...prev, [role]: {} }));
         setSaveSuccess(null);
     };
 
@@ -345,73 +395,82 @@ function ModuleSettingsContent() {
                                 Loading...
                             </div>
                         ) : (
-                            <>
-                                <div className="card shadow-sm">
-                                    <div className="card-header bg-white d-flex align-items-center justify-content-between py-3">
-                                        <div>
-                                            <h6 className="mb-0 fw-semibold">{ROLE_LABELS[role]} Menu Visibility</h6>
-                                            <small className="text-muted">
-                                                {Object.values(visibilityByRole[role] ?? {}).filter((v) => v === false).length} items hidden
-                                            </small>
-                                        </div>
-                                        <button
-                                            className="btn btn-outline-secondary btn-sm"
-                                            onClick={() => handleShowAll(role)}
-                                            title="Reset all to visible"
-                                        >
-                                            <i className="bi bi-eye me-1"></i>
-                                            Show All
-                                        </button>
+                            <div className="card shadow-sm">
+                                <div className="card-header bg-white d-flex align-items-center justify-content-between py-3">
+                                    <div>
+                                        <h6 className="mb-0 fw-semibold">{ROLE_LABELS[role]} Menu Visibility</h6>
+                                        <small className="text-muted">
+                                            {Object.values(visibilityByRole[role] ?? {}).filter((v) => v === false).length} items hidden
+                                        </small>
                                     </div>
-                                    <div className="card-body p-0">
-                                        <table className="table table-hover mb-0">
-                                            <thead className="table-light">
-                                                <tr>
-                                                    <th>Menu Item</th>
-                                                    <th className="text-center" style={{ width: "100px" }}>Visible</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {(ROLE_MENUS[role] ?? []).map((node) => (
-                                                    <MenuToggleRow
+                                    <button
+                                        className="btn btn-outline-secondary btn-sm"
+                                        onClick={() => handleShowAll(role)}
+                                        title="Reset all to visible"
+                                    >
+                                        <i className="bi bi-eye me-1"></i>
+                                        Show All
+                                    </button>
+                                </div>
+
+                                <div className="card-body p-0">
+                                    {/* Leaf items (no submenu) */}
+                                    {(ROLE_MENUS[role] ?? [])
+                                        .filter((n) => !n.children)
+                                        .map((node) => (
+                                            <LeafRow
+                                                key={node.id}
+                                                node={node}
+                                                visibility={visibilityByRole[role] ?? {}}
+                                                onChange={(id, visible) => handleToggle(role, id, visible)}
+                                            />
+                                        ))}
+
+                                    {/* Group items (with submenu) — collapsible accordion */}
+                                    {(ROLE_MENUS[role] ?? []).some((n) => n.children) && (
+                                        <Accordion flush alwaysOpen>
+                                            {(ROLE_MENUS[role] ?? [])
+                                                .filter((n) => n.children)
+                                                .map((node) => (
+                                                    <GroupAccordionItem
                                                         key={node.id}
                                                         node={node}
                                                         visibility={visibilityByRole[role] ?? {}}
                                                         onChange={(id, visible) => handleToggle(role, id, visible)}
                                                     />
                                                 ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div className="card-footer bg-white d-flex align-items-center justify-content-between py-3">
-                                        {saveSuccess === role ? (
-                                            <span className="text-success small">
-                                                <i className="bi bi-check-circle me-1"></i>
-                                                Saved successfully
-                                            </span>
-                                        ) : (
-                                            <span></span>
-                                        )}
-                                        <button
-                                            className="btn btn-primary"
-                                            onClick={() => handleSave(role)}
-                                            disabled={savingRole === role}
-                                        >
-                                            {savingRole === role ? (
-                                                <>
-                                                    <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                                                    Saving...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <i className="bi bi-save me-2"></i>
-                                                    Save Changes
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
+                                        </Accordion>
+                                    )}
                                 </div>
-                            </>
+
+                                <div className="card-footer bg-white d-flex align-items-center justify-content-between py-3">
+                                    {saveSuccess === role ? (
+                                        <span className="text-success small">
+                                            <i className="bi bi-check-circle me-1"></i>
+                                            Saved successfully
+                                        </span>
+                                    ) : (
+                                        <span></span>
+                                    )}
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={() => handleSave(role)}
+                                        disabled={savingRole === role}
+                                    >
+                                        {savingRole === role ? (
+                                            <>
+                                                <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <i className="bi bi-save me-2"></i>
+                                                Save Changes
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
                         )}
                     </div>
                 ))}
