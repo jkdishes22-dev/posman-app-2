@@ -48,6 +48,10 @@ module.exports = {
       to: ".next/standalone",
       filter: ["**/*"],
     },
+    {
+      from: "public/license/public-key.pem",
+      to: "public/license/public-key.pem",
+    },
   ],
 
   // icons only — .next/standalone is handled by extraResources above
@@ -74,6 +78,7 @@ module.exports = {
 
   nsis: {
     oneClick: false,
+    include: "scripts/installer-user-context.nsh",
     license: "LICENSE_TERMS.txt",
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
