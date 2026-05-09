@@ -193,6 +193,11 @@ function ensureLogDir() {
     }
 }
 
+/** Full path to today's log file (same rule as logToFile — rotates by calendar day in APP_LOG_TIMEZONE). */
+function getCurrentLogFilePath() {
+    return path.join(logDir, getTodayLogFilename());
+}
+
 function logToFile(message, level = "INFO") {
     const timestamp = formatLogTimestamp();
     const logMessage = `[${timestamp}] [${level}] ${message}\n`;
@@ -206,7 +211,7 @@ function logToFile(message, level = "INFO") {
     try {
         ensureLogDir();
         // Resolve log filename at write-time so daily rotation happens automatically
-        const logFile = path.join(logDir, getTodayLogFilename());
+        const logFile = getCurrentLogFilePath();
         fs.appendFileSync(logFile, logMessage);
     } catch (_) {
         // Continue without file logging if write fails
@@ -484,7 +489,8 @@ function startNextServer() {
                 if (code !== null) {
                     const error = `Next.js server exited unexpectedly with code ${code}`;
                     logToFile(error, "ERROR");
-                    reject(new Error(error));
+                    // Give stdout/stderr pipes a moment to flush (Windows often needs this for startup errors).
+                    setTimeout(() => reject(new Error(error)), 150);
                 }
             } else {
                 logToFile(`Next.js server exited normally`);
@@ -969,7 +975,7 @@ button:hover{background:#2563eb}</style></head>
 <h2>Failed to start JK PosMan</h2>
 <p>${error.message.replace(/</g,"&lt;")}</p>
 <p>Check the log file for details:</p>
-<div class="path">${logFile}</div>
+<div class="path">${getCurrentLogFilePath()}</div>
 <button onclick="location.reload()">Retry</button>
 </div></body></html>`);
         if (mainWindow && !mainWindow.isDestroyed()) {
