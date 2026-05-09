@@ -19,6 +19,7 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [activeItem, setActiveItem] = useState("");
     const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
+    const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
     const { user, logout } = useAuth();
     const { currentStation } = useStation();
     const router = useRouter();
@@ -104,6 +105,29 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
         },
     ];
 
+    useEffect(() => {
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        if (!token) return;
+        fetch("/api/system/module-visibility?role=sales", {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+                if (data?.visibility && typeof data.visibility === "object") {
+                    setHiddenMenuIds(
+                        new Set(
+                            Object.entries(data.visibility as Record<string, boolean>)
+                                .filter(([, v]) => v === false)
+                                .map(([id]) => id)
+                        )
+                    );
+                }
+            })
+            .catch(() => {});
+    }, []);
+
+    const visibleMenuItems = menuItems.filter((item) => !hiddenMenuIds.has(item.id));
+
     return (
         <div className="d-flex vh-100">
             {/* Sidebar */}
@@ -158,7 +182,7 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
                 {/* Navigation */}
                 <nav className="flex-grow-1 p-3">
                     <ul className="nav nav-pills flex-column">
-                        {menuItems.map((item) => (
+                        {visibleMenuItems.map((item) => (
                             <li key={item.id} className="nav-item mb-2">
                                 <button
                                     className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""}`}
