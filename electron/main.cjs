@@ -127,6 +127,19 @@ function resolveLicensePublicKeyForRuntime() {
     const envKey = process.env.LICENSE_PUBLIC_KEY;
     const envNormalized = isLikelyPublicKeyPem(envKey) ? normalizePem(envKey) : null;
 
+    // Operators: set LICENSE_PUBLIC_KEY (full PEM) + LICENSE_PUBLIC_KEY_PREFER_OS=1 as User/System env,
+    // restart the app — verifies licenses signed with that key without rebuilding the installer.
+    // Without this flag, bundled resources/public-key.pem wins and OS env is ignored when packaged PEM exists.
+    if (
+        envNormalized &&
+        String(process.env.LICENSE_PUBLIC_KEY_PREFER_OS || "").trim() === "1"
+    ) {
+        logToFile(
+            "Using LICENSE_PUBLIC_KEY from environment (LICENSE_PUBLIC_KEY_PREFER_OS=1 overrides bundled key).",
+        );
+        return envNormalized;
+    }
+
     let packagedKey = null;
     let packagedPath = null;
     for (const candidate of getPackagedPublicKeyCandidates()) {
