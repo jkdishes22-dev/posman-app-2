@@ -3,9 +3,11 @@ import { todayEAT } from "../../../shared/eatDate";
 import { formatReportPeriodLabel } from "../../../shared/reportPeriodLabel";
 
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
+import FilterDatePicker from "../../../shared/FilterDatePicker";
 import React, { useState, useEffect } from "react";
-import { Button, Form } from "react-bootstrap";
+import { Button, Form, Row, Col } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 
@@ -130,15 +132,31 @@ export default function SalesRevenueReportPage() {
 
   const totals = calculateTotals();
 
+  const reportFiltersDirty =
+    selectedItemId !== "" ||
+    selectedUserId !== "" ||
+    period !== "day" ||
+    dateRange.startDate !== todayEAT() ||
+    dateRange.endDate !== todayEAT();
+
+  const clearReportFilters = () => {
+    const d = todayEAT();
+    setDateRange({ startDate: d, endDate: d });
+    setPeriod("day");
+    setSelectedItemId("");
+    setSelectedUserId("");
+  };
+
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <div className="row mb-4">
-          <div className="col-12">
-            <h1 className="h3 mb-0">Sales Revenue Report</h1>
-            <p className="text-muted">View actual and projected revenue from sales</p>
-          </div>
-        </div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-currency-dollar me-2" aria-hidden></i>
+            Sales Revenue Report
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">View actual and projected revenue from sales</p>
+        </PageHeaderStrip>
 
         <ErrorDisplay
           error={error}
@@ -151,26 +169,31 @@ export default function SalesRevenueReportPage() {
 
         <div className="row mb-4">
           <div className="col-12">
-            <div className="card">
+            <div className="card shadow-sm border-0">
+              <div className="card-header bg-light fw-bold py-2 px-3 d-flex align-items-center">
+                <i className="bi bi-funnel me-2 text-primary" aria-hidden />
+                Report filters
+              </div>
               <div className="card-body">
-                <div className="row align-items-end g-3">
-                  <div className="col-md-2">
-                    <Form.Label>Start Date</Form.Label>
-                    <Form.Control
-                      type="date"
+                <Form noValidate onSubmit={(e) => e.preventDefault()}>
+                <Row className="align-items-end g-3">
+                  <Col md={2}>
+                    <FilterDatePicker
+                      label="Start Date"
                       value={dateRange.startDate}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                      onChange={(v) => setDateRange((prev) => ({ ...prev, startDate: v }))}
+                      maxDate={new Date()}
                     />
-                  </div>
-                  <div className="col-md-2">
-                    <Form.Label>End Date</Form.Label>
-                    <Form.Control
-                      type="date"
+                  </Col>
+                  <Col md={2}>
+                    <FilterDatePicker
+                      label="End Date"
                       value={dateRange.endDate}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                      onChange={(v) => setDateRange((prev) => ({ ...prev, endDate: v }))}
+                      maxDate={new Date()}
                     />
-                  </div>
-                  <div className="col-md-2">
+                  </Col>
+                  <Col md={2}>
                     <Form.Label>Period</Form.Label>
                     <Form.Select
                       value={period}
@@ -181,8 +204,8 @@ export default function SalesRevenueReportPage() {
                       <option value="month">Month</option>
                       <option value="year">Year</option>
                     </Form.Select>
-                  </div>
-                  <div className="col-md-2">
+                  </Col>
+                  <Col md={2}>
                     <Form.Label>Item</Form.Label>
                     <Form.Select
                       value={selectedItemId}
@@ -195,8 +218,8 @@ export default function SalesRevenueReportPage() {
                         </option>
                       ))}
                     </Form.Select>
-                  </div>
-                  <div className="col-md-2">
+                  </Col>
+                  <Col md={2}>
                     <Form.Label>Sales User</Form.Label>
                     <Form.Select
                       value={selectedUserId}
@@ -209,19 +232,25 @@ export default function SalesRevenueReportPage() {
                         </option>
                       ))}
                     </Form.Select>
-                  </div>
-                  <div className="col-md-2">
+                  </Col>
+                  <Col md={2} className="d-flex flex-wrap gap-2 justify-content-md-end">
                     <Button
+                      type="button"
                       variant="primary"
+                      size="sm"
                       onClick={fetchSalesRevenueReport}
                       disabled={loading || loadingFilters}
-                      className="w-100"
                     >
                       <i className="bi bi-search me-1"></i>
-                      {loading ? "Loading..." : "Generate Report"}
+                      {loading ? "Loading..." : "Generate"}
                     </Button>
-                  </div>
-                </div>
+                    <Button type="button" variant="outline-secondary" size="sm" disabled={!reportFiltersDirty} onClick={clearReportFilters}>
+                      <i className="bi bi-x-lg me-1" aria-hidden />
+                      Clear filters
+                    </Button>
+                  </Col>
+                </Row>
+                </Form>
               </div>
             </div>
           </div>

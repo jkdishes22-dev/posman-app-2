@@ -1,5 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { todayEAT } from "../../shared/eatDate";
+import FilterDatePicker from "../../shared/FilterDatePicker";
+import { ymdToDateEat } from "../../shared/filterDateUtils";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
@@ -16,6 +19,8 @@ import {
 } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import HelpPopover from "../../components/HelpPopover";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { AuthError } from "../../types/types";
 
@@ -96,8 +101,24 @@ export default function PurchaseOrdersPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "sent" | "partial" | "received" | "cancelled">("all");
     const [supplierFilter, setSupplierFilter] = useState<string>("all");
-    const [startDate, setStartDate] = useState("");
-    const [endDate, setEndDate] = useState("");
+    const [startDate, setStartDate] = useState(() => todayEAT());
+    const [endDate, setEndDate] = useState(() => todayEAT());
+
+    const purchaseOrderFiltersActive =
+        searchTerm !== "" ||
+        statusFilter !== "all" ||
+        supplierFilter !== "all" ||
+        startDate !== todayEAT() ||
+        endDate !== todayEAT();
+
+    const clearPurchaseOrderFilters = () => {
+        const d = todayEAT();
+        setSearchTerm("");
+        setStatusFilter("all");
+        setSupplierFilter("all");
+        setStartDate(d);
+        setEndDate(d);
+    };
 
     useEffect(() => {
         fetchPurchaseOrders();
@@ -448,19 +469,19 @@ export default function PurchaseOrdersPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                {/* Header */}
-                <div className="bg-primary text-white p-3 mb-4">
-                    <div className="d-flex justify-content-between align-items-center">
-                        <h1 className="h4 mb-0 fw-bold">
-                            <i className="bi bi-cart-check me-2"></i>
-                            Purchase Orders
-                        </h1>
+                <PageHeaderStrip
+                    actions={
                         <Button variant="light" onClick={handleCreate}>
                             <i className="bi bi-plus-circle me-1"></i>
                             Create PO
                         </Button>
-                    </div>
-                </div>
+                    }
+                >
+                    <h1 className="h4 mb-0 fw-bold">
+                        <i className="bi bi-cart-check me-2" aria-hidden></i>
+                        Purchase Orders
+                    </h1>
+                </PageHeaderStrip>
 
                 <ErrorDisplay
                     error={error}
@@ -471,72 +492,86 @@ export default function PurchaseOrdersPage() {
                 {/* Search and Filter */}
                 <Card className="mb-4">
                     <Card.Body>
-                        <Row className="g-2">
-                            <Col md={3}>
-                                <InputGroup>
-                                    <InputGroup.Text>
-                                        <i className="bi bi-search"></i>
-                                    </InputGroup.Text>
-                                    <Form.Control
-                                        type="text"
-                                        placeholder="Search PO, supplier, notes…"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
+                        <Form
+                            noValidate
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                            }}
+                        >
+                            <Row className="g-2">
+                                <Col md={2}>
+                                    <InputGroup>
+                                        <InputGroup.Text>
+                                            <i className="bi bi-search"></i>
+                                        </InputGroup.Text>
+                                        <Form.Control
+                                            type="text"
+                                            placeholder="Search PO, supplier, notes…"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </InputGroup>
+                                </Col>
+                                <Col md={2}>
+                                    <Form.Select
+                                        value={statusFilter}
+                                        onChange={(e) => setStatusFilter(e.target.value as any)}
+                                    >
+                                        <option value="all">All Status</option>
+                                        <option value="draft">Draft</option>
+                                        <option value="sent">Sent</option>
+                                        <option value="partial">Partial</option>
+                                        <option value="received">Received</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </Form.Select>
+                                </Col>
+                                <Col md={2}>
+                                    <Form.Select
+                                        value={supplierFilter}
+                                        onChange={(e) => setSupplierFilter(e.target.value)}
+                                    >
+                                        <option value="all">All Suppliers</option>
+                                        {suppliers.map((supplier) => (
+                                            <option key={supplier.id} value={supplier.id.toString()}>
+                                                {supplier.name}
+                                            </option>
+                                        ))}
+                                    </Form.Select>
+                                </Col>
+                                <Col md={2}>
+                                    <FilterDatePicker
+                                        label="From"
+                                        value={startDate}
+                                        onChange={setStartDate}
+                                        placeholderText="From"
+                                        maxDate={endDate ? ymdToDateEat(endDate) ?? new Date() : new Date()}
                                     />
-                                </InputGroup>
-                            </Col>
-                            <Col md={2}>
-                                <Form.Select
-                                    value={statusFilter}
-                                    onChange={(e) => setStatusFilter(e.target.value as any)}
-                                >
-                                    <option value="all">All Status</option>
-                                    <option value="draft">Draft</option>
-                                    <option value="sent">Sent</option>
-                                    <option value="partial">Partial</option>
-                                    <option value="received">Received</option>
-                                    <option value="cancelled">Cancelled</option>
-                                </Form.Select>
-                            </Col>
-                            <Col md={2}>
-                                <Form.Select
-                                    value={supplierFilter}
-                                    onChange={(e) => setSupplierFilter(e.target.value)}
-                                >
-                                    <option value="all">All Suppliers</option>
-                                    {suppliers.map((supplier) => (
-                                        <option key={supplier.id} value={supplier.id.toString()}>
-                                            {supplier.name}
-                                        </option>
-                                    ))}
-                                </Form.Select>
-                            </Col>
-                            <Col md={2}>
-                                <Form.Control
-                                    type="date"
-                                    value={startDate}
-                                    max={endDate || undefined}
-                                    placeholder="From"
-                                    title="From date"
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                />
-                            </Col>
-                            <Col md={2}>
-                                <Form.Control
-                                    type="date"
-                                    value={endDate}
-                                    min={startDate || undefined}
-                                    placeholder="To"
-                                    title="To date"
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                />
-                            </Col>
-                            <Col md={1} className="text-end d-flex align-items-center justify-content-end gap-2">
-                                <Badge bg="secondary" className="fs-6 p-2">
-                                    {filteredPOs.length} PO{filteredPOs.length !== 1 ? "s" : ""}
-                                </Badge>
-                            </Col>
-                        </Row>
+                                </Col>
+                                <Col md={2}>
+                                    <FilterDatePicker
+                                        label="To"
+                                        value={endDate}
+                                        onChange={setEndDate}
+                                        placeholderText="To"
+                                        minDate={startDate ? ymdToDateEat(startDate) ?? undefined : undefined}
+                                        maxDate={new Date()}
+                                    />
+                                </Col>
+                                <Col md={2} className="d-flex align-items-end justify-content-end">
+                                    <Button
+                                        type="button"
+                                        variant="outline-secondary"
+                                        size="sm"
+                                        className="text-nowrap"
+                                        disabled={!purchaseOrderFiltersActive}
+                                        onClick={clearPurchaseOrderFilters}
+                                    >
+                                        <i className="bi bi-x-lg me-1" aria-hidden />
+                                        Clear filters
+                                    </Button>
+                                </Col>
+                            </Row>
+                        </Form>
                     </Card.Body>
                 </Card>
 
@@ -724,14 +759,13 @@ export default function PurchaseOrdersPage() {
                             </Form.Group>
                             <Row>
                                 <Col md={6}>
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Expected Delivery Date</Form.Label>
-                                        <Form.Control
-                                            type="date"
-                                            value={formData.expected_delivery_date}
-                                            onChange={(e) => setFormData({ ...formData, expected_delivery_date: e.target.value })}
-                                        />
-                                    </Form.Group>
+                                    <FilterDatePicker
+                                        label="Expected Delivery Date"
+                                        value={formData.expected_delivery_date}
+                                        onChange={(v) => setFormData({ ...formData, expected_delivery_date: v })}
+                                        allowEmpty
+                                        placeholderText="Optional"
+                                    />
                                 </Col>
                             </Row>
                             <Form.Group className="mb-3">
@@ -757,9 +791,18 @@ export default function PurchaseOrdersPage() {
                                             <Row>
                                                 <Col md={4}>
                                                     <Form.Group>
-                                                        <Form.Label>
-                                                            Suppliable item <span className="text-danger">*</span>
-                                                        </Form.Label>
+                                                        <div className="d-flex align-items-center gap-1 mb-1">
+                                                            <Form.Label className="mb-0">
+                                                                Suppliable item <span className="text-danger">*</span>
+                                                            </Form.Label>
+                                                            <HelpPopover
+                                                                id={`po-suppliable-item-${index}`}
+                                                                title="Which items appear here?"
+                                                            >
+                                                                Only active items marked as <strong>stock</strong> (suppliable for purchasing) are listed. Composite groups are excluded.
+                                                                Other sellable items are typically fulfilled through <strong>production</strong>, not purchase orders.
+                                                            </HelpPopover>
+                                                        </div>
                                                         <Form.Select
                                                             value={item.item_id}
                                                             onChange={(e) => updateItemRow(index, "item_id", e.target.value)}
@@ -775,9 +818,6 @@ export default function PurchaseOrdersPage() {
                                                                 </option>
                                                             ))}
                                                         </Form.Select>
-                                                        <Form.Text className="text-muted">
-                                                            Only items marked as stock (suppliable) appear here. Other non-group items are received via production.
-                                                        </Form.Text>
                                                     </Form.Group>
                                                 </Col>
                                                 <Col md={3}>

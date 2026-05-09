@@ -1,14 +1,33 @@
-import React, { useState, useEffect } from "react";
-import { Modal, Button, Form, Spinner } from "react-bootstrap";
+import React, { useState, useEffect, type CSSProperties } from "react";
+import { Modal, Button, Form, Spinner, Row, Col } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import { ApiErrorResponse } from "../../utils/errorUtils";
+import { touchFriendlyInputStyle } from "../../utils/touchInput";
+import {
+  computePendingAmount,
+  computeTotalPaidFromPaymentFields,
+  isSubmitBillPaymentBalanced,
+} from "../../utils/submitBillPaymentTotals";
+import SubmitBillVirtualKeyboard, {
+  type SubmitBillKeyboardMode,
+} from "../../components/SubmitBillVirtualKeyboard";
+
+type SubmitBillActiveField = "cash" | "mpesaAmount" | "mpesaCode";
+
+/** Full width within the form column — avoids tiny fields floating in empty space */
+const billPaymentInputStyle: CSSProperties = {
+  ...touchFriendlyInputStyle,
+  width: "100%",
+};
 
 const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [cashAmount, setCashAmount] = useState("");
   const [mpesaAmount, setMpesaAmount] = useState("");
   const [mpesaCode, setMpesaCode] = useState("");
+  /** Which field receives keys from the fallback virtual keyboard */
+  const [activeField, setActiveField] = useState<SubmitBillActiveField>("cash");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [paymentValidationError, setPaymentValidationError] = useState<string>("");
@@ -24,6 +43,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
     setCashAmount("");
     setMpesaAmount("");
     setMpesaCode("");
+    setActiveField("cash");
     setErrorMessage("");
     setPaymentValidationError("");
     setErrorDetails(null);
@@ -34,17 +54,10 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
     onHide();
   };
 
-  const totalPaid =
-    (paymentMethod === "cash" || paymentMethod === "cash_mpesa"
-      ? Number(cashAmount) || 0
-      : 0) +
-    (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa"
-      ? Number(mpesaAmount) || 0
-      : 0);
-
   const normalizedTotalAmount = Number(totalAmount) || 0;
-  const normalizedTotalPaid = Number(totalPaid) || 0;
-  const pendingAmount = normalizedTotalAmount - normalizedTotalPaid;
+  const normalizedTotalPaid =
+    Number(computeTotalPaidFromPaymentFields(paymentMethod, cashAmount, mpesaAmount)) || 0;
+  const pendingAmount = computePendingAmount(normalizedTotalAmount, normalizedTotalPaid);
 
   // Debounced M-Pesa reference validation
   useEffect(() => {
@@ -83,7 +96,70 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
     }
   }, [mpesaCode, paymentMethod, apiCall]);
 
-  const handleCashChange = (e) => {
+  useEffect(() => {
+    if (!show) return;
+    if (paymentMethod === "mpesa") setActiveField((f) => (f === "mpesaCode" ? f : "mpesaAmount"));
+    else if (paymentMethod === "cash") setActiveField((f) => (f === "mpesaCode" ? f : "cash"));
+  }, [show, paymentMethod]);
+
+  const keyboardMode: SubmitBillKeyboardMode =
+    activeField === "mpesaCode" ? "alpha" : "numeric";
+
+  const effectiveNumericTarget = (): "cash" | "mpesaAmount" | null => {
+    if (activeField === "mpesaCode") return null;
+    if (paymentMethod === "cash") return "cash";
+    if (paymentMethod === "mpesa") return "mpesaAmount";
+    if (activeField === "cash") return "cash";
+    if (activeField === "mpesaAmount") return "mpesaAmount";
+    return "cash";
+  };
+
+  const applyNumericValue = (field: "cash" | "mpesaAmount", value: string) => {
+    const synthetic = {
+      target: { value },
+      currentTarget: { value },
+    } as React.ChangeEvent<HTMLInputElement>;
+    if (field === "cash") handleCashChange(synthetic);
+    else handleMpesaChange(synthetic);
+  };
+
+  const handleVirtualCharacter = (ch: string) => {
+    if (keyboardMode === "alpha") {
+      setMpesaCode((prev) => prev + ch);
+      setPaymentValidationError("");
+      return;
+    }
+    const target = effectiveNumericTarget();
+    if (!target) return;
+    const cur = target === "cash" ? cashAmount : mpesaAmount;
+    if (ch === ".") {
+      if (cur.includes(".")) return;
+    }
+    applyNumericValue(target, cur + ch);
+  };
+
+  const handleVirtualSpecialKey = (key: "Backspace" | "Clear" | "Space") => {
+    if (keyboardMode === "alpha") {
+      if (key === "Backspace") setMpesaCode((c) => c.slice(0, -1));
+      else if (key === "Clear") setMpesaCode("");
+      else if (key === "Space") setMpesaCode((c) => c + " ");
+      setPaymentValidationError("");
+      return;
+    }
+    const target = effectiveNumericTarget();
+    if (!target) return;
+    const cur = target === "cash" ? cashAmount : mpesaAmount;
+    let next: string;
+    if (key === "Backspace") next = cur.slice(0, -1);
+    else if (key === "Clear") next = "";
+    else return;
+    applyNumericValue(target, next);
+  };
+
+  const activeRing = (field: SubmitBillActiveField) =>
+    activeField === field ? "border-primary border-2 shadow-sm" : "";
+
+  const handleCashChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (/^\d*\.?\d*$/.test(value)) {
       const newCashAmount = value;
@@ -107,7 +183,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
     }
   };
 
-  const handleMpesaChange = (e) => {
+  const handleMpesaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (/^\d*\.?\d*$/.test(value)) {
       const newMpesaAmount = value;
@@ -171,7 +247,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
       // Allow submission with 0 payment
     } else {
       // For pending bills or reopened bills with partial/no payments, require full payment
-      if (Math.abs(normalizedTotalPaid - normalizedTotalAmount) > 0.01) {
+      if (!isSubmitBillPaymentBalanced(normalizedTotalAmount, normalizedTotalPaid)) {
         setPaymentValidationError(`Total paid (KES ${normalizedTotalPaid.toFixed(2)}) must equal bill total (KES ${normalizedTotalAmount.toFixed(2)}).`);
         return;
       }
@@ -236,158 +312,220 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
   };
 
   return (
-    <Modal show={show} onHide={handleClose}>
-      <Modal.Header closeButton>
-        <Modal.Title>
-          {selectedBill?.status === "reopened" ? "Resubmit" : "Submit"} Bill - Total: <strong>{totalAmount}</strong>
+    <Modal show={show} onHide={handleClose} size="lg" centered dialogClassName="submit-bill-modal-dialog">
+      <Modal.Header closeButton className="py-2 px-3">
+        <Modal.Title className="fs-6">
+          {selectedBill?.status === "reopened" ? "Resubmit" : "Submit"} Bill — Total <strong>{totalAmount}</strong>
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body className="py-2 px-3">
         {selectedBill ? (
-          <Form>
-            <ErrorDisplay
-              error={errorMessage}
-              errorDetails={errorDetails}
-              onDismiss={() => {
-                setErrorMessage("");
-                setErrorDetails(null);
-              }}
-            />
-
-            {paymentValidationError && (
-              <div className="alert alert-danger" role="alert">
-                {paymentValidationError}
-              </div>
-            )}
-
-            <Form.Group>
-              <Form.Label>Select Payment Method</Form.Label>
-              <div>
-                <Form.Check
-                  type="radio"
-                  label="Cash"
-                  name="paymentMethod"
-                  value="cash"
-                  checked={paymentMethod === "cash"}
-                  onChange={() => {
-                    setPaymentMethod("cash");
-                    setPaymentValidationError("");
-                  }}
-                  style={{ fontSize: "18px" }}
-                />
-                <Form.Check
-                  type="radio"
-                  label="M-Pesa"
-                  name="paymentMethod"
-                  value="mpesa"
-                  checked={paymentMethod === "mpesa"}
-                  onChange={() => {
-                    setPaymentMethod("mpesa");
-                    setPaymentValidationError("");
-                  }}
-                  style={{ fontSize: "18px" }}
-                />
-                <Form.Check
-                  type="radio"
-                  label="Cash_mpesa (Cash & M-Pesa)"
-                  name="paymentMethod"
-                  value="cash_mpesa"
-                  checked={paymentMethod === "cash_mpesa"}
-                  onChange={() => {
-                    setPaymentMethod("cash_mpesa");
-                    setPaymentValidationError("");
-                  }}
-                  style={{ fontSize: "18px" }}
-                />
-              </div>
-            </Form.Group>
-
-            <Form.Group>
-              <Form.Label>Cash Amount</Form.Label>
-              <Form.Control
-                type="text"
-                value={cashAmount}
-                onChange={handleCashChange}
-                disabled={paymentMethod === "mpesa"}
-              />
-            </Form.Group>
-
-            <Form.Group>
-              <Form.Label>M-Pesa Amount</Form.Label>
-              <Form.Control
-                type="text"
-                value={mpesaAmount}
-                onChange={handleMpesaChange}
-                disabled={paymentMethod === "cash"}
-              />
-            </Form.Group>
-
-            {(paymentMethod === "mpesa" || paymentMethod === "cash_mpesa") && (
-              <Form.Group>
-                <Form.Label>M-Pesa Payment Code</Form.Label>
-                <div className="position-relative">
-                  <Form.Control
-                    type="text"
-                    value={mpesaCode}
-                    onChange={(e) => {
-                      setMpesaCode(e.target.value);
-                      setPaymentValidationError("");
+          <Row className="g-3 flex-lg-nowrap align-items-start">
+            <Col lg={6} className="mb-2 mb-lg-0">
+              <div className="rounded-3 border bg-white shadow-sm p-2 p-lg-3 h-100">
+                <Form className="submit-bill-payment-form">
+                  <ErrorDisplay
+                    error={errorMessage}
+                    errorDetails={errorDetails}
+                    onDismiss={() => {
+                      setErrorMessage("");
+                      setErrorDetails(null);
                     }}
-                    placeholder="Enter M-Pesa payment code"
-                    required
-                    className={
-                      mpesaCode && !isValidatingReference && !paymentValidationError
-                        ? "is-valid"
-                        : paymentValidationError && mpesaCode
-                          ? "is-invalid"
-                          : ""
-                    }
                   />
-                  {isValidatingReference && (
-                    <div className="position-absolute top-50 end-0 translate-middle-y me-2">
-                      <Spinner animation="border" size="sm" />
+
+                  {paymentValidationError && (
+                    <div className="alert alert-danger py-2 px-3 mb-3" role="alert">
+                      {paymentValidationError}
                     </div>
                   )}
-                </div>
-                {mpesaCode && !isValidatingReference && !paymentValidationError && (
-                  <div className="valid-feedback">M-Pesa reference code is valid</div>
-                )}
-              </Form.Group>
-            )}
 
-            <div className="card bg-light p-3 mt-3">
-              <h6 className="card-title">Payment Summary</h6>
-              <div className="row">
-                <div className="col-6">
-                  <strong>Total Paid:</strong> KES {normalizedTotalPaid.toFixed(2)}
-                </div>
-                <div className="col-6">
-                  <strong>Bill Total:</strong> KES {normalizedTotalAmount.toFixed(2)}
-                </div>
+                  <Form.Group className="mb-2">
+                    <Form.Label className="fw-semibold small text-body-secondary text-uppercase mb-1">
+                      Payment method
+                    </Form.Label>
+                    <div
+                      className="btn-group btn-group-sm w-100"
+                      role="group"
+                      aria-label="Payment method"
+                    >
+                      <input
+                        type="radio"
+                        className="btn-check"
+                        name="paymentMethodUi"
+                        id="submit-bill-pm-cash"
+                        autoComplete="off"
+                        checked={paymentMethod === "cash"}
+                        onChange={() => {
+                          setPaymentMethod("cash");
+                          setPaymentValidationError("");
+                          setActiveField("cash");
+                        }}
+                      />
+                      <label className="btn btn-outline-primary py-1 px-1" htmlFor="submit-bill-pm-cash">
+                        Cash
+                      </label>
+                      <input
+                        type="radio"
+                        className="btn-check"
+                        name="paymentMethodUi"
+                        id="submit-bill-pm-mpesa"
+                        autoComplete="off"
+                        checked={paymentMethod === "mpesa"}
+                        onChange={() => {
+                          setPaymentMethod("mpesa");
+                          setPaymentValidationError("");
+                          setActiveField("mpesaAmount");
+                        }}
+                      />
+                      <label className="btn btn-outline-primary py-1 px-1 lh-sm text-wrap" htmlFor="submit-bill-pm-mpesa">
+                        M-Pesa
+                      </label>
+                      <input
+                        type="radio"
+                        className="btn-check"
+                        name="paymentMethodUi"
+                        id="submit-bill-pm-both"
+                        autoComplete="off"
+                        checked={paymentMethod === "cash_mpesa"}
+                        onChange={() => {
+                          setPaymentMethod("cash_mpesa");
+                          setPaymentValidationError("");
+                          setActiveField("cash");
+                        }}
+                      />
+                      <label className="btn btn-outline-primary py-1 px-1 lh-sm text-wrap" htmlFor="submit-bill-pm-both" title="Cash and M-Pesa">
+                        Cash&nbsp;+&nbsp;M-Pesa
+                      </label>
+                    </div>
+                  </Form.Group>
+
+                  <Form.Group className="mb-2">
+                    <Form.Label className="fw-semibold small">Cash amount</Form.Label>
+                    <Form.Control
+                      type="text"
+                      size="sm"
+                      inputMode="decimal"
+                      enterKeyHint="done"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      style={billPaymentInputStyle}
+                      className={activeRing("cash")}
+                      value={cashAmount}
+                      onChange={handleCashChange}
+                      onFocus={() => setActiveField("cash")}
+                      disabled={paymentMethod === "mpesa"}
+                    />
+                  </Form.Group>
+
+                <Form.Group className="mb-2">
+                  <Form.Label className="fw-semibold small">M-Pesa amount</Form.Label>
+                  <Form.Control
+                    type="text"
+                    size="sm"
+                    inputMode="decimal"
+                    enterKeyHint="done"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    style={billPaymentInputStyle}
+                    className={activeRing("mpesaAmount")}
+                    value={mpesaAmount}
+                    onChange={handleMpesaChange}
+                    onFocus={() => setActiveField("mpesaAmount")}
+                    disabled={paymentMethod === "cash"}
+                  />
+                </Form.Group>
+
+                {(paymentMethod === "mpesa" || paymentMethod === "cash_mpesa") && (
+                  <Form.Group className="mb-2">
+                    <Form.Label className="fw-semibold small">M-Pesa payment code</Form.Label>
+                    <div className="position-relative">
+                      <Form.Control
+                        type="text"
+                        size="sm"
+                        inputMode="text"
+                        enterKeyHint="done"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        style={billPaymentInputStyle}
+                        className={[
+                          mpesaCode && !isValidatingReference && !paymentValidationError ? "is-valid" : "",
+                          paymentValidationError && mpesaCode ? "is-invalid" : "",
+                          activeRing("mpesaCode"),
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        value={mpesaCode}
+                        onChange={(e) => {
+                          setMpesaCode(e.target.value);
+                          setPaymentValidationError("");
+                        }}
+                        onFocus={() => setActiveField("mpesaCode")}
+                        placeholder="Enter M-Pesa payment code"
+                        required
+                      />
+                      {isValidatingReference && (
+                        <div className="position-absolute top-50 end-0 translate-middle-y me-2">
+                          <Spinner animation="border" size="sm" />
+                        </div>
+                      )}
+                    </div>
+                    {mpesaCode && !isValidatingReference && !paymentValidationError && (
+                      <div className="valid-feedback">M-Pesa reference code is valid</div>
+                    )}
+                  </Form.Group>
+                )}
+
+                  <div className="mt-2 pt-2 border-top">
+                    <div className="fw-semibold small text-body-secondary text-uppercase mb-1">
+                      Summary
+                    </div>
+                    <div className="rounded-2 bg-light px-2 py-2 small">
+                      <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 gap-sm-3 column-gap-3">
+                        <span>
+                          <span className="text-muted">Paid</span>{" "}
+                          <strong>KES {normalizedTotalPaid.toFixed(2)}</strong>
+                        </span>
+                        <span className="text-muted d-none d-sm-inline">·</span>
+                        <span>
+                          <span className="text-muted">Pending</span>{" "}
+                          <strong className={pendingAmount > 0 ? "text-danger" : ""}>
+                            KES {pendingAmount > 0 ? pendingAmount : "0"}
+                          </strong>
+                        </span>
+                        <span className="text-muted d-none d-sm-inline">·</span>
+                        <span>
+                          <span className="text-muted">Status</span>{" "}
+                          {isSubmitBillPaymentBalanced(normalizedTotalAmount, normalizedTotalPaid) && !paymentValidationError && !isValidatingReference ? (
+                            <strong className="text-success">OK</strong>
+                          ) : (
+                            <strong className="text-danger">Invalid</strong>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Form>
               </div>
-              <div className="row mt-2">
-                <div className="col-6">
-                  <strong>Pending Amount:</strong>{" "}
-                  <span className={pendingAmount > 0 ? "text-danger fw-bold" : ""}>
-                    KES {pendingAmount > 0 ? pendingAmount : "0"}
-                  </span>
-                </div>
-                <div className="col-6">
-                  <strong>Validation Status:</strong>{" "}
-                  {Math.abs(normalizedTotalPaid - normalizedTotalAmount) <= 0.01 && !paymentValidationError && !isValidatingReference ? (
-                    <span className="text-success">✓ Valid</span>
-                  ) : (
-                    <span className="text-danger">✗ Invalid</span>
-                  )}
-                </div>
+            </Col>
+            <Col lg={6} className="ps-lg-2">
+              <div className="sticky-lg-top" style={{ top: 4 }}>
+                <SubmitBillVirtualKeyboard
+                  mode={keyboardMode}
+                  alphaSpacing="comfortable"
+                  onCharacter={handleVirtualCharacter}
+                  onSpecialKey={handleVirtualSpecialKey}
+                />
               </div>
-            </div>
-          </Form>
+            </Col>
+          </Row>
         ) : (
           <p>No bill selected. Please select a bill to continue.</p>
         )}
       </Modal.Body>
-      <Modal.Footer>
+      <Modal.Footer className="py-2 px-3">
         <Button
           variant="secondary"
           onClick={handleClose}
@@ -401,7 +539,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
           disabled={
             isSubmitting ||
             !selectedBill ||
-            Math.abs(normalizedTotalPaid - normalizedTotalAmount) > 0.01 ||
+            !isSubmitBillPaymentBalanced(normalizedTotalAmount, normalizedTotalPaid) ||
             paymentValidationError !== "" ||
             isValidatingReference
           }

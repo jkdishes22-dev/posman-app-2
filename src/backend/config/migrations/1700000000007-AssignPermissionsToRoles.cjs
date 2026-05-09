@@ -134,12 +134,14 @@ class AssignPermissionsToRoles1700000000007 {
                 // Production
                 'can_issue_production',
                 'can_view_production_history',
-                // Station oversight
+                // Station oversight (incl. user–station assign/remove for Station Users)
                 'can_view_station',
                 'can_view_user_station',
                 'can_edit_station',
                 'can_view_station_pricelist',
-                'can_edit_user_station'
+                'can_edit_user_station',
+                'can_add_user_station',
+                'can_delete_user_station'
             ],
             sales: [
                 // Bill creation and management (sales owns the order lifecycle)

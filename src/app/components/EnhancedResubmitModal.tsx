@@ -5,6 +5,7 @@ import { Modal, Button, Form, Alert, Row, Col, Card } from "react-bootstrap";
 import { useApiCall } from "../utils/apiUtils";
 import ErrorDisplay from "./ErrorDisplay";
 import { Bill } from "../types/types";
+import { touchFriendlyInputStyle } from "../utils/touchInput";
 
 interface EnhancedResubmitModalProps {
     show: boolean;
@@ -295,6 +296,12 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
                                             <Form.Label>Cash Amount (KES)</Form.Label>
                                             <Form.Control
                                                 type="number"
+                                                inputMode="decimal"
+                                                enterKeyHint="done"
+                                                autoComplete="off"
+                                                autoCorrect="off"
+                                                spellCheck={false}
+                                                style={touchFriendlyInputStyle}
                                                 value={cashAmount}
                                                 onChange={(e) => {
                                                     const value = e.target.value;
@@ -324,6 +331,12 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
                                                 <Form.Label>M-Pesa Amount (KES)</Form.Label>
                                                 <Form.Control
                                                     type="number"
+                                                    inputMode="decimal"
+                                                    enterKeyHint="done"
+                                                    autoComplete="off"
+                                                    autoCorrect="off"
+                                                    spellCheck={false}
+                                                    style={touchFriendlyInputStyle}
                                                     value={mpesaAmount}
                                                     onChange={(e) => {
                                                         const value = e.target.value;
@@ -351,6 +364,12 @@ const EnhancedResubmitModal: React.FC<EnhancedResubmitModalProps> = ({
                                                 <Form.Label>M-Pesa Transaction ID</Form.Label>
                                                 <Form.Control
                                                     type="text"
+                                                    inputMode="text"
+                                                    enterKeyHint="done"
+                                                    autoComplete="off"
+                                                    autoCorrect="off"
+                                                    spellCheck={false}
+                                                    style={touchFriendlyInputStyle}
                                                     value={mpesaTransactionId}
                                                     onChange={(e) => {
                                                         const value = e.target.value;

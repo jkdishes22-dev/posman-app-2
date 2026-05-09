@@ -1,5 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { todayEAT } from "../../../shared/eatDate";
+import FilterDatePicker from "../../../shared/FilterDatePicker";
+import { ymdToDateEat } from "../../../shared/filterDateUtils";
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
@@ -18,6 +21,7 @@ import {
 } from "react-bootstrap";
 import { useApiCall } from "../../../utils/apiUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { AuthError } from "../../../types/types";
 import { useTooltips } from "../../../hooks/useTooltips";
@@ -61,8 +65,8 @@ export default function InventoryTransactionsPage() {
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [itemIdFilter, setItemIdFilter] = useState<string>("");
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
-    const [startDate, setStartDate] = useState<string>("");
-    const [endDate, setEndDate] = useState<string>("");
+    const [startDate, setStartDate] = useState(() => todayEAT());
+    const [endDate, setEndDate] = useState(() => todayEAT());
     const [inventoryItems, setInventoryItems] = useState<{ id: number; name: string; code: string }[]>([]);
 
     // Add quantity modal state
@@ -244,13 +248,27 @@ export default function InventoryTransactionsPage() {
     const startItem = total === 0 ? 0 : (page - 1) * DEFAULT_PAGE_SIZE + 1;
     const endItem = Math.min(page * DEFAULT_PAGE_SIZE, total);
 
+    const inventoryTxnFiltersDirty =
+        searchTerm.trim() !== "" ||
+        itemIdFilter !== "" ||
+        startDate !== todayEAT() ||
+        endDate !== todayEAT();
+
+    const clearInventoryTxnFilters = () => {
+        const d = todayEAT();
+        setSearchTerm("");
+        setItemIdFilter("");
+        setStartDate(d);
+        setEndDate(d);
+        setPage(1);
+    };
+
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                {/* Header */}
-                <div className="bg-primary text-white p-3 mb-4">
+                <PageHeaderStrip>
                     <h1 className="h4 mb-0 fw-bold">
-                        <i className="bi bi-arrow-left-right me-2"></i>
+                        <i className="bi bi-arrow-left-right me-2" aria-hidden></i>
                         Inventory Transactions
                         <i
                             className="bi bi-question-circle ms-2"
@@ -260,7 +278,7 @@ export default function InventoryTransactionsPage() {
                             title="View all inventory movement transactions"
                         ></i>
                     </h1>
-                </div>
+                </PageHeaderStrip>
 
                 <ErrorDisplay
                     error={error}
@@ -271,10 +289,19 @@ export default function InventoryTransactionsPage() {
                     }}
                 />
 
-                {/* Filters */}
-                <Card className="mb-4">
+                <Card className="mb-4 shadow-sm border-0">
+                    <Card.Header className="bg-light fw-bold py-2 px-3 d-flex align-items-center">
+                        <i className="bi bi-funnel me-2 text-primary" aria-hidden />
+                        Filters
+                    </Card.Header>
                     <Card.Body>
-                        <Row className="g-3">
+                        <Form
+                            noValidate
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                            }}
+                        >
+                        <Row className="g-3 align-items-end">
                             <Col md={4}>
                                 <Form.Group>
                                     <Form.Label>Search Items</Form.Label>
@@ -311,42 +338,43 @@ export default function InventoryTransactionsPage() {
                                 </Form.Group>
                             </Col>
                             <Col md={2}>
-                                <Form.Group>
-                                    <Form.Label>From</Form.Label>
-                                    <Form.Control
-                                        type="date"
-                                        value={startDate}
-                                        max={endDate || undefined}
-                                        onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-                                    />
-                                </Form.Group>
-                            </Col>
-                            <Col md={2}>
-                                <Form.Group>
-                                    <Form.Label>To</Form.Label>
-                                    <Form.Control
-                                        type="date"
-                                        value={endDate}
-                                        min={startDate || undefined}
-                                        onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-                                    />
-                                </Form.Group>
-                            </Col>
-                            <Col md={1} className="d-flex align-items-end">
-                                <Button
-                                    variant="outline-secondary"
-                                    onClick={() => {
-                                        setItemIdFilter("");
-                                        setSearchTerm("");
-                                        setStartDate("");
-                                        setEndDate("");
+                                <FilterDatePicker
+                                    label="From"
+                                    value={startDate}
+                                    onChange={(v) => {
+                                        setStartDate(v);
                                         setPage(1);
                                     }}
+                                    maxDate={endDate ? ymdToDateEat(endDate) ?? new Date() : new Date()}
+                                />
+                            </Col>
+                            <Col md={2}>
+                                <FilterDatePicker
+                                    label="To"
+                                    value={endDate}
+                                    onChange={(v) => {
+                                        setEndDate(v);
+                                        setPage(1);
+                                    }}
+                                    minDate={startDate ? ymdToDateEat(startDate) ?? undefined : undefined}
+                                    maxDate={new Date()}
+                                />
+                            </Col>
+                            <Col md={1} className="d-flex align-items-end justify-content-md-end">
+                                <Button
+                                    type="button"
+                                    variant="outline-secondary"
+                                    size="sm"
+                                    className="text-nowrap"
+                                    disabled={!inventoryTxnFiltersDirty}
+                                    onClick={clearInventoryTxnFilters}
                                 >
-                                    Clear
+                                    <i className="bi bi-x-lg me-1" aria-hidden />
+                                    Clear filters
                                 </Button>
                             </Col>
                         </Row>
+                        </Form>
                     </Card.Body>
                 </Card>
 

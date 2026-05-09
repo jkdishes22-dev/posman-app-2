@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
 import { Card, Row, Col } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -29,15 +30,15 @@ export default function StorekeeperReportsPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid py-4">
-        <div className="mb-4">
-          <h1 className="h3 fw-bold">
-            <i className="bi bi-bar-chart me-2" />
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-bar-chart me-2" aria-hidden />
             Reports
           </h1>
-          <p className="text-muted mb-0">
+          <p className="mb-0 mt-2 small text-white-50">
             Open a report (same routes as supervisor). Access depends on your permissions.
           </p>
-        </div>
+        </PageHeaderStrip>
 
         <Row className="g-3">
           {REPORT_LINKS.map((r) => (

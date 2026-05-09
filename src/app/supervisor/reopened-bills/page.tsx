@@ -4,6 +4,7 @@ import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
 import { Button } from "react-bootstrap";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
 import { useApiCall } from "../../utils/apiUtils";
 
 interface ReopenedBill {
@@ -99,13 +100,13 @@ export default function SupervisorReopenedBillsPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="row mb-4">
-          <div className="col-12">
-            <h1 className="h3 mb-0">Reopened Bills Management</h1>
-            <p className="text-muted">Monitor and manage reopened bills as supervisor fallback</p>
-          </div>
-        </div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-arrow-counterclockwise me-2" aria-hidden></i>
+            Reopened Bills Management
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">Monitor and manage reopened bills as supervisor fallback</p>
+        </PageHeaderStrip>
 
         {/* Error Display */}
         <ErrorDisplay

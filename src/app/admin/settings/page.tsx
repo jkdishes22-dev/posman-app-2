@@ -7,6 +7,8 @@ import { Card, Button, Alert, Spinner, Form, Badge, Row, Col, Table, Modal } fro
 import { useApiCall } from "../../utils/apiUtils";
 import type { ApiErrorResponse } from "../../utils/errorUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
+import HelpPopover from "../../components/HelpPopover";
 import { normalizePrinterSettings, toPrinterSettingsPayload } from "../../shared/printerSettings";
 import type {
     OrganisationSettingsValue,
@@ -493,10 +495,14 @@ export default function AdminSettingsPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <div className="mb-4">
-                    <h2 className="mb-0">System Settings</h2>
-                    <p className="text-muted small mb-0">Manage system configuration and maintenance</p>
-                </div>
+                <PageHeaderStrip>
+                    <div className="d-flex align-items-center flex-wrap gap-2">
+                        <h1 className="h4 mb-0 fw-bold">System Settings</h1>
+                        <HelpPopover id="system-settings-overview" title="System settings" className="text-white">
+                            License activation, bill presentation, organisation branding on receipts, printers, database backups, logs, and other maintenance tasks for administrators.
+                        </HelpPopover>
+                    </div>
+                </PageHeaderStrip>
 
                 {/* Top row: License + Bill Settings */}
                 <Row className="mb-4">
@@ -531,9 +537,13 @@ export default function AdminSettingsPage() {
 
                     <Col md={6}>
                         <Card className="shadow-sm h-100">
-                            <Card.Header className="bg-light fw-bold">Bill Settings</Card.Header>
+                            <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1">
+                                <span>Bill Settings</span>
+                                <HelpPopover id="bill-settings-intro" title="Bill presentation">
+                                    Controls customer-facing bill behaviour—for example whether tax lines appear on printed or downloaded receipts (subject to item setup).
+                                </HelpPopover>
+                            </Card.Header>
                             <Card.Body>
-                                <p className="text-muted small mb-3">Configure how bills are presented to customers.</p>
                                 {billSettingsResult && (
                                     <Alert variant={billSettingsResult.success ? "success" : "danger"} dismissible onClose={() => setBillSettingsResult(null)} className="mb-3">
                                         {billSettingsResult.success ? "Bill settings saved." : billSettingsResult.error}
@@ -556,12 +566,19 @@ export default function AdminSettingsPage() {
                 </Row>
 
                 <Card className="shadow-sm mb-4">
-                    <Card.Header className="bg-light fw-bold">Organisation &amp; receipts</Card.Header>
+                    <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1 flex-wrap">
+                        <span>Organisation &amp; receipts</span>
+                        <HelpPopover id="org-receipts" title="Organisation &amp; receipts">
+                            <p className="mb-2">
+                                Business name and tagline appear on printed and downloaded receipts. The M-PESA method marked{" "}
+                                <strong>Default</strong> is printed above the thank-you footer.
+                            </p>
+                            <p className="mb-0">
+                                Staff with the print permission receive branding via the same API as printer preferences.
+                            </p>
+                        </HelpPopover>
+                    </Card.Header>
                     <Card.Body>
-                        <p className="text-muted small mb-3">
-                            Business name and tagline appear on printed and downloaded receipts. The M-PESA method marked <strong>Default</strong>
-                            is printed above the thank-you footer. Staff with the print permission receive branding via the same API as printer prefs.
-                        </p>
                         {organisationResult && (
                             <Alert variant={organisationResult.success ? "success" : "danger"} dismissible onClose={() => setOrganisationResult(null)} className="mb-3">
                                 {organisationResult.success ? "Organisation settings saved." : organisationResult.error}
@@ -587,14 +604,20 @@ export default function AdminSettingsPage() {
                                 />
                             </Col>
                         </Row>
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                            <h6 className="fw-bold mb-0">M-PESA payment options</h6>
+                        <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                            <div className="d-flex align-items-center gap-1">
+                                <h6 className="fw-bold mb-0">M-PESA payment options</h6>
+                                <HelpPopover id="mpesa-lines" title="M-PESA on receipts">
+                                    Without at least one method, no M-PESA lines appear on the receipt. Add a method to show Till, Pochi la biashara,
+                                    or Paybill details.
+                                </HelpPopover>
+                            </div>
                             <Button variant="outline-primary" size="sm" onClick={addMpesaMethod}>
                                 Add method
                             </Button>
                         </div>
                         {(organisation.mpesa_methods ?? []).length === 0 ? (
-                            <p className="text-muted small">No M-PESA lines on the receipt. Add a method to show Till, Pochi la biashara, or Paybill details.</p>
+                            <p className="text-muted small fst-italic mb-0">No payment methods yet.</p>
                         ) : (
                             <Table responsive bordered size="sm" className="mb-0 align-middle">
                                 <thead className="table-light">
@@ -691,26 +714,44 @@ export default function AdminSettingsPage() {
                         <Row className="g-0">
                             {/* Printer Settings */}
                             <Col md={6} className="p-4 border-end">
-                                <h6 className="fw-bold mb-3">Printer Settings</h6>
+                                <div className="d-flex align-items-center gap-1 mb-3">
+                                    <h6 className="fw-bold mb-0">Printer Settings</h6>
+                                    <HelpPopover id="printer-settings-intro" title="Printer settings">
+                                        Configure thermal/receipt printing for the desktop app. Use <strong>Test Print</strong> after choosing a device.
+                                    </HelpPopover>
+                                </div>
                                 {printerResult && (
                                     <Alert variant={printerResult.success ? "success" : "danger"} dismissible onClose={() => setPrinterResult(null)} className="mb-3">
                                         {printerResult.success ? "Printer settings saved." : printerResult.error}
                                     </Alert>
                                 )}
-                                <Form.Check
-                                    type="switch"
-                                    id="auto-print-switch"
-                                    label="Auto-print when creating a new bill (customer + kitchen copy)"
-                                    checked={printerSettings.print_after_create_bill}
-                                    onChange={(e) => setPrinterSettings((s) => ({ ...s, print_after_create_bill: e.target.checked }))}
-                                    className="mb-2"
-                                />
-                                <p className="text-muted small mb-3">
-                                    When on, saving a new bill from billing prints two jobs (customer copy with totals first, then kitchen/captain ticket). Closing a bill never prints automatically.
-                                    My Sales → Print: one customer copy with totals. Billing → Print on a pending bill: same pair as auto-print.
-                                </p>
+                                <div className="d-flex align-items-start gap-1 mb-2">
+                                    <Form.Check
+                                        type="switch"
+                                        id="auto-print-switch"
+                                        label="Auto-print when creating a new bill (customer + kitchen copy)"
+                                        checked={printerSettings.print_after_create_bill}
+                                        onChange={(e) => setPrinterSettings((s) => ({ ...s, print_after_create_bill: e.target.checked }))}
+                                        className="flex-grow-1 mb-0"
+                                    />
+                                    <HelpPopover id="auto-print-detail" title="Auto-print behaviour" wide>
+                                        <p className="mb-2">
+                                            When on, saving a new bill from billing prints two jobs (customer copy with totals first, then kitchen/captain ticket).
+                                            Closing a bill never prints automatically.
+                                        </p>
+                                        <p className="mb-0">
+                                            My Sales → Print: one customer copy with totals. Billing → Print on a pending bill: the same pair as auto-print.
+                                        </p>
+                                    </HelpPopover>
+                                </div>
                                 <Form.Group className="mb-3">
-                                    <Form.Label className="fw-medium small">Printer</Form.Label>
+                                    <div className="d-flex align-items-center gap-1 mb-1">
+                                        <Form.Label className="fw-medium small mb-0">Printer</Form.Label>
+                                        <HelpPopover id="printer-desktop-list" title="Printer list">
+                                            The selectable printer list is only available in the desktop app (Electron). In the browser, enter a printer name
+                                            or leave blank for the OS default.
+                                        </HelpPopover>
+                                    </div>
                                     {printers.length > 0 ? (
                                         <Form.Select value={printerSettings.printer_name} onChange={(e) => setPrinterSettings((s) => ({ ...s, printer_name: e.target.value }))}>
                                             <option value="">Default printer</option>
@@ -726,7 +767,6 @@ export default function AdminSettingsPage() {
                                             onChange={(e) => setPrinterSettings((s) => ({ ...s, printer_name: e.target.value }))}
                                         />
                                     )}
-                                    <Form.Text className="text-muted">Printer list is only available in the desktop app.</Form.Text>
                                 </Form.Group>
                                 {printTestMessage && (
                                     <Alert variant={printTestMessage.startsWith("Print job sent") ? "success" : "warning"} className="mb-3" dismissible onClose={() => setPrintTestMessage(null)}>
@@ -745,12 +785,18 @@ export default function AdminSettingsPage() {
 
                             {/* Database Backup */}
                             <Col md={6} className="p-4">
-                                <h6 className="fw-bold mb-3">Database Backup</h6>
-                                <p className="text-muted small mb-3">
-                                    Backups are stored alongside the database file. A backup is also created automatically on the first daily launch.
-                                    {" "}
-                                    <Link href="/help/admin">Admin Help</Link> explains restore options and manual recovery.
-                                </p>
+                                <div className="d-flex align-items-center gap-1 mb-3">
+                                    <h6 className="fw-bold mb-0">Database Backup</h6>
+                                    <HelpPopover id="db-backup-overview" title="Database backup" wide>
+                                        <p className="mb-2">
+                                            Backups are stored alongside the database file. A backup can also be created automatically on the first launch of the day,
+                                            depending on frequency below.
+                                        </p>
+                                        <p className="mb-0">
+                                            <Link href="/help/admin">Admin Help</Link> explains restore options and manual recovery.
+                                        </p>
+                                    </HelpPopover>
+                                </div>
                                 <Form.Group className="mb-3">
                                     <Form.Label className="fw-medium small">Automatic backup frequency</Form.Label>
                                     <Form.Select
@@ -851,7 +897,13 @@ export default function AdminSettingsPage() {
                                     </div>
                                 )}
                                 {sqliteRestoreAvailable === false && (
-                                    <p className="text-muted small mb-3">Database restore from this screen is only available when the app runs in SQLite mode (desktop).</p>
+                                    <div className="d-flex align-items-start gap-1 mb-3">
+                                        <span className="text-muted small">Restore from this screen isn&apos;t available in this environment.</span>
+                                        <HelpPopover id="sqlite-restore-env" title="Database restore">
+                                            Database restore from this screen is only available when the app runs in SQLite mode (typically the desktop app).
+                                            Server or browser deployments use their own backup/restore procedures.
+                                        </HelpPopover>
+                                    </div>
                                 )}
                                 <div className="d-flex gap-2">
                                     <Button variant="outline-secondary" onClick={handleBackupNow} disabled={backupLoading}>
@@ -868,13 +920,20 @@ export default function AdminSettingsPage() {
 
                         {/* Log Settings (full width) */}
                         <div className="p-4">
-                            <h6 className="fw-bold mb-2">Log Settings</h6>
-                            <p className="text-muted small mb-3">
-                                How long application log files are kept on disk. Files older than the retention window are deleted automatically when the log viewer is opened.
-                                Admins can open the{" "}
-                                <Link href="/admin/logs">application log viewer</Link>
-                                {" "}to diagnose desktop (Electron) issues. Access requires the <code>can_view_logs</code> permission (assigned to admin by default).
-                            </p>
+                            <div className="d-flex align-items-center gap-1 mb-3">
+                                <h6 className="fw-bold mb-0">Log Settings</h6>
+                                <HelpPopover id="log-retention" title="Log retention &amp; viewer" wide>
+                                    <p className="mb-2">
+                                        Controls how long application log files are kept on disk. Files older than the retention window are deleted automatically
+                                        when the log viewer is opened.
+                                    </p>
+                                    <p className="mb-0">
+                                        Admins can open the{" "}
+                                        <Link href="/admin/logs">application log viewer</Link>
+                                        {" "}to diagnose desktop (Electron) issues. Access requires the <code>can_view_logs</code> permission (assigned to admin by default).
+                                    </p>
+                                </HelpPopover>
+                            </div>
                             <Row className="g-2 align-items-end" style={{ maxWidth: 340 }}>
                                 <Col>
                                     <Form.Label className="small mb-1">Retention period (days)</Form.Label>

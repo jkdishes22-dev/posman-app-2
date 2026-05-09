@@ -5,7 +5,9 @@ import { Modal, Button, Form, Badge, Table } from "react-bootstrap";
 import { useApiCall } from "src/app/utils/apiUtils";
 import { ApiErrorResponse } from "src/app/utils/errorUtils";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
+import HelpPopover from "src/app/components/HelpPopover";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
+import PageHeaderStrip from "src/app/components/PageHeaderStrip";
 
 interface ReopenReason {
     id: number;
@@ -209,13 +211,28 @@ const SupervisorBillSettingsPage = () => {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h1 className="h3 mb-0">Bill Settings</h1>
-                    <Button variant="primary" onClick={handleAdd}>
-                        <i className="bi bi-plus-circle me-2"></i>
-                        Add Reopen Reason
-                    </Button>
-                </div>
+                <PageHeaderStrip
+                    actions={
+                        <Button variant="light" onClick={handleAdd}>
+                            <i className="bi bi-plus-circle me-2"></i>
+                            Add Reopen Reason
+                        </Button>
+                    }
+                >
+                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                        <h1 className="h4 mb-0 fw-bold">Bill Settings</h1>
+                        <HelpPopover
+                            id="supervisor-bill-settings-overview"
+                            title="Reopen reasons"
+                            ariaLabel="About bill reopen reasons"
+                            className="text-white"
+                        >
+                            These labels appear when a cashier reopens a submitted bill so sales can correct issues. Keep the
+                            list tidy: deactivate reasons you no longer use instead of deleting them if history references
+                            them.
+                        </HelpPopover>
+                    </div>
+                </PageHeaderStrip>
 
                 <ErrorDisplay
                     error={error}
@@ -228,9 +245,19 @@ const SupervisorBillSettingsPage = () => {
 
                 <div className="card shadow-sm">
                     <div className="card-header bg-light">
-                        <h5 className="mb-0 fw-bold">
-                            <i className="bi bi-list-ul me-2 text-primary"></i>
-                            Reopen Reasons
+                        <h5 className="mb-0 fw-bold d-flex align-items-center gap-2 flex-wrap">
+                            <span>
+                                <i className="bi bi-list-ul me-2 text-primary"></i>
+                                Reopen Reasons
+                            </span>
+                            <HelpPopover
+                                id="supervisor-bill-settings-reopen-list"
+                                title="Managing reasons"
+                                ariaLabel="Help for reopen reasons list"
+                            >
+                                Sort order controls dropdown ordering (lower first). Active reasons are available when
+                                reopening; inactive ones stay out of new selections.
+                            </HelpPopover>
                         </h5>
                     </div>
                     <div className="card-body">
@@ -329,8 +356,13 @@ const SupervisorBillSettingsPage = () => {
 
                         <Form>
                             <Form.Group className="mb-3">
-                                <Form.Label>
+                                <Form.Label className="d-flex align-items-center gap-1 flex-wrap">
                                     Reason Key <span className="text-danger">*</span>
+                                    <HelpPopover id="supervisor-bill-settings-reason-key" title="Reason key">
+                                        Use lowercase letters, numbers, and underscores only (e.g.{" "}
+                                        <code>payment_disputed</code>). This identifier cannot be changed after the reason is
+                                        created.
+                                    </HelpPopover>
                                 </Form.Label>
                                 <Form.Control
                                     type="text"
@@ -339,9 +371,6 @@ const SupervisorBillSettingsPage = () => {
                                     placeholder="e.g., payment_disputed"
                                     disabled={modalMode === "edit"}
                                 />
-                                <Form.Text className="text-muted">
-                                    Lowercase letters, numbers, and underscores only. Cannot be changed after creation.
-                                </Form.Text>
                             </Form.Group>
 
                             <Form.Group className="mb-3">
@@ -370,29 +399,35 @@ const SupervisorBillSettingsPage = () => {
                             <div className="row">
                                 <div className="col-md-6">
                                     <Form.Group className="mb-3">
-                                        <Form.Label>Sort Order</Form.Label>
+                                        <Form.Label className="d-flex align-items-center gap-1">
+                                            Sort Order
+                                            <HelpPopover id="supervisor-bill-settings-sort-order" title="Sort order">
+                                                Lower numbers appear first when cashiers pick a reopen reason from dropdowns.
+                                            </HelpPopover>
+                                        </Form.Label>
                                         <Form.Control
                                             type="number"
                                             value={formData.sort_order}
                                             onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })}
                                             min="0"
                                         />
-                                        <Form.Text className="text-muted">
-                                            Lower numbers appear first in dropdowns
-                                        </Form.Text>
                                     </Form.Group>
                                 </div>
                                 <div className="col-md-6">
                                     <Form.Group className="mb-3">
-                                        <Form.Check
-                                            type="checkbox"
-                                            label="Active"
-                                            checked={formData.is_active}
-                                            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                                        />
-                                        <Form.Text className="text-muted">
-                                            Inactive reasons won't appear in dropdowns
-                                        </Form.Text>
+                                        <div className="d-flex align-items-center gap-1 flex-wrap">
+                                            <Form.Check
+                                                type="checkbox"
+                                                label="Active"
+                                                checked={formData.is_active}
+                                                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                                                id="reopen-reason-active"
+                                            />
+                                            <HelpPopover id="supervisor-bill-settings-active" title="Active">
+                                                When unchecked, this reason stays hidden from reopen dropdowns but remains in
+                                                the list for reference.
+                                            </HelpPopover>
+                                        </div>
                                     </Form.Group>
                                 </div>
                             </div>

@@ -18,6 +18,9 @@ import { useApiCall } from "../../../utils/apiUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import Pagination from "../../../components/Pagination";
+import { todayEAT } from "../../../shared/eatDate";
+import FilterDatePicker from "../../../shared/FilterDatePicker";
+import { ymdToDateEat } from "../../../shared/filterDateUtils";
 
 interface SupplierOption {
   id: number;
@@ -68,8 +71,8 @@ function SupplierTransactionsContent() {
 
   const [filterSupplierId, setFilterSupplierId] = useState("");
   const [filterType, setFilterType] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(() => todayEAT());
+  const [endDate, setEndDate] = useState(() => todayEAT());
 
   const [loading, setLoading] = useState(false);
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
@@ -140,6 +143,25 @@ function SupplierTransactionsContent() {
     void load(page);
   }, [page, load]);
 
+  const supplierTxnFiltersDirty =
+    filterSupplierId !== "" ||
+    filterType !== "" ||
+    startDate !== todayEAT() ||
+    endDate !== todayEAT();
+
+  const clearSupplierTxnFilters = () => {
+    const d = todayEAT();
+    setFilterSupplierId("");
+    setFilterType("");
+    setStartDate(d);
+    setEndDate(d);
+    if (page !== 1) {
+      setPage(1);
+    } else {
+      void load(1);
+    }
+  };
+
   const applyFilters = (e: React.FormEvent) => {
     e.preventDefault();
     if (page !== 1) {
@@ -174,12 +196,16 @@ function SupplierTransactionsContent() {
           }}
         />
 
-        <Card className="mb-4 shadow-sm">
-          <Card.Header className="bg-light">
-            <h6 className="mb-0">Filters</h6>
+        <Card className="mb-4 shadow-sm border-0">
+          <Card.Header className="bg-light fw-bold py-2 px-3 d-flex align-items-center">
+            <i className="bi bi-funnel me-2 text-primary" aria-hidden />
+            Filters
           </Card.Header>
           <Card.Body>
-            <Form onSubmit={applyFilters}>
+            <Form
+              noValidate
+              onSubmit={applyFilters}
+            >
               <Row className="g-3 align-items-end">
                 <Col md={3}>
                   <Form.Label>Supplier</Form.Label>
@@ -207,34 +233,35 @@ function SupplierTransactionsContent() {
                   </Form.Select>
                 </Col>
                 <Col md={2}>
-                  <Form.Label>From</Form.Label>
-                  <Form.Control type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                  <FilterDatePicker
+                    label="From"
+                    value={startDate}
+                    onChange={setStartDate}
+                    maxDate={endDate ? ymdToDateEat(endDate) ?? new Date() : new Date()}
+                  />
                 </Col>
                 <Col md={2}>
-                  <Form.Label>To</Form.Label>
-                  <Form.Control type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                  <FilterDatePicker
+                    label="To"
+                    value={endDate}
+                    onChange={setEndDate}
+                    minDate={startDate ? ymdToDateEat(startDate) ?? undefined : undefined}
+                    maxDate={new Date()}
+                  />
                 </Col>
-                <Col md={3} className="d-flex gap-2 flex-wrap">
-                  <Button type="submit" variant="primary" disabled={loading}>
+                <Col md={3} className="d-flex gap-2 flex-wrap align-items-end justify-content-md-end">
+                  <Button type="submit" variant="primary" size="sm" disabled={loading}>
                     {loading ? <Spinner animation="border" size="sm" /> : "Apply"}
                   </Button>
                   <Button
                     type="button"
                     variant="outline-secondary"
-                    disabled={loading}
-                    onClick={() => {
-                      setFilterSupplierId("");
-                      setFilterType("");
-                      setStartDate("");
-                      setEndDate("");
-                      if (page !== 1) {
-                        setPage(1);
-                      } else {
-                        void load(1);
-                      }
-                    }}
+                    size="sm"
+                    disabled={loading || !supplierTxnFiltersDirty}
+                    onClick={clearSupplierTxnFilters}
                   >
-                    Clear
+                    <i className="bi bi-x-lg me-1" aria-hidden />
+                    Clear filters
                   </Button>
                 </Col>
               </Row>

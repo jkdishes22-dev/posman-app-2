@@ -1,0 +1,137 @@
+/**
+ * Form field scale + filter layout (loads after Bootstrap).
+ *
+ * Typography: fine-pointer devices only — touch kiosks keep larger targets from touch-optimization.css.
+ *
+ * Layout (system-wide, all roles): grid + flex rules fix clipped placeholders / selects in
+ * container-fluid, cards, and modals — not admin-only.
+ */
+
+/* --- Layout: filters & toolbars (all viewports / pointer types) --- */
+
+/*
+ * Bootstrap columns default to min-width: auto, which blocks shrinking and clips narrow selects.
+ */
+.container-fluid .row > [class*="col"],
+.modal-body .row > [class*="col"],
+.card .row > [class*="col"] {
+    min-width: 0;
+}
+
+/*
+ * Inline rows: label + select, icon + select, etc.
+ * Opt out: add class `filter-no-stretch` on the flex container, or `.w-auto` on the control.
+ */
+.container-fluid .card .d-flex.align-items-center:not(.filter-no-stretch) .form-select:not(.w-auto),
+.container-fluid .card .d-flex.align-items-center:not(.filter-no-stretch) select.form-select:not(.w-auto),
+.modal-body .d-flex.align-items-center:not(.filter-no-stretch) .form-select:not(.w-auto),
+.modal-body .d-flex.align-items-center:not(.filter-no-stretch) select.form-select:not(.w-auto) {
+    flex: 1 1 0%;
+    min-width: 0;
+}
+
+.container-fluid .card .d-flex.align-items-center:not(.filter-no-stretch) > .form-control:not(.btn):not(.w-auto),
+.modal-body .d-flex.align-items-center:not(.filter-no-stretch) > .form-control:not(.btn):not(.w-auto) {
+    flex: 1 1 0%;
+    min-width: 0;
+}
+
+/* Search field beside button (e.g. Bill ID) */
+.container-fluid .card-body .d-flex.gap-2 > .form-control:first-child,
+.container-fluid .card-body .d-flex.gap-3 > .form-control:first-child,
+.modal-body .d-flex.gap-2 > .form-control:first-child,
+.modal-body .d-flex.gap-3 > .form-control:first-child {
+    flex: 1 1 0%;
+    min-width: 0;
+}
+
+.container-fluid .card .d-flex.align-items-center > .form-label,
+.container-fluid .card .d-flex.align-items-center > label.form-label,
+.modal-body .d-flex.align-items-center > .form-label,
+.modal-body .d-flex.align-items-center > label.form-label {
+    flex-shrink: 0;
+}
+
+/*
+ * Tighter gutters between columns app-wide (admin, supervisor, sales, cashier, storekeeper).
+ * Bootstrap’s default .row uses ~1.5rem; explicit g-2 / g-3 / g-4 still win via utilities.
+ * Rows with no gutter utility get a denser default. Opt out: add .gutter-loose or any g-* class.
+ */
+main .row:not([class*="g-"]):not(.gutter-loose) {
+    --bs-gutter-x: 0.5rem;
+    --bs-gutter-y: 0.75rem;
+}
+
+/**
+ * Compact form typography for mouse / fine-pointer screens (supervisor, admin,
+ * cashier filters, dates, search fields).
+ */
+@media (hover: hover) and (pointer: fine) {
+    .form-label,
+    label.form-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.35rem;
+        color: var(--bs-secondary-color, #6c757d);
+    }
+
+    /* Default density aligned with typical “sm” readability */
+    .form-control:not(.form-control-lg):not(.form-control-sm),
+    .form-select:not(.form-select-lg):not(.form-select-sm) {
+        font-size: 0.875rem;
+        line-height: 1.45;
+        padding: 0.35rem 0.65rem;
+        min-height: 2.125rem;
+    }
+
+    .form-control-sm,
+    .form-select-sm {
+        font-size: 0.8125rem;
+        line-height: 1.45;
+        padding: 0.28rem 0.5rem;
+        min-height: 1.875rem;
+    }
+
+    .form-control-lg,
+    .form-select-lg {
+        font-size: 1rem;
+        line-height: 1.5;
+        padding: 0.5rem 0.85rem;
+        min-height: 2.75rem;
+    }
+
+    textarea.form-control:not(.form-control-lg) {
+        min-height: 5rem;
+    }
+
+    .form-text,
+    .invalid-feedback,
+    .valid-feedback {
+        font-size: 0.8125rem;
+        margin-top: 0.25rem;
+    }
+
+    /* react-datepicker (reports, expenses, etc.) */
+    .react-datepicker {
+        font-size: 0.8125rem !important;
+    }
+
+    .react-datepicker__current-month,
+    .react-datepicker__header__dropdown,
+    .react-datepicker-time__header {
+        font-size: 0.875rem !important;
+    }
+
+    .react-datepicker__day-name,
+    .react-datepicker__day,
+    .react-datepicker__time-list-item {
+        font-size: 0.8125rem !important;
+    }
+
+    /* Native date/time inputs — avoid oversized picker chrome where supported */
+    input[type="date"].form-control,
+    input[type="datetime-local"].form-control,
+    input[type="time"].form-control {
+        font-size: 0.875rem;
+    }
+}

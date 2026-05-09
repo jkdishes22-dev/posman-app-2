@@ -118,21 +118,19 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             if (path.includes("/supervisor/station/user") || path.includes("/admin/station/user")) {
                 breadcrumbItems = [
                     { label: "Dashboard", path: "/supervisor" },
-                    { label: "Stations", path: "/admin/station" },
-                    { label: "Station Users", path: "/admin/station/user" }
+                    { label: "Stations", path: "/supervisor/station" },
+                    { label: "Station Users", path: "/supervisor/station/user" }
                 ];
             } else {
                 breadcrumbItems = [
                     { label: "Dashboard", path: "/supervisor" },
-                    { label: "Stations", path: "/admin/station" },
-                    { label: "Overview", path: "/admin/station" }
+                    { label: "Stations", path: "/supervisor/station" },
+                    { label: "Overview", path: "/supervisor/station" }
                 ];
             }
         } else if (path.includes("/supervisor/expenses")) {
-            expandedMenuIds.push("suppliers");
             breadcrumbItems = [
                 { label: "Dashboard", path: "/supervisor" },
-                { label: "Suppliers", path: "/storekeeper/suppliers" },
                 { label: "Expenses", path: "/supervisor/expenses" }
             ];
         } else if (path.includes("/storekeeper") && (path.includes("/storekeeper/suppliers") || path.includes("/storekeeper/purchase-orders"))) {
@@ -352,6 +350,25 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             ],
         },
         {
+            id: "stations",
+            label: "Stations",
+            icon: "bi-gear",
+            submenu: [
+                {
+                    id: "stations-overview",
+                    label: "Overview",
+                    icon: "bi-building",
+                    path: "/supervisor/station",
+                },
+                {
+                    id: "station-users",
+                    label: "Station Users",
+                    icon: "bi-people-fill",
+                    path: "/supervisor/station/user",
+                },
+            ],
+        },
+        {
             id: "production",
             label: "Production",
             icon: "bi-box-seam",
@@ -363,6 +380,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     path: "/supervisor/production",
                 },
             ],
+        },
+        {
+            id: "expenses",
+            label: "Expenses",
+            icon: "bi-cash-coin",
+            path: "/supervisor/expenses",
         },
         {
             id: "inventory",
@@ -405,12 +428,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     label: "Purchase Orders",
                     icon: "bi-cart-check",
                     path: "/storekeeper/purchase-orders",
-                },
-                {
-                    id: "expenses",
-                    label: "Expenses",
-                    icon: "bi-cash-coin",
-                    path: "/supervisor/expenses",
                 },
             ],
         },
@@ -500,12 +517,13 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             }
         }
 
-        // Normal toggle behavior
-        setExpandedMenus(prev =>
-            prev.includes(menuId)
-                ? prev.filter(id => id !== menuId)
-                : [...prev, menuId]
-        );
+        // Accordion: only one submenu open; opening another closes the rest
+        setExpandedMenus((prev) => {
+            if (prev.includes(menuId)) {
+                return prev.filter((id) => id !== menuId);
+            }
+            return [menuId];
+        });
     };
 
     const handleBreadcrumbClick = (path: string) => {
@@ -532,6 +550,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             "Station Users": "Assign users to stations and manage access",
             "Suppliers": "Manage suppliers and purchase orders",
             "Purchase Orders": "Create and manage purchase orders",
+            "Expenses": "Record operational expenses and payments",
             "Inventory": "Manage inventory levels and transactions",
             "Inventory Dashboard": "Overview of inventory levels and alerts",
             "Inventory List": "View all inventory items and their current levels",

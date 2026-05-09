@@ -1,5 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { todayEAT } from "../../shared/eatDate";
+import FilterDatePicker from "../../shared/FilterDatePicker";
+import { ymdToDateEat } from "../../shared/filterDateUtils";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
@@ -21,6 +24,8 @@ import { format } from "date-fns";
 import IssueProductionModal from "./IssueProductionModal";
 import DisposeItemModal from "./DisposeItemModal";
 import { useTooltips } from "../../hooks/useTooltips";
+import HelpPopover from "../../components/HelpPopover";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
 
 interface SellableItem {
     id: number;
@@ -73,8 +78,22 @@ export default function AdminProductionPage() {
     // History filters
     const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected" | "issued">("all");
     const [searchTerm, setSearchTerm] = useState<string>("");
-    const [startDate, setStartDate] = useState<string>("");
-    const [endDate, setEndDate] = useState<string>("");
+    const [startDate, setStartDate] = useState(() => todayEAT());
+    const [endDate, setEndDate] = useState(() => todayEAT());
+
+    const productionHistoryFiltersDirty =
+        statusFilter !== "all" ||
+        searchTerm.trim() !== "" ||
+        startDate !== todayEAT() ||
+        endDate !== todayEAT();
+
+    const clearProductionHistoryFilters = () => {
+        const d = todayEAT();
+        setStatusFilter("all");
+        setSearchTerm("");
+        setStartDate(d);
+        setEndDate(d);
+    };
 
     // Pagination state
     const [page, setPage] = useState<number>(1);
@@ -241,31 +260,28 @@ export default function AdminProductionPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h2 className="mb-0">
-                            Production History
-                            <i
-                                className="bi bi-question-circle ms-2 text-muted"
-                                style={{ cursor: "help", fontSize: "0.9rem" }}
-                                data-bs-toggle="tooltip"
-                                data-bs-placement="bottom"
-                                title="View and manage production preparation records"
-                            ></i>
-                        </h2>
-                        <p className="text-muted small mb-0">View and manage production records</p>
-                    </div>
-                    <Button
-                        variant="primary"
-                        onClick={() => setShowIssueModal(true)}
-                        data-bs-toggle="tooltip"
-                        data-bs-placement="left"
-                        title="Create a new production issue record"
-                    >
-                        <i className="bi bi-plus-circle me-2"></i>
-                        Issue Production
-                    </Button>
-                </div>
+                <PageHeaderStrip
+                    actions={
+                        <Button
+                            variant="light"
+                            onClick={() => setShowIssueModal(true)}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="left"
+                            title="Create a new production issue record"
+                        >
+                            <i className="bi bi-plus-circle me-2"></i>
+                            Issue Production
+                        </Button>
+                    }
+                >
+                    <h1 className="h4 mb-0 fw-bold d-flex align-items-center gap-2 flex-wrap">
+                        Production History
+                        <HelpPopover id="production-history-intro" title="Production history" className="text-white">
+                            View preparation records: pending approvals, issued stock, and rejections. Use <strong>Issue Production</strong> to add inventory
+                            without going through the full preparation workflow when appropriate.
+                        </HelpPopover>
+                    </h1>
+                </PageHeaderStrip>
 
                 <ErrorDisplay
                     error={historyError}
@@ -277,26 +293,41 @@ export default function AdminProductionPage() {
                 />
 
                 {/* Production History */}
-                <Card className="shadow-sm mb-4">
-                    <Card.Header className="bg-light fw-bold d-flex justify-content-between align-items-center">
-                        <span>Filters</span>
+                <Card className="shadow-sm mb-4 border-0">
+                    <Card.Header className="bg-light fw-bold py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <span className="d-flex align-items-center">
+                            <i className="bi bi-funnel me-2 text-primary" aria-hidden />
+                            Filters
+                        </span>
                         <Button variant="outline-primary" size="sm" onClick={fetchPreparations} disabled={isLoadingHistory}>
                             <i className="bi bi-arrow-clockwise me-1"></i>
                             Refresh
                         </Button>
                     </Card.Header>
                     <Card.Body>
-                        <Row className="g-3">
+                        <Form
+                            noValidate
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                            }}
+                        >
+                        <Row className="g-3 align-items-end">
                             <Col md={3}>
                                 <Form.Group controlId="statusFilter">
-                                    <Form.Label>
-                                        Status
-                                        <i
-                                            className="bi bi-info-circle ms-1 text-muted"
-                                            style={{ cursor: "help" }}
-                                            title="Status Workflow: PENDING → (Supervisor approves) → ISSUED | PENDING → (Supervisor rejects) → REJECTED. Note: 'Approved' status exists but is not used in the current workflow."
-                                        ></i>
-                                    </Form.Label>
+                                    <div className="d-flex align-items-center gap-1 mb-1">
+                                        <Form.Label className="mb-0">
+                                            Status
+                                        </Form.Label>
+                                        <HelpPopover id="production-status-workflow" title="Status workflow" wide>
+                                            <p className="mb-2">
+                                                Typical flow: <strong>Pending</strong> → supervisor issues → <strong>Issued</strong>, or pending → supervisor rejects →{" "}
+                                                <strong>Rejected</strong>.
+                                            </p>
+                                            <p className="mb-0">
+                                                The <strong>Approved</strong> value may appear for legacy data but is not used in the current workflow.
+                                            </p>
+                                        </HelpPopover>
+                                    </div>
                                     <Form.Select
                                         value={statusFilter}
                                         onChange={(e) => setStatusFilter(e.target.value as any)}
@@ -310,24 +341,23 @@ export default function AdminProductionPage() {
                                 </Form.Group>
                             </Col>
                             <Col md={3}>
-                                <Form.Group controlId="startDate">
-                                    <Form.Label>Start Date</Form.Label>
-                                    <Form.Control
-                                        type="date"
-                                        value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
-                                    />
-                                </Form.Group>
+                                <FilterDatePicker
+                                    id="startDate"
+                                    label="Start Date"
+                                    value={startDate}
+                                    onChange={setStartDate}
+                                    maxDate={endDate ? ymdToDateEat(endDate) ?? new Date() : new Date()}
+                                />
                             </Col>
                             <Col md={3}>
-                                <Form.Group controlId="endDate">
-                                    <Form.Label>End Date</Form.Label>
-                                    <Form.Control
-                                        type="date"
-                                        value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
-                                    />
-                                </Form.Group>
+                                <FilterDatePicker
+                                    id="endDate"
+                                    label="End Date"
+                                    value={endDate}
+                                    onChange={setEndDate}
+                                    minDate={startDate ? ymdToDateEat(startDate) ?? undefined : undefined}
+                                    maxDate={new Date()}
+                                />
                             </Col>
                             <Col md={3}>
                                 <Form.Group controlId="searchTerm">
@@ -341,6 +371,21 @@ export default function AdminProductionPage() {
                                 </Form.Group>
                             </Col>
                         </Row>
+                        <Row className="mt-2">
+                            <Col className="d-flex justify-content-end">
+                                <Button
+                                    type="button"
+                                    variant="outline-secondary"
+                                    size="sm"
+                                    disabled={!productionHistoryFiltersDirty}
+                                    onClick={clearProductionHistoryFilters}
+                                >
+                                    <i className="bi bi-x-lg me-1" aria-hidden />
+                                    Clear filters
+                                </Button>
+                            </Col>
+                        </Row>
+                        </Form>
                     </Card.Body>
                 </Card>
 

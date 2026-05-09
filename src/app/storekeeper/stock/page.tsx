@@ -21,6 +21,7 @@ import ErrorDisplay from "../../components/ErrorDisplay";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { AuthError } from "../../types/types";
 import { useTooltips } from "../../hooks/useTooltips";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
 
 interface InventoryItem {
     item_id: number;
@@ -250,6 +251,17 @@ function StockManagementContent() {
         );
     };
 
+    const stockFiltersDirty =
+        searchTerm.trim() !== "" ||
+        itemTypeFilter !== "all" ||
+        lowStockOnly;
+
+    const clearStockFilters = () => {
+        setItemTypeFilter("all");
+        setSearchTerm("");
+        setLowStockOnly(false);
+    };
+
     const getStockStatusBadge = (item: InventoryItem) => {
         if (item.available_quantity === 0) {
             return <Badge bg="danger">Out of Stock</Badge>;
@@ -263,18 +275,19 @@ function StockManagementContent() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h2>
+                <PageHeaderStrip>
+                    <h1 className="h4 mb-0 fw-bold d-flex align-items-center flex-wrap gap-2">
+                        <i className="bi bi-boxes me-1" aria-hidden />
                         Stock Management
                         <i
-                            className="bi bi-question-circle ms-2 text-muted"
-                            style={{ cursor: "help", fontSize: "0.9rem" }}
+                            className="bi bi-question-circle text-muted"
+                            style={{ cursor: "help", fontSize: "0.95rem" }}
                             data-bs-toggle="tooltip"
                             data-bs-placement="bottom"
                             title="View all inventory items and their current levels"
                         ></i>
-                    </h2>
-                </div>
+                    </h1>
+                </PageHeaderStrip>
 
                 <ErrorDisplay
                     error={error}
@@ -291,9 +304,19 @@ function StockManagementContent() {
                     </Alert>
                 )}
 
-                <Card className="mb-4">
+                <Card className="mb-4 shadow-sm border-0">
+                    <Card.Header className="bg-light fw-bold py-2 px-3 d-flex align-items-center">
+                        <i className="bi bi-funnel me-2 text-primary" aria-hidden />
+                        Filters
+                    </Card.Header>
                     <Card.Body>
-                        <Row>
+                        <Form
+                            noValidate
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                            }}
+                        >
+                        <Row className="g-3 align-items-end">
                             <Col md={4}>
                                 <Form.Group>
                                     <Form.Label>Search Item</Form.Label>
@@ -331,19 +354,21 @@ function StockManagementContent() {
                                     </div>
                                 </Form.Group>
                             </Col>
-                            <Col md={2} className="d-flex align-items-end">
+                            <Col md={2} className="d-flex align-items-end justify-content-md-end">
                                 <Button
+                                    type="button"
                                     variant="outline-secondary"
-                                    onClick={() => {
-                                        setItemTypeFilter("all");
-                                        setSearchTerm("");
-                                        setLowStockOnly(false);
-                                    }}
+                                    size="sm"
+                                    className="text-nowrap"
+                                    disabled={!stockFiltersDirty}
+                                    onClick={clearStockFilters}
                                 >
-                                    Clear
+                                    <i className="bi bi-x-lg me-1" aria-hidden />
+                                    Clear filters
                                 </Button>
                             </Col>
                         </Row>
+                        </Form>
                     </Card.Body>
                 </Card>
 

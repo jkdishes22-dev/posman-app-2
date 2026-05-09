@@ -4,6 +4,7 @@ import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
 import { Button } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ViewItems from "../../../admin/menu/category/components/items/items-view";
@@ -13,7 +14,7 @@ import { Item } from "../../../types/types";
 interface Pricelist {
   id: number;
   name: string;
-  description: string;
+  description?: string;
   status: string;
   station?: {
     name: string;
@@ -232,21 +233,20 @@ export default function SupervisorPricelistPage() {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const searchMatches =
       normalizedSearch.length === 0 ||
-      pricelist.name.toLowerCase().includes(normalizedSearch) ||
-      (pricelist.description || "").toLowerCase().includes(normalizedSearch);
+      pricelist.name.toLowerCase().includes(normalizedSearch);
     return statusMatches && searchMatches;
   });
 
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="row mb-4">
-          <div className="col-12">
-            <h1 className="h3 mb-0">Pricelist Management</h1>
-            <p className="text-muted">Manage pricelists and items for supervisors</p>
-          </div>
-        </div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-tags me-2" aria-hidden></i>
+            Pricelist Management
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">Manage pricelists and items for supervisors</p>
+        </PageHeaderStrip>
 
         {/* Error Display */}
         <ErrorDisplay
@@ -259,9 +259,9 @@ export default function SupervisorPricelistPage() {
         />
 
         {/* Main Content */}
-        <div className="row g-4">
+        <div className="row g-2">
           {/* Pricelists Section */}
-          <div className="col-5">
+          <div className="col-12 col-lg-4">
             <div className="card shadow-sm">
               <div className="card-header bg-light">
                 <div className="d-flex justify-content-between align-items-center">
@@ -281,19 +281,21 @@ export default function SupervisorPricelistPage() {
               </div>
               <div className="card-body p-0">
                 <div className="p-3 border-bottom">
-                  <div className="row g-2">
-                    <div className="col-md-5">
+                  <div className="row g-3 align-items-end">
+                    <div className="col-12 col-md-7">
+                      <label className="form-label small fw-semibold mb-1">Search</label>
                       <input
                         type="text"
-                        className="form-control form-control-sm"
+                        className="form-control form-control-sm w-100"
                         placeholder="Search pricelists..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
                     </div>
-                    <div className="col-md-4">
+                    <div className="col-12 col-md-5">
+                      <label className="form-label small fw-semibold mb-1">Status</label>
                       <select
-                        className="form-select form-select-sm"
+                        className="form-select form-select-sm w-100"
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
                       >
@@ -330,7 +332,6 @@ export default function SupervisorPricelistPage() {
                         <tr>
                           <th className="fw-semibold">#</th>
                           <th className="fw-semibold">Name</th>
-                          <th className="fw-semibold">Description</th>
                           <th className="fw-semibold text-center">Status</th>
                           <th className="fw-semibold text-center">Actions</th>
                         </tr>
@@ -345,13 +346,6 @@ export default function SupervisorPricelistPage() {
                           >
                             <td className="fw-medium">{index + 1}</td>
                             <td>{pricelist.name}</td>
-                            <td>
-                              {pricelist.description ? (
-                                <span className="text-muted">{pricelist.description}</span>
-                              ) : (
-                                <span className="text-muted">No description</span>
-                              )}
-                            </td>
                             <td className="text-center">
                               <span className={`badge ${pricelist.status === "active" ? "bg-success" : "bg-secondary"}`}>
                                 {pricelist.status === "active" ? "Active" : "Inactive"}
@@ -381,16 +375,20 @@ export default function SupervisorPricelistPage() {
           </div>
 
           {/* Pricelist Items Section */}
-          <div className="col-7">
+          <div className="col-12 col-lg-8">
             <div className="card shadow-sm">
               <div className="card-header bg-light">
                 <div className="d-flex justify-content-between align-items-center">
                   <h5 className="mb-0 fw-bold">
                     <i className="bi bi-box-seam me-2 text-primary"></i>
-                    {selectedPricelist
-                      ? `Items - ${selectedPricelist.name}`
-                      : "Items"
-                    }
+                    {selectedPricelist ? (
+                      <>
+                        <span className="fw-normal text-muted me-2">Selected pricelist:</span>
+                        {selectedPricelist.name}
+                      </>
+                    ) : (
+                      "Items"
+                    )}
                   </h5>
                   {selectedPricelist && (
                     <div className="d-flex gap-2">
@@ -495,7 +493,7 @@ export default function SupervisorPricelistPage() {
                       const formData = new FormData(e.target as HTMLFormElement);
                       handleAddPricelist({
                         name: formData.get("name"),
-                        description: formData.get("description"),
+                        description: "",
                         status: "active",
                       });
                     }}
@@ -511,17 +509,6 @@ export default function SupervisorPricelistPage() {
                         name="name"
                         required
                       />
-                    </div>
-                    <div className="mb-3">
-                      <label htmlFor="pricelistDescription" className="form-label">
-                        Description
-                      </label>
-                      <textarea
-                        className="form-control"
-                        id="pricelistDescription"
-                        name="description"
-                        rows={3}
-                      ></textarea>
                     </div>
                     <div className="d-flex justify-content-end gap-2">
                       <button

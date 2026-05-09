@@ -29,6 +29,8 @@
 
 .searchInput {
     flex: 1;
+    min-width: 0;
+    width: 100%;
     outline: none;
     font-size: 0.95rem;
     background-color: transparent;

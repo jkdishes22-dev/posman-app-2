@@ -15,8 +15,17 @@ interface CashierLayoutProps {
     authError: AuthError | null;
 }
 
+/** Matches laptop-width sidebar narrowing (see SupervisorLayout / globals.css breakpoint). */
+function getCashierExpandedSidebarWidth(): number {
+    if (typeof window === "undefined") return 250;
+    if (window.innerWidth < 1024) return 60;
+    if (window.innerWidth < 1400) return 220;
+    return 250;
+}
+
 const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [sidebarWidth, setSidebarWidth] = useState(250);
     const [activeItem, setActiveItem] = useState("");
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
     const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
@@ -24,6 +33,13 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
     const { currentStation } = useStation();
     const router = useRouter();
     const pathname = usePathname();
+
+    useEffect(() => {
+        const update = () => setSidebarWidth(getCashierExpandedSidebarWidth());
+        update();
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, []);
 
     useEffect(() => {
         // Set active item and breadcrumbs based on current path
@@ -138,12 +154,13 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
             }
         }
 
-        // Normal toggle behavior
-        setExpandedMenus(prev =>
-            prev.includes(menuId)
-                ? prev.filter(id => id !== menuId)
-                : [...prev, menuId]
-        );
+        // Accordion: only one submenu open; opening another closes the rest
+        setExpandedMenus((prev) => {
+            if (prev.includes(menuId)) {
+                return prev.filter((id) => id !== menuId);
+            }
+            return [menuId];
+        });
     };
 
     const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement>) => {
@@ -240,8 +257,8 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
             {/* Sidebar */}
             <div className={`bg-dark text-white d-flex flex-column ${isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}
                 style={{
-                    width: isCollapsed ? "60px" : "250px",
-                    minWidth: isCollapsed ? "60px" : "250px",
+                    width: isCollapsed ? "60px" : `${sidebarWidth}px`,
+                    minWidth: isCollapsed ? "60px" : `${sidebarWidth}px`,
                     transition: "width 0.3s ease"
                 }}>
 

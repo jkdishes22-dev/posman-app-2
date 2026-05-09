@@ -1,5 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { todayEAT } from "../../../shared/eatDate";
+import FilterDatePicker from "../../../shared/FilterDatePicker";
+import { ymdToDateEat } from "../../../shared/filterDateUtils";
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
@@ -20,6 +23,7 @@ import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { AuthError } from "../../../types/types";
 import DisposeItemModal from "../../../admin/production/DisposeItemModal";
 import { useTooltips } from "../../../hooks/useTooltips";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 
 interface ProductionIssue {
     id: number;
@@ -58,8 +62,22 @@ export default function StorekeeperProductionHistoryPage() {
     // Filters
     const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "completed" | "cancelled">("all");
     const [searchTerm, setSearchTerm] = useState<string>("");
-    const [startDate, setStartDate] = useState<string>("");
-    const [endDate, setEndDate] = useState<string>("");
+    const [startDate, setStartDate] = useState(() => todayEAT());
+    const [endDate, setEndDate] = useState(() => todayEAT());
+
+    const productionIssueFiltersDirty =
+        statusFilter !== "all" ||
+        searchTerm.trim() !== "" ||
+        startDate !== todayEAT() ||
+        endDate !== todayEAT();
+
+    const clearProductionIssueFilters = () => {
+        const d = todayEAT();
+        setStatusFilter("all");
+        setSearchTerm("");
+        setStartDate(d);
+        setEndDate(d);
+    };
 
     useEffect(() => {
         fetchProductionIssues();
@@ -176,21 +194,26 @@ export default function StorekeeperProductionHistoryPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h2>
+                <PageHeaderStrip
+                    actions={
+                        <Button variant="light" href="/storekeeper/production/issue">
+                            <i className="bi bi-plus-circle me-2"></i>
+                            Issue Production
+                        </Button>
+                    }
+                >
+                    <h1 className="h4 mb-0 fw-bold d-flex align-items-center flex-wrap gap-2">
+                        <i className="bi bi-clock-history me-1" aria-hidden />
                         Production History
                         <i
-                            className="bi bi-question-circle ms-2 text-muted"
-                            style={{ cursor: "help", fontSize: "0.9rem" }}
+                            className="bi bi-question-circle text-muted"
+                            style={{ cursor: "help", fontSize: "0.95rem" }}
                             data-bs-toggle="tooltip"
                             data-bs-placement="bottom"
                             title="View and manage production preparation records"
                         ></i>
-                    </h2>
-                    <Button variant="primary" href="/storekeeper/production/issue">
-                        Issue Production
-                    </Button>
-                </div>
+                    </h1>
+                </PageHeaderStrip>
 
                 <ErrorDisplay
                     error={error}
@@ -207,68 +230,76 @@ export default function StorekeeperProductionHistoryPage() {
                     </Alert>
                 )}
 
-                <Card className="mb-4">
+                <Card className="mb-4 shadow-sm border-0">
+                    <Card.Header className="bg-light fw-bold py-2 px-3 d-flex align-items-center">
+                        <i className="bi bi-funnel me-2 text-primary" aria-hidden />
+                        Filters
+                    </Card.Header>
                     <Card.Body>
-                        <Row>
-                            <Col md={3}>
-                                <Form.Group>
-                                    <Form.Label>Search Item</Form.Label>
-                                    <Form.Control
-                                        type="text"
-                                        placeholder="Search by item name or code..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                </Form.Group>
-                            </Col>
-                            <Col md={2}>
-                                <Form.Group>
-                                    <Form.Label>Status</Form.Label>
-                                    <Form.Select
-                                        value={statusFilter}
-                                        onChange={(e) => setStatusFilter(e.target.value as any)}
-                                    >
-                                        <option value="all">All Status</option>
-                                        <option value="completed">Completed</option>
-                                        <option value="draft">Draft</option>
-                                        <option value="cancelled">Cancelled</option>
-                                    </Form.Select>
-                                </Form.Group>
-                            </Col>
-                            <Col md={3}>
-                                <Form.Group>
-                                    <Form.Label>Start Date</Form.Label>
-                                    <Form.Control
-                                        type="date"
+                        <Form
+                            noValidate
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                            }}
+                        >
+                            <Row className="g-3 align-items-end">
+                                <Col md={3}>
+                                    <Form.Group>
+                                        <Form.Label>Search Item</Form.Label>
+                                        <Form.Control
+                                            type="text"
+                                            placeholder="Search by item name or code..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={2}>
+                                    <Form.Group>
+                                        <Form.Label>Status</Form.Label>
+                                        <Form.Select
+                                            value={statusFilter}
+                                            onChange={(e) => setStatusFilter(e.target.value as any)}
+                                        >
+                                            <option value="all">All Status</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="draft">Draft</option>
+                                            <option value="cancelled">Cancelled</option>
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Col>
+                                <Col md={3}>
+                                    <FilterDatePicker
+                                        label="Start Date"
                                         value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
+                                        onChange={setStartDate}
+                                        maxDate={endDate ? ymdToDateEat(endDate) ?? new Date() : new Date()}
                                     />
-                                </Form.Group>
-                            </Col>
-                            <Col md={3}>
-                                <Form.Group>
-                                    <Form.Label>End Date</Form.Label>
-                                    <Form.Control
-                                        type="date"
+                                </Col>
+                                <Col md={3}>
+                                    <FilterDatePicker
+                                        label="End Date"
                                         value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
+                                        onChange={setEndDate}
+                                        minDate={startDate ? ymdToDateEat(startDate) ?? undefined : undefined}
+                                        maxDate={new Date()}
                                     />
-                                </Form.Group>
-                            </Col>
-                            <Col md={1} className="d-flex align-items-end">
-                                <Button
-                                    variant="outline-secondary"
-                                    onClick={() => {
-                                        setStatusFilter("all");
-                                        setSearchTerm("");
-                                        setStartDate("");
-                                        setEndDate("");
-                                    }}
-                                >
-                                    Clear
-                                </Button>
-                            </Col>
-                        </Row>
+                                </Col>
+                                <Col md={1} className="d-flex align-items-end justify-content-md-end">
+                                    <Button
+                                        type="button"
+                                        variant="outline-secondary"
+                                        size="sm"
+                                        className="text-nowrap"
+                                        disabled={!productionIssueFiltersDirty}
+                                        onClick={clearProductionIssueFilters}
+                                    >
+                                        <i className="bi bi-x-lg me-1" aria-hidden />
+                                        Clear filters
+                                    </Button>
+                                </Col>
+                            </Row>
+                        </Form>
                     </Card.Body>
                 </Card>
 

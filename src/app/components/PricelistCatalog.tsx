@@ -223,39 +223,48 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
                 </div>
             </div>
 
-            {/* Compact Filter Section */}
-            <div className="card mb-3">
-                <div className="card-body py-2">
-                    <div className="row align-items-center">
-                        <div className="col-md-3">
-                            <StationFilter
-                                selectedStationId={selectedStationId}
-                                availableStations={availableStations}
-                                onStationFilterChange={handleStationFilterChange}
-                            />
-                        </div>
-                        <div className="col-md-3">
-                            <Form.Label className="fw-semibold small">
-                                <i className="bi bi-funnel me-1 text-primary"></i>
-                                Status Filter
-                            </Form.Label>
-                            <Form.Select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                size="sm"
-                            >
-                                <option value="all">All Status</option>
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                            </Form.Select>
-                        </div>
-                        <div className="col-md-6">
-                            <div className="d-flex align-items-center gap-3">
-                                <div className="text-muted">
+            <Card className="mb-3 shadow-sm border-0">
+                <Card.Header className="bg-light fw-bold py-2 px-3 d-flex align-items-center">
+                    <i className="bi bi-funnel me-2 text-primary" aria-hidden />
+                    Filters
+                </Card.Header>
+                <Card.Body className="py-3">
+                    <Form
+                        noValidate
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                        }}
+                    >
+                        <div className="row g-3 align-items-end">
+                            <div className="col-md-4">
+                                <StationFilter
+                                    selectedStationId={selectedStationId}
+                                    availableStations={availableStations}
+                                    onStationFilterChange={handleStationFilterChange}
+                                />
+                            </div>
+                            <div className="col-md-4">
+                                <Form.Label className="fw-semibold small mb-1 d-block">
+                                    <i className="bi bi-funnel me-1 text-primary"></i>
+                                    Status
+                                </Form.Label>
+                                <Form.Select
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    size="sm"
+                                >
+                                    <option value="all">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </Form.Select>
+                            </div>
+                            <div className="col-md-4">
+                                <div className="text-muted small mb-2">
                                     <i className="bi bi-info-circle me-1"></i>
                                     {selectedStationId ? (
                                         <>
-                                            Showing {filteredPricelists.length} pricelist{filteredPricelists.length !== 1 ? "s" : ""} for <strong>{availableStations.find(s => s.id === selectedStationId)?.name}</strong>
+                                            Showing {filteredPricelists.length} pricelist{filteredPricelists.length !== 1 ? "s" : ""} for{" "}
+                                            <strong>{availableStations.find((s) => s.id === selectedStationId)?.name}</strong>
                                         </>
                                     ) : (
                                         <>
@@ -263,24 +272,24 @@ const PricelistCatalog: React.FC<PricelistCatalogProps> = ({ className = "" }) =
                                         </>
                                     )}
                                 </div>
-                                {(selectedStationId || statusFilter !== "all") && (
-                                    <Button
-                                        variant="outline-secondary"
-                                        size="sm"
-                                        onClick={() => {
-                                            handleStationFilterChange(null);
-                                            setStatusFilter("all");
-                                        }}
-                                    >
-                                        <i className="bi bi-x-circle me-1"></i>
-                                        Clear Filters
-                                    </Button>
-                                )}
+                                <Button
+                                    type="button"
+                                    variant="outline-secondary"
+                                    size="sm"
+                                    disabled={selectedStationId === null && statusFilter === "all"}
+                                    onClick={() => {
+                                        handleStationFilterChange(null);
+                                        setStatusFilter("all");
+                                    }}
+                                >
+                                    <i className="bi bi-x-lg me-1" aria-hidden />
+                                    Clear filters
+                                </Button>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
+                    </Form>
+                </Card.Body>
+            </Card>
 
 
             <PricelistManager

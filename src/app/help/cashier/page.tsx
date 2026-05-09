@@ -2,6 +2,7 @@
 
 import React from "react";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
 import SecureRoute from "../../components/SecureRoute";
 import UserJourney from "../../components/UserJourney";
 import { Container, Row, Col, Card, Accordion } from "react-bootstrap";
@@ -170,16 +171,15 @@ export default function CashierHelpPage() {
     <SecureRoute roleRequired="cashier">
     <RoleAwareLayout>
       <Container fluid className="py-4">
-        {/* Header */}
-        <div className="bg-primary text-white p-4 mb-4 rounded">
-          <h1 className="h3 mb-2">
-            <i className="bi bi-question-circle me-2"></i>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-question-circle me-2" aria-hidden></i>
             Cashier User Documentation
           </h1>
-          <p className="mb-0">
+          <p className="mb-0 mt-2 small text-white-50">
             Step-by-step guides for cashier tasks in the POS system
           </p>
-        </div>
+        </PageHeaderStrip>
 
         {/* Introduction */}
         <Card className="mb-4">

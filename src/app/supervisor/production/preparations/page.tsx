@@ -16,6 +16,7 @@ import {
 } from "react-bootstrap";
 import { useApiCall } from "../../../utils/apiUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { AuthError } from "../../../types/types";
 import { format } from "date-fns";
@@ -70,6 +71,14 @@ export default function SupervisorPreparationsPage() {
     const [selectedPreparation, setSelectedPreparation] = useState<ProductionPreparation | null>(null);
     const [rejectionReason, setRejectionReason] = useState<string>("");
     const [isProcessing, setIsProcessing] = useState(false);
+
+    const preparationFiltersDirty =
+        statusFilter !== "all" || searchTerm.trim() !== "";
+
+    const clearPreparationFilters = () => {
+        setStatusFilter("all");
+        setSearchTerm("");
+    };
 
     useEffect(() => {
         fetchPreparations();
@@ -242,20 +251,20 @@ export default function SupervisorPreparationsPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <div className="bg-primary text-white p-3 mb-4">
+                <PageHeaderStrip>
                     <h1 className="h4 mb-0 fw-bold">
-                        <i className="bi bi-clipboard-check me-2"></i>
+                        <i className="bi bi-clipboard-check me-2" aria-hidden></i>
                         Production Preparations
-                        <i 
-                            className="bi bi-question-circle ms-2" 
+                        <i
+                            className="bi bi-question-circle ms-2"
                             style={{ cursor: "help", fontSize: "0.9rem" }}
-                            data-bs-toggle="tooltip" 
+                            data-bs-toggle="tooltip"
                             data-bs-placement="bottom"
                             title="Review and approve production preparations"
                         ></i>
                     </h1>
-                    <p className="mb-0 small">Review and approve chef preparation requests</p>
-                </div>
+                    <p className="mb-0 mt-2 small text-white-50">Review and approve chef preparation requests</p>
+                </PageHeaderStrip>
 
                 <ErrorDisplay
                     error={error}
@@ -279,37 +288,60 @@ export default function SupervisorPreparationsPage() {
                     </Alert>
                 )}
 
-                <Card className="shadow-sm mb-4">
-                    <Card.Header className="bg-light fw-bold">Filters</Card.Header>
+                <Card className="shadow-sm mb-4 border-0">
+                    <Card.Header className="bg-light fw-bold py-2 px-3 d-flex align-items-center">
+                        <i className="bi bi-funnel me-2 text-primary" aria-hidden />
+                        Filters
+                    </Card.Header>
                     <Card.Body>
-                        <Row className="g-3">
-                            <Col md={4}>
-                                <Form.Group controlId="statusFilter">
-                                    <Form.Label>Status</Form.Label>
-                                    <Form.Select
-                                        value={statusFilter}
-                                        onChange={(e) => setStatusFilter(e.target.value as any)}
+                        <Form
+                            noValidate
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                            }}
+                        >
+                            <Row className="g-3 align-items-end">
+                                <Col md={4}>
+                                    <Form.Group controlId="statusFilter">
+                                        <Form.Label>Status</Form.Label>
+                                        <Form.Select
+                                            value={statusFilter}
+                                            onChange={(e) => setStatusFilter(e.target.value as any)}
+                                        >
+                                            <option value="all">All Statuses</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="approved">Approved</option>
+                                            <option value="rejected">Rejected</option>
+                                            <option value="issued">Issued</option>
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Col>
+                                <Col md={6}>
+                                    <Form.Group controlId="searchTerm">
+                                        <Form.Label>Search</Form.Label>
+                                        <Form.Control
+                                            type="text"
+                                            placeholder="Search by item name, code, or chef name"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={2} className="d-flex justify-content-md-end">
+                                    <Button
+                                        type="button"
+                                        variant="outline-secondary"
+                                        size="sm"
+                                        className="text-nowrap"
+                                        disabled={!preparationFiltersDirty}
+                                        onClick={clearPreparationFilters}
                                     >
-                                        <option value="all">All Statuses</option>
-                                        <option value="pending">Pending</option>
-                                        <option value="approved">Approved</option>
-                                        <option value="rejected">Rejected</option>
-                                        <option value="issued">Issued</option>
-                                    </Form.Select>
-                                </Form.Group>
-                            </Col>
-                            <Col md={8}>
-                                <Form.Group controlId="searchTerm">
-                                    <Form.Label>Search</Form.Label>
-                                    <Form.Control
-                                        type="text"
-                                        placeholder="Search by item name, code, or chef name"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                </Form.Group>
-                            </Col>
-                        </Row>
+                                        <i className="bi bi-x-lg me-1" aria-hidden />
+                                        Clear filters
+                                    </Button>
+                                </Col>
+                            </Row>
+                        </Form>
                     </Card.Body>
                 </Card>
 

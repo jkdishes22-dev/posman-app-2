@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
+import FilterDatePicker from "../../shared/FilterDatePicker";
 import { useApiCall } from "../../utils/apiUtils";
 import { todayEAT } from "../../shared/eatDate";
 
@@ -27,7 +28,7 @@ function LogsContent() {
 
     const [files, setFiles] = useState<LogFile[]>([]);
     const [retentionDays, setRetentionDays] = useState(14);
-    const [selectedDate, setSelectedDate] = useState<string>("");
+    const [selectedDate, setSelectedDate] = useState<string>(() => todayEAT());
     const [logContent, setLogContent] = useState<string | null>(null);
     const [truncated, setTruncated] = useState(false);
     const [totalLines, setTotalLines] = useState(0);
@@ -62,12 +63,15 @@ function LogsContent() {
 
     useEffect(() => { fetchFiles(); }, [fetchFiles]);
 
-    // Auto-open today's log (or latest available) after file list loads
+    // After file list loads, keep selection if still available; otherwise prefer today, else newest file
     useEffect(() => {
-        if (files.length > 0 && !selectedDate) {
-            const defaultDate = files.find(f => f.date === today)?.date ?? files[0].date;
-            setSelectedDate(defaultDate);
-        }
+        if (files.length === 0) return;
+        const avail = new Set(files.map((f) => f.date));
+        setSelectedDate((prev) => {
+            if (avail.has(prev)) return prev;
+            const t = todayEAT();
+            return avail.has(t) ? t : files[0].date;
+        });
     }, [files]);
 
     // Load log content whenever selected date changes
@@ -154,13 +158,13 @@ function LogsContent() {
                             <small className="fw-semibold text-muted text-uppercase">Select Date</small>
                         </div>
                         <div className="card-body p-2">
-                            {/* Native date picker — works great on touch screens */}
-                            <input
-                                type="date"
-                                className="form-control form-control-sm mb-3"
+                            <FilterDatePicker
                                 value={selectedDate}
-                                max={today}
-                                onChange={e => setSelectedDate(e.target.value)}
+                                onChange={setSelectedDate}
+                                allowEmpty={false}
+                                maxDate={new Date()}
+                                className="form-control-sm"
+                                wrapperClassName="mb-3"
                             />
 
                             {isLoadingFiles ? (

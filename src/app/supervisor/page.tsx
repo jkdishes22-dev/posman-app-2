@@ -6,6 +6,7 @@ import { Card, Row, Col, Badge, Button } from "react-bootstrap";
 import { useRouter } from "next/navigation";
 import { useApiCall } from "../utils/apiUtils";
 import ErrorDisplay from "../components/ErrorDisplay";
+import PageHeaderStrip from "../components/PageHeaderStrip";
 import { useTooltips } from "../hooks/useTooltips";
 
 // Helper function to format time ago
@@ -212,18 +213,18 @@ export default function SupervisorPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                {/* Header */}
-                <div className="bg-primary text-white p-3 mb-4">
-                    <div className="d-flex justify-content-between align-items-center">
-                        <h1 className="h4 mb-0 fw-bold">
-                            <i className="bi bi-graph-up me-2"></i>
-                            Operations Dashboard
-                        </h1>
+                <PageHeaderStrip
+                    actions={
                         <Badge bg="light" text="dark" className="fs-6">
                             Supervisor
                         </Badge>
-                    </div>
-                </div>
+                    }
+                >
+                    <h1 className="h4 mb-0 fw-bold">
+                        <i className="bi bi-graph-up me-2" aria-hidden></i>
+                        Operations Dashboard
+                    </h1>
+                </PageHeaderStrip>
 
                 {/* Key Metrics */}
                 <Row className="mb-4">

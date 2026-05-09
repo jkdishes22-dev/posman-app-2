@@ -18,6 +18,8 @@ import {
 } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import HelpPopover from "../../components/HelpPopover";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { AuthError } from "../../types/types";
 import { useAuth } from "../../contexts/AuthContext";
@@ -80,6 +82,13 @@ export default function SuppliersPage() {
   // Search and filter
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+
+  const supplierFiltersActive = searchTerm !== "" || statusFilter !== "all";
+
+  const clearSupplierFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("all");
+  };
 
   // Details modal states
   const [supplierBalance, setSupplierBalance] = useState<any>(null);
@@ -402,14 +411,9 @@ export default function SuppliersPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="bg-primary text-white p-3 mb-4">
-          <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <h1 className="h4 mb-0 fw-bold">
-              <i className="bi bi-truck me-2"></i>
-              Supplier Management
-            </h1>
-            <div className="d-flex flex-wrap gap-2">
+        <PageHeaderStrip
+          actions={
+            <>
               <Link href="/storekeeper/suppliers/transactions" className="btn btn-outline-light btn-sm">
                 <i className="bi bi-cash-coin me-1"></i>
                 Supplier payments
@@ -418,9 +422,14 @@ export default function SuppliersPage() {
                 <i className="bi bi-plus-circle me-1"></i>
                 Add Supplier
               </Button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-truck me-2"></i>
+            Supplier Management
+          </h1>
+        </PageHeaderStrip>
 
         <ErrorDisplay
           error={error}
@@ -431,36 +440,50 @@ export default function SuppliersPage() {
         {/* Search and Filter */}
         <Card className="mb-4">
           <Card.Body>
-            <Row>
-              <Col md={6}>
-                <InputGroup>
-                  <InputGroup.Text>
-                    <i className="bi bi-search"></i>
-                  </InputGroup.Text>
-                  <Form.Control
-                    type="text"
-                    placeholder="Search suppliers by name, contact, email, or phone..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </InputGroup>
-              </Col>
-              <Col md={3}>
-                <Form.Select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
-                >
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </Form.Select>
-              </Col>
-              <Col md={3} className="text-end">
-                <Badge bg="secondary" className="fs-6 p-2">
-                  {filteredSuppliers.length} supplier{filteredSuppliers.length !== 1 ? "s" : ""}
-                </Badge>
-              </Col>
-            </Row>
+            <Form
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault();
+              }}
+            >
+              <Row className="g-2 align-items-end">
+                <Col md={6}>
+                  <InputGroup>
+                    <InputGroup.Text>
+                      <i className="bi bi-search"></i>
+                    </InputGroup.Text>
+                    <Form.Control
+                      type="text"
+                      placeholder="Search suppliers by name, contact, email, or phone..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </InputGroup>
+                </Col>
+                <Col md={3}>
+                  <Form.Select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </Form.Select>
+                </Col>
+                <Col md={3} className="d-flex justify-content-end">
+                  <Button
+                    type="button"
+                    variant="outline-secondary"
+                    size="sm"
+                    disabled={!supplierFiltersActive}
+                    onClick={clearSupplierFilters}
+                  >
+                    <i className="bi bi-x-lg me-1" aria-hidden />
+                    Clear filters
+                  </Button>
+                </Col>
+              </Row>
+            </Form>
           </Card.Body>
         </Card>
 
@@ -801,8 +824,14 @@ export default function SuppliersPage() {
 
         {/* Delete Confirmation Modal */}
         <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
-          <Modal.Header closeButton>
-            <Modal.Title>Confirm Delete</Modal.Title>
+          <Modal.Header closeButton className="align-items-center">
+            <Modal.Title className="d-flex align-items-center gap-2 mb-0">
+              Confirm Delete
+              <HelpPopover id="suppliers-delete-warning" title="Deleting a supplier" ariaLabel="Help for delete supplier">
+                This cannot be undone for the supplier record. Existing purchase orders and transactions remain in the system
+                for audit history.
+              </HelpPopover>
+            </Modal.Title>
           </Modal.Header>
           <Modal.Body>
             {formError && errorDetails?.status === 403 ? (
@@ -819,11 +848,8 @@ export default function SuppliersPage() {
                 {formError}
               </Alert>
             ) : null}
-            <p>
+            <p className="mb-0">
               Are you sure you want to delete supplier <strong>{selectedSupplier?.name}</strong>?
-            </p>
-            <p className="text-muted small">
-              This action cannot be undone. All associated purchase orders and transactions will remain in the system.
             </p>
           </Modal.Body>
           <Modal.Footer>
@@ -1030,9 +1056,17 @@ export default function SuppliersPage() {
         </Modal>
 
         <Modal show={showCreditModal} onHide={() => !creditSubmitting && setShowCreditModal(false)}>
-          <Modal.Header closeButton>
-            <Modal.Title>
+          <Modal.Header closeButton className="align-items-center">
+            <Modal.Title className="d-flex align-items-center gap-2 mb-0">
               {creditKind === "payment" ? "Record payment" : "Partial payment"}
+              <HelpPopover
+                id="suppliers-credit-payment"
+                title={creditKind === "payment" ? "Recording payment" : "Partial payment"}
+                ariaLabel="Help for supplier payment"
+              >
+                Applies a credit to this supplier&apos;s account up to the current debit balance. Use reference and notes for
+                reconciliation and audits.
+              </HelpPopover>
             </Modal.Title>
           </Modal.Header>
           <Form onSubmit={handleCreditSubmit}>
@@ -1047,9 +1081,6 @@ export default function SuppliersPage() {
                   }}
                 />
               )}
-              <p className="text-muted small">
-                Applies a credit to this supplier&apos;s account up to the current debit balance.
-              </p>
               <Form.Group className="mb-3">
                 <Form.Label>Amount</Form.Label>
                 <InputGroup>

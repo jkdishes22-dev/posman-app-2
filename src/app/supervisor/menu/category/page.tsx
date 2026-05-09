@@ -7,6 +7,7 @@ import Categories from "../../../admin/menu/category/components/category/categor
 import CategoryDeleteModal from "../../../admin/menu/category/components/category/category-delete";
 import { AuthError } from "../../../types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 
@@ -157,13 +158,13 @@ export default function SupervisorCategoryPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="row mb-4">
-          <div className="col-12">
-            <h1 className="h3 mb-0">Menu Category Management</h1>
-            <p className="text-muted">Manage menu categories and items for supervisors</p>
-          </div>
-        </div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-grid me-2" aria-hidden></i>
+            Menu Category Management
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">Manage menu categories and items for supervisors</p>
+        </PageHeaderStrip>
 
         {/* Error Display */}
         <ErrorDisplay
@@ -176,7 +177,7 @@ export default function SupervisorCategoryPage() {
         />
 
         {/* Main Content */}
-        <div className="row g-4">
+        <div className="row g-2">
           {/* Add Category Section */}
           <div className="col-12 col-lg-4">
             <div className="card shadow-sm">

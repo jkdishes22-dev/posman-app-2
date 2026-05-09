@@ -1,5 +1,8 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { todayEAT } from "../../../shared/eatDate";
+import FilterDatePicker from "../../../shared/FilterDatePicker";
+import { ymdToDateEat } from "../../../shared/filterDateUtils";
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
@@ -15,6 +18,7 @@ import {
 } from "react-bootstrap";
 import { useApiCall } from "../../../utils/apiUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { AuthError } from "../../../types/types";
 import { format } from "date-fns";
@@ -53,8 +57,22 @@ export default function AdminDailyProductionPage() {
     // Filters
     const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "completed" | "cancelled">("all");
     const [searchTerm, setSearchTerm] = useState<string>("");
-    const [startDate, setStartDate] = useState<string>("");
-    const [endDate, setEndDate] = useState<string>("");
+    const [startDate, setStartDate] = useState(() => todayEAT());
+    const [endDate, setEndDate] = useState(() => todayEAT());
+
+    const dailyProductionFiltersDirty =
+        statusFilter !== "all" ||
+        searchTerm.trim() !== "" ||
+        startDate !== todayEAT() ||
+        endDate !== todayEAT();
+
+    const clearDailyProductionFilters = () => {
+        const d = todayEAT();
+        setStatusFilter("all");
+        setSearchTerm("");
+        setStartDate(d);
+        setEndDate(d);
+    };
 
     useEffect(() => {
         fetchProductionIssues();
@@ -175,13 +193,13 @@ export default function AdminDailyProductionPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <div className="bg-primary text-white p-3 mb-4">
+                <PageHeaderStrip>
                     <h1 className="h4 mb-0 fw-bold">
-                        <i className="bi bi-calendar-day me-2"></i>
+                        <i className="bi bi-calendar-day me-2" aria-hidden></i>
                         Daily Production
                     </h1>
-                    <p className="mb-0 small">View and manage daily production records</p>
-                </div>
+                    <p className="mb-0 mt-2 small text-white-50">View and manage daily production records</p>
+                </PageHeaderStrip>
 
                 <ErrorDisplay
                     error={error}
@@ -199,56 +217,78 @@ export default function AdminDailyProductionPage() {
                     </Alert>
                 )}
 
-                <Card className="shadow-sm mb-4">
-                    <Card.Header className="bg-light fw-bold">Filters</Card.Header>
+                <Card className="shadow-sm mb-4 border-0">
+                    <Card.Header className="bg-light fw-bold py-2 px-3 d-flex align-items-center">
+                        <i className="bi bi-funnel me-2 text-primary" aria-hidden />
+                        Filters
+                    </Card.Header>
                     <Card.Body>
-                        <Row className="g-3">
-                            <Col md={3}>
-                                <Form.Group controlId="statusFilter">
-                                    <Form.Label>Status</Form.Label>
-                                    <Form.Select
-                                        value={statusFilter}
-                                        onChange={(e) => setStatusFilter(e.target.value as any)}
-                                    >
-                                        <option value="all">All Statuses</option>
-                                        <option value="draft">Draft</option>
-                                        <option value="completed">Completed</option>
-                                        <option value="cancelled">Cancelled</option>
-                                    </Form.Select>
-                                </Form.Group>
-                            </Col>
-                            <Col md={3}>
-                                <Form.Group controlId="startDate">
-                                    <Form.Label>Start Date</Form.Label>
-                                    <Form.Control
-                                        type="date"
+                        <Form
+                            noValidate
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                            }}
+                        >
+                            <Row className="g-3 align-items-end">
+                                <Col md={3}>
+                                    <Form.Group controlId="statusFilter">
+                                        <Form.Label>Status</Form.Label>
+                                        <Form.Select
+                                            value={statusFilter}
+                                            onChange={(e) => setStatusFilter(e.target.value as any)}
+                                        >
+                                            <option value="all">All Statuses</option>
+                                            <option value="draft">Draft</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="cancelled">Cancelled</option>
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Col>
+                                <Col md={3}>
+                                    <FilterDatePicker
+                                        id="startDate"
+                                        label="Start Date"
                                         value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
+                                        onChange={setStartDate}
+                                        maxDate={endDate ? ymdToDateEat(endDate) ?? new Date() : new Date()}
                                     />
-                                </Form.Group>
-                            </Col>
-                            <Col md={3}>
-                                <Form.Group controlId="endDate">
-                                    <Form.Label>End Date</Form.Label>
-                                    <Form.Control
-                                        type="date"
+                                </Col>
+                                <Col md={3}>
+                                    <FilterDatePicker
+                                        id="endDate"
+                                        label="End Date"
                                         value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
+                                        onChange={setEndDate}
+                                        minDate={startDate ? ymdToDateEat(startDate) ?? undefined : undefined}
+                                        maxDate={new Date()}
                                     />
-                                </Form.Group>
-                            </Col>
-                            <Col md={3}>
-                                <Form.Group controlId="searchTerm">
-                                    <Form.Label>Search</Form.Label>
-                                    <Form.Control
-                                        type="text"
-                                        placeholder="Search by item name or code"
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                    />
-                                </Form.Group>
-                            </Col>
-                        </Row>
+                                </Col>
+                                <Col md={2}>
+                                    <Form.Group controlId="searchTerm">
+                                        <Form.Label>Search</Form.Label>
+                                        <Form.Control
+                                            type="text"
+                                            placeholder="Search by item name or code"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </Form.Group>
+                                </Col>
+                                <Col md={1} className="d-flex justify-content-md-end">
+                                    <Button
+                                        type="button"
+                                        variant="outline-secondary"
+                                        size="sm"
+                                        className="text-nowrap"
+                                        disabled={!dailyProductionFiltersDirty}
+                                        onClick={clearDailyProductionFilters}
+                                    >
+                                        <i className="bi bi-x-lg me-1" aria-hidden />
+                                        Clear filters
+                                    </Button>
+                                </Col>
+                            </Row>
+                        </Form>
                     </Card.Body>
                 </Card>
 

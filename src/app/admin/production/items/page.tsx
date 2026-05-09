@@ -9,6 +9,7 @@ import { InventoryItem } from "src/app/types/types";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useTooltips } from "../../../hooks/useTooltips";
 
 type ItemFilter = "all" | "stock" | "sellable";
@@ -108,13 +109,13 @@ export default function InventoryPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <div className="bg-primary text-white p-3 mb-4">
+        <PageHeaderStrip>
           <h1 className="h4 mb-0 fw-bold">
-            <i className="bi bi-box-seam me-2"></i>
+            <i className="bi bi-box-seam me-2" aria-hidden></i>
             Stock Menu Items
           </h1>
-          <p className="mb-0 small">Manage stock items (suppliable) and sellable items (produced)</p>
-        </div>
+          <p className="mb-0 mt-2 small text-white-50">Manage stock items (suppliable) and sellable items (produced)</p>
+        </PageHeaderStrip>
 
 
         <div className="row mt-2">

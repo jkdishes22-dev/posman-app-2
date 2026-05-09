@@ -1,10 +1,12 @@
 "use client";
 import { todayEAT } from "../eatDate";
+import FilterDatePicker from "../FilterDatePicker";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Form, Button, Spinner, Alert } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import HelpPopover from "../../components/HelpPopover";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import {
   loadIssueProductionItemOptions,
@@ -150,9 +152,14 @@ export default function ProductionIssueForm({
 
       <Form onSubmit={handleSubmit}>
         <Form.Group controlId="issue-form-item" className="mb-3">
-          <Form.Label>
-            Item to Issue <span className="text-danger">*</span>
-          </Form.Label>
+          <div className="d-flex align-items-center gap-1 mb-1">
+            <Form.Label className="mb-0">
+              Item to Issue <span className="text-danger">*</span>
+            </Form.Label>
+            <HelpPopover id="issue-form-item-help" title="Eligible items">
+              Only active sellable <strong>leaf</strong> items (not composite groups). Current stock is shown per row so you can sanity-check before issuing.
+            </HelpPopover>
+          </div>
           {loadingItems ? (
             <div className="text-center py-3">
               <Spinner animation="border" size="sm" role="status" />
@@ -175,9 +182,6 @@ export default function ProductionIssueForm({
               ))}
             </Form.Select>
           )}
-          <Form.Text className="text-muted">
-            Only active sellable leaf items (not composite / group). Current stock shown per row.
-          </Form.Text>
         </Form.Group>
 
         <div className="row">
@@ -198,17 +202,15 @@ export default function ProductionIssueForm({
             </Form.Group>
           </div>
           <div className="col-md-6">
-            <Form.Group controlId="issue-form-date" className="mb-3">
-              <Form.Label>
-                Issue Date <span className="text-danger">*</span>
-              </Form.Label>
-              <Form.Control
-                type="date"
-                value={issueDate}
-                onChange={(e) => setIssueDate(e.target.value)}
-                required
-              />
-            </Form.Group>
+            <FilterDatePicker
+              id="issue-form-date"
+              label="Issue Date *"
+              value={issueDate}
+              onChange={setIssueDate}
+              allowEmpty={false}
+              maxDate={new Date()}
+              wrapperClassName="mb-3"
+            />
           </div>
         </div>
 

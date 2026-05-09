@@ -133,6 +133,12 @@ export default function InlineItemSearch({
 
   return (
     <div ref={searchRef} className={`position-relative ${className}`}>
+      <Form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+        }}
+      >
       <div className="input-group mb-3">
         <Form.Control
           ref={inputRef}
@@ -144,6 +150,7 @@ export default function InlineItemSearch({
           className="form-control-lg"
         />
         <Button
+          type="button"
           variant="outline-secondary"
           onClick={clearSearch}
           disabled={!query}
@@ -156,6 +163,7 @@ export default function InlineItemSearch({
           </div>
         )}
       </div>
+      </Form>
 
       <ErrorDisplay
         error={error}

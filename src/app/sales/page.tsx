@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
+import PageHeaderStrip from "src/app/components/PageHeaderStrip";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Row, Col, Badge, Button, Table } from "react-bootstrap";
 
@@ -59,18 +60,18 @@ export default function SalesPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="bg-primary text-white p-3 mb-4">
-          <div className="d-flex justify-content-between align-items-center">
-            <h1 className="h4 mb-0 fw-bold">
-              <i className="bi bi-receipt me-2"></i>
-              Sales Dashboard
-            </h1>
+        <PageHeaderStrip
+          actions={
             <Badge bg="light" text="dark" className="fs-6">
               Sales
             </Badge>
-          </div>
-        </div>
+          }
+        >
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-receipt me-2"></i>
+            Sales Dashboard
+          </h1>
+        </PageHeaderStrip>
 
         {/* Key Metrics */}
         <Row className="mb-4">

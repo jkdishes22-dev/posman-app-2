@@ -7,6 +7,7 @@ import Pagination from "../../../components/Pagination";
 import { withSecureRoute } from "../../../components/withSecureRoute"; import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useTooltips } from "../../../hooks/useTooltips";
 
 const DEFAULT_PAGE_SIZE = parseInt(process.env.NEXT_PUBLIC_PAGE_SIZE || "10", 10);
@@ -514,21 +515,9 @@ function UsersPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="bg-primary text-white p-3 mb-4">
-          <div className="d-flex justify-content-between align-items-center">
-            <h1 className="h4 mb-0 fw-bold">
-              <i className="bi bi-people me-2"></i>
-              User Management
-              <i
-                className="bi bi-question-circle ms-2"
-                style={{ cursor: "help", fontSize: "0.9rem" }}
-                data-bs-toggle="tooltip"
-                data-bs-placement="bottom"
-                title="View and manage system users"
-              ></i>
-            </h1>
-            <div className="d-flex align-items-center gap-3">
+        <PageHeaderStrip
+          actions={
+            <>
               <span className="badge bg-light text-dark">
                 <i className="bi bi-people-fill me-1"></i>
                 {total} Total Users
@@ -544,9 +533,21 @@ function UsersPage() {
                 <i className="bi bi-person-plus me-1"></i>
                 Add User
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-people me-2" aria-hidden></i>
+            User Management
+            <i
+              className="bi bi-question-circle ms-2"
+              style={{ cursor: "help", fontSize: "0.9rem" }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="bottom"
+              title="View and manage system users"
+            ></i>
+          </h1>
+        </PageHeaderStrip>
 
         <ErrorDisplay
           error={error || fetchUserError || null}
@@ -567,11 +568,11 @@ function UsersPage() {
           </div>
         )}
 
-        <div className="row g-4">
-          <div className="col-12 col-lg-6">
+        <div className="row g-2">
+          <div className="col-12 col-lg-4">
             <div className="card shadow-sm">
               <div className="card-header bg-light">
-                <div className="d-flex justify-content-between align-items-center">
+                <div className="d-flex flex-wrap align-items-center gap-2 justify-content-between">
                   <h5 className="mb-0 fw-bold">
                     <i className="bi bi-people me-2 text-primary"></i>
                     Users
@@ -579,14 +580,17 @@ function UsersPage() {
                       {filteredUsers.length} of {total}
                     </span>
                   </h5>
-                  <div className="position-relative">
+                  <div
+                    className="position-relative flex-grow-1"
+                    style={{ flexBasis: "160px", maxWidth: "100%", minWidth: 0 }}
+                  >
                     <input
                       type="text"
                       className="form-control"
                       placeholder="Search by name or username..."
                       value={filter}
                       onChange={(e) => setFilter(e.target.value)}
-                      style={{ width: "220px", paddingRight: "2.5rem" }}
+                      style={{ width: "100%", paddingRight: "2.5rem" }}
                     />
                     <i className="bi bi-search position-absolute top-50 end-0 translate-middle-y me-3 text-muted"></i>
                     {filter && (
@@ -628,14 +632,12 @@ function UsersPage() {
                         <th className="fw-semibold">First Name</th>
                         <th className="fw-semibold">Last Name</th>
                         <th className="fw-semibold text-center">Role</th>
-                        <th className="fw-semibold text-center">Status</th>
-                        <th className="fw-semibold text-center">Locked</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredUsers.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="text-center py-5">
+                          <td colSpan={4} className="text-center py-5">
                             <div className="empty-state">
                               <i className="bi bi-search text-muted" style={{ fontSize: "3rem" }}></i>
                               <h5 className="text-muted mt-3 mb-2">No users found</h5>
@@ -702,32 +704,6 @@ function UsersPage() {
                                 </span>
                               )}
                             </td>
-                            <td className="text-center">
-                              {user.status === "DELETED" ? (
-                                <span className="badge bg-danger rounded-pill" title="User is deleted">
-                                  <i className="bi bi-x-circle me-1"></i>
-                                  Deleted
-                                </span>
-                              ) : (
-                                <span className="badge bg-success rounded-pill" title="User is active">
-                                  <i className="bi bi-check-circle me-1"></i>
-                                  Active
-                                </span>
-                              )}
-                            </td>
-                            <td className="text-center">
-                              {user.is_locked ? (
-                                <span className="badge bg-warning rounded-pill" title="User account is locked">
-                                  <i className="bi bi-lock-fill me-1"></i>
-                                  Locked
-                                </span>
-                              ) : (
-                                <span className="badge bg-light text-success rounded-pill" title="User account is unlocked">
-                                  <i className="bi bi-unlock me-1"></i>
-                                  Unlocked
-                                </span>
-                              )}
-                            </td>
                           </tr>
                         ))
                       )}
@@ -746,7 +722,7 @@ function UsersPage() {
             </div>
           </div>
 
-          <div className="col-12 col-lg-6">
+          <div className="col-12 col-lg-8">
             <div className="card shadow-sm h-100">
               <div className="card-header bg-light">
                 <div className="d-flex justify-content-between align-items-center">

@@ -8,6 +8,7 @@ import { AuthError, User } from "../../../types/types";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useTooltips } from "../../../hooks/useTooltips";
 
 function StationUsersPage() {
@@ -222,10 +223,9 @@ function StationUsersPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="bg-primary text-white py-2 px-3 mb-2">
+        <PageHeaderStrip className="py-2">
           <h1 className="h5 mb-0 fw-bold">
-            <i className="bi bi-people-fill me-2"></i>
+            <i className="bi bi-people-fill me-2" aria-hidden></i>
             Station Users
             <i
               className="bi bi-question-circle ms-2"
@@ -235,7 +235,7 @@ function StationUsersPage() {
               title="Assign users to stations and manage access"
             ></i>
           </h1>
-        </div>
+        </PageHeaderStrip>
 
         <div className="container-fluid px-3">
           <ErrorDisplay

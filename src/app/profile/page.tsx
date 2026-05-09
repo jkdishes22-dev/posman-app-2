@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import RoleAwareLayout from "../shared/RoleAwareLayout";
+import PageHeaderStrip from "../components/PageHeaderStrip";
 import { withSecureRoute } from "../components/withSecureRoute";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
@@ -83,13 +84,12 @@ const ProfilePage = () => {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                {/* Header */}
-                <div className="bg-primary text-white p-3 mb-4">
+                <PageHeaderStrip>
                     <h1 className="h4 mb-0 fw-bold">
-                        <i className="bi bi-person-circle me-2"></i>
+                        <i className="bi bi-person-circle me-2" aria-hidden></i>
                         User Profile
                     </h1>
-                </div>
+                </PageHeaderStrip>
 
                 <ErrorDisplay
                     error={error}
@@ -108,7 +108,7 @@ const ProfilePage = () => {
                         <p className="mt-3 text-muted">Loading profile...</p>
                     </div>
                 ) : user ? (
-                    <div className="row g-4">
+                    <div className="row g-2">
                         <div className="col-md-6">
                             <div className="card shadow-sm">
                                 <div className="card-header bg-light">

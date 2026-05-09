@@ -10,6 +10,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import ErrorDisplay from "../components/ErrorDisplay";
+import PageHeaderStrip from "../components/PageHeaderStrip";
 
 const UserHomePage = () => {
   const router = useRouter();
@@ -155,20 +156,17 @@ const UserHomePage = () => {
           }}
         />
 
-        {/* Dashboard Header */}
-        <div className="row mb-1">
-          <div className="col-12">
-            <div className="d-flex justify-content-between align-items-center">
-              <div>
-                <h2 className="mb-1">Sales Dashboard</h2>
-                <p className="text-muted mb-0">Welcome back! Here's your sales overview for today.</p>
-              </div>
-              <div className="text-end">
-                <small className="text-muted">Last updated: {new Date().toLocaleTimeString()}</small>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PageHeaderStrip
+          actions={
+            <small className="text-white-50">Last updated: {new Date().toLocaleTimeString()}</small>
+          }
+        >
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-speedometer2 me-2" aria-hidden></i>
+            Sales Dashboard
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">Welcome back! Here&apos;s your sales overview for today.</p>
+        </PageHeaderStrip>
 
         {/* Summary Cards */}
         <Row className="mb-1">

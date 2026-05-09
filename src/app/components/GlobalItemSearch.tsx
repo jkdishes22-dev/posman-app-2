@@ -160,6 +160,12 @@ export default function GlobalItemSearch({
 
     return (
         <div ref={searchRef} className={`position-relative ${className}`}>
+            <Form
+                noValidate
+                onSubmit={(e) => {
+                    e.preventDefault();
+                }}
+            >
             <div className="input-group">
                 <Form.Control
                     ref={inputRef}
@@ -172,6 +178,7 @@ export default function GlobalItemSearch({
                     className="form-control-lg"
                 />
                 <Button
+                    type="button"
                     variant="outline-secondary"
                     onClick={clearSearch}
                     disabled={!query}
@@ -184,6 +191,7 @@ export default function GlobalItemSearch({
                     </div>
                 )}
             </div>
+            </Form>
 
             <ErrorDisplay
                 error={error}

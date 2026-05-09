@@ -132,11 +132,12 @@ export class UserService {
       );
     }
 
-    const total = await countQuery.getCount();
-
-    // Get paginated users
+    // Run count and page query in parallel (two DB round-trips → one wall-clock wait)
     query.skip((page - 1) * pageSize).take(pageSize);
-    const users = await query.getMany();
+    const [total, users] = await Promise.all([
+      countQuery.getCount(),
+      query.getMany(),
+    ]);
 
     const result = { users, total };
 

@@ -1,6 +1,8 @@
 /* Touch-Friendly Optimizations - Load first for proper cascade */
 @import './styles/touch-optimization.css';
 
+@import 'react-datepicker/dist/react-datepicker.css';
+
 /* Material Design Theme - Clean & Consistent */
 
 /* Hamburger Menu Icon Styles */
@@ -874,6 +876,17 @@
     z-index: 9999 !important;
 }
 
+/* Bootstrap .form-control overrides react-datepicker input padding — restore room for calendar icon */
+.react-datepicker__input-container.react-datepicker__view-calendar-icon input.form-control {
+    padding-left: 2.35rem !important;
+}
+.react-datepicker__input-container .react-datepicker__calendar-icon {
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+}
+
 /* Fix modal overlay z-index and backdrop */
 .modal {
     z-index: 1050 !important;
@@ -902,6 +915,22 @@
     /* Slim the sidebar via CSS custom property */
     :root {
         --pos-sidebar-width: 220px;
+    }
+
+    /* Role layouts (admin, supervisor, sales): compact top bar + breadcrumbs on laptop widths */
+    .navbar.navbar-expand-lg .container-fluid > .d-flex.align-items-center:first-child {
+        min-width: 0;
+        flex-wrap: wrap;
+        row-gap: 0.25rem;
+        column-gap: 0.5rem;
+    }
+
+    .navbar.navbar-expand-lg h4.mb-0 {
+        font-size: 1.15rem;
+    }
+
+    .navbar.navbar-expand-lg .breadcrumb {
+        font-size: 0.875rem;
     }
 
     /* Tighten main content padding */
@@ -946,4 +975,19 @@
     .pos-grid {
         grid-template-columns: 1fr 320px;
     }
+}
+
+/* Submit Bill modal: smaller footprint, optional inner scroll instead of filling the window */
+.submit-bill-modal-dialog {
+    max-width: min(920px, calc(100vw - 1rem)) !important;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.submit-bill-modal-dialog .modal-content {
+    max-height: calc(100vh - 2rem);
+}
+
+.submit-bill-modal-dialog .modal-body {
+    overflow-y: auto;
 }

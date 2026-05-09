@@ -7,6 +7,9 @@ import { useAuth } from "./contexts/AuthContext";
 import { useApiCall } from "./utils/apiUtils";
 import { ApiErrorResponse } from "./utils/errorUtils";
 import ErrorDisplay from "./components/ErrorDisplay";
+import SubmitBillVirtualKeyboard, {
+  SubmitBillKeyboardMode,
+} from "./components/SubmitBillVirtualKeyboard";
 
 type SetupState =
   | "ready"
@@ -36,13 +39,15 @@ const LoginForm = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
-  const [activeField, setActiveField] = useState("username");
+  const [activeField, setActiveField] = useState<"username" | "password">("username");
+  const [keyboardMode, setKeyboardMode] = useState<SubmitBillKeyboardMode>("numeric");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null);
   const [isCheckingSetup, setIsCheckingSetup] = useState(true);
   const [isRunningSetup, setIsRunningSetup] = useState(false);
   const passwordInputRef = useRef<HTMLInputElement | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [licenseCode, setLicenseCode] = useState("");
   const [isActivatingLicense, setIsActivatingLicense] = useState(false);
   const router = useRouter();
@@ -248,7 +253,7 @@ const LoginForm = () => {
     }
   };
 
-  const handleInputClick = (field: React.SetStateAction<string>) => {
+  const handleInputClick = (field: "username" | "password") => {
     setActiveField(field);
   };
 
@@ -299,19 +304,21 @@ const LoginForm = () => {
     }
   };
 
-  const KeyPadWrite = (value: string | number) => {
-    if (value === -1) {
-      if (activeField === "username") {
-        setUsername((prev) => prev.slice(0, -1));
-      } else {
-        setPassword((prev) => prev.slice(0, -1));
-      }
+  const handleVirtualCharacter = (ch: string) => {
+    if (activeField === "username") setUsername((p) => p + ch);
+    else setPassword((p) => p + ch);
+  };
+
+  const handleVirtualSpecialKey = (key: "Backspace" | "Clear" | "Space") => {
+    if (key === "Backspace") {
+      if (activeField === "username") setUsername((p) => p.slice(0, -1));
+      else setPassword((p) => p.slice(0, -1));
+    } else if (key === "Clear") {
+      if (activeField === "username") setUsername("");
+      else setPassword("");
     } else {
-      if (activeField === "username") {
-        setUsername((prev) => prev + value);
-      } else {
-        setPassword((prev) => prev + value);
-      }
+      if (activeField === "username") setUsername((p) => p + " ");
+      else setPassword((p) => p + " ");
     }
   };
 
@@ -335,7 +342,7 @@ const LoginForm = () => {
       <div className="row px-5">
         <div className="col d-flex flex-column">
           <div className="p-3 border bg-light mb-3">
-            <form onSubmit={handleSubmit} className="px-4 py-3">
+            <form onSubmit={handleSubmit} className="px-4 pt-3 pb-2">
               <ErrorDisplay
                 error={error}
                 errorDetails={errorDetails}
@@ -433,11 +440,12 @@ const LoginForm = () => {
                   <input
                     type="text"
                     id="username"
-                    className="form-control flex-grow-1"
+                    className={`form-control flex-grow-1${activeField === "username" ? " border-primary border-2" : ""}`}
                     autoComplete="username"
                     enterKeyHint="next"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    onFocus={() => handleInputClick("username")}
                     onClick={() => handleInputClick("username")}
                     onKeyDown={handleUsernameKeyDown}
                   />
@@ -450,17 +458,32 @@ const LoginForm = () => {
                 <label className="form-label" htmlFor="password">
                   Password
                 </label>
-                <input
-                  ref={passwordInputRef}
-                  type="password"
-                  id="password"
-                  className="form-control lg-4"
-                  autoComplete="current-password"
-                  enterKeyHint="go"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onClick={() => handleInputClick("password")}
-                />
+                <div
+                  className={`input-group${activeField === "password" ? " border border-primary border-2 rounded overflow-hidden" : ""}`}
+                >
+                  <input
+                    ref={passwordInputRef}
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    className="form-control lg-4"
+                    autoComplete="current-password"
+                    enterKeyHint="go"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onFocus={() => handleInputClick("password")}
+                    onClick={() => handleInputClick("password")}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary px-3"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-pressed={showPassword}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setShowPassword((v) => !v)}
+                  >
+                    <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`} aria-hidden />
+                  </button>
+                </div>
               </div>
               <button
                 type="submit"
@@ -484,93 +507,32 @@ const LoginForm = () => {
                 )}
               </button>
             </form>
-          </div>
-
-          <div className="btn-group-vertical w-100 mt-3" role="group">
-            <div className="btn-group mb-2" role="group">
-              <button
-                type="button"
-                className="btn btn-outline-secondary py-4"
-                onClick={() => KeyPadWrite(1)}
-              >
-                1
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-secondary py-4"
-                onClick={() => KeyPadWrite(2)}
-              >
-                2
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-secondary py-4"
-                onClick={() => KeyPadWrite(3)}
-              >
-                3
-              </button>
-            </div>
-            <div className="btn-group mb-2" role="group">
-              <button
-                type="button"
-                className="btn btn-outline-secondary py-4"
-                onClick={() => KeyPadWrite(4)}
-              >
-                4
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-secondary py-4"
-                onClick={() => KeyPadWrite(5)}
-              >
-                5
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-secondary py-4"
-                onClick={() => KeyPadWrite(6)}
-              >
-                6
-              </button>
-            </div>
-            <div className="btn-group mb-2" role="group">
-              <button
-                type="button"
-                className="btn btn-outline-secondary py-4"
-                onClick={() => KeyPadWrite(7)}
-              >
-                7
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-secondary py-4"
-                onClick={() => KeyPadWrite(8)}
-              >
-                8
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-secondary py-4"
-                onClick={() => KeyPadWrite(9)}
-              >
-                9
-              </button>
-            </div>
-            <div className="btn-group mb-2" role="group">
-              <button
-                type="button"
-                className="btn btn-outline-danger py-4"
-                onClick={() => KeyPadWrite(-1)}
-              >
-                &lt; Backspace
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline-secondary py-4"
-                onClick={() => KeyPadWrite(0)}
-              >
-                0
-              </button>
+            <div className="px-4 pb-3 pt-0">
+              <div className="btn-group w-100 mb-2" role="group" aria-label="Keyboard layout">
+                <button
+                  type="button"
+                  className={`btn ${keyboardMode === "numeric" ? "btn-primary" : "btn-outline-secondary"}`}
+                  onClick={() => setKeyboardMode("numeric")}
+                >
+                  123
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${keyboardMode === "alpha" ? "btn-primary" : "btn-outline-secondary"}`}
+                  onClick={() => setKeyboardMode("alpha")}
+                >
+                  ABC
+                </button>
+              </div>
+              <SubmitBillVirtualKeyboard
+                mode={keyboardMode}
+                numericDecimal={false}
+                numericHeading="Numbers"
+                alphaHeading="Letters & numbers"
+                alphaSpacing="comfortable"
+                onCharacter={handleVirtualCharacter}
+                onSpecialKey={handleVirtualSpecialKey}
+              />
             </div>
           </div>
         </div>
