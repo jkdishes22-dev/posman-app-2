@@ -369,9 +369,12 @@ const LoginForm = () => {
                     <>
                       <p className="mb-2">A valid license is required to use this application.</p>
                       <p className="mb-2">
-                        Enter a valid license code on the login screen.
-                        <br />
-                        If your trial expired, request a renewal code from the author.
+                        Paste the full license code you were given below and choose Activate License. A normal
+                        install does not require environment variables or manual key files—only the code.
+                      </p>
+                      <p className="mb-2 small text-muted">
+                        If activation fails, confirm the code was issued for this JK PosMan build, or contact
+                        support. Renewal codes are provided when your trial expires.
                       </p>
                     </>
                   ) : (
@@ -417,9 +420,12 @@ const LoginForm = () => {
                         rows={3}
                         value={licenseCode}
                         onChange={(e) => setLicenseCode(e.target.value)}
-                        placeholder="Paste signed license code"
+                        placeholder="Paste the entire license code (one block)"
                         disabled={isActivatingLicense}
                       />
+                      <p className="form-text small mb-2">
+                        Use the full Base64 text as received—no spaces or line breaks required inside the code.
+                      </p>
                       <button
                         type="button"
                         className="btn btn-primary btn-sm"
