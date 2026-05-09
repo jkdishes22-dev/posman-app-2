@@ -61,7 +61,16 @@ const standaloneDir = path.join(process.cwd(), ".next/standalone");
 try {
   fs.cpSync(path.join(process.cwd(), "public"), path.join(standaloneDir, "public"), { recursive: true, force: true });
   fs.cpSync(path.join(process.cwd(), ".next/static"), path.join(standaloneDir, ".next/static"), { recursive: true, force: true });
-  console.log("✅ Static assets copied to standalone\n");
+  // SQLite migrations are loaded via `path.join(process.cwd(), "src/backend/config/migrations-sqlite", ...)`.
+  // The Next utilityProcess uses cwd = `.next/standalone`, so migrations must exist under that tree.
+  const sqliteMigrationsSrc = path.join(process.cwd(), "src/backend/config/migrations-sqlite");
+  const sqliteMigrationsDest = path.join(standaloneDir, "src/backend/config/migrations-sqlite");
+  if (fs.existsSync(sqliteMigrationsSrc)) {
+    fs.cpSync(sqliteMigrationsSrc, sqliteMigrationsDest, { recursive: true, force: true });
+  } else {
+    console.warn("⚠️  SQLite migrations folder not found; packaged SQLite bootstrap may fail.");
+  }
+  console.log("✅ Static assets (and SQLite migrations when present) copied to standalone\n");
 } catch (err) {
   console.warn("⚠️  Warning: could not copy static assets:", err.message);
 }

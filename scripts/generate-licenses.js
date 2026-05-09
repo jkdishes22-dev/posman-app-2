@@ -35,6 +35,8 @@ const version = readArg("version", "unknown-version");
 const customerRef = readArg("customerRef", "unassigned");
 const outputDir = readArg("out", path.join(process.cwd(), "build", "licenses"));
 const includeLifetime = readArg("includeLifetime", "1") !== "0";
+/** Optional basename (no path). Writes `<name>.json` under --out instead of licenses-<version>-<stamp>.json */
+const outputName = readArg("name", "").trim();
 const privateKeyPath = readArg("privateKey", "");
 
 if (!privateKeyPath) {
@@ -112,7 +114,10 @@ if (includeLifetime) {
 
 fs.mkdirSync(outputDir, { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-const outFile = path.join(outputDir, `licenses-${version}-${stamp}.json`);
+const baseFileName = outputName
+  ? `${outputName.replace(/\.json$/i, "")}.json`
+  : `licenses-${version}-${stamp}.json`;
+const outFile = path.join(outputDir, baseFileName);
 const ledger = {
   generatedAt: new Date().toISOString(),
   version,

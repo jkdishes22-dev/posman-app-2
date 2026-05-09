@@ -415,9 +415,10 @@ export async function applyPendingMigrationsAtStartup(): Promise<void> {
 
   try {
     const executed = await AppDataSource.runMigrations();
-    if (executed.length > 0) {
+    const executedList = Array.isArray(executed) ? executed : [];
+    if (executedList.length > 0) {
       console.info(
-        `[startup] Applied ${executed.length} pending migration(s): ${executed.map((m) => m.name).join(", ")}`,
+        `[startup] Applied ${executedList.length} pending migration(s): ${executedList.map((m) => m.name).join(", ")}`,
       );
     }
   } catch (err: any) {
