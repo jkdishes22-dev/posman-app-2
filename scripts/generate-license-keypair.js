@@ -17,6 +17,8 @@ function resolvePath(inputPath) {
 const outDir = process.argv[2]
   ? resolvePath(process.argv[2])
   : path.join(process.cwd(), "build", "licenses");
+const publicResourceDir = path.join(process.cwd(), "public", "license");
+const publicResourcePath = path.join(publicResourceDir, "public-key.pem");
 
 fs.mkdirSync(outDir, { recursive: true });
 
@@ -30,7 +32,10 @@ const publicPath = path.join(outDir, "license-public.pem");
 
 fs.writeFileSync(privatePath, privateKey, "utf8");
 fs.writeFileSync(publicPath, publicKey, "utf8");
+fs.mkdirSync(publicResourceDir, { recursive: true });
+fs.writeFileSync(publicResourcePath, publicKey, "utf8");
 
 console.log(`Private key: ${privatePath}`);
 console.log(`Public key: ${publicPath}`);
-console.log("Set LICENSE_PUBLIC_KEY env var in deployed app using the public key content.");
+console.log(`Bundled public key resource: ${publicResourcePath}`);
+console.log("Set LICENSE_PUBLIC_KEY env var only if installer/resource loading fails.");

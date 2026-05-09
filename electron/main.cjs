@@ -8,6 +8,7 @@ try { autoUpdater = require("electron-updater").autoUpdater; } catch (_) { /* no
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const crypto = require("crypto");
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const isProduction = !isDev;
@@ -71,6 +72,103 @@ function getTodayLogFilename() {
 }
 
 const logDir = resolveLogDir();
+
+function normalizePem(input) {
+    return String(input || "").replace(/\r\n/g, "\n").trim();
+}
+
+function isLikelyPublicKeyPem(pem) {
+    const normalized = normalizePem(pem);
+    return (
+        normalized.includes("-----BEGIN PUBLIC KEY-----") &&
+        normalized.includes("-----END PUBLIC KEY-----")
+    );
+}
+
+function keyFingerprint(pem) {
+    return crypto.createHash("sha256").update(normalizePem(pem), "utf8").digest("hex");
+}
+
+function readPublicKeyFromFile(filePath, sourceLabel) {
+    try {
+        if (!fs.existsSync(filePath)) return null;
+        const raw = fs.readFileSync(filePath, "utf8");
+        if (!isLikelyPublicKeyPem(raw)) {
+            logToFile(`Ignoring invalid public key content from ${sourceLabel}: ${filePath}`, "ERROR");
+            return null;
+        }
+        return normalizePem(raw);
+    } catch (error) {
+        logToFile(`Failed to read public key from ${sourceLabel} (${filePath}): ${error.message}`, "ERROR");
+        return null;
+    }
+}
+
+function getUserContextPublicKeyPath() {
+    const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+    return path.join(appData, "JK PosMan", "license", "public-key.pem");
+}
+
+function getPackagedPublicKeyCandidates() {
+    const candidates = [];
+    if (process.resourcesPath) {
+        candidates.push(path.join(process.resourcesPath, "public", "license", "public-key.pem"));
+    }
+    if (app.isPackaged) {
+        candidates.push(path.join(path.dirname(process.execPath), "resources", "public", "license", "public-key.pem"));
+    } else {
+        candidates.push(path.join(process.cwd(), "public", "license", "public-key.pem"));
+        candidates.push(path.join(app.getAppPath(), "public", "license", "public-key.pem"));
+    }
+    return [...new Set(candidates)];
+}
+
+function resolveLicensePublicKeyForRuntime() {
+    const envKey = process.env.LICENSE_PUBLIC_KEY;
+    const envNormalized = isLikelyPublicKeyPem(envKey) ? normalizePem(envKey) : null;
+
+    let packagedKey = null;
+    let packagedPath = null;
+    for (const candidate of getPackagedPublicKeyCandidates()) {
+        const loaded = readPublicKeyFromFile(candidate, "packaged-resources");
+        if (loaded) {
+            packagedKey = loaded;
+            packagedPath = candidate;
+            break;
+        }
+    }
+
+    const userPath = getUserContextPublicKeyPath();
+    const userPathKey = readPublicKeyFromFile(userPath, "user-profile");
+    if (userPathKey) {
+        if (packagedKey && keyFingerprint(userPathKey) !== keyFingerprint(packagedKey)) {
+            logToFile(
+                `Public key tamper guard triggered for user-profile key at ${userPath}; falling back to packaged key at ${packagedPath}.`,
+                "ERROR",
+            );
+        } else {
+            logToFile(`Using license public key from user-profile path: ${userPath}`);
+            return userPathKey;
+        }
+    }
+
+    if (packagedKey) {
+        logToFile(`Using license public key from packaged resources: ${packagedPath}`);
+        return packagedKey;
+    }
+
+    if (envNormalized) {
+        logToFile("Using license public key from user environment variable.");
+        return envNormalized;
+    }
+
+    if (envKey) {
+        logToFile("LICENSE_PUBLIC_KEY exists in environment but is not valid PEM content.", "ERROR");
+    } else {
+        logToFile("No license public key found from user-profile path, packaged resources, or environment.");
+    }
+    return null;
+}
 
 function ensureLogDir() {
     try {
@@ -275,6 +373,7 @@ function startNextServer() {
         }
 
         // Set environment variables for the Next.js server
+        const resolvedLicensePublicKey = resolveLicensePublicKeyForRuntime();
         const env = {
             ...process.env,
             PORT: PORT.toString(),
@@ -285,6 +384,7 @@ function startNextServer() {
             LICENSE_ENFORCEMENT:
                 process.env.LICENSE_ENFORCEMENT ||
                 (isProduction ? "1" : "0"),
+            ...(resolvedLicensePublicKey ? { LICENSE_PUBLIC_KEY: resolvedLicensePublicKey } : {}),
             DB_MODE: process.env.DB_MODE || "sqlite",
             // For SQLite: store DB file in user data directory so it persists across app updates
             SQLITE_DB_PATH: path.join(app.getPath("userData"), "posman.db"),
