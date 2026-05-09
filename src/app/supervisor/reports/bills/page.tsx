@@ -2,9 +2,11 @@
 import { todayEAT } from "../../../shared/eatDate";
 
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
+import FilterDatePicker from "../../../shared/FilterDatePicker";
 import React, { useState, useEffect } from "react";
 import { Button } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 
 interface BillReport {
@@ -85,13 +87,13 @@ export default function SupervisorBillsReportsPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="row mb-4">
-          <div className="col-12">
-            <h1 className="h3 mb-0">Bills Reports</h1>
-            <p className="text-muted">Generate and view bills reports as supervisor fallback</p>
-          </div>
-        </div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-receipt me-2" aria-hidden></i>
+            Bills Reports
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">Generate and view bills reports as supervisor fallback</p>
+        </PageHeaderStrip>
 
         {/* Error Display */}
         <ErrorDisplay
@@ -110,23 +112,21 @@ export default function SupervisorBillsReportsPage() {
               <div className="card-body">
                 <div className="row align-items-end">
                   <div className="col-md-3">
-                    <label htmlFor="startDate" className="form-label">Start Date</label>
-                    <input
-                      type="date"
-                      className="form-control"
+                    <FilterDatePicker
                       id="startDate"
+                      label="Start Date"
                       value={dateRange.startDate}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                      onChange={(v) => setDateRange((prev) => ({ ...prev, startDate: v }))}
+                      maxDate={new Date()}
                     />
                   </div>
                   <div className="col-md-3">
-                    <label htmlFor="endDate" className="form-label">End Date</label>
-                    <input
-                      type="date"
-                      className="form-control"
+                    <FilterDatePicker
                       id="endDate"
+                      label="End Date"
                       value={dateRange.endDate}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                      onChange={(v) => setDateRange((prev) => ({ ...prev, endDate: v }))}
+                      maxDate={new Date()}
                     />
                   </div>
                   <div className="col-md-3">

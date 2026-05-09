@@ -4,23 +4,26 @@ import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import React, { useState, useEffect } from "react";
 import { Button } from "react-bootstrap";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
 import { useApiCall } from "../../utils/apiUtils";
 
 interface ReopenedBill {
   id: number;
   total: number;
   status: string;
-  reopenReason: string;
-  reopenedBy: {
+  reopenReason?: string;
+  reopenedBy?: {
     firstName: string;
     lastName: string;
   };
-  reopenedAt: string;
-  user: {
+  reopened_by?: number;
+  reopenedAt?: string;
+  reopened_at?: string;
+  user?: {
     firstName: string;
     lastName: string;
   };
-  station: {
+  station?: {
     name: string;
   };
   billPayments: Array<{
@@ -36,12 +39,11 @@ export default function SupervisorReopenedBillsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<any>(null);
-  const [statusFilter, setStatusFilter] = useState("reopened");
   const apiCall = useApiCall();
 
   useEffect(() => {
     fetchReopenedBills();
-  }, [statusFilter]);
+  }, []);
 
   const fetchReopenedBills = async () => {
     try {
@@ -49,7 +51,7 @@ export default function SupervisorReopenedBillsPage() {
       setError(null);
       setErrorDetails(null);
 
-      const result = await apiCall(`/api/bills?status=${statusFilter}&page=1&pageSize=50`);
+      const result = await apiCall("/api/bills?status=reopened&page=1&pageSize=50");
       if (result.status === 200) {
         setReopenedBills(result.data.bills || []);
       } else {
@@ -99,13 +101,13 @@ export default function SupervisorReopenedBillsPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="row mb-4">
-          <div className="col-12">
-            <h1 className="h3 mb-0">Reopened Bills Management</h1>
-            <p className="text-muted">Monitor and manage reopened bills as supervisor fallback</p>
-          </div>
-        </div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-arrow-counterclockwise me-2" aria-hidden></i>
+            Reopened Bills Management
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">Monitor and manage reopened bills as supervisor fallback</p>
+        </PageHeaderStrip>
 
         {/* Error Display */}
         <ErrorDisplay
@@ -123,17 +125,6 @@ export default function SupervisorReopenedBillsPage() {
               <div className="card-header d-flex justify-content-between align-items-center">
                 <div>
                   <h5 className="card-title mb-0">Reopened Bills</h5>
-                  <div className="mt-2">
-                    <select
-                      className="form-select d-inline-block w-auto"
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                    >
-                      <option value="reopened">Reopened Bills</option>
-                      <option value="submitted">Submitted Bills</option>
-                      <option value="all">All Bills</option>
-                    </select>
-                  </div>
                 </div>
                 <Button
                   variant="outline-primary"
@@ -189,16 +180,32 @@ export default function SupervisorReopenedBillsPage() {
                                   ${(Number(calculatePaymentTotal(bill)) || 0).toFixed(2)} / ${(Number(bill.total) || 0).toFixed(2)}
                                 </small>
                               </td>
-                              <td>{bill.reopenReason}</td>
-                              <td>{bill.reopenedBy.firstName} {bill.reopenedBy.lastName}</td>
-                              <td>{new Date(bill.reopenedAt).toLocaleString()}</td>
-                              <td>{bill.user.firstName} {bill.user.lastName}</td>
-                              <td>{bill.station.name}</td>
+                              <td>{bill.reopenReason || "-"}</td>
+                              <td>
+                                {bill.reopenedBy
+                                  ? `${bill.reopenedBy.firstName} ${bill.reopenedBy.lastName}`
+                                  : bill.reopened_by
+                                    ? `User #${bill.reopened_by}`
+                                    : "-"}
+                              </td>
+                              <td>
+                                {bill.reopenedAt || bill.reopened_at
+                                  ? new Date(bill.reopenedAt || bill.reopened_at || "").toLocaleString()
+                                  : "-"}
+                              </td>
+                              <td>
+                                {bill.user
+                                  ? `${bill.user.firstName} ${bill.user.lastName}`
+                                  : "-"}
+                              </td>
+                              <td>{bill.station?.name || "-"}</td>
                               <td>
                                 <Button
                                   variant="outline-primary"
                                   size="sm"
-                                  onClick={() => window.open(`/home/cashier/bills?billId=${bill.id}`, "_blank")}
+                                  onClick={() => {
+                                    window.location.href = `/home/cashier/bills?billId=${bill.id}`;
+                                  }}
                                 >
                                   <i className="bi bi-eye me-1"></i>
                                   View Details

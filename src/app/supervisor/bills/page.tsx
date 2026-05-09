@@ -2,7 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { todayEAT } from "../../shared/eatDate";
+import FilterDatePicker from "../../shared/FilterDatePicker";
+import { ymdToDateEat } from "../../shared/filterDateUtils";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
+import CollapsibleFilterSectionCard from "../../components/CollapsibleFilterSectionCard";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import Pagination from "../../components/Pagination";
@@ -35,8 +40,8 @@ const SupervisorBillsPage: React.FC = () => {
     const [errorDetails, setErrorDetails] = useState<any>(null);
     const [statusFilter, setStatusFilter] = useState("all");
     const [searchTerm, setSearchTerm] = useState("");
-    const [startDate, setStartDate] = useState("");
-    const [endDate, setEndDate] = useState("");
+    const [startDate, setStartDate] = useState(() => todayEAT());
+    const [endDate, setEndDate] = useState(() => todayEAT());
     const [staffUserId, setStaffUserId] = useState("");
     const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
     const [page, setPage] = useState(1);
@@ -127,8 +132,9 @@ const SupervisorBillsPage: React.FC = () => {
     const clearFilters = () => {
         setSearchTerm("");
         setStatusFilter("all");
-        setStartDate("");
-        setEndDate("");
+        const d = todayEAT();
+        setStartDate(d);
+        setEndDate(d);
         setStaffUserId("");
         setPage(1);
     };
@@ -153,13 +159,19 @@ const SupervisorBillsPage: React.FC = () => {
             <div className="container-fluid supervisor-bills-screen" style={{ overflowX: "hidden" }}>
                 <div className="row">
                     <div className="col-12">
-                        <div className="d-flex justify-content-between align-items-center mb-4">
-                            <h1 className="h3 mb-0">Bills Management</h1>
-                            <button className="btn btn-primary" onClick={fetchBills}>
-                                <i className="bi bi-arrow-clockwise me-2"></i>
-                                Refresh
-                            </button>
-                        </div>
+                        <PageHeaderStrip
+                            actions={
+                                <button type="button" className="btn btn-outline-light btn-sm" onClick={fetchBills}>
+                                    <i className="bi bi-arrow-clockwise me-2"></i>
+                                    Refresh
+                                </button>
+                            }
+                        >
+                            <h1 className="h4 mb-0 fw-bold">
+                                <i className="bi bi-receipt me-2" aria-hidden />
+                                Bills Management
+                            </h1>
+                        </PageHeaderStrip>
 
                         <ErrorDisplay
                             error={error}
@@ -168,8 +180,7 @@ const SupervisorBillsPage: React.FC = () => {
                         />
 
                         {/* Filters */}
-                        <div className="card mb-4">
-                            <div className="card-body">
+                        <CollapsibleFilterSectionCard className="mb-4" bodyClassName="p-3">
                                 <div className="row g-3">
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <label className="form-label">Status</label>
@@ -202,23 +213,20 @@ const SupervisorBillsPage: React.FC = () => {
                                         </select>
                                     </div>
                                     <div className="col-12 col-md-6 col-lg-2">
-                                        <label className="form-label">From</label>
-                                        <input
-                                            type="date"
-                                            className="form-control"
+                                        <FilterDatePicker
+                                            label="From"
                                             value={startDate}
-                                            max={endDate || undefined}
-                                            onChange={(e) => setStartDate(e.target.value)}
+                                            onChange={setStartDate}
+                                            maxDate={endDate ? ymdToDateEat(endDate) ?? new Date() : new Date()}
                                         />
                                     </div>
                                     <div className="col-12 col-md-6 col-lg-2">
-                                        <label className="form-label">To</label>
-                                        <input
-                                            type="date"
-                                            className="form-control"
+                                        <FilterDatePicker
+                                            label="To"
                                             value={endDate}
-                                            min={startDate || undefined}
-                                            onChange={(e) => setEndDate(e.target.value)}
+                                            onChange={setEndDate}
+                                            minDate={startDate ? ymdToDateEat(startDate) ?? undefined : undefined}
+                                            maxDate={new Date()}
                                         />
                                     </div>
                                     <div className="col-12 col-md-6 col-lg-2">
@@ -232,13 +240,12 @@ const SupervisorBillsPage: React.FC = () => {
                                         />
                                     </div>
                                     <div className="col-12 col-md-6 col-lg-2 d-flex align-items-end">
-                                        <button className="btn btn-outline-secondary w-100" onClick={clearFilters}>
-                                            Clear Filters
+                                        <button type="button" className="btn btn-outline-secondary w-100" onClick={clearFilters}>
+                                            Clear filters
                                         </button>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
+                        </CollapsibleFilterSectionCard>
 
                         {/* Bills Table */}
                         <div className="card">

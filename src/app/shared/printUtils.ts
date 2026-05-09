@@ -156,6 +156,38 @@ export async function printCustomerCopyOnly(
 }
 
 /**
+ * One print job: Captain/Kitchen copy only (line items, no totals).
+ * Useful when the business does not want customer receipts on auto-print.
+ */
+export async function printCaptainCopyOnly(
+    bill: any,
+    printerName: string | undefined,
+    extraProps?: Record<string, unknown>,
+    electronPrintOpts?: ElectronPrintOpts
+): Promise<PrintReceiptResult> {
+    const bid = billIdForLog(bill);
+    logClientFromRenderer(
+        `print: captain-copy-only start billId=${bid} printer=${printerName?.trim() ? printerName : "default"}`,
+    );
+    const opts = { ...defaultElectronPrintOpts, ...electronPrintOpts };
+    const captain = await printReceiptWithTimestamp(
+        CaptainOrderPrint,
+        bill,
+        "Captain Order",
+        "captain",
+        printerName,
+        extraProps as Record<string, any>,
+        opts
+    );
+    logClientFromRenderer(
+        `print: captain-copy-only end billId=${bid} success=${captain.success}` +
+            (captain.failureReason ? ` reason=${captain.failureReason}` : ""),
+        captain.success ? "INFO" : "WARN",
+    );
+    return captain;
+}
+
+/**
  * Generate a timestamp-based filename for receipts
  */
 export const generateReceiptFilename = (bill: any, type: string): string => {

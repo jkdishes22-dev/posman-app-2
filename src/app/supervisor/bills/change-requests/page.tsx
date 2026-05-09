@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
-import { formatISO } from "date-fns";
+import { todayEAT } from "src/app/shared/eatDate";
+import FilterDatePicker from "src/app/shared/FilterDatePicker";
+import { dateToYmdEat, ymdToDateEat } from "src/app/shared/filterDateUtils";
 import { Bill } from "src/app/types/types";
 import { Modal, Button, Form, Badge } from "react-bootstrap";
 import Pagination from "src/app/components/Pagination";
 import { useApiCall } from "src/app/utils/apiUtils";
 import { ApiErrorResponse } from "src/app/utils/errorUtils";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "src/app/components/CollapsibleFilterSectionCard";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 
 interface ChangeRequest {
@@ -64,7 +65,7 @@ const SupervisorChangeRequestsPage = () => {
   };
 
   const [filters, setFilters] = useState({
-    billingDate: null as Date | null,
+    billingDate: ymdToDateEat(todayEAT()) as Date | null,
     status: "pending",
     requestType: getRequestTypeFromUrl(), // "all", "void", "quantity_change"
   });
@@ -112,8 +113,7 @@ const SupervisorChangeRequestsPage = () => {
       let url = `/api/bills/change-requests?requestType=${filters.requestType}`;
       
       if (filters.billingDate) {
-        const formattedDate = formatISO(filters.billingDate, { representation: "date" });
-        url += `&date=${formattedDate}`;
+        url += `&date=${dateToYmdEat(filters.billingDate)}`;
       }
 
       const result = await apiCall(url);
@@ -270,43 +270,44 @@ const SupervisorChangeRequestsPage = () => {
         {/* Filtering Section */}
         <div className="row mb-4">
           <div className="col-12">
-            <div className="card shadow-sm">
-              <div className="card-body">
+            <CollapsibleFilterSectionCard className="card shadow-sm" bodyClassName="card-body">
+                <Form
+                  noValidate
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                  }}
+                >
                 <div className="row g-3 align-items-end">
                   <div className="col-md-3">
-                    <div className="form-group">
-                      <label htmlFor="billingDate" className="form-label fw-semibold">
-                        Billing Date
-                      </label>
-                      <div>
-                        <DatePicker
-                          selected={filters.billingDate}
-                          onChange={(date: Date | null) => handleFilterChange("billingDate", date)}
-                          dateFormat="yyyy-MM-dd"
-                          className="form-control"
-                          placeholderText="Select date"
-                          isClearable
-                        />
-                      </div>
-                    </div>
+                    <Form.Group>
+                      <FilterDatePicker
+                        id="billingDate"
+                        label="Billing Date"
+                        value={filters.billingDate ? dateToYmdEat(filters.billingDate) : ""}
+                        onChange={(ymd) =>
+                          handleFilterChange("billingDate", ymd ? ymdToDateEat(ymd) : null)
+                        }
+                        maxDate={new Date()}
+                      />
+                    </Form.Group>
                   </div>
                   <div className="col-md-3">
-                    <div className="form-group">
-                      <label className="form-label fw-semibold">Request Type</label>
-                      <select
-                        className="form-select"
+                    <Form.Group>
+                      <Form.Label className="fw-semibold">Request Type</Form.Label>
+                      <Form.Select
                         value={filters.requestType}
                         onChange={(e) => handleFilterChange("requestType", e.target.value)}
                       >
                         <option value="all">All Requests</option>
                         <option value="void">Void Requests</option>
                         <option value="quantity_change">Quantity Change Requests</option>
-                      </select>
-                    </div>
+                      </Form.Select>
+                    </Form.Group>
                   </div>
                   <div className="col-md-3 d-flex align-items-end">
                     <div className="btn-group" role="group" aria-label="Filter actions">
                       <button
+                        type="button"
                         className="btn btn-outline-warning btn-sm"
                         onClick={() => handleFilterChange("status", "pending")}
                       >
@@ -315,8 +316,8 @@ const SupervisorChangeRequestsPage = () => {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
+                </Form>
+            </CollapsibleFilterSectionCard>
           </div>
         </div>
 

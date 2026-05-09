@@ -8,24 +8,33 @@ export type PrinterSettingsRaw = {
   /** @deprecated use print_after_create_bill — kept for migration / old DB rows */
   print_after_close_bill?: boolean;
   printer_name?: string;
+  auto_print_copy_mode?: "customer" | "kitchen" | "both";
 };
 
 export type PrinterSettingsNormalized = {
   print_after_create_bill: boolean;
   printer_name: string;
+  auto_print_copy_mode: "customer" | "kitchen" | "both";
 };
 
 export function normalizePrinterSettings(raw: PrinterSettingsRaw | null | undefined): PrinterSettingsNormalized {
   if (!raw) {
-    return { print_after_create_bill: false, printer_name: "" };
+    return { print_after_create_bill: false, printer_name: "", auto_print_copy_mode: "both" };
   }
   const create =
     raw.print_after_create_bill !== undefined
       ? !!raw.print_after_create_bill
       : !!raw.print_after_close_bill;
+  const mode =
+    raw.auto_print_copy_mode === "customer" ||
+    raw.auto_print_copy_mode === "kitchen" ||
+    raw.auto_print_copy_mode === "both"
+      ? raw.auto_print_copy_mode
+      : "both";
   return {
     print_after_create_bill: create,
     printer_name: raw.printer_name || "",
+    auto_print_copy_mode: mode,
   };
 }
 
@@ -34,5 +43,6 @@ export function toPrinterSettingsPayload(s: PrinterSettingsNormalized): PrinterS
   return {
     print_after_create_bill: s.print_after_create_bill,
     printer_name: s.printer_name,
+    auto_print_copy_mode: s.auto_print_copy_mode || "both",
   };
 }

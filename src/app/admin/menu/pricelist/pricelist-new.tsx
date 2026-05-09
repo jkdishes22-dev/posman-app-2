@@ -15,7 +15,6 @@ export default function PricelistAdd({
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [station, setStation] = useState("");
-  const [description, setDescription] = useState("");
   const [stations, setStations] = useState([]);
   const [isLoadingStations, setIsLoadingStations] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,18 +56,17 @@ export default function PricelistAdd({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !description || !station) {
+    if (!name || !station) {
       setAddPricelistError("Please fill in all required fields");
       return;
     }
 
     try {
-      await handleAddPricelist({ name, code: code || undefined, description, station });
+      await handleAddPricelist({ name, code: code || undefined, station });
       // Only clear form if successful (handled in parent component)
       if (!addPricelistError) {
         setName("");
         setCode("");
-        setDescription("");
         setStation("");
       }
     } catch (error: any) {
@@ -167,18 +165,6 @@ export default function PricelistAdd({
                     <small className="text-muted ms-2">Loading stations...</small>
                   </div>
                 )}
-              </div>
-              <div className="form-group">
-                <label htmlFor="description" className="form-label">
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  className="form-control"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  required
-                ></textarea>
               </div>
               <div className="modal-footer">
                 <button

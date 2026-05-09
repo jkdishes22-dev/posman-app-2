@@ -209,8 +209,8 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
   return (
     <div className="col mt-2">
       <div className="p-2 border bg-light">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <div>
+        <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-3">
+          <div className="flex-shrink-0">
             <div className="d-flex align-items-center">
               <i className={`bi ${selectedCategory ? "bi-tag-fill" : "bi-tag"} me-2 text-primary`}></i>
               <span className="fw-bold text-dark">
@@ -228,9 +228,7 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
               {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""} available
             </div>
           </div>
-          <div className="row">
-            <div className="col-8">
-              <div className={`d-flex gap-2 ${styles.searchContainer}`} ref={searchRef}>
+          <div className={`d-flex gap-2 flex-grow-1 min-w-0 ${styles.searchContainer}`} ref={searchRef}>
                 <div className={styles.searchInputWrapper}>
                   <div
                     className={`form-control ${styles.searchInputContainer}`}
@@ -330,8 +328,6 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
                   </button>
                 )}
               </div>
-            </div>
-          </div>
         </div>
 
         {/* Add Item Button - Only for category sections, not pricelist */}

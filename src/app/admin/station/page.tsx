@@ -8,6 +8,7 @@ import { AuthError } from "src/app/types/types";
 import { useApiCall } from "src/app/utils/apiUtils";
 import { ApiErrorResponse } from "src/app/utils/errorUtils";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
+import PageHeaderStrip from "src/app/components/PageHeaderStrip";
 import { useTooltips } from "src/app/hooks/useTooltips";
 
 export default function StationPage() {
@@ -441,26 +442,23 @@ export default function StationPage() {
           }}
         />
 
-        {/* Header */}
-        <div className="bg-primary text-white p-3 mb-4">
-          <div className="d-flex justify-content-between align-items-center">
-            <h1 className="h4 mb-0 fw-bold">
-              <i className="bi bi-building me-2"></i>
-              Station Management
-              <i
-                className="bi bi-question-circle ms-2"
-                style={{ cursor: "help", fontSize: "0.9rem" }}
-                data-bs-toggle="tooltip"
-                data-bs-placement="bottom"
-                title="Manage POS stations and their configurations"
-              ></i>
-            </h1>
-          </div>
-        </div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-building me-2" aria-hidden></i>
+            Station Management
+            <i
+              className="bi bi-question-circle ms-2"
+              style={{ cursor: "help", fontSize: "0.9rem" }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="bottom"
+              title="Manage POS stations and their configurations"
+            ></i>
+          </h1>
+        </PageHeaderStrip>
 
 
         {/* Main Content */}
-        <div className="row g-4">
+        <div className="row g-2">
           {/* Stations List Section */}
           <div className="col-lg-4">
             <div className="card shadow-sm h-100">
@@ -584,7 +582,7 @@ export default function StationPage() {
 
           {/* Station Details Section */}
           <div className="col-lg-8">
-            <div className="row g-4">
+            <div className="row g-2">
               {/* Linked Pricelists */}
               <div className="col-md-6">
                 <div className="card shadow-sm h-100">

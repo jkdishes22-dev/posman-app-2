@@ -7,6 +7,8 @@ import { Card, Button, Alert, Spinner, Form, Badge, Row, Col, Table, Modal } fro
 import { useApiCall } from "../../utils/apiUtils";
 import type { ApiErrorResponse } from "../../utils/errorUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
+import HelpPopover from "../../components/HelpPopover";
 import { normalizePrinterSettings, toPrinterSettingsPayload } from "../../shared/printerSettings";
 import type {
     OrganisationSettingsValue,
@@ -23,6 +25,7 @@ interface PrinterInfo {
 interface PrinterSettings {
     print_after_create_bill: boolean;
     printer_name: string;
+    auto_print_copy_mode: "customer" | "kitchen" | "both";
 }
 
 interface BillSettings {
@@ -31,6 +34,13 @@ interface BillSettings {
 
 interface DbBackupSettings {
     frequency: "daily" | "weekly" | "manual";
+}
+
+interface BusinessShift {
+    id: string;
+    name: string;
+    start_time: string;
+    end_time: string;
 }
 
 interface BackupListEntry {
@@ -48,6 +58,13 @@ type RestoreConfirm =
 interface LicenseStatus {
     state: "ready" | "license_required" | "license_expired" | "license_invalid";
     message?: string;
+    expiresAt?: string | null;
+    planType?: string | null;
+}
+
+interface LicenseWarningSettings {
+    months: number;
+    days: number;
 }
 
 function newMpesaMethodId(): string {
@@ -82,11 +99,55 @@ function emptyOrganisation(): OrganisationSettingsValue {
     return { name: "", tagline: "", mpesa_methods: [] };
 }
 
+function newShiftId(): string {
+    return typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `s-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function emptyShift(): BusinessShift {
+    return {
+        id: newShiftId(),
+        name: "",
+        start_time: "",
+        end_time: "",
+    };
+}
+
 export default function AdminSettingsPage() {
+    const getLicenseExpiryWarning = (
+        expiresAt: string | null | undefined,
+        warning: LicenseWarningSettings
+    ): { variant: "warning" | "danger"; message: string } | null => {
+        if (!expiresAt) return null;
+        const expiryDate = new Date(expiresAt);
+        if (Number.isNaN(expiryDate.getTime())) return null;
+
+        const warningStart = new Date(expiryDate);
+        warningStart.setMonth(warningStart.getMonth() - Math.max(0, warning.months || 0));
+        warningStart.setDate(warningStart.getDate() - Math.max(0, warning.days || 0));
+
+        const now = new Date();
+        const msInDay = 1000 * 60 * 60 * 24;
+        const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / msInDay);
+        if (daysUntilExpiry < 0) {
+            return { variant: "danger", message: "License has expired. Please renew to avoid disruption." };
+        }
+        if (now >= warningStart) {
+            const dayLabel = daysUntilExpiry === 1 ? "day" : "days";
+            return { variant: "warning", message: `License expires in ${daysUntilExpiry} ${dayLabel}. Please renew soon.` };
+        }
+        return null;
+    };
+
     const apiCall = useApiCall();
 
     // Printer settings
-    const [printerSettings, setPrinterSettings] = useState<PrinterSettings>({ print_after_create_bill: false, printer_name: "" });
+    const [printerSettings, setPrinterSettings] = useState<PrinterSettings>({
+        print_after_create_bill: false,
+        printer_name: "",
+        auto_print_copy_mode: "both",
+    });
     const [printers, setPrinters] = useState<PrinterInfo[]>([]);
     const [printerSaving, setPrinterSaving] = useState(false);
     const [printerResult, setPrinterResult] = useState<{ success: boolean; error?: string } | null>(null);
@@ -97,6 +158,11 @@ export default function AdminSettingsPage() {
     const [billSettings, setBillSettings] = useState<BillSettings>({ show_tax_on_receipt: true });
     const [billSettingsSaving, setBillSettingsSaving] = useState(false);
     const [billSettingsResult, setBillSettingsResult] = useState<{ success: boolean; error?: string } | null>(null);
+
+    // Shift settings
+    const [businessShifts, setBusinessShifts] = useState<BusinessShift[]>([]);
+    const [shiftSettingsSaving, setShiftSettingsSaving] = useState(false);
+    const [shiftSettingsResult, setShiftSettingsResult] = useState<{ success: boolean; error?: string } | null>(null);
 
     // DB backup settings
     const [dbBackup, setDbBackup] = useState<DbBackupSettings>({ frequency: "daily" });
@@ -159,6 +225,10 @@ export default function AdminSettingsPage() {
     const [licenseCode, setLicenseCode] = useState("");
     const [licenseActivating, setLicenseActivating] = useState(false);
     const [licenseResult, setLicenseResult] = useState<{ success: boolean; error?: string } | null>(null);
+    const [licenseWarning, setLicenseWarning] = useState<LicenseWarningSettings>({ months: 0, days: 7 });
+    const [licenseWarningSaving, setLicenseWarningSaving] = useState(false);
+    const [licenseWarningResult, setLicenseWarningResult] = useState<{ success: boolean; error?: string } | null>(null);
+    const licenseExpiryWarning = getLicenseExpiryWarning(licenseStatus?.expiresAt, licenseWarning);
 
     useEffect(() => {
         // Load consolidated system_settings — each sub-property is a separate API call using ?sub=
@@ -178,6 +248,19 @@ export default function AdminSettingsPage() {
         apiCall("/api/system/settings?key=bill_settings").then((res) => {
             if (res.status === 200 && res.data?.value) setBillSettings(res.data.value);
         });
+        apiCall("/api/system/settings?key=system_settings&sub=business_shifts").then((res) => {
+            if (res.status === 200 && Array.isArray(res.data?.value)) {
+                const normalized = res.data.value
+                    .filter((shift: any) => shift && typeof shift === "object")
+                    .map((shift: any) => ({
+                        id: shift.id ? String(shift.id) : newShiftId(),
+                        name: typeof shift.name === "string" ? shift.name : "",
+                        start_time: typeof shift.start_time === "string" ? shift.start_time : "",
+                        end_time: typeof shift.end_time === "string" ? shift.end_time : "",
+                    }));
+                setBusinessShifts(normalized);
+            }
+        });
         apiCall("/api/system/settings?key=organisation_settings").then((res) => {
             if (res.status === 200 && res.data?.value != null) {
                 const val = res.data.value as OrganisationSettingsValue;
@@ -194,6 +277,14 @@ export default function AdminSettingsPage() {
         }).catch(() => {
             setLicenseStatus({ state: "license_invalid", message: "Unable to load license status" });
         }).finally(() => setLicenseLoading(false));
+        apiCall("/api/system/settings?key=system_settings&sub=license_warning").then((res) => {
+            if (res.status === 200 && res.data?.value && typeof res.data.value === "object") {
+                setLicenseWarning({
+                    months: Math.max(0, Number(res.data.value.months || 0)),
+                    days: Math.max(0, Number(res.data.value.days || 0)),
+                });
+            }
+        }).catch(() => {});
 
         const electronAPI = (window as any).electron;
         if (electronAPI?.getPrinters) {
@@ -256,6 +347,59 @@ export default function AdminSettingsPage() {
             setBillSettingsResult({ success: false, error: "Network error occurred" });
         } finally {
             setBillSettingsSaving(false);
+        }
+    };
+
+    const addBusinessShift = () => {
+        setBusinessShifts((prev) => [...prev, emptyShift()]);
+    };
+
+    const removeBusinessShift = (id: string) => {
+        setBusinessShifts((prev) => prev.filter((s) => s.id !== id));
+    };
+
+    const patchBusinessShift = (id: string, patch: Partial<BusinessShift>) => {
+        setBusinessShifts((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    };
+
+    const handleSaveShiftSettings = async () => {
+        setShiftSettingsResult(null);
+
+        for (const shift of businessShifts) {
+            if (!shift.start_time || !shift.end_time) {
+                setShiftSettingsResult({ success: false, error: "Each shift must have both start and end time." });
+                return;
+            }
+            if (shift.start_time >= shift.end_time) {
+                setShiftSettingsResult({
+                    success: false,
+                    error: `Shift${shift.name ? ` "${shift.name}"` : ""} must have an end time after start time.`,
+                });
+                return;
+            }
+        }
+
+        setShiftSettingsSaving(true);
+        try {
+            const payload = businessShifts.map((shift) => ({
+                id: shift.id,
+                name: shift.name.trim(),
+                start_time: shift.start_time,
+                end_time: shift.end_time,
+            }));
+            const result = await apiCall("/api/system/settings?key=system_settings&sub=business_shifts", {
+                method: "PUT",
+                body: JSON.stringify(payload),
+            });
+            setShiftSettingsResult(
+                result.status === 200
+                    ? { success: true }
+                    : { success: false, error: result.error || "Failed to save shifts" }
+            );
+        } catch {
+            setShiftSettingsResult({ success: false, error: "Network error occurred" });
+        } finally {
+            setShiftSettingsSaving(false);
         }
     };
 
@@ -481,6 +625,32 @@ export default function AdminSettingsPage() {
         }
     };
 
+    const handleSaveLicenseWarning = async () => {
+        const months = Number(licenseWarning.months);
+        const days = Number(licenseWarning.days);
+        if (!Number.isFinite(months) || !Number.isFinite(days) || months < 0 || days < 0) {
+            setLicenseWarningResult({ success: false, error: "Months and days must be zero or positive numbers." });
+            return;
+        }
+        setLicenseWarningSaving(true);
+        setLicenseWarningResult(null);
+        try {
+            const result = await apiCall("/api/system/settings?key=system_settings&sub=license_warning", {
+                method: "PUT",
+                body: JSON.stringify({ months, days }),
+            });
+            if (result.status === 200) {
+                setLicenseWarningResult({ success: true });
+            } else {
+                setLicenseWarningResult({ success: false, error: result.error || "Failed to save warning settings." });
+            }
+        } catch {
+            setLicenseWarningResult({ success: false, error: "Network error occurred" });
+        } finally {
+            setLicenseWarningSaving(false);
+        }
+    };
+
     const getLicenseBadge = (state: string) => {
         switch (state) {
             case "ready": return <Badge bg="success">Active</Badge>;
@@ -493,10 +663,14 @@ export default function AdminSettingsPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <div className="mb-4">
-                    <h2 className="mb-0">System Settings</h2>
-                    <p className="text-muted small mb-0">Manage system configuration and maintenance</p>
-                </div>
+                <PageHeaderStrip>
+                    <div className="d-flex align-items-center flex-wrap gap-2">
+                        <h1 className="h4 mb-0 fw-bold">System Settings</h1>
+                        <HelpPopover id="system-settings-overview" title="System settings" className="text-white">
+                            License activation, bill presentation, organisation branding on receipts, printers, database backups, logs, and other maintenance tasks for administrators.
+                        </HelpPopover>
+                    </div>
+                </PageHeaderStrip>
 
                 {/* Top row: License + Bill Settings */}
                 <Row className="mb-4">
@@ -506,6 +680,11 @@ export default function AdminSettingsPage() {
                             <Card.Body>
                                 {licenseLoading ? <Spinner animation="border" size="sm" /> : (
                                     <>
+                                        {licenseExpiryWarning && (
+                                            <Alert variant={licenseExpiryWarning.variant} className="mb-3">
+                                                {licenseExpiryWarning.message}
+                                            </Alert>
+                                        )}
                                         <div className="mb-3 d-flex align-items-center gap-2">
                                             <span className="text-muted">Status:</span>
                                             {licenseStatus && getLicenseBadge(licenseStatus.state)}
@@ -516,10 +695,59 @@ export default function AdminSettingsPage() {
                                                 {licenseResult.success ? "License activated successfully." : licenseResult.error}
                                             </Alert>
                                         )}
+                                        {licenseWarningResult && (
+                                            <Alert
+                                                variant={licenseWarningResult.success ? "success" : "danger"}
+                                                dismissible
+                                                onClose={() => setLicenseWarningResult(null)}
+                                                className="mb-3"
+                                            >
+                                                {licenseWarningResult.success ? "License warning settings saved." : licenseWarningResult.error}
+                                            </Alert>
+                                        )}
                                         <Form.Group className="mb-3">
                                             <Form.Label className="fw-medium">License Key</Form.Label>
                                             <Form.Control type="text" placeholder="Enter license key" value={licenseCode} onChange={(e) => setLicenseCode(e.target.value)} />
                                         </Form.Group>
+                                        <div className="border rounded p-3 mb-3 bg-light">
+                                            <div className="fw-medium mb-2">Expiry warning lead time</div>
+                                            <Row className="g-2">
+                                                <Col xs={6}>
+                                                    <Form.Label className="small mb-1">Months</Form.Label>
+                                                    <Form.Control
+                                                        type="number"
+                                                        min={0}
+                                                        value={licenseWarning.months}
+                                                        onChange={(e) =>
+                                                            setLicenseWarning((prev) => ({ ...prev, months: Number(e.target.value) || 0 }))
+                                                        }
+                                                    />
+                                                </Col>
+                                                <Col xs={6}>
+                                                    <Form.Label className="small mb-1">Days</Form.Label>
+                                                    <Form.Control
+                                                        type="number"
+                                                        min={0}
+                                                        value={licenseWarning.days}
+                                                        onChange={(e) =>
+                                                            setLicenseWarning((prev) => ({ ...prev, days: Number(e.target.value) || 0 }))
+                                                        }
+                                                    />
+                                                </Col>
+                                            </Row>
+                                            <small className="text-muted d-block mt-2">
+                                                Example: 0 months + 7 days shows warnings in the final week.
+                                            </small>
+                                            <Button
+                                                variant="outline-primary"
+                                                size="sm"
+                                                className="mt-2"
+                                                onClick={handleSaveLicenseWarning}
+                                                disabled={licenseWarningSaving}
+                                            >
+                                                {licenseWarningSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save warning settings"}
+                                            </Button>
+                                        </div>
                                         <Button variant="primary" onClick={handleActivateLicense} disabled={licenseActivating || !licenseCode.trim()}>
                                             {licenseActivating ? <><Spinner animation="border" size="sm" className="me-2" />Activating…</> : "Activate License"}
                                         </Button>
@@ -531,9 +759,13 @@ export default function AdminSettingsPage() {
 
                     <Col md={6}>
                         <Card className="shadow-sm h-100">
-                            <Card.Header className="bg-light fw-bold">Bill Settings</Card.Header>
+                            <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1">
+                                <span>Bill Settings</span>
+                                <HelpPopover id="bill-settings-intro" title="Bill presentation">
+                                    Controls customer-facing bill behaviour—for example whether tax lines appear on printed or downloaded receipts (subject to item setup).
+                                </HelpPopover>
+                            </Card.Header>
                             <Card.Body>
-                                <p className="text-muted small mb-3">Configure how bills are presented to customers.</p>
                                 {billSettingsResult && (
                                     <Alert variant={billSettingsResult.success ? "success" : "danger"} dismissible onClose={() => setBillSettingsResult(null)} className="mb-3">
                                         {billSettingsResult.success ? "Bill settings saved." : billSettingsResult.error}
@@ -556,12 +788,106 @@ export default function AdminSettingsPage() {
                 </Row>
 
                 <Card className="shadow-sm mb-4">
-                    <Card.Header className="bg-light fw-bold">Organisation &amp; receipts</Card.Header>
+                    <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1 flex-wrap">
+                        <span>Business shifts</span>
+                        <HelpPopover id="business-shifts-help" title="Business shift windows">
+                            Define unlimited shift windows for operational tracking (for example 07:00-12:00 and 15:00-22:00).
+                            These shifts will be used later in shift-based sales and cashier reporting.
+                        </HelpPopover>
+                    </Card.Header>
                     <Card.Body>
-                        <p className="text-muted small mb-3">
-                            Business name and tagline appear on printed and downloaded receipts. The M-PESA method marked <strong>Default</strong>
-                            is printed above the thank-you footer. Staff with the print permission receive branding via the same API as printer prefs.
-                        </p>
+                        {shiftSettingsResult && (
+                            <Alert
+                                variant={shiftSettingsResult.success ? "success" : "danger"}
+                                dismissible
+                                onClose={() => setShiftSettingsResult(null)}
+                                className="mb-3"
+                            >
+                                {shiftSettingsResult.success ? "Shift settings saved." : shiftSettingsResult.error}
+                            </Alert>
+                        )}
+
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <p className="text-muted mb-0 small">
+                                Add one or more business shifts. Leave none if your business does not use shift segmentation yet.
+                            </p>
+                            <Button variant="outline-primary" size="sm" onClick={addBusinessShift}>
+                                Add shift
+                            </Button>
+                        </div>
+
+                        {businessShifts.length === 0 ? (
+                            <p className="text-muted small fst-italic mb-0">No shifts configured.</p>
+                        ) : (
+                            <Table responsive bordered size="sm" className="mb-0 align-middle">
+                                <thead className="table-light">
+                                    <tr>
+                                        <th style={{ width: "36%" }}>Shift name (optional)</th>
+                                        <th style={{ width: "24%" }}>Start time</th>
+                                        <th style={{ width: "24%" }}>End time</th>
+                                        <th style={{ width: "16%" }} />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {businessShifts.map((shift, index) => (
+                                        <tr key={shift.id}>
+                                            <td>
+                                                <Form.Control
+                                                    size="sm"
+                                                    placeholder={`Shift ${index + 1} (e.g. Morning)`}
+                                                    value={shift.name}
+                                                    onChange={(e) => patchBusinessShift(shift.id, { name: e.target.value })}
+                                                />
+                                            </td>
+                                            <td>
+                                                <Form.Control
+                                                    size="sm"
+                                                    type="time"
+                                                    value={shift.start_time}
+                                                    onChange={(e) => patchBusinessShift(shift.id, { start_time: e.target.value })}
+                                                    required
+                                                />
+                                            </td>
+                                            <td>
+                                                <Form.Control
+                                                    size="sm"
+                                                    type="time"
+                                                    value={shift.end_time}
+                                                    onChange={(e) => patchBusinessShift(shift.id, { end_time: e.target.value })}
+                                                    required
+                                                />
+                                            </td>
+                                            <td className="text-end">
+                                                <Button variant="outline-danger" size="sm" onClick={() => removeBusinessShift(shift.id)}>
+                                                    Remove
+                                                </Button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </Table>
+                        )}
+
+                        <Button className="mt-3" variant="primary" onClick={handleSaveShiftSettings} disabled={shiftSettingsSaving}>
+                            {shiftSettingsSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save shifts"}
+                        </Button>
+                    </Card.Body>
+                </Card>
+
+                <Card className="shadow-sm mb-4">
+                    <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1 flex-wrap">
+                        <span>Organisation &amp; receipts</span>
+                        <HelpPopover id="org-receipts" title="Organisation &amp; receipts">
+                            <p className="mb-2">
+                                Business name and tagline appear on printed and downloaded receipts. The M-PESA method marked{" "}
+                                <strong>Default</strong> is printed above the thank-you footer.
+                            </p>
+                            <p className="mb-0">
+                                Staff with the print permission receive branding via the same API as printer preferences.
+                            </p>
+                        </HelpPopover>
+                    </Card.Header>
+                    <Card.Body>
                         {organisationResult && (
                             <Alert variant={organisationResult.success ? "success" : "danger"} dismissible onClose={() => setOrganisationResult(null)} className="mb-3">
                                 {organisationResult.success ? "Organisation settings saved." : organisationResult.error}
@@ -587,14 +913,20 @@ export default function AdminSettingsPage() {
                                 />
                             </Col>
                         </Row>
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                            <h6 className="fw-bold mb-0">M-PESA payment options</h6>
+                        <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                            <div className="d-flex align-items-center gap-1">
+                                <h6 className="fw-bold mb-0">M-PESA payment options</h6>
+                                <HelpPopover id="mpesa-lines" title="M-PESA on receipts">
+                                    Without at least one method, no M-PESA lines appear on the receipt. Add a method to show Till, Pochi la biashara,
+                                    or Paybill details.
+                                </HelpPopover>
+                            </div>
                             <Button variant="outline-primary" size="sm" onClick={addMpesaMethod}>
                                 Add method
                             </Button>
                         </div>
                         {(organisation.mpesa_methods ?? []).length === 0 ? (
-                            <p className="text-muted small">No M-PESA lines on the receipt. Add a method to show Till, Pochi la biashara, or Paybill details.</p>
+                            <p className="text-muted small fst-italic mb-0">No payment methods yet.</p>
                         ) : (
                             <Table responsive bordered size="sm" className="mb-0 align-middle">
                                 <thead className="table-light">
@@ -691,26 +1023,63 @@ export default function AdminSettingsPage() {
                         <Row className="g-0">
                             {/* Printer Settings */}
                             <Col md={6} className="p-4 border-end">
-                                <h6 className="fw-bold mb-3">Printer Settings</h6>
+                                <div className="d-flex align-items-center gap-1 mb-3">
+                                    <h6 className="fw-bold mb-0">Printer Settings</h6>
+                                    <HelpPopover id="printer-settings-intro" title="Printer settings">
+                                        Configure thermal/receipt printing for the desktop app. Use <strong>Test Print</strong> after choosing a device.
+                                    </HelpPopover>
+                                </div>
                                 {printerResult && (
                                     <Alert variant={printerResult.success ? "success" : "danger"} dismissible onClose={() => setPrinterResult(null)} className="mb-3">
                                         {printerResult.success ? "Printer settings saved." : printerResult.error}
                                     </Alert>
                                 )}
-                                <Form.Check
-                                    type="switch"
-                                    id="auto-print-switch"
-                                    label="Auto-print when creating a new bill (customer + kitchen copy)"
-                                    checked={printerSettings.print_after_create_bill}
-                                    onChange={(e) => setPrinterSettings((s) => ({ ...s, print_after_create_bill: e.target.checked }))}
-                                    className="mb-2"
-                                />
-                                <p className="text-muted small mb-3">
-                                    When on, saving a new bill from billing prints two jobs (customer copy with totals first, then kitchen/captain ticket). Closing a bill never prints automatically.
-                                    My Sales → Print: one customer copy with totals. Billing → Print on a pending bill: same pair as auto-print.
-                                </p>
+                                <div className="d-flex align-items-start gap-1 mb-2">
+                                    <Form.Check
+                                        type="switch"
+                                        id="auto-print-switch"
+                                        label="Auto-print when creating a new bill"
+                                        checked={printerSettings.print_after_create_bill}
+                                        onChange={(e) => setPrinterSettings((s) => ({ ...s, print_after_create_bill: e.target.checked }))}
+                                        className="flex-grow-1 mb-0"
+                                    />
+                                    <HelpPopover id="auto-print-detail" title="Auto-print behaviour" wide>
+                                        <p className="mb-2">
+                                            When on, saving a new bill from billing prints two jobs (customer copy with totals first, then kitchen/captain ticket).
+                                            Closing a bill never prints automatically.
+                                        </p>
+                                        <p className="mb-0">
+                                            My Sales → Print: one customer copy with totals. Billing → Print on a pending bill: the same pair as auto-print.
+                                        </p>
+                                    </HelpPopover>
+                                </div>
                                 <Form.Group className="mb-3">
-                                    <Form.Label className="fw-medium small">Printer</Form.Label>
+                                    <Form.Label className="fw-medium small mb-1">Auto-print copy mode</Form.Label>
+                                    <Form.Select
+                                        value={printerSettings.auto_print_copy_mode}
+                                        onChange={(e) =>
+                                            setPrinterSettings((s) => ({
+                                                ...s,
+                                                auto_print_copy_mode: e.target.value as PrinterSettings["auto_print_copy_mode"],
+                                            }))
+                                        }
+                                    >
+                                        <option value="customer">Print customer copy only</option>
+                                        <option value="kitchen">Print kitchen / business copy only</option>
+                                        <option value="both">Print both (customer and business copy)</option>
+                                    </Form.Select>
+                                    <Form.Text className="text-muted">
+                                        Default behavior is <strong>both copies</strong> when not explicitly configured.
+                                    </Form.Text>
+                                </Form.Group>
+                                <Form.Group className="mb-3">
+                                    <div className="d-flex align-items-center gap-1 mb-1">
+                                        <Form.Label className="fw-medium small mb-0">Printer</Form.Label>
+                                        <HelpPopover id="printer-desktop-list" title="Printer list">
+                                            The selectable printer list is only available in the desktop app (Electron). In the browser, enter a printer name
+                                            or leave blank for the OS default.
+                                        </HelpPopover>
+                                    </div>
                                     {printers.length > 0 ? (
                                         <Form.Select value={printerSettings.printer_name} onChange={(e) => setPrinterSettings((s) => ({ ...s, printer_name: e.target.value }))}>
                                             <option value="">Default printer</option>
@@ -726,7 +1095,6 @@ export default function AdminSettingsPage() {
                                             onChange={(e) => setPrinterSettings((s) => ({ ...s, printer_name: e.target.value }))}
                                         />
                                     )}
-                                    <Form.Text className="text-muted">Printer list is only available in the desktop app.</Form.Text>
                                 </Form.Group>
                                 {printTestMessage && (
                                     <Alert variant={printTestMessage.startsWith("Print job sent") ? "success" : "warning"} className="mb-3" dismissible onClose={() => setPrintTestMessage(null)}>
@@ -745,12 +1113,18 @@ export default function AdminSettingsPage() {
 
                             {/* Database Backup */}
                             <Col md={6} className="p-4">
-                                <h6 className="fw-bold mb-3">Database Backup</h6>
-                                <p className="text-muted small mb-3">
-                                    Backups are stored alongside the database file. A backup is also created automatically on the first daily launch.
-                                    {" "}
-                                    <Link href="/help/admin">Admin Help</Link> explains restore options and manual recovery.
-                                </p>
+                                <div className="d-flex align-items-center gap-1 mb-3">
+                                    <h6 className="fw-bold mb-0">Database Backup</h6>
+                                    <HelpPopover id="db-backup-overview" title="Database backup" wide>
+                                        <p className="mb-2">
+                                            Backups are stored alongside the database file. A backup can also be created automatically on the first launch of the day,
+                                            depending on frequency below.
+                                        </p>
+                                        <p className="mb-0">
+                                            <Link href="/help/admin">Admin Help</Link> explains restore options and manual recovery.
+                                        </p>
+                                    </HelpPopover>
+                                </div>
                                 <Form.Group className="mb-3">
                                     <Form.Label className="fw-medium small">Automatic backup frequency</Form.Label>
                                     <Form.Select
@@ -851,7 +1225,13 @@ export default function AdminSettingsPage() {
                                     </div>
                                 )}
                                 {sqliteRestoreAvailable === false && (
-                                    <p className="text-muted small mb-3">Database restore from this screen is only available when the app runs in SQLite mode (desktop).</p>
+                                    <div className="d-flex align-items-start gap-1 mb-3">
+                                        <span className="text-muted small">Restore from this screen isn&apos;t available in this environment.</span>
+                                        <HelpPopover id="sqlite-restore-env" title="Database restore">
+                                            Database restore from this screen is only available when the app runs in SQLite mode (typically the desktop app).
+                                            Server or browser deployments use their own backup/restore procedures.
+                                        </HelpPopover>
+                                    </div>
                                 )}
                                 <div className="d-flex gap-2">
                                     <Button variant="outline-secondary" onClick={handleBackupNow} disabled={backupLoading}>
@@ -868,13 +1248,20 @@ export default function AdminSettingsPage() {
 
                         {/* Log Settings (full width) */}
                         <div className="p-4">
-                            <h6 className="fw-bold mb-2">Log Settings</h6>
-                            <p className="text-muted small mb-3">
-                                How long application log files are kept on disk. Files older than the retention window are deleted automatically when the log viewer is opened.
-                                Admins can open the{" "}
-                                <Link href="/admin/logs">application log viewer</Link>
-                                {" "}to diagnose desktop (Electron) issues. Access requires the <code>can_view_logs</code> permission (assigned to admin by default).
-                            </p>
+                            <div className="d-flex align-items-center gap-1 mb-3">
+                                <h6 className="fw-bold mb-0">Log Settings</h6>
+                                <HelpPopover id="log-retention" title="Log retention &amp; viewer" wide>
+                                    <p className="mb-2">
+                                        Controls how long application log files are kept on disk. Files older than the retention window are deleted automatically
+                                        when the log viewer is opened.
+                                    </p>
+                                    <p className="mb-0">
+                                        Admins can open the{" "}
+                                        <Link href="/admin/logs">application log viewer</Link>
+                                        {" "}to diagnose desktop (Electron) issues. Access requires the <code>can_view_logs</code> permission (assigned to admin by default).
+                                    </p>
+                                </HelpPopover>
+                            </div>
                             <Row className="g-2 align-items-end" style={{ maxWidth: 340 }}>
                                 <Col>
                                     <Form.Label className="small mb-1">Retention period (days)</Form.Label>

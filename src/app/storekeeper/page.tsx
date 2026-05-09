@@ -5,6 +5,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Row, Col, Badge, Button, Table, Spinner } from "react-bootstrap";
 import { useApiCall } from "../utils/apiUtils";
 import ErrorDisplay from "../components/ErrorDisplay";
+import PageHeaderStrip from "../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import { useRouter } from "next/navigation";
 import { useTooltips } from "../hooks/useTooltips";
@@ -107,21 +108,9 @@ export default function StorekeeperPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="bg-primary text-white p-3 mb-4">
-          <div className="d-flex justify-content-between align-items-center">
-            <h1 className="h4 mb-0 fw-bold">
-              <i className="bi bi-boxes me-2"></i>
-              Inventory Dashboard
-              <i
-                className="bi bi-question-circle ms-2"
-                style={{ cursor: "help", fontSize: "0.9rem" }}
-                data-bs-toggle="tooltip"
-                data-bs-placement="bottom"
-                title="Overview of inventory levels and alerts"
-              ></i>
-            </h1>
-            <div>
+        <PageHeaderStrip
+          actions={
+            <>
               <Button
                 variant="light"
                 size="sm"
@@ -139,9 +128,21 @@ export default function StorekeeperPage() {
                 <i className="bi bi-cart-check me-1"></i>
                 Purchase Orders
               </Button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-boxes me-2" aria-hidden></i>
+            Inventory Dashboard
+            <i
+              className="bi bi-question-circle ms-2"
+              style={{ cursor: "help", fontSize: "0.9rem" }}
+              data-bs-toggle="tooltip"
+              data-bs-placement="bottom"
+              title="Overview of inventory levels and alerts"
+            ></i>
+          </h1>
+        </PageHeaderStrip>
 
         <ErrorDisplay
           error={error}

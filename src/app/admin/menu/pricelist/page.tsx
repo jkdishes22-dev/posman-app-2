@@ -8,6 +8,7 @@ import ItemAdd from "../category/components/items/items-new";
 import { Button, Form } from "react-bootstrap";
 import { AuthError } from "src/app/types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import ExpressItemSearchModal from "../../../components/ExpressItemSearchModal";
 import PricelistUploadModal from "../../../components/PricelistUploadModal";
 import PricelistAuditLog from "../../../components/PricelistAuditLog";
@@ -150,8 +151,7 @@ export default function PricelistPage() {
     const normalizedSearchTerm = searchTerm.trim().toLowerCase();
     if (normalizedSearchTerm.length > 0) {
       filtered = filtered.filter((pricelist) =>
-        pricelist.name.toLowerCase().includes(normalizedSearchTerm) ||
-        (pricelist.description || "").toLowerCase().includes(normalizedSearchTerm)
+        pricelist.name.toLowerCase().includes(normalizedSearchTerm)
       );
     }
 
@@ -204,17 +204,16 @@ export default function PricelistPage() {
   interface PricelistParams {
     name: string;
     code?: string;
-    description: string;
     station: string;
   }
 
-  const handleAddPricelist = async ({ name, code, description, station }: PricelistParams) => {
+  const handleAddPricelist = async ({ name, code, station }: PricelistParams) => {
     try {
       setAddPricelistError(null);
       setAddPricelistErrorDetails(null);
       const result = await apiCall("/api/menu/pricelists", {
         method: "POST",
-        body: JSON.stringify({ name, code, description, station }),
+        body: JSON.stringify({ name, code, description: "", station }),
       });
 
       if (result.status >= 200 && result.status < 300) {
@@ -353,32 +352,19 @@ export default function PricelistPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="bg-primary text-white p-3 mb-4">
-          <div className="d-flex justify-content-between align-items-center">
-            <h1 className="h4 mb-0 fw-bold">
-              <i className="bi bi-tags me-2"></i>
-              Pricelist Management
-              <i
-                className="bi bi-question-circle ms-2"
-                style={{ cursor: "help", fontSize: "0.9rem" }}
-                data-bs-toggle="tooltip"
-                data-bs-placement="bottom"
-                title="Configure pricing for different stations or customer groups"
-              ></i>
-            </h1>
-            <button
-              onClick={() => setShowExpressSearch(true)}
-              className="btn btn-outline-light btn-sm"
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-tags me-2" aria-hidden></i>
+            Pricelist Management
+            <i
+              className="bi bi-question-circle ms-2"
+              style={{ cursor: "help", fontSize: "0.9rem" }}
               data-bs-toggle="tooltip"
               data-bs-placement="bottom"
-              title="Search for items across all pricelists"
-            >
-              <i className="bi bi-lightning me-1"></i>
-              Pricelist Item Quick Search
-            </button>
-          </div>
-        </div>
+              title="Configure pricing for different stations or customer groups"
+            ></i>
+          </h1>
+        </PageHeaderStrip>
 
         {/* Error Display */}
         <ErrorDisplay
@@ -394,8 +380,8 @@ export default function PricelistPage() {
 
 
         {/* Main Content */}
-        <div className="row g-4">
-          <div className="col-5">
+        <div className="row g-2">
+          <div className="col-12 col-lg-4">
             <div className="card shadow-sm">
               <div className="card-header bg-light">
                 <div className="d-flex justify-content-between align-items-center">
@@ -403,90 +389,99 @@ export default function PricelistPage() {
                     <i className="bi bi-list-ul me-2 text-primary"></i>
                     Pricelists
                   </h5>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleShowModal}
-                  >
-                    <i className="bi bi-plus-circle me-1"></i>
-                    Add Pricelist
-                  </Button>
+                  <div className="d-flex gap-2">
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() => setShowExpressSearch(true)}
+                      data-bs-toggle="tooltip"
+                      data-bs-placement="bottom"
+                      title="Search for items across all pricelists"
+                    >
+                      <i className="bi bi-lightning me-1"></i>
+                      Quick Search
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleShowModal}
+                    >
+                      <i className="bi bi-plus-circle me-1"></i>
+                      Add Pricelist
+                    </Button>
+                  </div>
                 </div>
               </div>
               <div className="card-body p-0">
                 <div className="p-3 border-bottom">
-                  <div className="row align-items-center">
-                    <div className="col-md-5">
-                      <div className="d-flex align-items-center gap-2">
-                        <Form.Label className="fw-semibold mb-0 text-nowrap">
-                          <i className="bi bi-building me-1 text-primary"></i>
-                          Station:
-                        </Form.Label>
-                        <Form.Select
-                          value={selectedStationId || ""}
-                          onChange={(e) => setSelectedStationId(e.target.value ? Number(e.target.value) : null)}
-                          size="sm"
-                        >
-                          <option value="">All Stations</option>
-                          {stations.map((station) => (
-                            <option key={station.id} value={station.id}>
-                              {station.name}
-                            </option>
-                          ))}
-                        </Form.Select>
-                      </div>
+                  <div className="row g-3 align-items-end">
+                    <div className="col-12 col-sm-6 col-xl-4">
+                      <Form.Label className="fw-semibold small mb-1 d-block">
+                        <i className="bi bi-building me-1 text-primary"></i>
+                        Station
+                      </Form.Label>
+                      <Form.Select
+                        value={selectedStationId || ""}
+                        onChange={(e) => setSelectedStationId(e.target.value ? Number(e.target.value) : null)}
+                        size="sm"
+                        className="w-100"
+                      >
+                        <option value="">All Stations</option>
+                        {stations.map((station) => (
+                          <option key={station.id} value={station.id}>
+                            {station.name}
+                          </option>
+                        ))}
+                      </Form.Select>
                     </div>
-                    <div className="col-md-4">
-                      <div className="d-flex align-items-center gap-2">
-                        <Form.Label className="fw-semibold mb-0 text-nowrap">
-                          <i className="bi bi-funnel me-1 text-primary"></i>
-                          Status:
-                        </Form.Label>
-                        <Form.Select
-                          value={statusFilter}
-                          onChange={(e) => setStatusFilter(e.target.value)}
-                          size="sm"
-                        >
-                          <option value="all">All Status</option>
-                          <option value="active">Active</option>
-                          <option value="inactive">Inactive</option>
-                        </Form.Select>
-                      </div>
+                    <div className="col-12 col-sm-6 col-xl-4">
+                      <Form.Label className="fw-semibold small mb-1 d-block">
+                        <i className="bi bi-funnel me-1 text-primary"></i>
+                        Status
+                      </Form.Label>
+                      <Form.Select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        size="sm"
+                        className="w-100"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </Form.Select>
                     </div>
-                    <div className="col-md-3">
-                      <div className="d-flex align-items-center justify-content-end gap-3">
-                        {(selectedStationId || statusFilter !== "all" || searchTerm.trim().length > 0) && (
-                          <Button
-                            variant="outline-secondary"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedStationId(null);
-                              setStatusFilter("all");
-                              setSearchTerm("");
-                            }}
-                          >
-                            <i className="bi bi-x-circle me-1"></i>
-                            Clear Filters
-                          </Button>
-                        )}
-                      </div>
+                    <div className="col-12 col-xl-4 d-flex justify-content-xl-end pb-1">
+                      {(selectedStationId || statusFilter !== "all" || searchTerm.trim().length > 0) && (
+                        <Button
+                          variant="outline-secondary"
+                          size="sm"
+                          className="w-100 d-xl-inline-block"
+                          onClick={() => {
+                            setSelectedStationId(null);
+                            setStatusFilter("all");
+                            setSearchTerm("");
+                          }}
+                        >
+                          <i className="bi bi-x-circle me-1"></i>
+                          Clear filters
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  <div className="row mt-2">
-                    <div className="col-md-6">
-                      <div className="d-flex align-items-center gap-2">
-                        <Form.Label className="fw-semibold mb-0 text-nowrap">
-                          <i className="bi bi-search me-1 text-primary"></i>
-                          Search:
-                        </Form.Label>
-                        <Form.Control
-                          type="text"
-                          size="sm"
-                          placeholder="Search pricelist name or description..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                      </div>
+                  <div className="row g-3 mt-1">
+                    <div className="col-12">
+                      <Form.Label className="fw-semibold small mb-1 d-block">
+                        <i className="bi bi-search me-1 text-primary"></i>
+                        Search
+                      </Form.Label>
+                      <Form.Control
+                        type="text"
+                        size="sm"
+                        className="w-100"
+                        placeholder="Search by pricelist name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
                     </div>
                   </div>
                 </div>
@@ -496,7 +491,6 @@ export default function PricelistPage() {
                       <tr>
                         <th className="fw-semibold">#</th>
                         <th className="fw-semibold">Name</th>
-                        <th className="fw-semibold">Description</th>
                         <th className="fw-semibold text-center">Status</th>
                         <th className="fw-semibold text-center">Actions</th>
                       </tr>
@@ -511,13 +505,6 @@ export default function PricelistPage() {
                         >
                           <td className="fw-medium">{index + 1}</td>
                           <td>{pricelist.name}</td>
-                          <td>
-                            {pricelist.description ? (
-                              <span className="text-muted">{pricelist.description}</span>
-                            ) : (
-                              <span className="text-muted">No description</span>
-                            )}
-                          </td>
                           <td className="text-center">
                             <span className={`badge ${pricelist.status === "active" ? "bg-success" : "bg-secondary"}`}>
                               {pricelist.status === "active" ? "Active" : "Inactive"}
@@ -559,16 +546,20 @@ export default function PricelistPage() {
               </div>
             </div>
           </div>
-          <div className="col-7">
+          <div className="col-12 col-lg-8">
             <div className="card shadow-sm">
               <div className="card-header bg-light">
                 <div className="d-flex justify-content-between align-items-center">
                   <h5 className="mb-0 fw-bold">
                     <i className="bi bi-box-seam me-2 text-primary"></i>
-                    {selectedPricelistId ?
-                      `Items - ${filteredPricelists.find(p => p.id === selectedPricelistId)?.name || "Unknown"}` :
+                    {selectedPricelistId ? (
+                      <>
+                        <span className="fw-normal text-muted me-2">Selected pricelist:</span>
+                        {filteredPricelists.find(p => p.id === selectedPricelistId)?.name || "Unknown"}
+                      </>
+                    ) : (
                       "Items"
-                    }
+                    )}
                   </h5>
                   {selectedPricelistId && (
                     <div className="d-flex gap-2">

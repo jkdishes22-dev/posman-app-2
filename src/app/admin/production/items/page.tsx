@@ -8,7 +8,9 @@ import InventoryModal from "./new";
 import { InventoryItem } from "src/app/types/types";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
+import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useTooltips } from "../../../hooks/useTooltips";
 
 type ItemFilter = "all" | "stock" | "sellable";
@@ -108,30 +110,18 @@ export default function InventoryPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <div className="bg-primary text-white p-3 mb-4">
+        <PageHeaderStrip>
           <h1 className="h4 mb-0 fw-bold">
-            <i className="bi bi-box-seam me-2"></i>
+            <i className="bi bi-box-seam me-2" aria-hidden></i>
             Stock Menu Items
           </h1>
-          <p className="mb-0 small">Manage stock items (suppliable) and sellable items (produced)</p>
-        </div>
+          <p className="mb-0 mt-2 small text-white-50">Manage stock items (suppliable) and sellable items (produced)</p>
+        </PageHeaderStrip>
 
 
         <div className="row mt-2">
           <div className="col-4">
-            <Card className="shadow-sm mb-4">
-              <Card.Header className="bg-light fw-bold">
-                <i className="bi bi-funnel me-2"></i>
-                Filters
-                <i 
-                  className="bi bi-question-circle ms-2 text-muted" 
-                  style={{ cursor: "help" }}
-                  data-bs-toggle="tooltip" 
-                  data-bs-placement="top"
-                  title="Stock Items: purchased/supplied items (e.g., Eggs, Milk). Sellable Items: produced items (e.g., Tortilla, Coffee). Items can be both types."
-                ></i>
-              </Card.Header>
-              <Card.Body>
+            <CollapsibleFilterSectionCard className="shadow-sm mb-4">
                 <Form.Group className="mb-3">
                   <Form.Label>
                     Item Type
@@ -161,8 +151,7 @@ export default function InventoryPage() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </Form.Group>
-              </Card.Body>
-            </Card>
+            </CollapsibleFilterSectionCard>
 
             <Button onClick={handleShowModal} className="btn btn-primary w-100 mb-3">
               <i className="bi bi-plus-circle me-2"></i>

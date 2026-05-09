@@ -16,8 +16,13 @@ import {
 } from "react-bootstrap";
 import { useApiCall } from "../../../utils/apiUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import Pagination from "../../../components/Pagination";
+import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
+import { todayEAT } from "../../../shared/eatDate";
+import FilterDatePicker from "../../../shared/FilterDatePicker";
+import { ymdToDateEat } from "../../../shared/filterDateUtils";
 
 interface SupplierOption {
   id: number;
@@ -68,8 +73,8 @@ function SupplierTransactionsContent() {
 
   const [filterSupplierId, setFilterSupplierId] = useState("");
   const [filterType, setFilterType] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(() => todayEAT());
+  const [endDate, setEndDate] = useState(() => todayEAT());
 
   const [loading, setLoading] = useState(false);
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
@@ -140,6 +145,25 @@ function SupplierTransactionsContent() {
     void load(page);
   }, [page, load]);
 
+  const supplierTxnFiltersDirty =
+    filterSupplierId !== "" ||
+    filterType !== "" ||
+    startDate !== todayEAT() ||
+    endDate !== todayEAT();
+
+  const clearSupplierTxnFilters = () => {
+    const d = todayEAT();
+    setFilterSupplierId("");
+    setFilterType("");
+    setStartDate(d);
+    setEndDate(d);
+    if (page !== 1) {
+      setPage(1);
+    } else {
+      void load(1);
+    }
+  };
+
   const applyFilters = (e: React.FormEvent) => {
     e.preventDefault();
     if (page !== 1) {
@@ -152,18 +176,13 @@ function SupplierTransactionsContent() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-          <div>
-            <Link href="/storekeeper/suppliers" className="text-decoration-none small text-muted d-inline-block mb-1">
-              ← Back to suppliers
-            </Link>
-            <h1 className="h4 mb-0 fw-bold">
-              <i className="bi bi-cash-coin me-2"></i>
-              Supplier payments
-            </h1>
-            <p className="text-muted small mb-0">All supplier financial transactions with filters.</p>
-          </div>
-        </div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-cash-coin me-2"></i>
+            Supplier Payments
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">All supplier financial transactions with filters.</p>
+        </PageHeaderStrip>
 
         <ErrorDisplay
           error={error}
@@ -174,12 +193,11 @@ function SupplierTransactionsContent() {
           }}
         />
 
-        <Card className="mb-4 shadow-sm">
-          <Card.Header className="bg-light">
-            <h6 className="mb-0">Filters</h6>
-          </Card.Header>
-          <Card.Body>
-            <Form onSubmit={applyFilters}>
+        <CollapsibleFilterSectionCard className="mb-4 shadow-sm border-0">
+            <Form
+              noValidate
+              onSubmit={applyFilters}
+            >
               <Row className="g-3 align-items-end">
                 <Col md={3}>
                   <Form.Label>Supplier</Form.Label>
@@ -207,45 +225,51 @@ function SupplierTransactionsContent() {
                   </Form.Select>
                 </Col>
                 <Col md={2}>
-                  <Form.Label>From</Form.Label>
-                  <Form.Control type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                  <FilterDatePicker
+                    label="From"
+                    value={startDate}
+                    onChange={setStartDate}
+                    maxDate={endDate ? ymdToDateEat(endDate) ?? new Date() : new Date()}
+                  />
                 </Col>
                 <Col md={2}>
-                  <Form.Label>To</Form.Label>
-                  <Form.Control type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                  <FilterDatePicker
+                    label="To"
+                    value={endDate}
+                    onChange={setEndDate}
+                    minDate={startDate ? ymdToDateEat(startDate) ?? undefined : undefined}
+                    maxDate={new Date()}
+                  />
                 </Col>
-                <Col md={3} className="d-flex gap-2 flex-wrap">
-                  <Button type="submit" variant="primary" disabled={loading}>
+                <Col md={3} className="d-flex gap-2 flex-wrap align-items-end justify-content-md-end">
+                  <Button type="submit" variant="primary" size="sm" disabled={loading}>
                     {loading ? <Spinner animation="border" size="sm" /> : "Apply"}
                   </Button>
                   <Button
                     type="button"
                     variant="outline-secondary"
-                    disabled={loading}
-                    onClick={() => {
-                      setFilterSupplierId("");
-                      setFilterType("");
-                      setStartDate("");
-                      setEndDate("");
-                      if (page !== 1) {
-                        setPage(1);
-                      } else {
-                        void load(1);
-                      }
-                    }}
+                    size="sm"
+                    disabled={loading || !supplierTxnFiltersDirty}
+                    onClick={clearSupplierTxnFilters}
                   >
-                    Clear
+                    <i className="bi bi-x-lg me-1" aria-hidden />
+                    Clear filters
                   </Button>
                 </Col>
               </Row>
             </Form>
-          </Card.Body>
-        </Card>
+        </CollapsibleFilterSectionCard>
 
         <Card className="shadow-sm">
           <Card.Header className="bg-light d-flex justify-content-between align-items-center">
             <h6 className="mb-0">Transactions</h6>
-            {loading && <Spinner animation="border" size="sm" />}
+            <div className="d-flex gap-2 align-items-center">
+              <Link href="/storekeeper/suppliers" className="btn btn-outline-secondary btn-sm">
+                <i className="bi bi-arrow-left me-1"></i>
+                Back to suppliers
+              </Link>
+              {loading && <Spinner animation="border" size="sm" />}
+            </div>
           </Card.Header>
           <Card.Body className="p-0">
             <div className="table-responsive">

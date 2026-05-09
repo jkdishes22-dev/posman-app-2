@@ -483,3 +483,26 @@ label {
   transition: background-color 0.1s ease;
 }
 
+/* ============================================
+   Plain numeric fields — hide spinner/stepper UI
+   Applies to all input[type="number"] (quantity, amounts, etc.).
+   Users type values; min/max/step still work in supporting browsers.
+   ============================================ */
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* PageHeaderStrip: keep muted/help chrome readable on primary blue */
+.page-header-strip .text-muted {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+

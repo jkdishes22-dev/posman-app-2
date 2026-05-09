@@ -5,21 +5,24 @@ import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import ProductionIssueForm from "../../../shared/production/ProductionIssueForm";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Card } from "react-bootstrap";
-import { useTooltips } from "../../../hooks/useTooltips";
+import HelpPopover from "../../../components/HelpPopover";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 
 export default function StorekeeperProductionIssuePage() {
-  useTooltips();
-
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <div className="bg-primary text-white p-3 mb-4">
-          <h1 className="h4 mb-0 fw-bold">
-            <i className="bi bi-plus-circle me-2" />
-            Issue Production
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold d-flex align-items-center flex-wrap gap-2">
+            <span>
+              <i className="bi bi-plus-circle me-2" aria-hidden />
+              Issue Production
+            </span>
+            <HelpPopover id="issue-direct-storekeeper" title="Issue production" className="text-white">
+              Record finished production and add quantities to inventory. Choose the item, quantity, and date—stock updates immediately after a successful issue.
+            </HelpPopover>
           </h1>
-          <p className="mb-0 small">Record items produced and add them to inventory</p>
-        </div>
+        </PageHeaderStrip>
 
         <Card>
           <Card.Body>

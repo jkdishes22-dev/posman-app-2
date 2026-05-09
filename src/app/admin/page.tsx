@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import RoleAwareLayout from "../shared/RoleAwareLayout";
 import SecureRoute from "../components/SecureRoute";
+import PageHeaderStrip from "../components/PageHeaderStrip";
 import { useTooltips } from "../hooks/useTooltips";
 
 export default function AdminPage() {
@@ -81,10 +82,9 @@ export default function AdminPage() {
     <SecureRoute roleRequired="admin">
       <RoleAwareLayout>
         <div className="container-fluid">
-          {/* Header */}
-          <div className="bg-primary text-white p-4 mb-4 rounded">
-            <h1 className="h3 mb-0 fw-bold">
-              <i className="bi bi-shield-check me-2"></i>
+          <PageHeaderStrip>
+            <h1 className="h4 mb-0 fw-bold">
+              <i className="bi bi-shield-check me-2" aria-hidden></i>
               Admin Dashboard
               <i
                 className="bi bi-question-circle ms-2"
@@ -94,11 +94,11 @@ export default function AdminPage() {
                 title="Central hub for managing all aspects of your POS system including users, menus, stations, production, and inventory"
               ></i>
             </h1>
-            <p className="mb-0 text-white-50">Manage your POS system and users</p>
-          </div>
+            <p className="mb-0 mt-2 small text-white-50">Manage your POS system and users</p>
+          </PageHeaderStrip>
 
           {/* Admin Features Grid */}
-          <Row className="g-4">
+          <Row className="g-2">
             {adminFeatures.map((feature, index) => (
               <Col key={index} md={6} lg={4}>
                 <Card

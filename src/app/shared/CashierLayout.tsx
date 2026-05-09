@@ -7,7 +7,6 @@ import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import AppVersion from "../components/AppVersion";
 import StationSwitcher from "../components/StationSwitcher";
-import HelpMenu from "../components/HelpMenu";
 import { AuthError } from "../types/types";
 
 interface CashierLayoutProps {
@@ -15,8 +14,17 @@ interface CashierLayoutProps {
     authError: AuthError | null;
 }
 
+/** Matches laptop-width sidebar narrowing (see SupervisorLayout / globals.css breakpoint). */
+function getCashierExpandedSidebarWidth(): number {
+    if (typeof window === "undefined") return 250;
+    if (window.innerWidth < 1024) return 60;
+    if (window.innerWidth < 1400) return 220;
+    return 250;
+}
+
 const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [sidebarWidth, setSidebarWidth] = useState(250);
     const [activeItem, setActiveItem] = useState("");
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
     const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
@@ -25,6 +33,13 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
     const { currentStation } = useStation();
     const router = useRouter();
     const pathname = usePathname();
+
+    useEffect(() => {
+        const update = () => setSidebarWidth(getCashierExpandedSidebarWidth());
+        update();
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, []);
 
     useEffect(() => {
         // Set active item and breadcrumbs based on current path
@@ -139,12 +154,13 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
             }
         }
 
-        // Normal toggle behavior
-        setExpandedMenus(prev =>
-            prev.includes(menuId)
-                ? prev.filter(id => id !== menuId)
-                : [...prev, menuId]
-        );
+        // Accordion: only one submenu open; opening another closes the rest
+        setExpandedMenus((prev) => {
+            if (prev.includes(menuId)) {
+                return prev.filter((id) => id !== menuId);
+            }
+            return [menuId];
+        });
     };
 
     const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement>) => {
@@ -154,10 +170,6 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
         if (event?.currentTarget) {
             event.currentTarget.focus();
         }
-    };
-
-    const handleBreadcrumbClick = (path: string) => {
-        router.push(path);
     };
 
     const menuItems = [
@@ -270,8 +282,8 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
             {/* Sidebar */}
             <div className={`bg-dark text-white d-flex flex-column ${isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}
                 style={{
-                    width: isCollapsed ? "60px" : "250px",
-                    minWidth: isCollapsed ? "60px" : "250px",
+                    width: isCollapsed ? "60px" : `${sidebarWidth}px`,
+                    minWidth: isCollapsed ? "60px" : `${sidebarWidth}px`,
                     transition: "width 0.3s ease"
                 }}>
 
@@ -300,8 +312,7 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
 
                 {/* Separator and Navigation Label */}
                 {!isCollapsed && (
-                    <div className="px-3 pb-2">
-                        <hr className="text-white-50 mb-2" />
+                    <div className="px-3 pb-1">
                         <div className="text-muted small fw-semibold text-uppercase">
                             <i className="bi bi-list-ul me-1"></i>
                             Navigation
@@ -310,7 +321,7 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
                 )}
 
                 {/* Navigation */}
-                <nav className="flex-grow-1 p-3">
+                <nav className="flex-grow-1 px-3 pt-1 pb-3">
                     <ul className="nav nav-pills flex-column">
                         {visibleMenuItems.map((item) => (
                             <li key={item.id} className="nav-item mb-2">
@@ -389,80 +400,6 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
 
             {/* Main Content */}
             <div className="flex-grow-1 d-flex flex-column">
-                {/* Top Navigation */}
-                <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom">
-                    <div className="container-fluid">
-                        <div className="d-flex align-items-center">
-                            <h4 className="mb-0 me-3">Dashboard</h4>
-                            {breadcrumbs.length > 1 && (
-                                <nav aria-label="breadcrumb">
-                                    <ol className="breadcrumb mb-0">
-                                        {breadcrumbs.map((crumb, index) => (
-                                            <li key={index} className={`breadcrumb-item ${index === breadcrumbs.length - 1 ? "active" : ""}`}>
-                                                {index === breadcrumbs.length - 1 ? (
-                                                    crumb.label
-                                                ) : (
-                                                    <button
-                                                        className="btn btn-link p-0 text-decoration-none"
-                                                        onClick={() => handleBreadcrumbClick(crumb.path)}
-                                                        style={{ color: "var(--bs-primary)" }}
-                                                    >
-                                                        {crumb.label}
-                                                    </button>
-                                                )}
-                                            </li>
-                                        ))}
-                                    </ol>
-                                </nav>
-                            )}
-                        </div>
-
-                        {/* Profile Dropdown */}
-                        <div className="dropdown">
-                            <button
-                                className="btn btn-outline-secondary dropdown-toggle"
-                                type="button"
-                                data-bs-toggle="dropdown"
-                                aria-expanded="false"
-                            >
-                                <i className="bi bi-person-circle me-2"></i>
-                                Profile
-                            </button>
-                            <ul className="dropdown-menu dropdown-menu-end">
-                                <li>
-                                    <a className="dropdown-item" href="/profile">
-                                        <i className="bi bi-gear me-2"></i>
-                                        Settings
-                                    </a>
-                                </li>
-                                <li>
-                                    <a className="dropdown-item" href="/profile">
-                                        <i className="bi bi-person me-2"></i>
-                                        Account
-                                    </a>
-                                </li>
-                                <li>
-                                    <a className="dropdown-item" href="/profile">
-                                        <i className="bi bi-sliders me-2"></i>
-                                        Preferences
-                                    </a>
-                                </li>
-                                <li><hr className="dropdown-divider" /></li>
-                                <li>
-                                    <HelpMenu />
-                                </li>
-                                <li><hr className="dropdown-divider" /></li>
-                                <li>
-                                    <button className="dropdown-item" onClick={logout}>
-                                        <i className="bi bi-box-arrow-right me-2"></i>
-                                        Logout
-                                    </button>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </nav>
-
                 {/* Page Content */}
                 <main className="flex-grow-1 p-4">
                     {authError && (

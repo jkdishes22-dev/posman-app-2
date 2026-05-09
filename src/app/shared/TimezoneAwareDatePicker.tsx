@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { EAT_TIMEZONE } from "./eatDate";
 

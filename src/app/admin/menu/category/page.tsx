@@ -7,6 +7,7 @@ import Categories from "./components/category/categories";
 import CategoryDeleteModal from "./components/category/category-delete";
 import { AuthError } from "src/app/types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
@@ -154,10 +155,9 @@ const CategoryPage: React.FC = () => {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="bg-primary text-white p-3 mb-4">
+        <PageHeaderStrip>
           <h1 className="h4 mb-0 fw-bold">
-            <i className="bi bi-grid me-2"></i>
+            <i className="bi bi-grid me-2" aria-hidden></i>
             Menu Management
             <i
               className="bi bi-question-circle ms-2"
@@ -167,10 +167,10 @@ const CategoryPage: React.FC = () => {
               title="Manage menu categories and organize items"
             ></i>
           </h1>
-        </div>
+        </PageHeaderStrip>
 
         {/* Main Content */}
-        <div className="row g-4">
+        <div className="row g-2">
           <div className="col-12 col-lg-4">
             <div className="card shadow-sm">
               <div className="card-header bg-light">
@@ -210,7 +210,7 @@ const CategoryPage: React.FC = () => {
                       required
                     />
                   </div>
-                  <button type="submit" className="btn btn-primary w-100">
+                  <button type="submit" className="btn btn-primary btn-sm">
                     <i className="bi bi-plus-circle me-2"></i>
                     Add Category
                   </button>

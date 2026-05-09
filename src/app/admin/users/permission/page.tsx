@@ -9,6 +9,7 @@ import AsyncSelect from "react-select/async";
 import { AuthError, Role, Scope } from "src/app/types/types";
 import { decodeJwt } from "../../../utils/tokenUtils";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
+import PageHeaderStrip from "src/app/components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { useTooltips } from "../../../hooks/useTooltips";
@@ -288,10 +289,9 @@ export default function UsersPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="bg-primary text-white p-3 mb-4">
+        <PageHeaderStrip>
           <h1 className="h4 mb-0 fw-bold">
-            <i className="bi bi-shield-check me-2"></i>
+            <i className="bi bi-shield-check me-2" aria-hidden></i>
             User Roles & Permissions
             <i
               className="bi bi-question-circle ms-2"
@@ -301,7 +301,7 @@ export default function UsersPage() {
               title="Manage role-based permissions for users"
             ></i>
           </h1>
-        </div>
+        </PageHeaderStrip>
 
         {/* Error Display */}
         <ErrorDisplay
@@ -327,7 +327,7 @@ export default function UsersPage() {
         )}
 
         {/* Main Content */}
-        <div className="row g-4">
+        <div className="row g-2">
           <div className="col-4">
             <div className="card shadow-sm">
               <div className="card-header bg-light">

@@ -1,6 +1,7 @@
 "use client";
 
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
 import React from "react";
 import { Card, Row, Col } from "react-bootstrap";
 import Link from "next/link";
@@ -77,14 +78,15 @@ export default function ReportsDashboardPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <div className="row mb-4">
-          <div className="col-12">
-            <h1 className="h3 mb-2">Reports Dashboard</h1>
-            <p className="text-muted">Access all financial and operational reports</p>
-          </div>
-        </div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-speedometer2 me-2" aria-hidden></i>
+            Reports Dashboard
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">Access all financial and operational reports</p>
+        </PageHeaderStrip>
 
-        <Row className="g-4">
+        <Row className="g-2">
           {reportCards.map((report) => (
             <Col key={report.id} xs={12} sm={6} lg={4}>
               <Link 

@@ -7,6 +7,7 @@ import { ApiErrorResponse } from "../../utils/errorUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import { useRouter } from "next/navigation";
 import { useTooltips } from "../../hooks/useTooltips";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
 
 interface DashboardSummary {
   totalBills: number;
@@ -112,17 +113,23 @@ const CashierDashboard = () => {
 
   return (
     <div className="container-fluid">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="mb-0">Cashier Dashboard</h2>
-        <div className="text-muted">
-          {new Date().toLocaleDateString("en-US", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric"
-          })}
-        </div>
-      </div>
+      <PageHeaderStrip
+        actions={
+          <span className="small text-white opacity-90 text-end">
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric"
+            })}
+          </span>
+        }
+      >
+        <h1 className="h4 mb-0 fw-bold d-flex align-items-center gap-2">
+          <i className="bi bi-speedometer2" aria-hidden />
+          Cashier Dashboard
+        </h1>
+      </PageHeaderStrip>
 
       <ErrorDisplay
         error={error}

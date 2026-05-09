@@ -8,7 +8,6 @@ import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import AppVersion from "../components/AppVersion";
 import StationSwitcher from "../components/StationSwitcher";
-import HelpMenu from "../components/HelpMenu";
 import { AuthError } from "../types/types";
 import { useTooltips } from "../hooks/useTooltips";
 
@@ -52,7 +51,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         const pathToActiveItemMap = [
             { path: "/supervisor", item: "dashboard" },
             { path: "/supervisor/", item: "dashboard" },
-            { path: "/supervisor/bills", item: "bills-overview" },
+            { path: "/supervisor/bills", item: "bills-manage" },
             { path: "/home/billing", item: "bills-create" },
             { path: "/home/cashier/bills", item: "bills-manage" },
             { path: "/supervisor/bills/change-requests", item: "change-requests" },
@@ -70,9 +69,9 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             { path: "/admin/station", item: "stations-overview" },
             { path: "/admin/station/user", item: "station-users" },
             { path: "/storekeeper/suppliers", item: "suppliers-list" },
+            { path: "/storekeeper/suppliers/transactions", item: "suppliers-transactions" },
             { path: "/storekeeper/purchase-orders", item: "suppliers-purchase-orders" },
             { path: "/supervisor/expenses", item: "expenses" },
-            { path: "/storekeeper", item: "inventory-dashboard" },
             { path: "/storekeeper/stock", item: "inventory-list" },
             { path: "/storekeeper/inventory/transactions", item: "inventory-transactions" },
             { path: "/admin/reports", item: "reports-dashboard" },
@@ -86,7 +85,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             { path: "/admin/reports/invoices-pending-bills", item: "reports-invoices-pending-bills" },
             { path: "/admin/reports/purchase-orders", item: "reports-purchase-orders" },
             { path: "/admin/reports/pnl", item: "reports-pnl" },
-            { path: "/supervisor/settings", item: "settings" },
         ];
 
         // Set breadcrumbs and expanded menus based on path
@@ -119,21 +117,19 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             if (path.includes("/supervisor/station/user") || path.includes("/admin/station/user")) {
                 breadcrumbItems = [
                     { label: "Dashboard", path: "/supervisor" },
-                    { label: "Stations", path: "/admin/station" },
-                    { label: "Station Users", path: "/admin/station/user" }
+                    { label: "Stations", path: "/supervisor/station" },
+                    { label: "Station Users", path: "/supervisor/station/user" }
                 ];
             } else {
                 breadcrumbItems = [
                     { label: "Dashboard", path: "/supervisor" },
-                    { label: "Stations", path: "/admin/station" },
-                    { label: "Overview", path: "/admin/station" }
+                    { label: "Stations", path: "/supervisor/station" },
+                    { label: "Overview", path: "/supervisor/station" }
                 ];
             }
         } else if (path.includes("/supervisor/expenses")) {
-            expandedMenuIds.push("suppliers");
             breadcrumbItems = [
                 { label: "Dashboard", path: "/supervisor" },
-                { label: "Suppliers", path: "/storekeeper/suppliers" },
                 { label: "Expenses", path: "/supervisor/expenses" }
             ];
         } else if (path.includes("/storekeeper") && (path.includes("/storekeeper/suppliers") || path.includes("/storekeeper/purchase-orders"))) {
@@ -168,8 +164,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             } else {
                 breadcrumbItems = [
                     { label: "Dashboard", path: "/supervisor" },
-                    { label: "Inventory", path: "/storekeeper" },
-                    { label: "Dashboard", path: "/storekeeper" }
+                    { label: "Inventory", path: "/storekeeper" }
                 ];
             }
         } else if (path.includes("/admin/reports") || path.includes("/supervisor/reports")) {
@@ -244,8 +239,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             if (path.includes("/supervisor/bills")) {
                 breadcrumbItems = [
                     { label: "Dashboard", path: "/supervisor" },
-                    { label: "Bills Management", path: "/supervisor/bills" },
-                    { label: "Bills Overview", path: "/supervisor/bills" }
+                    { label: "Bills Management", path: "/supervisor/bills" }
                 ];
             } else if (path.includes("/home/billing")) {
                 breadcrumbItems = [
@@ -294,12 +288,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     label: "Create Bill",
                     icon: "bi-plus-circle",
                     path: "/home/billing",
-                },
-                {
-                    id: "bills-overview",
-                    label: "Bills Overview",
-                    icon: "bi-receipt",
-                    path: "/supervisor/bills",
                 },
                 {
                     id: "bills-manage",
@@ -353,6 +341,25 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             ],
         },
         {
+            id: "stations",
+            label: "Stations",
+            icon: "bi-building",
+            submenu: [
+                {
+                    id: "stations-overview",
+                    label: "Overview",
+                    icon: "bi-building",
+                    path: "/supervisor/station",
+                },
+                {
+                    id: "station-users",
+                    label: "Station Users",
+                    icon: "bi-people-fill",
+                    path: "/supervisor/station/user",
+                },
+            ],
+        },
+        {
             id: "production",
             label: "Production",
             icon: "bi-box-seam",
@@ -366,16 +373,16 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             ],
         },
         {
+            id: "expenses",
+            label: "Expenses",
+            icon: "bi-cash-coin",
+            path: "/supervisor/expenses",
+        },
+        {
             id: "inventory",
             label: "Inventory",
             icon: "bi-boxes",
             submenu: [
-                {
-                    id: "inventory-dashboard",
-                    label: "Dashboard",
-                    icon: "bi-speedometer2",
-                    path: "/storekeeper",
-                },
                 {
                     id: "inventory-list",
                     label: "Inventory List",
@@ -402,16 +409,16 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     path: "/storekeeper/suppliers",
                 },
                 {
+                    id: "suppliers-transactions",
+                    label: "Supplier payments",
+                    icon: "bi-cash-coin",
+                    path: "/storekeeper/suppliers/transactions",
+                },
+                {
                     id: "suppliers-purchase-orders",
                     label: "Purchase Orders",
                     icon: "bi-cart-check",
                     path: "/storekeeper/purchase-orders",
-                },
-                {
-                    id: "expenses",
-                    label: "Expenses",
-                    icon: "bi-cash-coin",
-                    path: "/supervisor/expenses",
                 },
             ],
         },
@@ -464,12 +471,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 },
             ],
         },
-        {
-            id: "settings",
-            label: "Settings",
-            icon: "bi-gear",
-            path: "/supervisor/settings",
-        },
     ];
 
     const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
@@ -501,16 +502,13 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             }
         }
 
-        // Normal toggle behavior
-        setExpandedMenus(prev =>
-            prev.includes(menuId)
-                ? prev.filter(id => id !== menuId)
-                : [...prev, menuId]
-        );
-    };
-
-    const handleBreadcrumbClick = (path: string) => {
-        router.push(path);
+        // Accordion: only one submenu open; opening another closes the rest
+        setExpandedMenus((prev) => {
+            if (prev.includes(menuId)) {
+                return prev.filter((id) => id !== menuId);
+            }
+            return [menuId];
+        });
     };
 
     const getMenuTooltip = (label: string): string => {
@@ -519,7 +517,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             "Bills Management": "Manage bills, payments, void requests, and reopened bills",
             "Create Bill": "Simple billing interface for creating new bills",
             "Process Bills": "Bills management: payments, closing, and bulk operations",
-            "Bills Overview": "Comprehensive bill management dashboard with analytics and oversight",
             "Void Requests": "Approve or reject void requests from sales team",
             "Reopened Bills": "View and manage bills that have been reopened",
             "Menu & Pricing": "Manage menu items and pricing",
@@ -533,15 +530,14 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             "Station Users": "Assign users to stations and manage access",
             "Suppliers": "Manage suppliers and purchase orders",
             "Purchase Orders": "Create and manage purchase orders",
+            "Expenses": "Record operational expenses and payments",
             "Inventory": "Manage inventory levels and transactions",
-            "Inventory Dashboard": "Overview of inventory levels and alerts",
             "Inventory List": "View all inventory items and their current levels",
             "Transactions": "View all inventory movement transactions",
             "Reports": "View reports and system analytics",
             "Sales Reports": "View sales reports and analytics",
             "Bills Reports": "View bills reports and analytics",
             "Production Reports": "View production reports and analytics",
-            "Settings": "Manage supervisor settings and preferences",
         };
         return tooltips[label] || `Navigate to ${label}`;
     };
@@ -619,8 +615,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
 
                 {/* Separator and Navigation Label */}
                 {!isCollapsed && (
-                    <div className="px-3 pb-2">
-                        <hr className="text-white-50 mb-2" />
+                    <div className="px-3 pb-1">
                         <div className="text-muted small fw-semibold text-uppercase">
                             <i className="bi bi-list-ul me-1"></i>
                             Navigation
@@ -629,7 +624,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 )}
 
                 {/* Navigation */}
-                <nav className="flex-grow-1 p-3" style={{ overflowY: "auto" }}>
+                <nav className="flex-grow-1 px-3 pt-1 pb-3" style={{ overflowY: "auto" }}>
                     <ul className="nav nav-pills flex-column">
                         {visibleMenuItems.map((item) => (
                             <li key={item.id} className="nav-item mb-2">
@@ -715,87 +710,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
 
             {/* Main Content */}
             <div className="flex-grow-1 d-flex flex-column">
-                {/* Top Navigation */}
-                <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom">
-                    <div className="container-fluid">
-                        <div className="d-flex align-items-center">
-                            <h4 className="mb-0 me-3">Dashboard</h4>
-                            {/* Breadcrumbs */}
-                            {breadcrumbs.length > 1 && (
-                                <nav aria-label="breadcrumb">
-                                    <ol className="breadcrumb mb-0">
-                                        {breadcrumbs.map((crumb, index) => (
-                                            <li key={index} className={`breadcrumb-item ${index === breadcrumbs.length - 1 ? "active" : ""}`}>
-                                                {index === breadcrumbs.length - 1 ? (
-                                                    crumb.label
-                                                ) : (
-                                                    <button
-                                                        className="btn btn-link p-0 text-decoration-none"
-                                                        onClick={() => handleBreadcrumbClick(crumb.path)}
-                                                        style={{ color: "var(--bs-primary)" }}
-                                                    >
-                                                        {crumb.label}
-                                                    </button>
-                                                )}
-                                            </li>
-                                        ))}
-                                    </ol>
-                                </nav>
-                            )}
-                        </div>
-
-                        <div className="d-flex align-items-center">
-
-                            {/* Profile Dropdown */}
-                            <div className="dropdown">
-                                <button
-                                    className="btn btn-outline-secondary dropdown-toggle"
-                                    type="button"
-                                    data-bs-toggle="dropdown"
-                                    aria-expanded="false"
-                                >
-                                    <i className="bi bi-person-circle me-2"></i>
-                                    Profile
-                                </button>
-                                <ul className="dropdown-menu dropdown-menu-end">
-                                    <li>
-                                        <a className="dropdown-item" href="/profile">
-                                            <i className="bi bi-gear me-2"></i>
-                                            Settings
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a className="dropdown-item" href="/profile/account">
-                                            <i className="bi bi-person me-2"></i>
-                                            Account
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a className="dropdown-item" href="/profile/preferences">
-                                            <i className="bi bi-sliders me-2"></i>
-                                            Preferences
-                                        </a>
-                                    </li>
-                                    <li><hr className="dropdown-divider" /></li>
-                                    <li>
-                                        <HelpMenu />
-                                    </li>
-                                    <li><hr className="dropdown-divider" /></li>
-                                    <li>
-                                        <button
-                                            className="dropdown-item text-danger"
-                                            onClick={() => logout()}
-                                        >
-                                            <i className="bi bi-box-arrow-right me-2"></i>
-                                            Logout
-                                        </button>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </nav>
-
                 {/* Page Content */}
                 <main className="flex-grow-1 p-4">
                     {authError && (

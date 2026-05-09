@@ -334,14 +334,19 @@ export class ProductionPreparationService {
             params.push(filters.issued_by);
         }
         if (filters.start_date) {
-            parts.push("prep.prepared_at >= ?");
-            params.push(filters.start_date);
+            const startDate = new Date(filters.start_date);
+            if (!Number.isNaN(startDate.getTime())) {
+                parts.push("prep.prepared_at >= ?");
+                params.push(startDate.toISOString());
+            }
         }
         if (filters.end_date) {
             const endDate = new Date(filters.end_date);
-            endDate.setHours(23, 59, 59, 999);
-            parts.push("prep.prepared_at <= ?");
-            params.push(endDate);
+            if (!Number.isNaN(endDate.getTime())) {
+                endDate.setHours(23, 59, 59, 999);
+                parts.push("prep.prepared_at <= ?");
+                params.push(endDate.toISOString());
+            }
         }
         return parts.length ? ` AND ${parts.join(" AND ")}` : "";
     }

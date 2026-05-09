@@ -48,7 +48,7 @@ const PricelistManager: React.FC<PricelistManagerProps> = ({
     };
 
     return (
-        <Row className={className}>
+        <Row className={`gx-2 gy-3 ${className}`.trim()}>
             <Col md={4}>
                 <Card>
                     <Card.Header className="bg-primary text-white py-2">
@@ -71,9 +71,6 @@ const PricelistManager: React.FC<PricelistManagerProps> = ({
                                         onClick={() => onPricelistSelect(pricelist)}
                                     >
                                         <div className="fw-bold">{pricelist.name}</div>
-                                        {(pricelist as any).description && (
-                                            <div className="text-muted small">{(pricelist as any).description}</div>
-                                        )}
                                     </button>
                                 ))}
                             </div>
@@ -87,7 +84,14 @@ const PricelistManager: React.FC<PricelistManagerProps> = ({
                     <Card.Header>
                         <div className="d-flex justify-content-between align-items-center">
                             <h6 className="mb-0">
-                                {selectedPricelist ? selectedPricelist.name : "Select a Pricelist"}
+                                {selectedPricelist ? (
+                                    <>
+                                        <span className="text-muted fw-normal me-2">Selected pricelist:</span>
+                                        <span className="fw-semibold">{selectedPricelist.name}</span>
+                                    </>
+                                ) : (
+                                    <span className="text-muted">Select a pricelist</span>
+                                )}
                             </h6>
                             {isAdmin && selectedPricelist && (
                                 <div className="d-flex gap-2">

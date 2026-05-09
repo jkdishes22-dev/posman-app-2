@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 import { formatISO } from "date-fns";
+import FilterDatePicker from "../../../shared/FilterDatePicker";
+import { todayEAT } from "../../../shared/eatDate";
+import { dateToYmdEat, ymdToDateEat } from "../../../shared/filterDateUtils";
 import { Bill, BillPayment, User } from "src/app/types/types";
 import { Modal, Button, Form } from "react-bootstrap";
 import Pagination from "../../../components/Pagination";
@@ -12,6 +13,8 @@ import { decodeJwt } from "../../../utils/tokenUtils";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import BillActions from "../../../components/BillActions";
 import SubmitBillModal from "../../my-sales/submit-bill";
 
@@ -50,14 +53,14 @@ const CashierBillsPage = () => {
       const status: BillStatusFilter = parsedStatuses.length === 1 ? parsedStatuses[0] : "all";
 
       return {
-        billingDate: null,
+        billingDate: ymdToDateEat(todayEAT()),
         selectedWaitress: "",
         status: status,
         statusQuery: parsedStatuses,
       };
     }
     return {
-      billingDate: null,
+      billingDate: ymdToDateEat(todayEAT()),
       selectedWaitress: "",
       status: "submitted" as BillStatusFilter,
       statusQuery: [],
@@ -670,39 +673,28 @@ const CashierBillsPage = () => {
         }}
       />
 
-      {/* Header */}
-      <div className="bg-primary text-white p-3 mb-4">
+      <PageHeaderStrip>
         <h1 className="h4 mb-0 fw-bold">
-          <i className="bi bi-receipt me-2"></i>
+          <i className="bi bi-receipt me-2" aria-hidden></i>
           Bills Management
         </h1>
-      </div>
+      </PageHeaderStrip>
 
       {/* Filtering Section */}
       {!searchBillId && (
         <div className="row mb-4" style={{ margin: 0 }}>
           <div className="col-12">
-            <div className="card shadow-sm">
-              <div className="card-body">
+            <CollapsibleFilterSectionCard className="card shadow-sm" bodyClassName="card-body">
                 <div className="row g-3 align-items-end">
                   <div className="col-12 col-md-6 col-lg-3">
                     <div className="form-group">
-                      <label htmlFor="billingDate" className="form-label fw-semibold">
-                        Billing Date
-                      </label>
-                      <div>
-                        <DatePicker
-                          className="form-control"
-                          id="billingDate"
-                          selected={filters.billingDate}
-                          onChange={(date: Date | null) => handleDateChange(date)}
-                          dateFormat="yyyy-MM-dd"
-                          placeholderText="Select billing date"
-                          maxDate={new Date()}
-                          minDate={null}
-                          isClearable
-                        />
-                      </div>
+                      <FilterDatePicker
+                        id="billingDate"
+                        label="Billing Date"
+                        value={filters.billingDate ? dateToYmdEat(filters.billingDate) : ""}
+                        onChange={(ymd) => handleDateChange(ymd ? ymdToDateEat(ymd) : null)}
+                        maxDate={new Date()}
+                      />
                     </div>
                   </div>
                   <div className="col-12 col-md-6 col-lg-3">
@@ -792,8 +784,7 @@ const CashierBillsPage = () => {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
+            </CollapsibleFilterSectionCard>
           </div>
         </div>
       )}
@@ -844,7 +835,7 @@ const CashierBillsPage = () => {
                           setPage(1); // Reset to first page
                           // Reset all filters to show all bills
                           setFilters({
-                            billingDate: null,
+                            billingDate: ymdToDateEat(todayEAT()),
                             selectedWaitress: "",
                             status: "all" as BillStatusFilter,
                           });
@@ -871,7 +862,7 @@ const CashierBillsPage = () => {
       )}
 
       {/* Main Content Area - Three Column Layout (Wireframe Design) */}
-      <div className="row g-4" style={{ margin: 0 }}>
+      <div className="row g-2" style={{ margin: 0 }}>
         {/* Bills Display - Left Column (Larger) */}
         <div className="col-12 col-lg-6">
           <div className="card shadow-sm h-100">

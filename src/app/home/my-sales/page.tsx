@@ -3,14 +3,16 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import SecureRoute from "../../components/SecureRoute";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
-import "react-datepicker/dist/react-datepicker.css";
 import { formatISO } from "date-fns";
 import { Button, Form } from "react-bootstrap";
 import SubmitBillModal from "./submit-bill";
 import TimeZoneAwareDatePicker from "src/app/shared/TimezoneAwareDatePicker";
-import DatePicker from "react-datepicker";
+import FilterDatePicker from "src/app/shared/FilterDatePicker";
+import { todayEAT } from "src/app/shared/eatDate";
+import { dateToYmdEat, ymdToDateEat } from "src/app/shared/filterDateUtils";
 import { Bill, BillItem, VoidRequestPayload, VoidRequestResponse } from "src/app/types/types";
 import Pagination from "src/app/components/Pagination";
+import PageHeaderStrip from "src/app/components/PageHeaderStrip";
 import { CustomerCopyPrint, defaultReceiptBranding, type ReceiptBranding } from "../../shared/ReceiptPrint";
 import { printCustomerCopyOnly, downloadReceiptAsFile, logClientFromRenderer } from "../../shared/printUtils";
 import ReactDOM from "react-dom/client";
@@ -59,7 +61,10 @@ const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) 
 Receipt.displayName = "Receipt";
 
 const MySales = () => {
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const d = ymdToDateEat(todayEAT());
+    return d ?? new Date();
+  });
   const [bills, setBills] = useState([]);
   const [filteredBills, setFilteredBills] = useState([]);
   const [selectedBill, setSelectedBill] = useState(null);
@@ -75,6 +80,7 @@ const MySales = () => {
   const [total, setTotal] = useState(0);
   const [selectedBills, setSelectedBills] = useState<number[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("pending");
+  const [showFilters, setShowFilters] = useState(true);
   const receiptRef = useRef<HTMLDivElement>(null);
   const isLoadingBillsRef = useRef(false);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -152,8 +158,8 @@ const MySales = () => {
     return reason?.description || null;
   };
 
-  const handleDateChange = (date) => {
-    setSelectedDate(date);
+  const handleDateChange = (date: Date | null) => {
+    setSelectedDate(date ?? ymdToDateEat(todayEAT()) ?? new Date());
     setSelectedBill(null);
   };
 
@@ -227,6 +233,22 @@ const MySales = () => {
     setSelectedBill(null);
     setPage(1); // Reset to first page when filter changes
   }, []);
+
+  const mySalesFiltersDirty =
+    billIdFilter !== "" ||
+    statusFilter !== "pending" ||
+    dateToYmdEat(selectedDate) !== todayEAT();
+
+  const clearMySalesFilters = useCallback(() => {
+    const today = ymdToDateEat(todayEAT()) ?? new Date();
+    setBillIdFilter("");
+    setStatusFilter("pending");
+    setSelectedDate(today);
+    setSelectedBill(null);
+    setSelectedBills([]);
+    setPage(1);
+    fetchBills(today, "pending", "", 1);
+  }, [fetchBills]);
 
   // Debounced bill ID change handler for better performance
   const handleBillIdChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -550,35 +572,48 @@ const MySales = () => {
     <RoleAwareLayout>
       <SecureRoute roleRequired="sales">
         <div className="container-fluid px-3 py-2 my-sales-screen">
+          <PageHeaderStrip>
+            <h1 className="h4 mb-0 fw-bold">
+              <i className="bi bi-receipt me-2" aria-hidden></i>
+              My Sales
+            </h1>
+          </PageHeaderStrip>
           {/* Filter row */}
           <div className="row mb-2">
             <div className="col-12">
               <div className="card shadow-sm p-2 bg-light border-primary filter-card">
-                <h6 className="card-title text-primary mb-2 fw-bold">Filter My Sales</h6>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <h6 className="card-title text-primary mb-0 fw-bold">Filter My Sales</h6>
+                  <Button
+                    type="button"
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={() => setShowFilters((prev) => !prev)}
+                    aria-expanded={showFilters}
+                  >
+                    <i className={`bi ${showFilters ? "bi-chevron-up" : "bi-chevron-down"} me-1`} />
+                    {showFilters ? "Hide" : "Show"}
+                  </Button>
+                </div>
+                {showFilters ? (
+                <Form
+                  noValidate
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                  }}
+                >
                 <div className="row g-2 align-items-end">
                   <div className="col-md-4">
                     <div className="form-group">
-                      <label htmlFor="filterDate" className="form-label">Billing Date</label>
-                      <div className="d-flex">
-                        <DatePicker
-                          selected={selectedDate}
-                          onChange={handleDateChange}
-                          dateFormat="yyyy-MM-dd"
-                          className="form-control"
-                          placeholderText="Select billing date"
-                          maxDate={new Date()}
-                          isClearable
-                        />
-                        {selectedDate && (
-                          <button
-                            type="button"
-                            className="btn btn-outline-secondary btn-sm ms-2"
-                            onClick={() => handleDateChange(null)}
-                          >
-                            <i className="bi bi-x"></i>
-                          </button>
-                        )}
-                      </div>
+                      <FilterDatePicker
+                        id="filterDate"
+                        label="Billing Date"
+                        value={dateToYmdEat(selectedDate)}
+                        onChange={(ymd) => handleDateChange(ymd ? ymdToDateEat(ymd) : null)}
+                        maxDate={new Date()}
+                        allowEmpty={false}
+                        placeholderText=""
+                      />
                     </div>
                   </div>
                   <div className="col-md-4">
@@ -599,6 +634,7 @@ const MySales = () => {
                   <div className="col-md-4 d-flex align-items-end">
                     <div className="btn-group btn-group-sm w-100 flex-wrap" role="group" aria-label="Filter actions">
                       <button
+                        type="button"
                         className={`btn btn-outline-primary${statusFilter === "pending" ? " active" : ""}`}
                         onClick={() => handleStatusFilterChange("pending")}
                         style={{ fontSize: "0.8rem" }}
@@ -606,6 +642,7 @@ const MySales = () => {
                         Pending
                       </button>
                       <button
+                        type="button"
                         className={`btn btn-outline-primary${statusFilter === "submitted" ? " active" : ""}`}
                         onClick={() => handleStatusFilterChange("submitted")}
                         style={{ fontSize: "0.8rem" }}
@@ -613,6 +650,7 @@ const MySales = () => {
                         Submitted
                       </button>
                       <button
+                        type="button"
                         className={`btn btn-outline-primary${statusFilter === "closed" ? " active" : ""}`}
                         onClick={() => handleStatusFilterChange("closed")}
                         style={{ fontSize: "0.8rem" }}
@@ -620,6 +658,7 @@ const MySales = () => {
                         Closed
                       </button>
                       <button
+                        type="button"
                         className={`btn btn-outline-primary${statusFilter === "voided" ? " active" : ""}`}
                         onClick={() => handleStatusFilterChange("voided")}
                         style={{ fontSize: "0.8rem" }}
@@ -627,6 +666,7 @@ const MySales = () => {
                         Voided
                       </button>
                       <button
+                        type="button"
                         className={`btn btn-outline-primary${statusFilter === "reopened" ? " active" : ""}`}
                         onClick={() => handleStatusFilterChange("reopened")}
                         style={{ fontSize: "0.8rem" }}
@@ -636,6 +676,20 @@ const MySales = () => {
                     </div>
                   </div>
                 </div>
+                <div className="col-12 mt-2 d-flex justify-content-end">
+                  <Button
+                    type="button"
+                    variant="outline-secondary"
+                    size="sm"
+                    disabled={!mySalesFiltersDirty}
+                    onClick={clearMySalesFilters}
+                  >
+                    <i className="bi bi-x-lg me-1" aria-hidden />
+                    Clear filters
+                  </Button>
+                </div>
+                </Form>
+                ) : null}
               </div>
             </div>
           </div>
@@ -896,16 +950,17 @@ const MySales = () => {
 
                           return (
                             <div className="w-100">
-                              <Button
-                                variant="success"
-                                size="sm"
-                                onClick={openSubmitModal}
-                                disabled={hasPendingApprovals}
-                                className="w-100 w-md-auto"
-                              >
-                                <i className="bi bi-check-circle me-1"></i>
-                                Submit (KES {(Number(selectedBill.total) || 0).toFixed(2)})
-                              </Button>
+                              <div className="d-flex justify-content-end">
+                                <Button
+                                  variant="success"
+                                  size="sm"
+                                  onClick={openSubmitModal}
+                                  disabled={hasPendingApprovals}
+                                >
+                                  <i className="bi bi-check-circle me-1"></i>
+                                  Submit (KES {(Number(selectedBill.total) || 0).toFixed(2)})
+                                </Button>
+                              </div>
                               {hasPendingVoids && (
                                 <div className="text-warning small mt-2">
                                   <i className="bi bi-exclamation-triangle me-1"></i>

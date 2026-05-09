@@ -1,9 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { todayEAT } from "../../shared/eatDate";
+import FilterDatePicker from "../../shared/FilterDatePicker";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
 import { Card, Table, Button, Badge, Modal, Form, Alert, Spinner, Row, Col } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
+import HelpPopover from "../../components/HelpPopover";
 
 interface PaymentRecord {
     id: number;
@@ -64,7 +68,7 @@ export default function ExpensesPage() {
 
     // Create expense modal
     const [showCreate, setShowCreate] = useState(false);
-    const [createForm, setCreateForm] = useState({ category: "", description: "", amount: "", expense_date: new Date().toISOString().slice(0, 10), notes: "" });
+    const [createForm, setCreateForm] = useState({ category: "", description: "", amount: "", expense_date: todayEAT(), notes: "" });
     const [createSaving, setCreateSaving] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
 
@@ -112,7 +116,7 @@ export default function ExpensesPage() {
             });
             if (res.status === 201) {
                 setShowCreate(false);
-                setCreateForm({ category: "", description: "", amount: "", expense_date: new Date().toISOString().slice(0, 10), notes: "" });
+                setCreateForm({ category: "", description: "", amount: "", expense_date: todayEAT(), notes: "" });
                 loadExpenses(1);
                 setPage(1);
             } else {
@@ -176,19 +180,32 @@ export default function ExpensesPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h2 className="mb-0">Expenses</h2>
-                        <p className="text-muted small mb-0">Track and manage operational expenses</p>
+                <PageHeaderStrip>
+                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                        <h1 className="h4 mb-0 fw-bold">Expenses</h1>
+                        <HelpPopover
+                            id="supervisor-expenses-overview"
+                            title="Operational expenses"
+                            ariaLabel="About expenses"
+                            className="text-white"
+                        >
+                            Record spending by category, track open balances, and apply payments over time. Use{" "}
+                            <strong>Add Expense</strong> for new costs and <strong>Pay</strong> on each row to settle
+                            against the remaining balance.
+                        </HelpPopover>
                     </div>
-                    <Button variant="primary" onClick={() => setShowCreate(true)}>
-                        <i className="bi bi-plus-circle me-2"></i>Add Expense
-                    </Button>
-                </div>
+                </PageHeaderStrip>
 
                 {error && <Alert variant="danger">{error}</Alert>}
 
                 <Card className="shadow-sm">
+                    <Card.Header className="bg-light fw-bold d-flex justify-content-between align-items-center">
+                        <span>Expenses</span>
+                        <Button variant="outline-primary" size="sm" onClick={() => setShowCreate(true)}>
+                            <i className="bi bi-plus-circle me-1"></i>
+                            Add Expense
+                        </Button>
+                    </Card.Header>
                     <Card.Body className="p-0">
                         {loading ? (
                             <div className="text-center py-5">
@@ -253,8 +270,14 @@ export default function ExpensesPage() {
 
             {/* Create Expense Modal */}
             <Modal show={showCreate} onHide={() => { setShowCreate(false); setCreateError(null); }} centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>Add Expense</Modal.Title>
+                <Modal.Header closeButton className="align-items-center">
+                    <Modal.Title className="d-flex align-items-center gap-2 mb-0">
+                        Add Expense
+                        <HelpPopover id="supervisor-expenses-create" title="Adding an expense" ariaLabel="Help for add expense">
+                            Pick a category for reporting, describe the cost, and enter the total amount and date. Notes are
+                            optional. You can record partial or full payments later from the list.
+                        </HelpPopover>
+                    </Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     {createError && <Alert variant="danger">{createError}</Alert>}
@@ -290,14 +313,14 @@ export default function ExpensesPage() {
                                 </Form.Group>
                             </Col>
                             <Col>
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Date</Form.Label>
-                                    <Form.Control
-                                        type="date"
-                                        value={createForm.expense_date}
-                                        onChange={(e) => setCreateForm(f => ({ ...f, expense_date: e.target.value }))}
-                                    />
-                                </Form.Group>
+                                <FilterDatePicker
+                                    label="Date"
+                                    value={createForm.expense_date}
+                                    onChange={(v) => setCreateForm((f) => ({ ...f, expense_date: v }))}
+                                    allowEmpty={false}
+                                    maxDate={new Date()}
+                                    wrapperClassName="mb-3"
+                                />
                             </Col>
                         </Row>
                         <Form.Group className="mb-3">
@@ -334,7 +357,18 @@ export default function ExpensesPage() {
                     {payError && <Alert variant="danger">{payError}</Alert>}
                     <Form>
                         <Form.Group className="mb-3">
-                            <Form.Label>Amount (KES)</Form.Label>
+                            <Form.Label className="d-flex align-items-center gap-1">
+                                Amount (KES)
+                                <HelpPopover
+                                    id="supervisor-expenses-pay-amount"
+                                    title="Payment amount"
+                                    ariaLabel="Help for payment amount"
+                                >
+                                    Enter up to the remaining balance for this expense. Maximum you can apply now:{" "}
+                                    <strong>KES {Number(payTarget?.balance ?? 0).toFixed(2)}</strong>. The summary above
+                                    shows total, paid, and balance.
+                                </HelpPopover>
+                            </Form.Label>
                             <Form.Control
                                 type="number"
                                 min="0"
@@ -344,7 +378,6 @@ export default function ExpensesPage() {
                                 value={payForm.amount}
                                 onChange={(e) => setPayForm(f => ({ ...f, amount: e.target.value }))}
                             />
-                            <Form.Text className="text-muted">Maximum: KES {Number(payTarget?.balance ?? 0).toFixed(2)}</Form.Text>
                         </Form.Group>
                         <Form.Group className="mb-3">
                             <Form.Label>Payment Method</Form.Label>

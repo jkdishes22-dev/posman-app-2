@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
 import { Card, Row, Col, Button } from "react-bootstrap";
 import { useRouter } from "next/navigation";
 
@@ -34,17 +35,16 @@ export default function SuppliesPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        {/* Header */}
-        <div className="bg-primary text-white p-4 mb-4 rounded">
-          <h1 className="h3 mb-0 fw-bold">
-            <i className="bi bi-truck me-2"></i>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-truck me-2" aria-hidden></i>
             Supplies Management
           </h1>
-          <p className="mb-0 text-white-50">Manage suppliers, purchase orders, and inventory</p>
-        </div>
+          <p className="mb-0 mt-2 small text-white-50">Manage suppliers, purchase orders, and inventory</p>
+        </PageHeaderStrip>
 
         {/* Supplies Features Grid */}
-        <Row className="g-4">
+        <Row className="g-2">
           {suppliesFeatures.map((feature, index) => (
             <Col key={index} md={6} lg={4}>
               <Card

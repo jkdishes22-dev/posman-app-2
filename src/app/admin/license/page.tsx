@@ -16,11 +16,42 @@ type LicenseDiagnostics = {
   checkedAt: string;
 };
 
+type LicenseWarningSettings = {
+  months: number;
+  days: number;
+};
+
 function formatDateYmd(value: string | null): string {
   if (!value) return "Never";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Invalid date";
   return date.toISOString().slice(0, 10);
+}
+
+function getLicenseExpiryWarning(
+  expiresAt: string | null,
+  warning: LicenseWarningSettings
+): { variant: "warning" | "danger"; message: string } | null {
+  if (!expiresAt) return null;
+  const expiryDate = new Date(expiresAt);
+  if (Number.isNaN(expiryDate.getTime())) return null;
+
+  const warningStart = new Date(expiryDate);
+  warningStart.setMonth(warningStart.getMonth() - Math.max(0, warning.months || 0));
+  warningStart.setDate(warningStart.getDate() - Math.max(0, warning.days || 0));
+
+  const now = new Date();
+  const msInDay = 1000 * 60 * 60 * 24;
+  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / msInDay);
+
+  if (daysUntilExpiry < 0) {
+    return { variant: "danger", message: "License has expired. Please renew to avoid disruption." };
+  }
+  if (now >= warningStart) {
+    const dayLabel = daysUntilExpiry === 1 ? "day" : "days";
+    return { variant: "warning", message: `License expires in ${daysUntilExpiry} ${dayLabel}. Please renew soon.` };
+  }
+  return null;
 }
 
 function statusBadgeClass(state: string): string {
@@ -35,6 +66,8 @@ export default function AdminLicenseDiagnosticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+  const [licenseWarning, setLicenseWarning] = useState<LicenseWarningSettings>({ months: 0, days: 7 });
+  const expiryWarning = getLicenseExpiryWarning(data?.expiresAt ?? null, licenseWarning);
 
   const fetchDiagnostics = async (refresh = false) => {
     setLoading(true);
@@ -67,6 +100,19 @@ export default function AdminLicenseDiagnosticsPage() {
     void fetchDiagnostics(false);
   }, []);
 
+  useEffect(() => {
+    apiCall("/api/system/settings?key=system_settings&sub=license_warning")
+      .then((result) => {
+        if (result.status === 200 && result.data?.value && typeof result.data.value === "object") {
+          setLicenseWarning({
+            months: Math.max(0, Number(result.data.value.months || 0)),
+            days: Math.max(0, Number(result.data.value.days || 0)),
+          });
+        }
+      })
+      .catch(() => {});
+  }, [apiCall]);
+
   return (
     <SecureRoute roleRequired="admin">
       <RoleAwareLayout>
@@ -93,6 +139,14 @@ export default function AdminLicenseDiagnosticsPage() {
           {!error && data && (
             <div className="card shadow-sm">
               <div className="card-body">
+                {expiryWarning && (
+                  <div
+                    className={`alert alert-${expiryWarning.variant} mb-3`}
+                    role="alert"
+                  >
+                    {expiryWarning.message}
+                  </div>
+                )}
                 <div className="row g-3 align-items-stretch">
                   <div className="col-md-4">
                     <div className="small text-muted mb-1">State</div>

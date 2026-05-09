@@ -6,6 +6,8 @@ import { Modal, Button } from "react-bootstrap";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import AddSubItemModal from "./new";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
+import PageHeaderStrip from "src/app/components/PageHeaderStrip";
+import HelpPopover from "src/app/components/HelpPopover";
 import { useApiCall } from "src/app/utils/apiUtils";
 import { ApiErrorResponse } from "src/app/utils/errorUtils";
 import { useTooltips } from "../../../hooks/useTooltips";
@@ -254,22 +256,29 @@ function RecipesPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                {/* Header */}
-                <div className="bg-primary text-white p-3 mb-4">
-                    <h1 className="h4 mb-0 fw-bold">
-                        <i className="bi bi-journal-text me-2"></i>
-                        Recipes
-                        <i
-                            className="bi bi-question-circle ms-2"
-                            style={{ cursor: "help", fontSize: "0.9rem" }}
-                            data-bs-toggle="tooltip"
-                            data-bs-placement="bottom"
-                            data-bs-html="true"
-                            title="<strong>Recipes:</strong> Define how much stock items (ingredients) are deducted when composite items are sold.<br/><br/><strong>Composite Items:</strong> Items with recipes that define ingredient ratios (left panel).<br/><strong>Stock Items:</strong> Purchased/supplied items used as ingredients.<br/><strong>Portion Size:</strong> Amount deducted per unit sold.<br/><br/><strong>Example:</strong> &apos;Breakfast Combo&apos; with Eggs (portion 2) → selling 5 combos deducts 10 eggs.<br/><br/><strong>Note:</strong> Simple items without recipes default to 1:1 deduction."
-                        ></i>
+                <PageHeaderStrip>
+                    <h1 className="h4 mb-0 fw-bold d-flex align-items-center flex-wrap gap-2">
+                        <span>
+                            <i className="bi bi-journal-text me-2" aria-hidden></i>
+                            Recipes
+                        </span>
+                        <HelpPopover id="recipes-page-about-supervisor" title="About recipes" wide className="text-white">
+                            <p className="mb-2">
+                                <strong>Recipes</strong> control how much of each stock ingredient is deducted when a <strong>composite</strong> menu item is sold.
+                            </p>
+                            <p className="mb-2">
+                                <strong>Composite items</strong> (left) list ingredient ratios. <strong>Portion size</strong> is the amount deducted per{" "}
+                                <em>one unit</em> of the composite sold.
+                            </p>
+                            <p className="mb-2">
+                                <strong>Example:</strong> Breakfast Combo with Eggs portion 2 → selling 5 combos deducts 10 eggs.
+                            </p>
+                            <p className="mb-0">
+                                <strong>Note:</strong> Simple items without a recipe often default to 1:1 stock deduction where applicable.
+                            </p>
+                        </HelpPopover>
                     </h1>
-                    <p className="mb-0 small mt-2">Define how much stock items (ingredients) are deducted when composite items are sold</p>
-                </div>
+                </PageHeaderStrip>
 
 
                 {/* Error Display */}
@@ -345,20 +354,18 @@ function RecipesPage() {
                 />
 
                 {/* Main Content */}
-                <div className="row g-4">
+                <div className="row g-2">
                     <div className="col-md-4">
                         <div className="card shadow-sm">
                             <div className="card-header bg-light">
-                                <h5 className="mb-0 fw-bold">
-                                    <i className="bi bi-box-seam me-2 text-primary"></i>
-                                    Composite Items
-                                    <i
-                                        className="bi bi-question-circle ms-2 text-muted"
-                                        style={{ cursor: "help" }}
-                                        data-bs-toggle="tooltip"
-                                        data-bs-placement="right"
-                                        title="Items with recipes that define ingredient ratios. Select an item to view or edit its recipe."
-                                    ></i>
+                                <h5 className="mb-0 fw-bold d-flex align-items-center flex-wrap gap-1">
+                                    <span>
+                                        <i className="bi bi-box-seam me-2 text-primary"></i>
+                                        Composite Items
+                                    </span>
+                                    <HelpPopover id="recipes-composite-supervisor" title="Composite items">
+                                        Menu items that have a recipe (ingredient list). Pick one on the left to view or edit its ingredients and portion sizes on the right.
+                                    </HelpPopover>
                                 </h5>
                             </div>
                             <div className="card-body">
@@ -398,16 +405,18 @@ function RecipesPage() {
                         <div className="card shadow-sm">
                             <div className="card-header bg-light">
                                 <div className="d-flex justify-content-between align-items-center">
-                                    <h5 className="mb-0 fw-bold">
-                                        <i className="bi bi-list-ul me-2 text-primary"></i>
-                                        Ingredients for {selectedItem ? selectedItemName : "Selected Item"}
-                                        <i
-                                            className="bi bi-question-circle ms-2 text-muted"
-                                            style={{ cursor: "help" }}
-                                            data-bs-toggle="tooltip"
-                                            data-bs-placement="right"
-                                            title="Stock items that will be deducted from inventory when this item is sold. Only stock items (isStock: true) can be added as ingredients."
-                                        ></i>
+                                    <h5 className="mb-0 fw-bold d-flex align-items-center flex-wrap gap-1">
+                                        <span>
+                                            <i className="bi bi-list-ul me-2 text-primary"></i>
+                                            Ingredients for {selectedItem ? selectedItemName : "Selected Item"}
+                                        </span>
+                                        <HelpPopover id="recipes-ingredients-supervisor" title="Ingredients" wide>
+                                            <p className="mb-2">
+                                                <strong>Stock</strong> items deducted from inventory when this composite item is sold. Only eligible stock lines can be added—use{" "}
+                                                <strong>Add Ingredient</strong>.
+                                            </p>
+                                            <p className="mb-0">If this list is empty, add ingredients that will be consumed per sale (see portion size column).</p>
+                                        </HelpPopover>
                                     </h5>
                                     {selectedItem && (
                                         <button className="btn btn-success btn-sm" onClick={openModal}>
@@ -424,7 +433,14 @@ function RecipesPage() {
                                             <thead className="table-light">
                                                 <tr>
                                                     <th className="fw-semibold">Ingredient</th>
-                                                    <th className="fw-semibold">Portion Size <span className="text-muted small">(per unit sold)</span></th>
+                                                    <th className="fw-semibold">
+                                                        <span className="d-inline-flex align-items-center gap-1">
+                                                            Portion Size
+                                                            <HelpPopover id="recipes-portion-supervisor" title="Portion size">
+                                                                Amount of this ingredient deducted per <strong>one unit</strong> of the composite item sold (e.g. 2 eggs per combo).
+                                                            </HelpPopover>
+                                                        </span>
+                                                    </th>
                                                     <th className="fw-semibold text-center">Actions</th>
                                                 </tr>
                                             </thead>
@@ -504,8 +520,7 @@ function RecipesPage() {
                                                     <tr>
                                                         <td colSpan={3} className="text-center py-4">
                                                             <i className="bi bi-inbox text-muted" style={{ fontSize: "2rem" }}></i>
-                                                            <p className="text-muted mt-2 mb-0">No ingredients defined</p>
-                                                            <p className="text-muted small mt-1">Add sellable menu items (ingredients) that will be deducted when this item is sold</p>
+                                                            <p className="text-muted mt-2 mb-0">No ingredients defined yet.</p>
                                                         </td>
                                                     </tr>
                                                 )}
@@ -515,8 +530,7 @@ function RecipesPage() {
                                 ) : (
                                     <div className="text-center py-4">
                                         <i className="bi bi-cursor text-muted" style={{ fontSize: "3rem" }}></i>
-                                        <p className="text-muted mt-3 mb-0">Select a composite item to view or edit its recipe</p>
-                                        <p className="text-muted small mt-2">Define which sellable ingredient items are used and how much is deducted per unit sold</p>
+                                        <p className="text-muted mt-3 mb-0">Select a composite item on the left to view or edit its recipe.</p>
                                     </div>
                                 )}
                             </div>

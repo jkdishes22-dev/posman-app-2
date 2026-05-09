@@ -1,9 +1,13 @@
 "use client";
 
+import { todayEAT } from "../../../shared/eatDate";
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
+import FilterDatePicker from "../../../shared/FilterDatePicker";
 import React, { useEffect, useState } from "react";
 import { Button, Form } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import type { ApiErrorResponse } from "../../../utils/errorUtils";
 
@@ -43,7 +47,7 @@ export default function AdminBillPaymentsReportPage() {
   const [filters, setFilters] = useState({
     paymentType: "" as PaymentTypeFilter,
     reference: "",
-    paymentDate: "",
+    paymentDate: todayEAT(),
     userId: "",
   });
 
@@ -101,12 +105,13 @@ export default function AdminBillPaymentsReportPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <div className="row mb-4">
-          <div className="col-12">
-            <h1 className="h3 mb-0">Bill Payments Report</h1>
-            <p className="text-muted">Review all bill payments with payment filters</p>
-          </div>
-        </div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-receipt-cutoff me-2" aria-hidden></i>
+            Bill Payments Report
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">Review all bill payments with payment filters</p>
+        </PageHeaderStrip>
 
         <ErrorDisplay
           error={error}
@@ -117,8 +122,8 @@ export default function AdminBillPaymentsReportPage() {
           }}
         />
 
-        <div className="card mb-4">
-          <div className="card-body">
+        <CollapsibleFilterSectionCard className="mb-4" bodyClassName="p-3">
+            <Form noValidate onSubmit={(e) => e.preventDefault()}>
             <div className="row g-3 align-items-end">
               <div className="col-md-3">
                 <Form.Label>Payment Type</Form.Label>
@@ -143,11 +148,11 @@ export default function AdminBillPaymentsReportPage() {
                 />
               </div>
               <div className="col-md-3">
-                <Form.Label>Payment Date</Form.Label>
-                <Form.Control
-                  type="date"
+                <FilterDatePicker
+                  label="Payment Date"
                   value={filters.paymentDate}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, paymentDate: e.target.value }))}
+                  onChange={(v) => setFilters((prev) => ({ ...prev, paymentDate: v }))}
+                  maxDate={new Date()}
                 />
               </div>
               <div className="col-md-3">
@@ -166,14 +171,14 @@ export default function AdminBillPaymentsReportPage() {
                 </Form.Select>
               </div>
               <div className="col-md-12 d-grid d-md-flex justify-content-md-end">
-                <Button variant="primary" onClick={fetchReport} disabled={loading || loadingFilters}>
+                <Button type="button" variant="primary" onClick={fetchReport} disabled={loading || loadingFilters}>
                   <i className="bi bi-search me-1"></i>
                   Apply Filters
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
+            </Form>
+        </CollapsibleFilterSectionCard>
 
         <div className="row mb-4">
           <div className="col-md-4">

@@ -2,6 +2,7 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
     Card,
@@ -161,13 +162,13 @@ export default function ChefPreparationPage() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <div className="bg-primary text-white p-3 mb-4">
+                <PageHeaderStrip>
                     <h1 className="h4 mb-0 fw-bold">
-                        <i className="bi bi-plus-circle me-2"></i>
+                        <i className="bi bi-plus-circle me-2" aria-hidden></i>
                         Prepare Production
                     </h1>
-                    <p className="mb-0 small">Create a preparation request for supervisor approval</p>
-                </div>
+                    <p className="mb-0 mt-2 small text-white-50">Create a preparation request for supervisor approval</p>
+                </PageHeaderStrip>
 
                 <ErrorDisplay
                     error={error || formError}

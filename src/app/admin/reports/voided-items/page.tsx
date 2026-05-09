@@ -3,9 +3,12 @@ import { todayEAT } from "../../../shared/eatDate";
 import { formatReportPeriodLabel } from "../../../shared/reportPeriodLabel";
 
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
+import FilterDatePicker from "../../../shared/FilterDatePicker";
 import React, { useState, useEffect } from "react";
 import { Button, Form } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 
@@ -133,12 +136,13 @@ export default function VoidedItemsReportPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <div className="row mb-4">
-          <div className="col-12">
-            <h1 className="h3 mb-0">Voided Items Report</h1>
-            <p className="text-muted">Track voided items and their reasons</p>
-          </div>
-        </div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-exclamation-triangle me-2" aria-hidden></i>
+            Voided Items Report
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">Track voided items and their reasons</p>
+        </PageHeaderStrip>
 
         <ErrorDisplay
           error={error}
@@ -151,23 +155,23 @@ export default function VoidedItemsReportPage() {
 
         <div className="row mb-4">
           <div className="col-12">
-            <div className="card">
-              <div className="card-body">
+            <CollapsibleFilterSectionCard className="card" title="Report filters" bodyClassName="card-body">
+                <Form noValidate onSubmit={(e) => e.preventDefault()}>
                 <div className="row align-items-end g-3">
                   <div className="col-md-2">
-                    <Form.Label>Start Date</Form.Label>
-                    <Form.Control
-                      type="date"
+                    <FilterDatePicker
+                      label="Start Date"
                       value={dateRange.startDate}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                      onChange={(v) => setDateRange((prev) => ({ ...prev, startDate: v }))}
+                      maxDate={new Date()}
                     />
                   </div>
                   <div className="col-md-2">
-                    <Form.Label>End Date</Form.Label>
-                    <Form.Control
-                      type="date"
+                    <FilterDatePicker
+                      label="End Date"
                       value={dateRange.endDate}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                      onChange={(v) => setDateRange((prev) => ({ ...prev, endDate: v }))}
+                      maxDate={new Date()}
                     />
                   </div>
                   <div className="col-md-2">
@@ -212,6 +216,7 @@ export default function VoidedItemsReportPage() {
                   </div>
                   <div className="col-md-2">
                     <Button
+                      type="button"
                       variant="primary"
                       onClick={fetchVoidedItemsReport}
                       disabled={loading || loadingFilters}
@@ -222,8 +227,8 @@ export default function VoidedItemsReportPage() {
                     </Button>
                   </div>
                 </div>
-              </div>
-            </div>
+                </Form>
+            </CollapsibleFilterSectionCard>
           </div>
         </div>
 

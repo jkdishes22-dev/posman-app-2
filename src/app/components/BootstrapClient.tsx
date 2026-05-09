@@ -1,6 +1,19 @@
 "use client"; // This should be the first line of the file
 
 import { useEffect } from "react";
+import Modal from "react-bootstrap/Modal";
+import TouchKeyboardSupport from "./TouchKeyboardSupport";
+
+/* Touch / kiosk: Bootstrap modals default to enforceFocus=true, which can block the OS
+   touch keyboard. Default to false so fields inside modals still trigger TabTip / mobile keyboards.
+   Pass enforceFocus={true} on a specific Modal if you need strict focus trapping. */
+const ModalWithDefaults = Modal as typeof Modal & {
+  defaultProps?: { enforceFocus?: boolean };
+};
+ModalWithDefaults.defaultProps = {
+  ...(ModalWithDefaults.defaultProps ?? {}),
+  enforceFocus: false,
+};
 
 function BootstrapClient() {
   useEffect(() => {
@@ -20,8 +33,8 @@ function BootstrapClient() {
         const tooltipTriggerList = [].slice.call(
           document.querySelectorAll("[data-bs-toggle=\"tooltip\"]")
         );
-        tooltipTriggerList.map(function (tooltipTriggerEl: any) {
-          return new (bootstrap as any).Tooltip(tooltipTriggerEl, {
+        tooltipTriggerList.map(function (tooltipTriggerEl: HTMLElement) {
+          return new (bootstrap as unknown as { Tooltip: new (el: HTMLElement, opts: object) => unknown }).Tooltip(tooltipTriggerEl, {
             trigger: "hover focus",
             delay: { show: 200, hide: 100 }
           });
@@ -32,7 +45,11 @@ function BootstrapClient() {
       });
   }, []);
 
-  return null;
+  return (
+    <>
+      <TouchKeyboardSupport />
+    </>
+  );
 }
 
 export default BootstrapClient;

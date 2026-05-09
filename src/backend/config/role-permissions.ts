@@ -132,6 +132,8 @@ export const ROLE_PERMISSIONS = {
         "can_edit_station",
         "can_view_station_pricelist",
         "can_edit_user_station",
+        "can_add_user_station",
+        "can_delete_user_station",
         // Receipt printer prefs + bill receipt settings (not full system settings UI)
         "can_print"
     ],

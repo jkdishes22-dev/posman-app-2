@@ -175,3 +175,30 @@ export const authorize = (requiredPermissions: any[]) => {
     };
   };
 };
+
+/** Caller must have at least one of the listed permissions (OR). Admin still bypasses. */
+export const authorizeAny = (allowedPermissions: string[]) => {
+  return (handler) => {
+    return async (req: NextApiRequest, res: NextApiResponse) => {
+      const userPermissions = req.user.permissions.map((perm) => perm.name);
+      const userRoles = req.user.roles.map((role) => role.name);
+      const isAdmin = userRoles.includes("admin");
+
+      if (isAdmin) return handler(req, res);
+
+      const hasAny = allowedPermissions.some((p) => userPermissions.includes(p));
+
+      if (!hasAny) {
+        return res.status(403).json({
+          message: "Forbidden (Missing permissions)",
+          missingPermissions: allowedPermissions.filter((p) => !userPermissions.includes(p)),
+          isAdmin,
+          userRoles,
+          requiredPermissions: allowedPermissions,
+        });
+      }
+
+      return handler(req, res);
+    };
+  };
+};

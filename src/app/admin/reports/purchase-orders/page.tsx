@@ -3,10 +3,13 @@ import { todayEAT } from "../../../shared/eatDate";
 import { formatReportPeriodLabel } from "../../../shared/reportPeriodLabel";
 
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
+import FilterDatePicker from "../../../shared/FilterDatePicker";
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { Button, Form } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
+import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 
@@ -110,22 +113,42 @@ export default function PurchaseOrdersReportPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <div className="row mb-4"><div className="col-12"><h1 className="h3 mb-0">Purchase Orders Report</h1><p className="text-muted">Track purchase orders</p></div></div>
+        <PageHeaderStrip>
+          <h1 className="h4 mb-0 fw-bold">
+            <i className="bi bi-cart-check me-2" aria-hidden></i>
+            Purchase Orders Report
+          </h1>
+          <p className="mb-0 mt-2 small text-white-50">Track purchase orders</p>
+        </PageHeaderStrip>
         <ErrorDisplay error={error} errorDetails={errorDetails} onDismiss={() => { setError(null); setErrorDetails(null); }} />
         <div className="row mb-4">
           <div className="col-12">
-            <div className="card">
-              <div className="card-body">
+            <CollapsibleFilterSectionCard className="card" title="Report filters" bodyClassName="card-body">
+                <Form noValidate onSubmit={(e) => e.preventDefault()}>
                 <div className="row align-items-end g-3">
-                  <div className="col-md-2"><Form.Label>Start Date</Form.Label><Form.Control type="date" value={dateRange.startDate} onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))} /></div>
-                  <div className="col-md-2"><Form.Label>End Date</Form.Label><Form.Control type="date" value={dateRange.endDate} onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))} /></div>
+                  <div className="col-md-2">
+                    <FilterDatePicker
+                      label="Start Date"
+                      value={dateRange.startDate}
+                      onChange={(v) => setDateRange((prev) => ({ ...prev, startDate: v }))}
+                      maxDate={new Date()}
+                    />
+                  </div>
+                  <div className="col-md-2">
+                    <FilterDatePicker
+                      label="End Date"
+                      value={dateRange.endDate}
+                      onChange={(v) => setDateRange((prev) => ({ ...prev, endDate: v }))}
+                      maxDate={new Date()}
+                    />
+                  </div>
                   <div className="col-md-2"><Form.Label>Period</Form.Label><Form.Select value={period} onChange={(e) => setPeriod(e.target.value as "day" | "week" | "month" | "year")}><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option><option value="year">Year</option></Form.Select></div>
                   <div className="col-md-2"><Form.Label>Item</Form.Label><Form.Select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}><option value="">All Items</option>{items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ""}</option>)}</Form.Select></div>
                   <div className="col-md-2"><Form.Label>Supplier</Form.Label><Form.Select value={selectedSupplierId} onChange={(e) => setSelectedSupplierId(e.target.value)}><option value="">All Suppliers</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id.toString()}>{supplier.name}</option>)}</Form.Select></div>
-                  <div className="col-md-2"><Button variant="primary" onClick={fetchReport} disabled={loading || loadingFilters} className="w-100"><i className="bi bi-search me-1"></i>{loading ? "Loading..." : "Generate Report"}</Button></div>
+                  <div className="col-md-2"><Button type="button" variant="primary" onClick={fetchReport} disabled={loading || loadingFilters} className="w-100"><i className="bi bi-search me-1"></i>{loading ? "Loading..." : "Generate Report"}</Button></div>
                 </div>
-              </div>
-            </div>
+                </Form>
+            </CollapsibleFilterSectionCard>
           </div>
         </div>
         <div className="row mb-4">

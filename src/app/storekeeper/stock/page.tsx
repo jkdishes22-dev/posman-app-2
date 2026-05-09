@@ -18,9 +18,14 @@ import {
 } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import CollapsibleFilterSectionCard from "../../components/CollapsibleFilterSectionCard";
+import Pagination from "../../components/Pagination";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { AuthError } from "../../types/types";
 import { useTooltips } from "../../hooks/useTooltips";
+import PageHeaderStrip from "../../components/PageHeaderStrip";
+
+const DEFAULT_PAGE_SIZE = parseInt(process.env.NEXT_PUBLIC_PAGE_SIZE || "10", 10);
 
 interface InventoryItem {
     item_id: number;
@@ -61,6 +66,7 @@ function StockManagementContent() {
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [lowStockOnly, setLowStockOnly] = useState<boolean>(false);
     const [outOfStockOnly, setOutOfStockOnly] = useState<boolean>(false);
+    const [page, setPage] = useState(1);
 
     // Adjustment modal
     const [showAdjustModal, setShowAdjustModal] = useState(false);
@@ -177,6 +183,15 @@ function StockManagementContent() {
         return filtered;
     }, [inventoryItems, itemTypeFilter, searchTerm, lowStockOnly, outOfStockOnly]);
 
+    useEffect(() => {
+        setPage(1);
+    }, [searchTerm, itemTypeFilter, lowStockOnly, outOfStockOnly]);
+
+    const paginatedItems = useMemo(() => {
+        const start = (page - 1) * DEFAULT_PAGE_SIZE;
+        return filteredItems.slice(start, start + DEFAULT_PAGE_SIZE);
+    }, [filteredItems, page]);
+
     const handleAdjustClick = (item: InventoryItem) => {
         setSelectedItem(item);
         // Default the new quantity to the currently-available quantity rather than the
@@ -250,6 +265,17 @@ function StockManagementContent() {
         );
     };
 
+    const stockFiltersDirty =
+        searchTerm.trim() !== "" ||
+        itemTypeFilter !== "all" ||
+        lowStockOnly;
+
+    const clearStockFilters = () => {
+        setItemTypeFilter("all");
+        setSearchTerm("");
+        setLowStockOnly(false);
+    };
+
     const getStockStatusBadge = (item: InventoryItem) => {
         if (item.available_quantity === 0) {
             return <Badge bg="danger">Out of Stock</Badge>;
@@ -263,18 +289,19 @@ function StockManagementContent() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h2>
+                <PageHeaderStrip>
+                    <h1 className="h4 mb-0 fw-bold d-flex align-items-center flex-wrap gap-2">
+                        <i className="bi bi-boxes me-1" aria-hidden />
                         Stock Management
                         <i
-                            className="bi bi-question-circle ms-2 text-muted"
-                            style={{ cursor: "help", fontSize: "0.9rem" }}
+                            className="bi bi-question-circle text-muted"
+                            style={{ cursor: "help", fontSize: "0.95rem" }}
                             data-bs-toggle="tooltip"
                             data-bs-placement="bottom"
                             title="View all inventory items and their current levels"
                         ></i>
-                    </h2>
-                </div>
+                    </h1>
+                </PageHeaderStrip>
 
                 <ErrorDisplay
                     error={error}
@@ -291,9 +318,14 @@ function StockManagementContent() {
                     </Alert>
                 )}
 
-                <Card className="mb-4">
-                    <Card.Body>
-                        <Row>
+                <CollapsibleFilterSectionCard className="mb-4 shadow-sm border-0">
+                        <Form
+                            noValidate
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                            }}
+                        >
+                        <Row className="g-3 align-items-end">
                             <Col md={4}>
                                 <Form.Group>
                                     <Form.Label>Search Item</Form.Label>
@@ -331,21 +363,22 @@ function StockManagementContent() {
                                     </div>
                                 </Form.Group>
                             </Col>
-                            <Col md={2} className="d-flex align-items-end">
+                            <Col md={2} className="d-flex align-items-end justify-content-md-end">
                                 <Button
+                                    type="button"
                                     variant="outline-secondary"
-                                    onClick={() => {
-                                        setItemTypeFilter("all");
-                                        setSearchTerm("");
-                                        setLowStockOnly(false);
-                                    }}
+                                    size="sm"
+                                    className="text-nowrap"
+                                    disabled={!stockFiltersDirty}
+                                    onClick={clearStockFilters}
                                 >
-                                    Clear
+                                    <i className="bi bi-x-lg me-1" aria-hidden />
+                                    Clear filters
                                 </Button>
                             </Col>
                         </Row>
-                    </Card.Body>
-                </Card>
+                        </Form>
+                </CollapsibleFilterSectionCard>
 
                 <Card>
                     <Card.Body>
@@ -374,7 +407,7 @@ function StockManagementContent() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filteredItems.map((item) => (
+                                        {paginatedItems.map((item) => (
                                             <tr key={item.item_id}>
                                                 <td>
                                                     <div>
@@ -412,6 +445,16 @@ function StockManagementContent() {
                                         ))}
                                     </tbody>
                                 </Table>
+                            </div>
+                        )}
+                        {!isLoading && filteredItems.length > 0 && (
+                            <div className="pt-3">
+                                <Pagination
+                                    page={page}
+                                    pageSize={DEFAULT_PAGE_SIZE}
+                                    total={filteredItems.length}
+                                    onPageChange={setPage}
+                                />
                             </div>
                         )}
                     </Card.Body>
