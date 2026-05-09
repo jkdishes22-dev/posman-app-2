@@ -6,7 +6,7 @@ module.exports = class PrintAfterCreateBillSetting1700000000033 {
 
   async up(queryRunner) {
     const rows = await queryRunner.query(
-      `SELECT \`key\`, value FROM system_settings WHERE \`key\` IN ('system_settings', 'printer_settings')`,
+      `SELECT \`key\`, \`value\` FROM \`system_settings\` WHERE \`key\` IN ('system_settings', 'printer_settings')`,
     );
     for (const row of rows) {
       let parsed;
@@ -20,9 +20,10 @@ module.exports = class PrintAfterCreateBillSetting1700000000033 {
           parsed.print_after_create_bill = parsed.print_after_close_bill;
         }
         delete parsed.print_after_close_bill;
-        await queryRunner.query(`UPDATE system_settings SET value = ? WHERE \`key\` = 'printer_settings'`, [
-          JSON.stringify(parsed),
-        ]);
+        await queryRunner.query(
+          `UPDATE \`system_settings\` SET \`value\` = ? WHERE \`key\` = 'printer_settings'`,
+          [JSON.stringify(parsed)]
+        );
       }
       if (row.key === "system_settings" && parsed.printer_settings && typeof parsed.printer_settings === "object") {
         const p = parsed.printer_settings;
@@ -30,16 +31,17 @@ module.exports = class PrintAfterCreateBillSetting1700000000033 {
           p.print_after_create_bill = p.print_after_close_bill;
         }
         delete p.print_after_close_bill;
-        await queryRunner.query(`UPDATE system_settings SET value = ? WHERE \`key\` = 'system_settings'`, [
-          JSON.stringify(parsed),
-        ]);
+        await queryRunner.query(
+          `UPDATE \`system_settings\` SET \`value\` = ? WHERE \`key\` = 'system_settings'`,
+          [JSON.stringify(parsed)]
+        );
       }
     }
   }
 
   async down(queryRunner) {
     const rows = await queryRunner.query(
-      `SELECT \`key\`, value FROM system_settings WHERE \`key\` IN ('system_settings', 'printer_settings')`,
+      `SELECT \`key\`, \`value\` FROM \`system_settings\` WHERE \`key\` IN ('system_settings', 'printer_settings')`,
     );
     for (const row of rows) {
       let parsed;
@@ -53,9 +55,10 @@ module.exports = class PrintAfterCreateBillSetting1700000000033 {
           parsed.print_after_close_bill = parsed.print_after_create_bill;
         }
         delete parsed.print_after_create_bill;
-        await queryRunner.query(`UPDATE system_settings SET value = ? WHERE \`key\` = 'printer_settings'`, [
-          JSON.stringify(parsed),
-        ]);
+        await queryRunner.query(
+          `UPDATE \`system_settings\` SET \`value\` = ? WHERE \`key\` = 'printer_settings'`,
+          [JSON.stringify(parsed)]
+        );
       }
       if (row.key === "system_settings" && parsed.printer_settings && typeof parsed.printer_settings === "object") {
         const p = parsed.printer_settings;
@@ -63,9 +66,10 @@ module.exports = class PrintAfterCreateBillSetting1700000000033 {
           p.print_after_close_bill = p.print_after_create_bill;
         }
         delete p.print_after_create_bill;
-        await queryRunner.query(`UPDATE system_settings SET value = ? WHERE \`key\` = 'system_settings'`, [
-          JSON.stringify(parsed),
-        ]);
+        await queryRunner.query(
+          `UPDATE \`system_settings\` SET \`value\` = ? WHERE \`key\` = 'system_settings'`,
+          [JSON.stringify(parsed)]
+        );
       }
     }
   }

@@ -9,10 +9,24 @@ module.exports = class ExpensePaymentFk1700000000029 {
   name = "ExpensePaymentFk1700000000029";
 
   async up(queryRunner) {
-    // 1. Add nullable payment_id column
-    await queryRunner.query(`
-      ALTER TABLE \`expense_payment\` ADD COLUMN \`payment_id\` INT NULL
-    `);
+    // 1. Add payment_id column if absent; ensure INT UNSIGNED to match payment.id.
+    //    MySQL DDL is non-transactional so a prior failed run may leave the column
+    //    behind with the wrong type — handle both cases.
+    const existing = await queryRunner.query(
+      `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME   = 'expense_payment'
+         AND COLUMN_NAME  = 'payment_id'`
+    );
+    if (existing.length === 0) {
+      await queryRunner.query(
+        `ALTER TABLE \`expense_payment\` ADD COLUMN \`payment_id\` INT UNSIGNED NULL`
+      );
+    } else if (!String(existing[0].COLUMN_TYPE).includes("unsigned")) {
+      await queryRunner.query(
+        `ALTER TABLE \`expense_payment\` MODIFY COLUMN \`payment_id\` INT UNSIGNED NULL`
+      );
+    }
 
     // 2. Create payment rows for existing expense_payment records
     const rows = await queryRunner.query(`
@@ -42,7 +56,7 @@ module.exports = class ExpensePaymentFk1700000000029 {
     // 3. Make payment_id NOT NULL and add FK
     await queryRunner.query(`
       ALTER TABLE \`expense_payment\`
-        MODIFY COLUMN \`payment_id\` INT NOT NULL,
+        MODIFY COLUMN \`payment_id\` INT UNSIGNED NOT NULL,
         ADD CONSTRAINT \`FK_expense_payment_payment\`
           FOREIGN KEY (\`payment_id\`) REFERENCES \`payment\`(\`id\`)
     `);
@@ -57,7 +71,6 @@ module.exports = class ExpensePaymentFk1700000000029 {
   }
 
   async down(queryRunner) {
-    // Restore old columns
     await queryRunner.query(`
       ALTER TABLE \`expense_payment\`
         ADD COLUMN \`amount\` DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -65,7 +78,6 @@ module.exports = class ExpensePaymentFk1700000000029 {
         ADD COLUMN \`reference\` VARCHAR(255) NULL
     `);
 
-    // Restore data from linked payment rows
     await queryRunner.query(`
       UPDATE \`expense_payment\` ep
       JOIN \`payment\` p ON p.\`id\` = ep.\`payment_id\`
@@ -74,7 +86,6 @@ module.exports = class ExpensePaymentFk1700000000029 {
           ep.\`reference\` = p.\`reference\`
     `);
 
-    // Drop FK and payment_id column
     await queryRunner.query(`
       ALTER TABLE \`expense_payment\`
         DROP FOREIGN KEY \`FK_expense_payment_payment\`,
