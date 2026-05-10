@@ -1,6 +1,7 @@
 import { DataSource } from "typeorm";
 import { AppDataSource } from "@backend/config/data-source";
 import { assertSqliteQuickCheckOrThrow } from "@backend/utils/sqliteIntegrity";
+import { licenseService } from "@backend/licensing/LicenseService";
 
 // Set to true by applyPendingMigrationsAtStartup so checkSqliteStatus skips a redundant
 // runMigrations() call when the instrumentation hook already ran them in this process.
@@ -468,13 +469,16 @@ async function checkSqliteStatus(): Promise<SetupStatusPayload> {
     if (!AppDataSource.isInitialized) {
       await AppDataSource.initialize();
     }
+    // When the instrumentation hook already ran migrations and the integrity check in this
+    // process, the schema is guaranteed — skip the redundant shouldRunIntegrityCheck query
+    // and the sqlite_master table count.
+    if (migrationsAppliedThisProcess) {
+      return getReadyStatus();
+    }
     // Always apply pending migrations — core tables alone are not enough (e.g. system_settings,
     // expenses). Previously we only checked five tables and skipped runMigrations forever after
     // first boot, leaving DBs stuck at an old migration revision.
-    // Skip if the instrumentation hook already ran migrations in this process.
-    if (!migrationsAppliedThisProcess) {
-      await AppDataSource.runMigrations();
-    }
+    await AppDataSource.runMigrations();
     if (await shouldRunIntegrityCheck(AppDataSource)) {
       await assertSqliteQuickCheckOrThrow(AppDataSource);
       await recordIntegrityCheckRan(AppDataSource);
@@ -540,7 +544,6 @@ async function ensureSchemaAndMigrations(): Promise<void> {
 }
 
 async function checkStatusInternal(): Promise<SetupStatusPayload> {
-  const { licenseService } = await import("@backend/licensing/LicenseService");
   if (isSqliteMode()) {
     const dbStatus = await checkSqliteStatus();
     if (dbStatus.state !== "ready") {
