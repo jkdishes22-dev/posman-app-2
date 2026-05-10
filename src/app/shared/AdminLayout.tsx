@@ -11,6 +11,7 @@ import { AuthError } from "../types/types";
 import { useTooltips } from "../hooks/useTooltips";
 import { useNavigation } from "../hooks/useNavigation";
 import { adminRoutes, ADMIN_DEFAULT_BREADCRUMB } from "./routeConfigs";
+import { useApiCall } from "../utils/apiUtils";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -33,6 +34,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
   const { user, logout } = useAuth();
   const { currentStation } = useStation();
   const router = useRouter();
+  const apiCall = useApiCall();
 
   useEffect(() => {
     const update = () => setSidebarWidth(getExpandedSidebarWidth());
@@ -43,17 +45,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
 
 
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    if (!token) return;
-    fetch("/api/system/module-visibility?role=admin", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.visibility && typeof data.visibility === "object") {
+    apiCall("/api/system/module-visibility?role=admin")
+      .then((result) => {
+        if (result.status === 200 && result.data?.visibility && typeof result.data.visibility === "object") {
           setHiddenMenuIds(
             new Set(
-              Object.entries(data.visibility as Record<string, boolean>)
+              Object.entries(result.data.visibility as Record<string, boolean>)
                 .filter(([, v]) => v === false)
                 .map(([id]) => id)
             )
@@ -61,7 +58,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [apiCall]);
 
   const menuItems = [
     {
