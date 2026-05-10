@@ -332,10 +332,12 @@ const BillingSection = () => {
           setAllPricelistItems(allItems);
           setItemsPreloaded(true);
 
-          // Preload inventory for all items
+          // Preload inventory for all items via refreshAvailability so the in-flight guard
+          // is set — prevents a duplicate fetch when the user selects a category before
+          // this response arrives.
           if (allItems.length > 0) {
             const itemIds = allItems.map((item: Item) => item.id);
-            await fetchItemInventory(itemIds, true);
+            await refreshAvailability("custom", itemIds, { force: true });
           }
         }
       } catch (error) {
@@ -346,7 +348,7 @@ const BillingSection = () => {
 
     // Preload in background (non-blocking)
     preloadAllItems();
-  }, [currentPricelist, itemsPreloaded, apiCall, fetchItemInventory]);
+  }, [currentPricelist, itemsPreloaded, apiCall, refreshAvailability]);
 
   // Memoized fetchItems - uses preloaded data if available, otherwise fetches from API
   const fetchItems = useCallback(async (

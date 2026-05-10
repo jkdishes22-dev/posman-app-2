@@ -131,10 +131,16 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
         setErrorDetails(null);
 
         try {
-            // Fetch stations
+            // Fetch stations and default station in parallel — both are independent requests.
             // Note: 401 (token expired) is handled by apiUtils - it will logout automatically
             // 403 (permission denied) means user doesn't have access - return empty array, show error, don't logout
-            const stationsResult = await apiCall("/api/users/me/stations");
+            const [stationsResult, defaultResultRaw] = await Promise.all([
+                apiCall("/api/users/me/stations"),
+                apiCall("/api/users/me/default-station").catch((defaultErr) => {
+                    console.warn("Error fetching default station (non-blocking):", defaultErr);
+                    return null;
+                }),
+            ]);
             let stations: Station[] = [];
 
             if (stationsResult.status === 200) {
@@ -160,10 +166,10 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
                 stations = [];
             }
 
-            // Fetch default station - handle errors gracefully
+            // Resolve default station from the parallel result
             let defaultStation: Station | null = null;
-            try {
-                const defaultResult = await apiCall("/api/users/me/default-station");
+            const defaultResult = defaultResultRaw;
+            if (defaultResult) {
                 if (defaultResult.status === 200) {
                     defaultStation = defaultResult.data.station || null;
                 } else if (defaultResult.status === 403) {
@@ -182,10 +188,6 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
                     console.warn("Failed to fetch default station (non-blocking):", defaultResult.error);
                     defaultStation = null;
                 }
-            } catch (defaultErr) {
-                // Non-critical error
-                console.warn("Error fetching default station (non-blocking):", defaultErr);
-                defaultStation = null;
             }
 
             setAvailableStations(stations);
