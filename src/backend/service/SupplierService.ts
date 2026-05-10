@@ -70,9 +70,7 @@ export class SupplierService {
         }
         
         // Invalidate cache after updating supplier
-        cache.invalidate("suppliers");
-        cache.invalidate(`supplier_${id}`);
-        cache.invalidate(`supplier_balance_${id}`);
+        cache.invalidateMany(["suppliers", `supplier_${id}`, `supplier_balance_${id}`]);
         
         return supplier;
   }
@@ -88,9 +86,7 @@ export class SupplierService {
         });
         
         // Invalidate cache after deleting supplier
-        cache.invalidate("suppliers");
-        cache.invalidate(`supplier_${id}`);
-        cache.invalidate(`supplier_balance_${id}`);
+        cache.invalidateMany(["suppliers", `supplier_${id}`, `supplier_balance_${id}`]);
     }
 
     /**
@@ -283,8 +279,7 @@ export class SupplierService {
         const saved = await this.supplierTransactionRepository.save(transaction);
 
         // Invalidate cache after creating transaction (affects balance and history)
-        cache.invalidate(`supplier_balance_${supplierId}`);
-        cache.invalidate(`supplier_transactions_${supplierId}`);
+        cache.invalidateMany([`supplier_balance_${supplierId}`, `supplier_transactions_${supplierId}`]);
 
         return saved;
     }

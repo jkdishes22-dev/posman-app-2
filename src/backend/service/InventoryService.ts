@@ -264,28 +264,17 @@ export class InventoryService {
      * Invalidates all inventory-related cache entries
      */
     public static invalidateInventoryCache(itemId?: number): void {
-        // Invalidate all inventory-related caches
-        cache.invalidate("inventory_items");
-        cache.invalidate("inventory_stats");
-        cache.invalidate("reorder_suggestions");
-        cache.invalidate("available_inventory");
-        cache.invalidate("inventory_transactions");
-
-        // Invalidate all availability cache entries (pattern matching)
-        // The cache key format is: available_inventory_1,2,3,4
-        cache.invalidate("available_inventory_");
-
-        // If specific itemId provided, invalidate item-specific caches
-        if (itemId) {
-            cache.invalidate(`inventory_level_${itemId}`);
-            cache.invalidate(`available_stock_${itemId}`);
-            cache.invalidate(`inventory_history_${itemId}`);
-        } else {
-            // Invalidate all item-specific caches
-            cache.invalidate("inventory_level_");
-            cache.invalidate("available_stock_");
-            cache.invalidate("inventory_history_");
-        }
+        cache.invalidateMany([
+            "inventory_items",
+            "inventory_stats",
+            "reorder_suggestions",
+            "available_inventory",
+            "inventory_transactions",
+            "available_inventory_",
+            itemId ? `inventory_level_${itemId}` : "inventory_level_",
+            itemId ? `available_stock_${itemId}` : "available_stock_",
+            itemId ? `inventory_history_${itemId}` : "inventory_history_",
+        ]);
     }
 
     /**

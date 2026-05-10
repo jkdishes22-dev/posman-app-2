@@ -21,9 +21,7 @@ export class ProductionService {
     const savedItem = await this.itemRepository.save(createdItem);
 
     // Invalidate cache after creating item
-    cache.invalidate("production_items_composite");
-    cache.invalidate("production_items_sellable");
-    cache.invalidate("items");
+    cache.invalidateMany(["production_items_composite", "production_items_sellable", "items"]);
 
     return savedItem;
   }

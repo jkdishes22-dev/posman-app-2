@@ -62,6 +62,18 @@ class SimpleCache {
     }
 
     /**
+     * Invalidate cache entries matching any of the given patterns in a single Map scan.
+     * Prefer this over multiple sequential invalidate() calls.
+     */
+    invalidateMany(patterns: string[]): void {
+        for (const key of this.cache.keys()) {
+            if (patterns.some(p => key.includes(p))) {
+                this.cache.delete(key);
+            }
+        }
+    }
+
+    /**
      * Remove specific cache entry
      */
     delete(key: string): void {

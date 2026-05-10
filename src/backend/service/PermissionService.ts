@@ -48,8 +48,7 @@ export class PermissionService {
       scope = await this.scopeRepository.save(scope);
 
       // Invalidate cache after creating scope
-      cache.invalidate("scopes");
-      cache.invalidate("api_scopes");
+      cache.invalidateMany(["scopes", "api_scopes"]);
     }
 
     const permission = this.permissionRepository.create({
@@ -60,8 +59,7 @@ export class PermissionService {
     const saved = await this.permissionRepository.save(permission);
 
     // Invalidate cache after creating permission
-    cache.invalidate("permissions");
-    cache.invalidate("role_permissions");
+    cache.invalidateMany(["permissions", "role_permissions"]);
 
     return saved;
   }

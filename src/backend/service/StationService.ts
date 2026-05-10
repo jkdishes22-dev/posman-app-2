@@ -199,8 +199,7 @@ export class StationService {
     );
 
     // Invalidate cache
-    cache.invalidate(`user_default_station_${userId}`);
-    cache.invalidate("user_stations");
+    cache.invalidateMany([`user_default_station_${userId}`, "user_stations"]);
   }
 
   /**
@@ -340,9 +339,7 @@ export class StationService {
     await this.stationPricelistRepository.save(stationPricelist);
 
     // Invalidate cache
-    cache.invalidate(`station_pricelists_${stationId}`);
-    cache.invalidate(`station_default_pricelist_${stationId}`);
-    cache.invalidate(`pricelist_stations_${pricelistId}`);
+    cache.invalidateMany([`station_pricelists_${stationId}`, `station_default_pricelist_${stationId}`, `pricelist_stations_${pricelistId}`]);
   }
 
   // Unlink a pricelist from a station
@@ -357,9 +354,7 @@ export class StationService {
     }
 
     // Invalidate cache
-    cache.invalidate(`station_pricelists_${stationId}`);
-    cache.invalidate(`station_default_pricelist_${stationId}`);
-    cache.invalidate(`pricelist_stations_${pricelistId}`);
+    cache.invalidateMany([`station_pricelists_${stationId}`, `station_default_pricelist_${stationId}`, `pricelist_stations_${pricelistId}`]);
   }
 
   // Set a pricelist as default for a station
@@ -381,9 +376,7 @@ export class StationService {
     }
 
     // Invalidate cache
-    cache.invalidate(`station_pricelists_${stationId}`);
-    cache.invalidate(`station_default_pricelist_${stationId}`);
-    cache.invalidate(`pricelist_stations_${pricelistId}`);
+    cache.invalidateMany([`station_pricelists_${stationId}`, `station_default_pricelist_${stationId}`, `pricelist_stations_${pricelistId}`]);
   }
 
   // Remove default pricelist for a station
@@ -394,8 +387,7 @@ export class StationService {
     );
 
     // Invalidate cache
-    cache.invalidate(`station_pricelists_${stationId}`);
-    cache.invalidate(`station_default_pricelist_${stationId}`);
+    cache.invalidateMany([`station_pricelists_${stationId}`, `station_default_pricelist_${stationId}`]);
   }
 
   // Get all pricelists for a station
@@ -491,9 +483,7 @@ export class StationService {
     }
 
     // Invalidate cache
-    cache.invalidate(`station_pricelists_${stationId}`);
-    cache.invalidate(`station_default_pricelist_${stationId}`);
-    cache.invalidate(`pricelist_stations_${pricelistId}`);
+    cache.invalidateMany([`station_pricelists_${stationId}`, `station_default_pricelist_${stationId}`, `pricelist_stations_${pricelistId}`]);
   }
 
   // Get all stations using a pricelist
@@ -557,9 +547,7 @@ export class StationService {
     await this.userStationRepository.save(userStation);
 
     // Invalidate cache
-    cache.invalidate(`station_users_${stationId}`);
-    cache.invalidate("user_stations");
-    cache.invalidate("available_users_station");
+    cache.invalidateMany([`station_users_${stationId}`, "user_stations", "available_users_station"]);
   }
 
   /**
@@ -576,9 +564,7 @@ export class StationService {
     }
 
     // Invalidate cache
-    cache.invalidate(`station_users_${stationId}`);
-    cache.invalidate("user_stations");
-    cache.invalidate("available_users_station");
+    cache.invalidateMany([`station_users_${stationId}`, "user_stations", "available_users_station"]);
   }
 
   /**
@@ -595,9 +581,7 @@ export class StationService {
     }
 
     // Invalidate cache
-    cache.invalidate(`station_users_${stationId}`);
-    cache.invalidate("user_stations");
-    cache.invalidate("available_users_station");
+    cache.invalidateMany([`station_users_${stationId}`, "user_stations", "available_users_station"]);
   }
 
   /**
@@ -614,9 +598,7 @@ export class StationService {
     }
 
     // Invalidate cache
-    cache.invalidate(`station_users_${stationId}`);
-    cache.invalidate("user_stations");
-    cache.invalidate("available_users_station");
+    cache.invalidateMany([`station_users_${stationId}`, "user_stations", "available_users_station"]);
   }
 
 
@@ -691,7 +673,6 @@ export class StationService {
     await this.stationRepository.update(id, { status: status as StationStatus });
 
     // Invalidate cache
-    cache.invalidate("stations");
-    cache.invalidate(`station_${id}`);
+    cache.invalidateMany(["stations", `station_${id}`]);
   }
 }

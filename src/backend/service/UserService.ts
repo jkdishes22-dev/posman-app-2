@@ -465,12 +465,10 @@ export class UserService {
       if (existingUserStation.status === UserStationStatus.INACTIVE) {
         existingUserStation.status = UserStationStatus.ACTIVE;
         const updated = await this.userStationRepository.save(existingUserStation);
-        
+
         // Invalidate cache
-        cache.invalidate(`user_stations_${userId}`);
-        cache.invalidate(`user_roles_stations_${userId}`);
-        cache.invalidate("user_stations");
-        
+        cache.invalidateMany([`user_stations_${userId}`, `user_roles_stations_${userId}`, "user_stations"]);
+
         return updated;
       }
       // If it's already active, throw an error
@@ -485,9 +483,7 @@ export class UserService {
     const saved = await this.userStationRepository.save(userStation);
 
     // Invalidate cache
-    cache.invalidate(`user_stations_${userId}`);
-    cache.invalidate(`user_roles_stations_${userId}`);
-    cache.invalidate("user_stations");
+    cache.invalidateMany([`user_stations_${userId}`, `user_roles_stations_${userId}`, "user_stations"]);
 
     return saved;
   }
@@ -529,10 +525,12 @@ export class UserService {
         await transactionEntityManager.save(UserStation, existingStation);
 
         // Invalidate cache
-        cache.invalidate(`user_stations_${userStationRequest.user}`);
-        cache.invalidate(`user_roles_stations_${userStationRequest.user}`);
-        cache.invalidate("user_stations");
-        cache.invalidate(`user_default_station_${userStationRequest.user}`);
+        cache.invalidateMany([
+          `user_stations_${userStationRequest.user}`,
+          `user_roles_stations_${userStationRequest.user}`,
+          "user_stations",
+          `user_default_station_${userStationRequest.user}`,
+        ]);
 
         return existingStation;
       },
@@ -568,9 +566,11 @@ export class UserService {
     const saved = await this.userStationRepository.save(existingStation);
 
     // Invalidate cache
-    cache.invalidate(`user_stations_${existingStation.user.id}`);
-    cache.invalidate(`user_roles_stations_${existingStation.user.id}`);
-    cache.invalidate("user_stations");
+    cache.invalidateMany([
+      `user_stations_${existingStation.user.id}`,
+      `user_roles_stations_${existingStation.user.id}`,
+      "user_stations",
+    ]);
 
     return saved;
   }
@@ -582,12 +582,14 @@ export class UserService {
     await this.userRepository.save(user);
 
     // Invalidate cache
-    cache.invalidate("users");
-    cache.invalidate(`user_${userId}`);
-    cache.invalidate(`user_username_${user.username}`);
-    cache.invalidate(`user_roles_permissions_${userId}`);
-    cache.invalidate(`user_roles_stations_${userId}`);
-    cache.invalidate(`user_stations_${userId}`);
+    cache.invalidateMany([
+      "users",
+      `user_${userId}`,
+      `user_username_${user.username}`,
+      `user_roles_permissions_${userId}`,
+      `user_roles_stations_${userId}`,
+      `user_stations_${userId}`,
+    ]);
 
     return user;
   }
@@ -599,11 +601,13 @@ export class UserService {
     await this.userRepository.save(user);
 
     // Invalidate cache
-    cache.invalidate("users");
-    cache.invalidate(`user_${userId}`);
-    cache.invalidate(`user_username_${user.username}`);
-    cache.invalidate(`user_roles_permissions_${userId}`);
-    cache.invalidate(`user_roles_stations_${userId}`);
+    cache.invalidateMany([
+      "users",
+      `user_${userId}`,
+      `user_username_${user.username}`,
+      `user_roles_permissions_${userId}`,
+      `user_roles_stations_${userId}`,
+    ]);
 
     return user;
   }
@@ -619,14 +623,17 @@ export class UserService {
     const saved = await this.userRepository.save(user);
 
     // Invalidate cache
-    cache.invalidate("users");
-    cache.invalidate(`user_${userId}`);
-    cache.invalidate(`user_username_${oldUsername}`);
+    const updatePatterns = [
+      "users",
+      `user_${userId}`,
+      `user_username_${oldUsername}`,
+      `user_roles_permissions_${userId}`,
+      `user_roles_stations_${userId}`,
+    ];
     if (updates.username && updates.username !== oldUsername) {
-      cache.invalidate(`user_username_${updates.username}`);
+      updatePatterns.push(`user_username_${updates.username}`);
     }
-    cache.invalidate(`user_roles_permissions_${userId}`);
-    cache.invalidate(`user_roles_stations_${userId}`);
+    cache.invalidateMany(updatePatterns);
 
     return saved;
   }
@@ -638,9 +645,7 @@ export class UserService {
     const saved = await this.userRepository.save(user);
 
     // Invalidate cache
-    cache.invalidate("users");
-    cache.invalidate(`user_${userId}`);
-    cache.invalidate(`user_username_${user.username}`);
+    cache.invalidateMany(["users", `user_${userId}`, `user_username_${user.username}`]);
 
     return saved;
   }
@@ -652,9 +657,7 @@ export class UserService {
     const saved = await this.userRepository.save(user);
 
     // Invalidate cache
-    cache.invalidate("users");
-    cache.invalidate(`user_${userId}`);
-    cache.invalidate(`user_username_${user.username}`);
+    cache.invalidateMany(["users", `user_${userId}`, `user_username_${user.username}`]);
 
     return saved;
   }

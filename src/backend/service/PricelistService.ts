@@ -359,12 +359,14 @@ export class PricelistService {
       }
 
       // Invalidate cache
-      cache.invalidate("pricelists");
-      cache.invalidate(`pricelist_${pricelistId}`);
-      cache.invalidate(`pricelist_items_${pricelistId}`);
-      cache.invalidate("pricelists_by_station");
-      cache.invalidate("available_pricelists");
-      cache.invalidate(`stations_using_pricelist_${pricelistId}`);
+      cache.invalidateMany([
+        "pricelists",
+        `pricelist_${pricelistId}`,
+        `pricelist_items_${pricelistId}`,
+        "pricelists_by_station",
+        "available_pricelists",
+        `stations_using_pricelist_${pricelistId}`,
+      ]);
     } catch (error: any) {
       console.error(`Error updating pricelist ${pricelistId} status:`, error);
       throw new Error("Failed to update pricelist status: " + error);
@@ -403,7 +405,6 @@ export class PricelistService {
     }
 
     // Invalidate cache
-    cache.invalidate(`pricelist_items_${pricelistId}`);
-    cache.invalidate("items");
+    cache.invalidateMany([`pricelist_items_${pricelistId}`, "items"]);
   }
 }

@@ -48,8 +48,7 @@ export class ItemService {
         await transactionalEntityManager.save(PricelistItem, pricelistItem);
 
         // Invalidate cache after creating item (affects items and prices)
-        cache.invalidate("items");
-        cache.invalidate(`pricelist_items_${pricelistId}`);
+        cache.invalidateMany(["items", `pricelist_items_${pricelistId}`]);
 
         return savedItem;
       },
@@ -488,11 +487,13 @@ export class ItemService {
         }
 
         // Invalidate cache after updating item (affects items and prices)
-        cache.invalidate("items");
-        cache.invalidate(`item_${itemData.id}`);
-        cache.invalidate(`pricelist_items_${pricelistId}`);
-        cache.invalidate("items_pricelist");
-        cache.invalidate("items_station");
+        cache.invalidateMany([
+          "items",
+          `item_${itemData.id}`,
+          `pricelist_items_${pricelistId}`,
+          "items_pricelist",
+          "items_station",
+        ]);
 
         // Reload the item to ensure all fields are properly set and relations are loaded
         const savedItem = await transactionalEntityManager.findOne(Item, {
