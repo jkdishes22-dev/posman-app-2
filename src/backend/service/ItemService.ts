@@ -1,4 +1,5 @@
 import { Item, ItemStatus } from "@entities/Item";
+import { CategoryStatus } from "@entities/Category";
 import { Currency, PricelistItem } from "@entities/PricelistItem";
 import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { ItemGroup } from "@entities/ItemGroup";
@@ -173,7 +174,12 @@ export class ItemService {
       .leftJoinAndSelect("pi.item", "item")
       .leftJoinAndSelect("item.category", "category")
       .where("pricelist.id = :pricelistId", { pricelistId })
-      .andWhere("pi.is_enabled = :enabled", { enabled: 1 });
+      .andWhere("pi.is_enabled = :enabled", { enabled: 1 })
+      .andWhere("item.status = :itemStatus", { itemStatus: ItemStatus.ACTIVE })
+      .andWhere(
+        "(category.id IS NULL OR category.status != :catDeleted)",
+        { catDeleted: CategoryStatus.DELETED }
+      );
 
     if (categoryId) {
       pricelistQuery.andWhere("item.item_category_id = :categoryId", { categoryId });

@@ -28,7 +28,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 .leftJoinAndSelect("item.category", "category")
                 .where("item.is_stock = :isStock", { isStock: false })
                 .andWhere("item.is_group = :isGroup", { isGroup: false })
-                .andWhere("item.status = :status", { status: ItemStatus.ACTIVE });
+                .andWhere("item.status = :status", { status: ItemStatus.ACTIVE })
+                .andWhere(
+                    "EXISTS (SELECT 1 FROM pricelist_item pi_sub WHERE pi_sub.item_id = item.id)"
+                );
 
             // Add search filter if query provided
             if (qTrimmed.length > 0) {

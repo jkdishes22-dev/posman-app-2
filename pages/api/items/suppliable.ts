@@ -23,7 +23,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 .leftJoinAndSelect("item.category", "category")
                 .where("item.is_stock = :isStock", { isStock: true })
                 .andWhere("item.status = :status", { status: ItemStatus.ACTIVE })
-                .andWhere("(item.isGroup = :notGroup OR item.isGroup IS NULL)", { notGroup: false });
+                .andWhere("(item.isGroup = :notGroup OR item.isGroup IS NULL)", { notGroup: false })
+                .andWhere(
+                    "EXISTS (SELECT 1 FROM pricelist_item pi_sub WHERE pi_sub.item_id = item.id)"
+                );
 
             if (q && typeof q === "string" && q.trim().length > 0) {
                 queryBuilder.andWhere(

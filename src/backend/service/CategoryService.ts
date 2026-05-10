@@ -55,7 +55,10 @@ export class CategoryService {
       status: CategoryStatus.DELETED,
     });
 
-    // Invalidate cache after deleting category
+    // Invalidate category cache and any pricelist/station item caches that
+    // may include items belonging to the now-deleted category.
     cache.invalidate("categories");
+    cache.invalidate("items_pricelist_");
+    cache.invalidate("items_station_");
   }
 }
