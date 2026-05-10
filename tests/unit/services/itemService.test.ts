@@ -99,7 +99,7 @@ describe("ItemService", () => {
 
   describe("createItem", () => {
     it("runs inside a transaction and invalidates items cache", async () => {
-      const invalidateSpy = vi.spyOn(cache, "invalidate");
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
       const mockTxnManager = {
         save: vi.fn().mockResolvedValue({ id: 1, name: "Steak" }),
         findOne: vi.fn().mockResolvedValue(null),
@@ -115,7 +115,7 @@ describe("ItemService", () => {
       );
 
       expect(mockItemRepo.manager.connection.transaction).toHaveBeenCalled();
-      expect(invalidateSpy).toHaveBeenCalledWith("items");
+      expect(invalidateManySpy).toHaveBeenCalledWith(["items", "pricelist_items_2"]);
     });
   });
 

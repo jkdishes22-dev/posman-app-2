@@ -118,11 +118,11 @@ describe("StationService", () => {
     });
 
     it("invalidates user default station cache", async () => {
-      const invalidateSpy = vi.spyOn(cache, "invalidate");
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
 
       await service.setUserDefaultStation(1, 3);
 
-      expect(invalidateSpy).toHaveBeenCalledWith("user_default_station_1");
+      expect(invalidateManySpy).toHaveBeenCalledWith(["user_default_station_1", "user_stations"]);
     });
   });
 

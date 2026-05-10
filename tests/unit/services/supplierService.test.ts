@@ -105,7 +105,7 @@ describe("SupplierService", () => {
 
   describe("createSupplierTransaction", () => {
     it("saves transaction and invalidates supplier balance cache", async () => {
-      const invalidateSpy = vi.spyOn(cache, "invalidate");
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
       mockTransactionRepo.save.mockResolvedValue({ id: 1 });
 
       await service.createSupplierTransaction(
@@ -120,7 +120,7 @@ describe("SupplierService", () => {
       );
 
       expect(mockTransactionRepo.save).toHaveBeenCalled();
-      expect(invalidateSpy).toHaveBeenCalledWith("supplier_balance_1");
+      expect(invalidateManySpy).toHaveBeenCalledWith(["supplier_balance_1", "supplier_transactions_1"]);
     });
   });
 

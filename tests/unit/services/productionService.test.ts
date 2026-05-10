@@ -34,14 +34,12 @@ describe("ProductionService", () => {
     });
 
     it("invalidates production and items caches after creation", async () => {
-      const invalidateSpy = vi.spyOn(cache, "invalidate");
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
       mockItemRepo.save.mockResolvedValue({ id: 1 });
 
       await service.createProductionItem({ name: "Test" }, 1);
 
-      expect(invalidateSpy).toHaveBeenCalledWith("production_items_composite");
-      expect(invalidateSpy).toHaveBeenCalledWith("production_items_sellable");
-      expect(invalidateSpy).toHaveBeenCalledWith("items");
+      expect(invalidateManySpy).toHaveBeenCalledWith(["production_items_composite", "production_items_sellable", "items"]);
     });
   });
 

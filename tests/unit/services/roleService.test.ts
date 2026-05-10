@@ -103,7 +103,7 @@ describe("RoleService", () => {
     });
 
     it("adds permission and invalidates caches when permission is new", async () => {
-      const invalidateSpy = vi.spyOn(cache, "invalidate");
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
       const perm = { id: 2 };
       const role = { id: 1, permissions: [] };
       const txn = createMockTransactionalEntityManager();
@@ -117,8 +117,7 @@ describe("RoleService", () => {
       await service.addPermissionToRole(1, 2);
 
       expect(txn.save).toHaveBeenCalled();
-      expect(invalidateSpy).toHaveBeenCalledWith("roles");
-      expect(invalidateSpy).toHaveBeenCalledWith("role_permissions_1");
+      expect(invalidateManySpy).toHaveBeenCalledWith(["roles", "role_permissions_1"]);
     });
   });
 
@@ -137,16 +136,14 @@ describe("RoleService", () => {
     });
 
     it("invalidates user-related caches after role assignment", async () => {
-      const invalidateSpy = vi.spyOn(cache, "invalidate");
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
       const qb = mockUserRoleRepo.createQueryBuilder();
       qb.getOne.mockResolvedValue(null);
       mockUserRoleRepo.save.mockResolvedValue({});
 
       await service.assignRoleToUser(5, 2);
 
-      expect(invalidateSpy).toHaveBeenCalledWith("user_roles_permissions_5");
-      expect(invalidateSpy).toHaveBeenCalledWith("user_roles_stations_5");
-      expect(invalidateSpy).toHaveBeenCalledWith("user_5");
+      expect(invalidateManySpy).toHaveBeenCalledWith(["user_roles_permissions_5", "user_roles_stations_5", "user_5"]);
     });
   });
 });

@@ -109,13 +109,19 @@ describe("PricelistService", () => {
     });
 
     it("invalidates all pricelist-related caches", async () => {
-      const invalidateSpy = vi.spyOn(cache, "invalidate");
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
       mockPricelistRepo.update.mockResolvedValue({ affected: 1 });
 
       await service.updatePricelistStatus(1, PriceListStatus.ACTIVE);
 
-      expect(invalidateSpy).toHaveBeenCalledWith("pricelists");
-      expect(invalidateSpy).toHaveBeenCalledWith("pricelist_items_1");
+      expect(invalidateManySpy).toHaveBeenCalledWith([
+        "pricelists",
+        "pricelist_1",
+        "pricelist_items_1",
+        "pricelists_by_station",
+        "available_pricelists",
+        "stations_using_pricelist_1",
+      ]);
     });
   });
 
@@ -129,12 +135,12 @@ describe("PricelistService", () => {
     });
 
     it("invalidates pricelist items cache after removal", async () => {
-      const invalidateSpy = vi.spyOn(cache, "invalidate");
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
       mockPricelistItemRepo.delete.mockResolvedValue({ affected: 1 });
 
       await service.removeItemFromPricelist(5, 2);
 
-      expect(invalidateSpy).toHaveBeenCalledWith("pricelist_items_5");
+      expect(invalidateManySpy).toHaveBeenCalledWith(["pricelist_items_5", "items"]);
     });
   });
 });

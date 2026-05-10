@@ -63,36 +63,18 @@ export class BillService {
     const itemIds = items.map((item: any) => item.item_id);
     const availableInventory = await this.inventoryService.getAvailableInventoryForItems(itemIds, false);
 
-    // Batch load all items to check allowNegativeInventory flags
-    const itemRepository = this.billRepository.manager.getRepository(Item);
-    const itemEntities = await itemRepository.find({
-      where: itemIds.map(id => ({ id })),
-    });
-    const itemsMap = new Map<number, Item>();
-    for (const itemEntity of itemEntities) {
-      itemsMap.set(itemEntity.id, itemEntity);
-    }
-
-    // Check each item's availability (respect allowNegativeInventory flag)
+    // getAvailableInventoryForItems() already returns 999999 for allowNegativeInventory=true items.
+    // Fetch item name lazily only on the (rare) error path instead of batch-loading all items upfront.
     for (const item of items) {
-      const itemEntity = itemsMap.get(item.item_id);
-      const allowNegative = Boolean(itemEntity?.allowNegativeInventory) || Number(itemEntity?.allowNegativeInventory) === 1;
-
-      // Skip validation for items that allow negative inventory
-      if (allowNegative) {
-        continue;
-      }
-
-      const available = availableInventory.get(item.item_id) || 0;
-      const requestedQuantity = item.quantity;
-
-      if (available < requestedQuantity) {
-        const itemName = itemEntity?.name || `Item ${item.item_id}`;
-
+      const available = availableInventory.get(item.item_id) ?? 0;
+      if (available < item.quantity) {
+        const itemRepo = this.billRepository.manager.getRepository(Item);
+        const itemEntity = await itemRepo.findOne({ where: { id: item.item_id } });
+        const itemName = itemEntity?.name ?? `Item ${item.item_id}`;
         throw new Error(
           `Insufficient inventory for ${itemName}. ` +
-          `Available: ${available}, Requested: ${requestedQuantity}. ` +
-          `Please issue more ${itemName} to inventory before adding to bill.`
+          `Available: ${available}, Requested: ${item.quantity}. ` +
+          "Please issue more to inventory before adding to bill."
         );
       }
     }
@@ -113,24 +95,25 @@ export class BillService {
           }
         }
 
-        const newBill = await transactionalEntityManager.save(Bill, {
-          user: { id: user_id },
-          station: station_id ? { id: station_id } : undefined,
+        // bypass TypeORM entity-tracking: single INSERT for Bill, one bulk INSERT for all BillItems
+        const billInsert = await transactionalEntityManager.insert(Bill, {
+          user_id,
+          station_id: station_id || null,
           total,
           status: BillStatus.PENDING,
           created_by: user_id,
           request_id: request_id || null,
         });
+        const newBillId = billInsert.identifiers[0].id as number;
 
-        const billItems = items.map((item) => ({
-          item: { id: item.item_id },
-          bill: { id: newBill.id },
+        const billItemsData = items.map((item) => ({
+          item_id: item.item_id,
+          bill_id: newBillId,
           quantity: item.quantity,
           subtotal: item.subtotal,
           status: BillItemStatus.PENDING,
         }));
-
-        const savedBillItems = await transactionalEntityManager.save(BillItem, billItems);
+        const billItemsInsert = await transactionalEntityManager.insert(BillItem, billItemsData);
 
         // Load relations efficiently - fetch user and station in parallel
         const [userEntity, stationEntity] = await Promise.all([
@@ -139,21 +122,29 @@ export class BillService {
         ]);
 
         // Load item entities for bill items
-        const itemIds = savedBillItems.map(bi => bi.item_id).filter(id => id != null);
-        const itemEntities = itemIds.length > 0
-          ? await transactionalEntityManager.find(Item, { where: itemIds.map(id => ({ id })) })
+        const billItemIds = billItemsData.map(bi => bi.item_id).filter(id => id != null);
+        const billItemEntities = billItemIds.length > 0
+          ? await transactionalEntityManager.find(Item, { where: billItemIds.map(id => ({ id })) })
           : [];
-        const itemsMap = new Map(itemEntities.map(item => [item.id, item]));
+        const itemsMap = new Map(billItemEntities.map(item => [item.id, item]));
 
         // Construct bill object with relations instead of fetching
         const bill = {
-          ...newBill,
-          bill_items: savedBillItems.map(bi => ({
+          id: newBillId,
+          user_id,
+          station_id: station_id || null,
+          total,
+          status: BillStatus.PENDING,
+          created_by: user_id,
+          request_id: request_id || null,
+          created_at: new Date(),
+          bill_items: billItemsData.map((bi, idx) => ({
             ...bi,
-            item: itemsMap.get(bi.item_id) || null
+            id: billItemsInsert.identifiers[idx]?.id,
+            item: itemsMap.get(bi.item_id) || null,
           })),
           user: userEntity,
-          station: stationEntity
+          station: stationEntity,
         };
 
         return bill as Bill;

@@ -81,7 +81,7 @@ describe("BillService", () => {
     it("throws when item has insufficient inventory", async () => {
       mockGetAvailableInventoryForItems.mockResolvedValue(new Map([[1, 2]]));
       mockBillRepo.manager.getRepository.mockReturnValue({
-        find: vi.fn().mockResolvedValue([{ id: 1, name: "Burger", allowNegativeInventory: false }]),
+        findOne: vi.fn().mockResolvedValue({ id: 1, name: "Burger" }),
       });
 
       await expect(
@@ -95,19 +95,14 @@ describe("BillService", () => {
     });
 
     it("skips inventory check for items that allow negative inventory", async () => {
-      mockGetAvailableInventoryForItems.mockResolvedValue(new Map([[1, 0]]));
-      mockBillRepo.manager.getRepository.mockReturnValue({
-        find: vi.fn().mockResolvedValue([
-          { id: 1, name: "Burger", allowNegativeInventory: true },
-        ]),
-      });
+      // InventoryService returns 999999 for allowNegativeInventory=true items; simulate that here
+      mockGetAvailableInventoryForItems.mockResolvedValue(new Map([[1, 999999]]));
 
       const txn = createMockTransactionalEntityManager();
       txn.findOne.mockResolvedValue(null); // no existing bill by request_id
-      // First save(Bill, data) returns the bill; second save(BillItem, [items]) returns the items array
-      txn.save
-        .mockResolvedValueOnce({ id: 10, status: BillStatus.PENDING }) // save Bill
-        .mockImplementation(async (_cls: any, data: any) => Array.isArray(data) ? data : [data]); // save BillItems
+      txn.insert
+        .mockResolvedValueOnce({ identifiers: [{ id: 10 }], generatedMaps: [] }) // insert Bill
+        .mockResolvedValueOnce({ identifiers: [{ id: 100 }], generatedMaps: [] }); // insert BillItems
       txn.find = vi.fn().mockResolvedValue([]);
       mockBillRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
 

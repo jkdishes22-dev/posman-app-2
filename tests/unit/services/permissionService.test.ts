@@ -70,14 +70,13 @@ describe("PermissionService", () => {
     });
 
     it("invalidates permission and role_permissions caches after creation", async () => {
-      const invalidateSpy = vi.spyOn(cache, "invalidate");
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
       mockScopeRepo.findOneBy.mockResolvedValue({ id: 1, name: "billing" });
       mockPermissionRepo.save.mockResolvedValue({ id: 1 });
 
       await service.createPermission({ name: "view_bills", scope: "billing" });
 
-      expect(invalidateSpy).toHaveBeenCalledWith("permissions");
-      expect(invalidateSpy).toHaveBeenCalledWith("role_permissions");
+      expect(invalidateManySpy).toHaveBeenCalledWith(["permissions", "role_permissions"]);
     });
   });
 
