@@ -1,7 +1,6 @@
 import { DataSource } from "typeorm";
 import { AppDataSource } from "@backend/config/data-source";
 import { assertSqliteQuickCheckOrThrow } from "@backend/utils/sqliteIntegrity";
-import { licenseService } from "@backend/licensing/LicenseService";
 
 // Set to true by applyPendingMigrationsAtStartup so checkSqliteStatus skips a redundant
 // runMigrations() call when the instrumentation hook already ran them in this process.
@@ -544,6 +543,7 @@ async function ensureSchemaAndMigrations(): Promise<void> {
 }
 
 async function checkStatusInternal(): Promise<SetupStatusPayload> {
+  const { licenseService } = await import("@backend/licensing/LicenseService");
   if (isSqliteMode()) {
     const dbStatus = await checkSqliteStatus();
     if (dbStatus.state !== "ready") {
