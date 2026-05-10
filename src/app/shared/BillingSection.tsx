@@ -29,6 +29,7 @@ import PricelistSwitcher from "../components/PricelistSwitcher";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import { hasPermission } from "../../backend/config/role-permissions";
+import { fireCashSettle } from "../utils/billCashSettle";
 
 const INVENTORY_TTL_MS = 15000;
 
@@ -61,6 +62,7 @@ const BillingSection = () => {
   const [userId, setUserId] = useState("");
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cashSettled, setCashSettled] = useState(false);
   const [createdBill, setCreatedBill] = useState(null);
   const [billError, setBillError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -557,6 +559,7 @@ const BillingSection = () => {
     setShowSubmitModal(false);
     setBillError(""); // Clear error when modal is closed
     setErrorDetails(null); // Clear error details when modal is closed
+    setCashSettled(false);
   }, []);
   const handleShowCancelModal = useCallback(() => setShowCancelModal(true), []);
   const handleCloseCancelModal = useCallback(() => setShowCancelModal(false), []);
@@ -623,8 +626,14 @@ const BillingSection = () => {
             : (apiPayload as Record<string, unknown> | undefined);
           const newBillId = createdFromApi?.id as number | undefined;
           logClientFromRenderer(
-            `create-bill: HTTP 201 billId=${newBillId ?? "?"} items=${selectedItems.length} total=${total} autoPrintEnabled=${autoPrintEnabled}`,
+            `create-bill: HTTP 201 billId=${newBillId ?? "?"} items=${selectedItems.length} total=${total} autoPrintEnabled=${autoPrintEnabled} cashSettled=${cashSettled}`,
           );
+
+          if (cashSettled && newBillId) {
+            fireCashSettle(apiCall as Parameters<typeof fireCashSettle>[0], newBillId, total);
+            logClientFromRenderer(`create-bill: auto-settle fired (fire-and-forget) billId=${newBillId}`);
+          }
+
           setShowSubmitModal(false);
           setBillError(""); // Clear any previous errors
           const billForReceipt = {
@@ -770,6 +779,7 @@ const BillingSection = () => {
     setItemError("");
     setFetchCategoryError("");
     setBillError(""); // Clear bill errors
+    setCashSettled(false);
   }, []);
 
   const handleNewBill = useCallback(() => {
@@ -1231,7 +1241,9 @@ const BillingSection = () => {
       {/* Submit Confirmation Modal - Simple Bill Creation */}
       <Modal show={showSubmitModal} onHide={handleCloseSubmitModal} centered backdrop="static" keyboard={false}>
         <Modal.Header closeButton className="bg-primary text-white">
-          <Modal.Title className="fw-bold">Confirm Billing</Modal.Title>
+          <Modal.Title className="fw-bold">
+            Confirm create bill: KES {(Number(totalAmount) || 0).toFixed(2)}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body className="py-4">
           <ErrorDisplay
@@ -1248,16 +1260,40 @@ const BillingSection = () => {
                 <div className="spinner-border text-primary mb-3" role="status" style={{ width: "3rem", height: "3rem" }}>
                   <span className="visually-hidden">Loading...</span>
                 </div>
-                <p className="fs-5 text-primary">Creating bill...</p>
-                <p className="text-muted">Please wait while we process your order</p>
+                <p className="fs-5 text-primary">{cashSettled ? "Creating & settling bill..." : "Creating bill..."}</p>
+                <p className="text-muted">{cashSettled ? "Please wait while we process and settle your order" : "Please wait while we process your order"}</p>
               </>
             ) : (
               <>
                 <i className="bi bi-receipt fs-1 text-primary mb-3 d-block"></i>
-                <p className="fs-5">Create bill with total amount:</p>
-                <h3 className="text-success fw-bold">${(Number(totalAmount) || 0).toFixed(2)}</h3>
-                <p className="text-muted">You can submit this bill for payment later in My Sales</p>
+                <h3 className="text-success fw-bold">KES {(Number(totalAmount) || 0).toFixed(2)}</h3>
               </>
+            )}
+          </div>
+          <div className="mt-4 pt-3 border-top">
+            <div className="d-flex align-items-center justify-content-between gap-3">
+              <div>
+                <div className="fw-semibold fs-6">Cash Settled</div>
+                <div className="text-muted small">Bill will be automatically submitted with cash payment</div>
+              </div>
+              <div className="form-check form-switch m-0" style={{ transform: "scale(1.6)", transformOrigin: "right center" }}>
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  id="cashSettledToggle"
+                  checked={cashSettled}
+                  onChange={(e) => setCashSettled(e.target.checked)}
+                  disabled={isSubmitting}
+                  style={{ cursor: "pointer" }}
+                />
+              </div>
+            </div>
+            {cashSettled && (
+              <div className="mt-2 alert alert-success py-2 px-3 mb-0 d-flex align-items-center gap-2">
+                <i className="bi bi-cash-coin fs-5"></i>
+                <span className="fw-medium">KES {(Number(totalAmount) || 0).toFixed(2)} will be recorded as cash payment</span>
+              </div>
             )}
           </div>
         </Modal.Body>
@@ -1279,7 +1315,12 @@ const BillingSection = () => {
             {isSubmitting ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                Creating...
+                {cashSettled ? "Creating & settling..." : "Creating..."}
+              </>
+            ) : cashSettled ? (
+              <>
+                <i className="bi bi-cash-coin me-1"></i>
+                Create &amp; Settle Bill
               </>
             ) : (
               <>
