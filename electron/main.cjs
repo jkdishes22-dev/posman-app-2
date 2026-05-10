@@ -513,6 +513,7 @@ function startNextServer() {
         let attempts = 0;
         const maxAttempts = 300; // ~120s at mixed intervals (30×200ms + 270×500ms)
         let pollTimedOut = false;
+        let pollResolved = false; // guard against concurrent in-flight requests all resolving at once
 
         const overallTimeout = setTimeout(() => {
             pollTimedOut = true;
@@ -522,20 +523,20 @@ function startNextServer() {
         }, 120000);
 
         function scheduleNextPoll() {
-            if (pollTimedOut) return;
+            if (pollTimedOut || pollResolved) return;
             const delay = attempts < 30 ? 200 : 500;
             setTimeout(pollOnce, delay);
         }
 
         function pollOnce() {
-            if (pollTimedOut) return;
+            if (pollTimedOut || pollResolved) return;
             attempts++;
             const http = require("http");
             if (verboseStartup || attempts === 1 || attempts % 20 === 0) {
                 logToFile(`Checking server readiness (attempt ${attempts}/${maxAttempts}) at http://${HOST}:${PORT}...`);
             }
             const req = http.get(`http://${HOST}:${PORT}`, (res) => {
-                if (pollTimedOut) return;
+                if (pollTimedOut || pollResolved) return;
                 if (verboseStartup) {
                     logToFile(`Server responded with status ${res.statusCode}`);
                 }
@@ -551,6 +552,7 @@ function startNextServer() {
                 // Next.js typically sets x-powered-by: Next.js
                 if (xPoweredBy.includes("Next.js") || contentType.includes("text/html")) {
                     if (res.statusCode === 200) {
+                        pollResolved = true;
                         clearTimeout(overallTimeout);
                         logToFile("Next.js server started successfully!");
                         resolve();
@@ -568,7 +570,7 @@ function startNextServer() {
                 if (verboseStartup || attempts % 20 === 0) {
                     logToFile(`Server not ready yet: ${error.message}`);
                 }
-                if (!pollTimedOut && attempts < maxAttempts) scheduleNextPoll();
+                if (!pollTimedOut && !pollResolved && attempts < maxAttempts) scheduleNextPoll();
             });
             req.setTimeout(2000, () => {
                 req.destroy();
