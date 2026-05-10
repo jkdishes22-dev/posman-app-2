@@ -9,11 +9,23 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") {
     return;
   }
+
+  const dynamicImport = new Function("p", "return import(p)") as (p: string) => Promise<any>;
+  const { closeConnection } = await dynamicImport("@backend/config/data-source");
+
+  process.once("SIGINT", async () => {
+    await closeConnection();
+    process.exit(0);
+  });
+  process.once("SIGTERM", async () => {
+    await closeConnection();
+    process.exit(0);
+  });
+
   // Keep dev startup lean and avoid bundling server-only DB modules in instrumentation.
   if (process.env.ENABLE_STARTUP_MIGRATIONS_HOOK !== "1") {
     return;
   }
-  const dynamicImport = new Function("p", "return import(p)") as (p: string) => Promise<any>;
   const { applyPendingMigrationsAtStartup } = await dynamicImport("@backend/config/startup-bootstrap");
   await applyPendingMigrationsAtStartup();
 }

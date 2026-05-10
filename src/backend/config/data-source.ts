@@ -76,15 +76,3 @@ export const resumeDatabaseAfterFileOperations = async (): Promise<void> => {
   connectionInstance = AppDataSource;
 };
 
-// Graceful shutdown handler - only set up if process.on exists (Node.js environment)
-if (typeof process !== "undefined" && typeof process.on === "function") {
-  process.on("SIGINT", async () => {
-    await closeConnection();
-    process.exit(0);
-  });
-
-  process.on("SIGTERM", async () => {
-    await closeConnection();
-    process.exit(0);
-  });
-}
