@@ -20,6 +20,11 @@
 /dist
 /dist-electron
 
+# sqlite database (runtime file, not source)
+posman.db
+posman.db-shm
+posman.db-wal
+
 # misc
 .DS_Store
 *.pem
