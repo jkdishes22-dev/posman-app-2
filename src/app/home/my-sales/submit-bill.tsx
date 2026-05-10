@@ -59,6 +59,12 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
     Number(computeTotalPaidFromPaymentFields(paymentMethod, cashAmount, mpesaAmount)) || 0;
   const pendingAmount = computePendingAmount(normalizedTotalAmount, normalizedTotalPaid);
 
+  // M-Pesa code is required whenever an M-Pesa amount is present
+  const isMpesaCodeMissing =
+    (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa") &&
+    Number(mpesaAmount) > 0 &&
+    !mpesaCode.trim();
+
   // Debounced M-Pesa reference validation
   useEffect(() => {
     if (mpesaCode && (paymentMethod === "mpesa" || paymentMethod === "cash_mpesa")) {
@@ -96,11 +102,21 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
     }
   }, [mpesaCode, paymentMethod, apiCall]);
 
+  // On modal open, autofill the amount for single-method selections
   useEffect(() => {
-    if (!show) return;
-    if (paymentMethod === "mpesa") setActiveField((f) => (f === "mpesaCode" ? f : "mpesaAmount"));
-    else if (paymentMethod === "cash") setActiveField((f) => (f === "mpesaCode" ? f : "cash"));
-  }, [show, paymentMethod]);
+    if (!show || !selectedBill) return;
+    const total = (Number(selectedBill.total) || 0).toString();
+    if (paymentMethod === "cash") {
+      setActiveField((f) => (f === "mpesaCode" ? f : "cash"));
+      setCashAmount(total);
+      setMpesaAmount("");
+    } else if (paymentMethod === "mpesa") {
+      setActiveField((f) => (f === "mpesaCode" ? f : "mpesaAmount"));
+      setMpesaAmount(total);
+      setCashAmount("");
+    }
+    // cash_mpesa: user splits manually — leave both blank
+  }, [show]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const keyboardMode: SubmitBillKeyboardMode =
     activeField === "mpesaCode" ? "alpha" : "numeric";
@@ -315,7 +331,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
     <Modal show={show} onHide={handleClose} size="lg" centered dialogClassName="submit-bill-modal-dialog">
       <Modal.Header closeButton className="py-2 px-3">
         <Modal.Title className="fs-6">
-          {selectedBill?.status === "reopened" ? "Resubmit" : "Submit"} Bill — Total <strong>{totalAmount}</strong>
+          {selectedBill?.status === "reopened" ? "Resubmit" : "Submit"} Bill{selectedBill ? <span className="text-muted fw-normal"> #{selectedBill.id}</span> : ""} — Total <strong>{totalAmount}</strong>
         </Modal.Title>
       </Modal.Header>
       <Modal.Body className="py-2 px-3">
@@ -356,7 +372,10 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                         autoComplete="off"
                         checked={paymentMethod === "cash"}
                         onChange={() => {
+                          const total = normalizedTotalAmount.toString();
                           setPaymentMethod("cash");
+                          setCashAmount(total);
+                          setMpesaAmount("");
                           setPaymentValidationError("");
                           setActiveField("cash");
                         }}
@@ -372,7 +391,10 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                         autoComplete="off"
                         checked={paymentMethod === "mpesa"}
                         onChange={() => {
+                          const total = normalizedTotalAmount.toString();
                           setPaymentMethod("mpesa");
+                          setMpesaAmount(total);
+                          setCashAmount("");
                           setPaymentValidationError("");
                           setActiveField("mpesaAmount");
                         }}
@@ -389,6 +411,8 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                         checked={paymentMethod === "cash_mpesa"}
                         onChange={() => {
                           setPaymentMethod("cash_mpesa");
+                          setCashAmount("");
+                          setMpesaAmount("");
                           setPaymentValidationError("");
                           setActiveField("cash");
                         }}
@@ -498,7 +522,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                         <span className="text-muted d-none d-sm-inline">·</span>
                         <span>
                           <span className="text-muted">Status</span>{" "}
-                          {isSubmitBillPaymentBalanced(normalizedTotalAmount, normalizedTotalPaid) && !paymentValidationError && !isValidatingReference ? (
+                          {isSubmitBillPaymentBalanced(normalizedTotalAmount, normalizedTotalPaid) && !isMpesaCodeMissing && !paymentValidationError && !isValidatingReference ? (
                             <strong className="text-success">OK</strong>
                           ) : (
                             <strong className="text-danger">Invalid</strong>
@@ -540,6 +564,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
             isSubmitting ||
             !selectedBill ||
             !isSubmitBillPaymentBalanced(normalizedTotalAmount, normalizedTotalPaid) ||
+            isMpesaCodeMissing ||
             paymentValidationError !== "" ||
             isValidatingReference
           }

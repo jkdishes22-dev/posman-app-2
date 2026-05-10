@@ -10,8 +10,7 @@ export async function register() {
     return;
   }
 
-  const dynamicImport = new Function("p", "return import(p)") as (p: string) => Promise<any>;
-  const { closeConnection } = await dynamicImport("@backend/config/data-source");
+  const { closeConnection } = await import("@backend/config/data-source");
 
   process.once("SIGINT", async () => {
     await closeConnection();
@@ -26,6 +25,6 @@ export async function register() {
   if (process.env.ENABLE_STARTUP_MIGRATIONS_HOOK !== "1") {
     return;
   }
-  const { applyPendingMigrationsAtStartup } = await dynamicImport("@backend/config/startup-bootstrap");
+  const { applyPendingMigrationsAtStartup } = await import("@backend/config/startup-bootstrap");
   await applyPendingMigrationsAtStartup();
 }

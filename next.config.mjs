@@ -43,7 +43,21 @@ const nextConfig = {
             "./src/backend/config/migrations/**/*.cjs",
         ],
     },
-    webpack: (config, { dev, isServer }) => {
+    webpack: (config, { dev, isServer, nextRuntime }) => {
+        // Edge/browser compilation passes can't resolve Node.js built-ins that
+        // typeorm/sqlite pull in transitively via instrumentation.ts — mark them
+        // as unavailable so webpack stops erroring in non-nodejs contexts.
+        if (nextRuntime !== "nodejs") {
+            config.resolve.fallback = {
+                ...(config.resolve.fallback || {}),
+                path: false,
+                fs: false,
+                os: false,
+                crypto: false,
+                // typeorm/browser includes ReactNativeDriver which requires this
+                "react-native-sqlite-storage": false,
+            };
+        }
         config.resolve.alias["@entities"] = path.resolve(__dirname, "src/backend/entities");
         config.resolve.alias["@services"] = path.resolve(__dirname, "src/backend/service");
         config.resolve.alias["@backend"] = path.resolve(__dirname, "src/backend");

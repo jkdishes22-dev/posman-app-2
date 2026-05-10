@@ -31,8 +31,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
     const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
     const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
-    const { user, logout } = useAuth();
-    const { currentStation } = useStation();
+    const { user } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 

@@ -178,16 +178,6 @@ export const ROLE_PERMISSIONS = {
         "can_delete_payment",
         "can_view_station",
         "can_view_user_station",
-        // Financial reports
-        "can_view_sales_revenue_report",
-        "can_view_invoices_pending_bills_report",
-        "can_view_production_stock_revenue_report",
-        "can_view_items_sold_count_report",
-        "can_view_voided_items_report",
-        "can_view_expenditure_report",
-        "can_view_purchase_orders_report",
-        "can_view_pnl_report",
-        "can_view_production_sales_reconciliation_report"
     ],
 
     storekeeper: [

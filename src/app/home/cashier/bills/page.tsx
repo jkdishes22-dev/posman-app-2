@@ -6,7 +6,7 @@ import { formatISO } from "date-fns";
 import FilterDatePicker from "../../../shared/FilterDatePicker";
 import { todayEAT } from "../../../shared/eatDate";
 import { dateToYmdEat, ymdToDateEat } from "../../../shared/filterDateUtils";
-import { Bill, BillPayment, User } from "src/app/types/types";
+import { Bill, BillItem, BillPayment, User } from "src/app/types/types";
 import { Modal, Button, Form } from "react-bootstrap";
 import Pagination from "../../../components/Pagination";
 import { decodeJwt } from "../../../utils/tokenUtils";
@@ -81,7 +81,13 @@ const CashierBillsPage = () => {
   const [closeBillError, setCloseBillError] = useState("");
   const [showModal, setShowCloseBillModal] = useState(false);
   const [showCloseBillSuccessModal, setShowCloseBillSuccessModal] = useState(false);
-  const [closedBillInfo, setClosedBillInfo] = useState<{ id: number; total: number } | null>(null);
+  const [closedBillInfo, setClosedBillInfo] = useState<{
+    id: number;
+    total: number;
+    user: { firstName: string; lastName: string };
+    items: { name: string; quantity: number; subtotal: number }[];
+    payments: { paymentType: string; creditAmount: number; reference?: string }[];
+  } | null>(null);
   const [searchBillId, setSearchBillId] = useState("");
   const [billIdInput, setBillIdInput] = useState("");
   const [page, setPage] = useState(1);
@@ -508,7 +514,25 @@ const CashierBillsPage = () => {
         // Store bill info for success modal
         setClosedBillInfo({
           id: selectedBill.id,
-          total: selectedBill.total || 0
+          total: selectedBill.total || 0,
+          user: {
+            firstName: selectedBill.user.firstName,
+            lastName: selectedBill.user.lastName,
+          },
+          items: (selectedBill.bill_items || [])
+            .filter((i: BillItem) => i.status !== "voided")
+            .map((i: BillItem) => ({
+              name: i.item.name,
+              quantity: i.quantity,
+              subtotal: i.subtotal,
+            })),
+          payments: (selectedBill.bill_payments as BillPayment[] || []).map(
+            (bp: BillPayment) => ({
+              paymentType: bp.payment.paymentType,
+              creditAmount: bp.payment.creditAmount,
+              reference: bp.payment.reference || undefined,
+            })
+          ),
         });
         await fetchBills();
         setSelectedBill(null);
@@ -1662,14 +1686,44 @@ const CashierBillsPage = () => {
         <Modal.Body>
           {closedBillInfo && (
             <div>
-              <div className="alert alert-success">
+              <div className="alert alert-success py-2 mb-3">
                 <i className="bi bi-check-circle me-2"></i>
-                <strong>Bill {closedBillInfo.id} has been closed successfully.</strong>
+                Bill <strong>#{closedBillInfo.id}</strong> closed — served by{" "}
+                <strong>{closedBillInfo.user.firstName} {closedBillInfo.user.lastName}</strong>
               </div>
-              <div className="mt-3">
-                <p className="mb-1"><strong>Bill ID:</strong> {closedBillInfo.id}</p>
-                <p className="mb-0"><strong>Total Amount:</strong> ${(Number(closedBillInfo.total) || 0).toFixed(2)}</p>
-              </div>
+
+              {/* Items */}
+              <table className="table table-sm mb-0">
+                <tbody>
+                  {closedBillInfo.items.map((item, i) => (
+                    <tr key={i}>
+                      <td className="py-1 border-0">{item.name}</td>
+                      <td className="text-center py-1 border-0 text-muted">×{item.quantity}</td>
+                      <td className="text-end py-1 border-0">KES {(Number(item.subtotal) || 0).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-top fw-semibold">
+                    <td colSpan={2} className="py-1">Total</td>
+                    <td className="text-end py-1">KES {(Number(closedBillInfo.total) || 0).toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* Payments */}
+              {closedBillInfo.payments.length > 0 && (
+                <div className="border-top pt-2 mt-1">
+                  {closedBillInfo.payments.map((p, i) => (
+                    <div key={i} className="d-flex justify-content-between small">
+                      <span>
+                        <i className={`bi ${p.paymentType === "MPESA" ? "bi-phone text-success" : "bi-cash text-primary"} me-1`}></i>
+                        {p.paymentType}
+                        {p.reference && <span className="text-muted ms-1">({p.reference})</span>}
+                      </span>
+                      <span>KES {(Number(p.creditAmount) || 0).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </Modal.Body>

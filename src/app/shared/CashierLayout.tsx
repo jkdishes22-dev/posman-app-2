@@ -62,74 +62,6 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
                 { label: "Bills", path: "/home/cashier/bills" }
             ];
         }
-        // Reports section
-        else if (path.includes("/admin/reports")) {
-            expandedMenuIds.push("reports");
-            if (path === "/admin/reports" || path === "/admin/reports/") {
-                activeItemId = "reports-dashboard";
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/home/cashier" },
-                    { label: "Reports", path: "/admin/reports" }
-                ];
-            } else if (path.includes("/admin/reports/sales-revenue")) {
-                activeItemId = "reports-sales-revenue";
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/home/cashier" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Sales Revenue", path: "/admin/reports/sales-revenue" }
-                ];
-            } else if (path.includes("/admin/reports/production-stock-revenue")) {
-                activeItemId = "reports-production-stock-revenue";
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/home/cashier" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Production/Stock Revenue", path: "/admin/reports/production-stock-revenue" }
-                ];
-            } else if (path.includes("/admin/reports/items-sold-count")) {
-                activeItemId = "reports-items-sold-count";
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/home/cashier" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Items Sold Count", path: "/admin/reports/items-sold-count" }
-                ];
-            } else if (path.includes("/admin/reports/voided-items")) {
-                activeItemId = "reports-voided-items";
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/home/cashier" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Voided Items", path: "/admin/reports/voided-items" }
-                ];
-            } else if (path.includes("/admin/reports/expenditure")) {
-                activeItemId = "reports-expenditure";
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/home/cashier" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Expenditure", path: "/admin/reports/expenditure" }
-                ];
-            } else if (path.includes("/admin/reports/invoices-pending-bills")) {
-                activeItemId = "reports-invoices-pending-bills";
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/home/cashier" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Invoices & Pending Bills", path: "/admin/reports/invoices-pending-bills" }
-                ];
-            } else if (path.includes("/admin/reports/purchase-orders")) {
-                activeItemId = "reports-purchase-orders";
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/home/cashier" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Purchase Orders", path: "/admin/reports/purchase-orders" }
-                ];
-            } else if (path.includes("/admin/reports/pnl")) {
-                activeItemId = "reports-pnl";
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/home/cashier" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Profit & Loss", path: "/admin/reports/pnl" }
-                ];
-            }
-        }
-
         setActiveItem(activeItemId);
         setBreadcrumbs(breadcrumbItems);
         setExpandedMenus(expandedMenuIds);
@@ -185,67 +117,6 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
             icon: "bi-receipt",
             path: "/home/cashier/bills",
         },
-        {
-            id: "reports",
-            label: "Reports",
-            icon: "bi-bar-chart",
-            submenu: [
-                {
-                    id: "reports-dashboard",
-                    label: "Dashboard",
-                    icon: "bi-speedometer2",
-                    path: "/admin/reports",
-                },
-                {
-                    id: "reports-sales-revenue",
-                    label: "Sales Revenue",
-                    icon: "bi-currency-dollar",
-                    path: "/admin/reports/sales-revenue",
-                },
-                {
-                    id: "reports-production-stock-revenue",
-                    label: "Production/Stock Revenue",
-                    icon: "bi-box-seam",
-                    path: "/admin/reports/production-stock-revenue",
-                },
-                {
-                    id: "reports-items-sold-count",
-                    label: "Items Sold Count",
-                    icon: "bi-cart",
-                    path: "/admin/reports/items-sold-count",
-                },
-                {
-                    id: "reports-voided-items",
-                    label: "Voided Items",
-                    icon: "bi-exclamation-triangle",
-                    path: "/admin/reports/voided-items",
-                },
-                {
-                    id: "reports-expenditure",
-                    label: "Expenditure",
-                    icon: "bi-cash-stack",
-                    path: "/admin/reports/expenditure",
-                },
-                {
-                    id: "reports-invoices-pending-bills",
-                    label: "Invoices & Pending Bills",
-                    icon: "bi-file-earmark-text",
-                    path: "/admin/reports/invoices-pending-bills",
-                },
-                {
-                    id: "reports-purchase-orders",
-                    label: "Purchase Orders",
-                    icon: "bi-cart-check",
-                    path: "/admin/reports/purchase-orders",
-                },
-                {
-                    id: "reports-pnl",
-                    label: "Profit & Loss",
-                    icon: "bi-graph-up-arrow",
-                    path: "/admin/reports/pnl",
-                },
-            ],
-        },
     ];
 
     useEffect(() => {
@@ -269,13 +140,7 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
             .catch(() => {});
     }, []);
 
-    const visibleMenuItems = menuItems
-        .filter((item) => !hiddenMenuIds.has(item.id))
-        .map((item) => ({
-            ...item,
-            submenu: item.submenu?.filter((sub) => !hiddenMenuIds.has(sub.id)),
-        }))
-        .filter((item) => !item.submenu || item.submenu.length > 0);
+    const visibleMenuItems = menuItems.filter((item) => !hiddenMenuIds.has(item.id));
 
     return (
         <div className="d-flex vh-100">
@@ -325,64 +190,18 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
                     <ul className="nav nav-pills flex-column">
                         {visibleMenuItems.map((item) => (
                             <li key={item.id} className="nav-item mb-2">
-                                {item.submenu ? (
-                                    <div>
-                                        <button
-                                            className={`nav-link w-100 text-start d-flex align-items-center ${expandedMenus.includes(item.id) ? "" : ""}`}
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                toggleMenu(item.id);
-                                            }}
-                                            style={{
-                                                background: "transparent",
-                                                border: "none",
-                                                color: "rgba(255,255,255,0.8)",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            <i className={`bi ${item.icon} me-3`}></i>
-                                            {!isCollapsed && <span>{item.label}</span>}
-                                            {!isCollapsed && (
-                                                <i className={`bi ${expandedMenus.includes(item.id) ? "bi-chevron-up" : "bi-chevron-down"} ms-auto`}></i>
-                                            )}
-                                        </button>
-                                        {!isCollapsed && expandedMenus.includes(item.id) && (
-                                            <ul className="nav nav-pills flex-column ms-3 mt-1">
-                                                {item.submenu.map((subItem) => (
-                                                    <li key={subItem.id} className="nav-item mb-1">
-                                                        <button
-                                                            className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === subItem.id ? "active" : ""}`}
-                                                            onClick={(e) => handleItemClick(subItem.id, subItem.path, e)}
-                                                            style={{
-                                                                background: activeItem === subItem.id ? "var(--bs-primary)" : "transparent",
-                                                                border: "none",
-                                                                color: activeItem === subItem.id ? "white" : "rgba(255,255,255,0.8)",
-                                                                fontSize: "0.9rem",
-                                                                padding: "0.5rem 0.75rem",
-                                                            }}
-                                                        >
-                                                            <i className={`bi ${subItem.icon} me-2`}></i>
-                                                            {subItem.label}
-                                                        </button>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <button
-                                        className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""}`}
-                                        onClick={(e) => handleItemClick(item.id, item.path, e)}
-                                        style={{
-                                            background: activeItem === item.id ? "var(--bs-primary)" : "transparent",
-                                            border: "none",
-                                            color: activeItem === item.id ? "white" : "rgba(255,255,255,0.8)",
-                                        }}
-                                    >
-                                        <i className={`bi ${item.icon} me-3`}></i>
-                                        {!isCollapsed && <span>{item.label}</span>}
-                                    </button>
-                                )}
+                                <button
+                                    className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""}`}
+                                    onClick={(e) => handleItemClick(item.id, item.path, e)}
+                                    style={{
+                                        background: activeItem === item.id ? "var(--bs-primary)" : "transparent",
+                                        border: "none",
+                                        color: activeItem === item.id ? "white" : "rgba(255,255,255,0.8)",
+                                    }}
+                                >
+                                    <i className={`bi ${item.icon} me-3`}></i>
+                                    {!isCollapsed && <span>{item.label}</span>}
+                                </button>
                             </li>
                         ))}
                     </ul>

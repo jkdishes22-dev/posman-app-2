@@ -126,19 +126,6 @@ const ROLE_MENUS: Record<string, MenuNode[]> = {
     cashier: [
         { id: "dashboard", label: "Dashboard" },
         { id: "bills", label: "Bills" },
-        {
-            id: "reports", label: "Reports", children: [
-                { id: "reports-dashboard", label: "Dashboard" },
-                { id: "reports-sales-revenue", label: "Sales Revenue" },
-                { id: "reports-production-stock-revenue", label: "Production/Stock Revenue" },
-                { id: "reports-items-sold-count", label: "Items Sold Count" },
-                { id: "reports-voided-items", label: "Voided Items" },
-                { id: "reports-expenditure", label: "Expenditure" },
-                { id: "reports-invoices-pending-bills", label: "Invoices & Pending Bills" },
-                { id: "reports-purchase-orders", label: "Purchase Orders" },
-                { id: "reports-pnl", label: "Profit & Loss" },
-            ],
-        },
     ],
     storekeeper: [
         { id: "dashboard", label: "Dashboard" },
