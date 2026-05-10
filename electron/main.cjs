@@ -72,6 +72,7 @@ function getTodayLogFilename() {
 }
 
 const logDir = resolveLogDir();
+let logDirEnsured = false;
 
 function normalizePem(input) {
     return String(input || "").replace(/\r\n/g, "\n").trim();
@@ -184,10 +185,12 @@ function resolveLicensePublicKeyForRuntime() {
 }
 
 function ensureLogDir() {
+    if (logDirEnsured) return;
     try {
         if (!fs.existsSync(logDir)) {
             fs.mkdirSync(logDir, { recursive: true });
         }
+        logDirEnsured = true;
     } catch (_) {
         // Continue without file logging if directory cannot be created
     }

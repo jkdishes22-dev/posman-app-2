@@ -394,6 +394,30 @@ async function hasCoreSchema(): Promise<boolean> {
 
 // --- SQLite-specific bootstrap ---
 
+const INTEGRITY_CHECK_KEY = "sqlite_integrity_check";
+const INTEGRITY_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+async function shouldRunIntegrityCheck(ds: DataSource): Promise<boolean> {
+  try {
+    const rows = await ds.query("SELECT value FROM system_settings WHERE key = ?", [INTEGRITY_CHECK_KEY]);
+    if (!rows?.length) return true;
+    const { last_checked_at } = JSON.parse(rows[0].value);
+    return Date.now() - (last_checked_at ?? 0) > INTEGRITY_CHECK_INTERVAL_MS;
+  } catch {
+    return true;
+  }
+}
+
+async function recordIntegrityCheckRan(ds: DataSource): Promise<void> {
+  const value = JSON.stringify({ last_checked_at: Date.now() });
+  await ds.query(
+    `INSERT INTO system_settings (key, value, updated_at)
+     VALUES (?, ?, datetime('now'))
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+    [INTEGRITY_CHECK_KEY, value],
+  );
+}
+
 /**
  * Apply pending TypeORM migrations when the Node server process boots (Next instrumentation).
  * Covers fresh installs, Electron upgrades/restarts, and dev — before the first HTTP request.
@@ -425,6 +449,10 @@ export async function applyPendingMigrationsAtStartup(): Promise<void> {
         `[startup] Applied ${executedList.length} pending migration(s): ${executedList.map((m) => m.name).join(", ")}`,
       );
     }
+    if (await shouldRunIntegrityCheck(AppDataSource)) {
+      await assertSqliteQuickCheckOrThrow(AppDataSource);
+      await recordIntegrityCheckRan(AppDataSource);
+    }
     migrationsAppliedThisProcess = true;
   } catch (err: any) {
     if (sqlite) {
@@ -447,7 +475,10 @@ async function checkSqliteStatus(): Promise<SetupStatusPayload> {
     if (!migrationsAppliedThisProcess) {
       await AppDataSource.runMigrations();
     }
-    await assertSqliteQuickCheckOrThrow(AppDataSource);
+    if (await shouldRunIntegrityCheck(AppDataSource)) {
+      await assertSqliteQuickCheckOrThrow(AppDataSource);
+      await recordIntegrityCheckRan(AppDataSource);
+    }
     const requiredTables = ["user", "roles", "permissions", "user_roles", "role_permissions"];
     const placeholders = requiredTables.map(() => "?").join(",");
     const result = await AppDataSource.query(
