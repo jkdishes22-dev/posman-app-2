@@ -5,6 +5,7 @@ import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import PricelistAdd from "./pricelist-new";
 import ViewItems from "../category/components/items/items-view";
 import ItemAdd from "../category/components/items/items-new";
+import AddSubItemModal from "../recipes/new";
 import { Button, Form } from "react-bootstrap";
 import { AuthError } from "src/app/types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
@@ -58,6 +59,10 @@ export default function PricelistPage() {
   const [addPricelistErrorDetails, setAddPricelistErrorDetails] = useState<any>(null);
   const [itemError, setItemError] = useState<string>("");
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+  const [recipeModalItemId, setRecipeModalItemId] = useState<number | null>(null);
+  const [showRecipeModal, setShowRecipeModal] = useState(false);
+  const [recipeAddError, setRecipeAddError] = useState<string | null>(null);
+  const [recipeRefreshItemId, setRecipeRefreshItemId] = useState<number | null>(null);
   const apiCall = useApiCall();
 
   useEffect(() => {
@@ -291,6 +296,35 @@ export default function PricelistPage() {
     } catch (error: any) {
       console.error("Failed to delete item from pricelist", error);
       setItemError("Failed to delete item: " + error.message);
+    }
+  };
+
+  const handleManageRecipe = (item: any) => {
+    setRecipeModalItemId(item.id);
+    setShowRecipeModal(true);
+  };
+
+  const addSubItemToRecipe = async (subItemId: string, portionSize: string) => {
+    if (!recipeModalItemId) return;
+    try {
+      setRecipeAddError(null);
+      const result = await apiCall(`/api/production/${recipeModalItemId}/sub-items`, {
+        method: "POST",
+        body: JSON.stringify({ subItemId, portionSize }),
+      });
+      if (result.status === 200) {
+        const addedForItem = recipeModalItemId;
+        setShowRecipeModal(false);
+        setRecipeModalItemId(null);
+        setRecipeRefreshItemId(addedForItem);
+        if (selectedPricelistId) {
+          fetchPricelistItems(selectedPricelistId, true);
+        }
+      } else {
+        setRecipeAddError(result.error || "Failed to add ingredient");
+      }
+    } catch {
+      setRecipeAddError("Network error occurred");
     }
   };
 
@@ -634,6 +668,8 @@ export default function PricelistPage() {
                       fetchPricelistItems(selectedPricelistId, true);
                     }
                   }}
+                  onManageRecipe={handleManageRecipe}
+                  refreshSubItemsFor={recipeRefreshItemId}
                 />
 
                 {/* Pagination Controls */}
@@ -790,6 +826,15 @@ export default function PricelistPage() {
           </div>
         )}
       </div>
+
+      <AddSubItemModal
+        isModalOpen={showRecipeModal}
+        closeModal={() => { setShowRecipeModal(false); setRecipeModalItemId(null); }}
+        addSubItemToItem={addSubItemToRecipe}
+        addSubItemError={recipeAddError}
+        setAddSubItemError={setRecipeAddError}
+        selectedGroupItemId={recipeModalItemId}
+      />
     </RoleAwareLayout>
   );
 }

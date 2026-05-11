@@ -26,6 +26,8 @@ interface ViewItemsProps {
   onExpandedChange?: (hasExpanded: boolean) => void;
   onItemUpdated?: () => void; // Callback to refresh items after edit
   missingConstituents?: Record<number, Array<{ itemId: number; itemName: string; available: number; required: number }>>;
+  onManageRecipe?: (item: Item) => void;
+  refreshSubItemsFor?: number | null;
 }
 
 const ViewItemsComponent: React.FC<ViewItemsProps> = ({
@@ -48,6 +50,8 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
   onExpandedChange,
   onItemUpdated,
   missingConstituents = {},
+  onManageRecipe,
+  refreshSubItemsFor,
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [showEditModal, setShowEditModal] = useState<boolean>(false);
@@ -66,6 +70,21 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
   const searchRef = useRef<HTMLDivElement>(null);
 
   const apiCall = useApiCall();
+
+  // When a recipe is added externally, bust the cache; re-fetch immediately if expanded
+  useEffect(() => {
+    if (refreshSubItemsFor == null) return;
+    if (expandedItems.has(refreshSubItemsFor)) {
+      fetchSubItems(refreshSubItemsFor, true);
+    } else {
+      setSubItemsData(prev => {
+        const next = { ...prev };
+        delete next[refreshSubItemsFor];
+        return next;
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshSubItemsFor]);
 
   // Clear highlight after 3 seconds
   useEffect(() => {
@@ -156,10 +175,16 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
     }
   }, [itemToDelete, handleDeleteItem]);
 
-  const fetchSubItems = async (itemId: number) => {
-    if (subItemsData[itemId]) {
+  const fetchSubItems = async (itemId: number, force = false) => {
+    if (!force && subItemsData[itemId]) {
       return; // Already fetched
     }
+    setSubItemsData(prev => {
+      if (!force) return prev;
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
 
     setLoadingSubItems(prev => new Set(prev).add(itemId));
 
@@ -461,6 +486,15 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
                             >
                               <i className="bi bi-pencil"></i>
                             </button>
+                            {item.isGroup && onManageRecipe && (
+                              <button
+                                className="btn btn-outline-secondary btn-sm"
+                                onClick={() => onManageRecipe(item)}
+                                title="Manage recipe"
+                              >
+                                <i className="bi bi-journal-text"></i>
+                              </button>
+                            )}
                             {handleDeleteItem && (
                               <button
                                 className="btn btn-outline-danger btn-sm"
@@ -566,6 +600,18 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
                                       </div>
                                     ) : (
                                       // Full table for non-billing sections
+                                      <>
+                                      {onManageRecipe && (
+                                        <div className="d-flex justify-content-end mb-2">
+                                          <button
+                                            className="btn btn-success btn-sm"
+                                            onClick={() => onManageRecipe(item)}
+                                          >
+                                            <i className="bi bi-plus-circle me-1"></i>
+                                            Add Ingredient
+                                          </button>
+                                        </div>
+                                      )}
                                       <table className={`table table-sm table-bordered mb-0 ${styles.ingredientTable}`}>
                                         <thead className="table-light">
                                           <tr>
@@ -590,12 +636,24 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
                                           ))}
                                         </tbody>
                                       </table>
+                                      </>
                                     )}
                                   </div>
                                 ) : (
                                   <div className="text-center py-3 text-muted">
                                     <i className="bi bi-inbox me-2"></i>
                                     No ingredients found for this composite item.
+                                    {onManageRecipe && (
+                                      <div className="mt-2">
+                                        <button
+                                          className="btn btn-success btn-sm"
+                                          onClick={() => onManageRecipe(item)}
+                                        >
+                                          <i className="bi bi-plus-circle me-1"></i>
+                                          Add Ingredient
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>

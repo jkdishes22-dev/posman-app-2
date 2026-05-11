@@ -3,6 +3,7 @@ import { Modal, Button, Form } from "react-bootstrap";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import HelpPopover from "../../../components/HelpPopover";
 
 function AddSubItemModal({
   isModalOpen,
@@ -145,7 +146,12 @@ function AddSubItemModal({
         />
         <Form onSubmit={handleSubmit}>
           <Form.Group controlId="formPricelistId" className="mb-3">
-            <Form.Label>Pricelist <span className="text-muted small">(Auto-selected from the composite item)</span></Form.Label>
+            <Form.Label className="d-flex align-items-center gap-1">
+              Pricelist
+              <HelpPopover id="recipe-pricelist" title="Pricelist">
+                Automatically set to the pricelist that contains the selected composite item. It cannot be changed here.
+              </HelpPopover>
+            </Form.Label>
             <Form.Control
               as="select"
               value={selectedPricelistId}
@@ -161,8 +167,13 @@ function AddSubItemModal({
             </Form.Control>
           </Form.Group>
 
-          <Form.Group controlId="formSubItemId">
-            <Form.Label>Ingredient Item <span className="text-muted small">(Any sellable non-group item in this pricelist)</span></Form.Label>
+          <Form.Group controlId="formSubItemId" className="mb-3">
+            <Form.Label className="d-flex align-items-center gap-1">
+              Ingredient Item
+              <HelpPopover id="recipe-ingredient" title="Ingredient item">
+                Any sellable, non-composite item in the same pricelist. This is the stock line that will be deducted when the composite item is sold.
+              </HelpPopover>
+            </Form.Label>
             {loadingItems ? (
               <div className="text-center py-3">
                 <div className="spinner-border spinner-border-sm" role="status">
@@ -192,19 +203,23 @@ function AddSubItemModal({
             )}
           </Form.Group>
 
-          <Form.Group controlId="formDeductiblePortion">
-            <Form.Label>Portion Size <span className="text-muted small">(Amount deducted per unit sold)</span></Form.Label>
+          <hr className="my-2" />
+          <Form.Group controlId="formDeductiblePortion" className="mb-3">
+            <Form.Label className="d-flex align-items-center gap-1">
+              Portion Size
+              <HelpPopover id="recipe-portion" title="Portion size">
+                Amount of this ingredient deducted per <strong>one unit</strong> of the composite item sold.
+                For example, enter <code>2</code> to deduct 2 units of this ingredient each time the composite is sold.
+              </HelpPopover>
+            </Form.Label>
             <Form.Control
               type="number"
               step="0.01"
               min="0"
-              placeholder="e.g., 2 for 2 units, 0.5 for 0.5 units"
+              placeholder="e.g. 2 or 0.5"
               value={deductiblePortion}
               onChange={(e) => setDeductiblePortion(e.target.value)}
             />
-            <Form.Text className="text-muted">
-              When 1 unit of this composite item is sold, this amount will be deducted from each selected ingredient item.
-            </Form.Text>
           </Form.Group>
           <Button variant="primary" type="submit">
             Add Ingredient
