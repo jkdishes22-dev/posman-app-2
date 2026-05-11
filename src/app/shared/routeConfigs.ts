@@ -88,6 +88,8 @@ export const adminRoutes: RouteEntry[] = sortRoutes([
   { pattern: "/admin/production", activeItem: "production-issuing", expandedMenuIds: ["production"], breadcrumbs: [DA, { label: "Production", path: "/admin/production" }, { label: "Issue Production", path: "/admin/production" }] },
   // Bills
   { pattern: "/admin/bill", activeItem: "bills", expandedMenuIds: [], breadcrumbs: [DA, { label: "Bill", path: "/admin/bill" }] },
+  // Expenses
+  { pattern: "/admin/expenses", activeItem: "expenses", expandedMenuIds: [], breadcrumbs: [DA, { label: "Expenses", path: "/admin/expenses" }] },
   // Suppliers (storekeeper paths)
   { pattern: "/storekeeper/suppliers/transactions", activeItem: "suppliers-transactions", expandedMenuIds: ["suppliers"], breadcrumbs: [DA, SUPPLIERS_ADM, { label: "Supplier payments", path: "/storekeeper/suppliers/transactions" }] },
   { pattern: "/storekeeper/purchase-orders", activeItem: "suppliers-purchase-orders", expandedMenuIds: ["suppliers"], breadcrumbs: [DA, SUPPLIERS_ADM, { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }] },

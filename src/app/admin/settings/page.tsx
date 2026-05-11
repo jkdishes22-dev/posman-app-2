@@ -25,7 +25,7 @@ interface PrinterInfo {
 interface PrinterSettings {
     print_after_create_bill: boolean;
     printer_name: string;
-    auto_print_copy_mode: "customer" | "kitchen" | "both";
+    auto_print_copy_mode: "customer" | "business" | "both";
 }
 
 interface BillSettings {
@@ -1045,7 +1045,7 @@ export default function AdminSettingsPage() {
                                     />
                                     <HelpPopover id="auto-print-detail" title="Auto-print behaviour" wide>
                                         <p className="mb-2">
-                                            When on, saving a new bill from billing prints two jobs (customer copy with totals first, then kitchen/captain ticket).
+                                            When on, saving a new bill from billing prints two jobs (customer copy with totals first, then business copy).
                                             Closing a bill never prints automatically.
                                         </p>
                                         <p className="mb-0">
@@ -1065,7 +1065,7 @@ export default function AdminSettingsPage() {
                                         }
                                     >
                                         <option value="customer">Print customer copy only</option>
-                                        <option value="kitchen">Print kitchen / business copy only</option>
+                                        <option value="business">Print business copy only</option>
                                         <option value="both">Print both (customer and business copy)</option>
                                     </Form.Select>
                                     <Form.Text className="text-muted">

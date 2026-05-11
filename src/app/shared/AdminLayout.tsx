@@ -159,6 +159,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       path: "/admin/bill",
     },
     {
+      id: "expenses",
+      label: "Expenses",
+      icon: "bi-cash-stack",
+      path: "/admin/expenses",
+    },
+    {
       id: "suppliers",
       label: "Suppliers",
       icon: "bi-truck",

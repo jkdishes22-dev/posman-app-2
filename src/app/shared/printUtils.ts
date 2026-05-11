@@ -70,7 +70,7 @@ function billIdForLog(bill: any): string | number {
 }
 
 /**
- * Two print jobs: Customer Copy (with totals) first, then Captain Order (kitchen list, no totals).
+ * Two print jobs: Customer Copy (with totals) first, then Business/Captain copy (no totals).
  * ESC/POS cut (if the driver honors it) is appended only on the last job. Includes extra blank
  * bands between jobs for tear/cut room.
  */

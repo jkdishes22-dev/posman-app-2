@@ -92,7 +92,7 @@ const BillingSection = () => {
   /** When true, print customer + captain (2 jobs) after creating a pending bill from billing. Cashier close bill never prints; My Sales Print is customer copy only. */
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintPrinterName, setAutoPrintPrinterName] = useState("");
-  const [autoPrintCopyMode, setAutoPrintCopyMode] = useState<"customer" | "kitchen" | "both">("both");
+  const [autoPrintCopyMode, setAutoPrintCopyMode] = useState<"customer" | "business" | "both">("both");
   const [showTax, setShowTax] = useState(true);
   const [receiptBranding, setReceiptBranding] = useState<ReceiptBranding>(() => defaultReceiptBranding());
 
@@ -668,7 +668,7 @@ const BillingSection = () => {
                 } else {
                   logClientFromRenderer(`create-bill: auto-print finished OK billId=${billForReceipt.id} mode=customer`);
                 }
-              } else if (autoPrintCopyMode === "kitchen") {
+              } else if (autoPrintCopyMode === "business") {
                 const captainPrint = await printCaptainCopyOnly(
                   billForReceipt,
                   autoPrintPrinterName || undefined,
@@ -680,7 +680,7 @@ const BillingSection = () => {
                     "WARN",
                   );
                 } else {
-                  logClientFromRenderer(`create-bill: auto-print finished OK billId=${billForReceipt.id} mode=kitchen`);
+                  logClientFromRenderer(`create-bill: auto-print finished OK billId=${billForReceipt.id} mode=business`);
                 }
               } else {
                 const { captain: captainPrint, customer: customerPrint } = await printCaptainOrderAndCustomerCopy(
@@ -740,8 +740,15 @@ const BillingSection = () => {
 
   const handlePrint = async () => {
     if (!createdBill) return;
-    logClientFromRenderer(`print: manual pending bill (billing) customer+captain billId=${createdBill.id}`);
-    await printCaptainOrderAndCustomerCopy(createdBill, undefined, { showTax, receiptBranding });
+    const printer = autoPrintPrinterName || undefined;
+    logClientFromRenderer(`print: manual pending bill (billing) mode=${autoPrintCopyMode} printer=${printer ?? "default"} billId=${createdBill.id}`);
+    if (autoPrintCopyMode === "customer") {
+      await printCustomerCopyOnly(createdBill, printer, { showTax, receiptBranding });
+    } else if (autoPrintCopyMode === "business") {
+      await printCaptainCopyOnly(createdBill, printer, { showTax, receiptBranding });
+    } else {
+      await printCaptainOrderAndCustomerCopy(createdBill, printer, { showTax, receiptBranding });
+    }
   };
 
   const handleDownload = async () => {
