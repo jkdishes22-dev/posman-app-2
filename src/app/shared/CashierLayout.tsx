@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import AppVersion from "../components/AppVersion";
 import StationSwitcher from "../components/StationSwitcher";
 import { AuthError } from "../types/types";
+import { useNavigation } from "../hooks/useNavigation";
+import { cashierRoutes, CASHIER_DEFAULT_BREADCRUMB } from "./routeConfigs";
 
 interface CashierLayoutProps {
     children: React.ReactNode;
@@ -25,14 +27,11 @@ function getCashierExpandedSidebarWidth(): number {
 const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [sidebarWidth, setSidebarWidth] = useState(250);
-    const [activeItem, setActiveItem] = useState("");
-    const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
-    const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
     const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
+    const { activeItem, setActiveItem, breadcrumbs, expandedMenus, setExpandedMenus } = useNavigation(cashierRoutes, CASHIER_DEFAULT_BREADCRUMB);
     const { user, logout } = useAuth();
     const { currentStation } = useStation();
     const router = useRouter();
-    const pathname = usePathname();
 
     useEffect(() => {
         const update = () => setSidebarWidth(getCashierExpandedSidebarWidth());
@@ -41,31 +40,6 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
         return () => window.removeEventListener("resize", update);
     }, []);
 
-    useEffect(() => {
-        // Set active item and breadcrumbs based on current path
-        const path = pathname;
-        let activeItemId = "";
-        let breadcrumbItems: Array<{ label: string, path: string }> = [];
-        const expandedMenuIds: string[] = [];
-
-        // Dashboard
-        if (path === "/home/cashier" || path === "/home/cashier/") {
-            activeItemId = "dashboard";
-            breadcrumbItems = [{ label: "Dashboard", path: "/home/cashier" }];
-        }
-        // Bills section
-        else if (path.includes("/home/cashier/bills")) {
-            expandedMenuIds.push("bills");
-            activeItemId = "bills";
-            breadcrumbItems = [
-                { label: "Dashboard", path: "/home/cashier" },
-                { label: "Bills", path: "/home/cashier/bills" }
-            ];
-        }
-        setActiveItem(activeItemId);
-        setBreadcrumbs(breadcrumbItems);
-        setExpandedMenus(expandedMenuIds);
-    }, [pathname]);
 
     const toggleMenu = (menuId: string) => {
         const menuItem = menuItems.find(item => item.id === menuId);

@@ -1,15 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
-import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import AppVersion from "../components/AppVersion";
 import StationSwitcher from "../components/StationSwitcher";
 import { AuthError } from "../types/types";
 import { useTooltips } from "../hooks/useTooltips";
+import { useNavigation } from "../hooks/useNavigation";
+import { supervisorRoutes, SUPERVISOR_DEFAULT_BREADCRUMB } from "./routeConfigs";
 
 interface SupervisorLayoutProps {
     children: React.ReactNode;
@@ -27,13 +28,10 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
     useTooltips();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [sidebarWidth, setSidebarWidth] = useState(280);
-    const [activeItem, setActiveItem] = useState("");
-    const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
-    const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
     const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
+    const { activeItem, setActiveItem, breadcrumbs, expandedMenus, setExpandedMenus } = useNavigation(supervisorRoutes, SUPERVISOR_DEFAULT_BREADCRUMB);
     const { user } = useAuth();
     const router = useRouter();
-    const pathname = usePathname();
 
     useEffect(() => {
         const update = () => setSidebarWidth(getExpandedSidebarWidth());
@@ -42,233 +40,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         return () => window.removeEventListener("resize", update);
     }, []);
 
-    useEffect(() => {
-        // Set active item based on current path - Rule 5.13: Active State Management
-        const path = pathname;
-
-        // Path to active item mapping
-        const pathToActiveItemMap = [
-            { path: "/supervisor", item: "dashboard" },
-            { path: "/supervisor/", item: "dashboard" },
-            { path: "/supervisor/bills", item: "bills-manage" },
-            { path: "/home/billing", item: "bills-create" },
-            { path: "/home/cashier/bills", item: "bills-manage" },
-            { path: "/supervisor/bills/change-requests", item: "change-requests" },
-            { path: "/supervisor/void-requests", item: "change-requests" }, // Redirect target
-            { path: "/supervisor/quantity-change-requests", item: "change-requests" }, // Redirect target
-            { path: "/supervisor/reopened-bills", item: "reopened-bills" },
-            { path: "/supervisor/bills/settings", item: "bill-settings" },
-            { path: "/supervisor/menu/category", item: "menu-category" },
-            { path: "/supervisor/menu/pricelist", item: "menu-pricelist" },
-            { path: "/supervisor/menu/recipes", item: "menu-recipes" },
-            { path: "/supervisor/production", item: "production-issuing" },
-            { path: "/supervisor/station", item: "stations-overview" },
-            { path: "/supervisor/station/user", item: "station-users" },
-            // Also handle admin paths when accessed by supervisor
-            { path: "/admin/station", item: "stations-overview" },
-            { path: "/admin/station/user", item: "station-users" },
-            { path: "/storekeeper/suppliers", item: "suppliers-list" },
-            { path: "/storekeeper/suppliers/transactions", item: "suppliers-transactions" },
-            { path: "/storekeeper/purchase-orders", item: "suppliers-purchase-orders" },
-            { path: "/supervisor/expenses", item: "expenses" },
-            { path: "/storekeeper/stock", item: "inventory-list" },
-            { path: "/storekeeper/inventory/transactions", item: "inventory-transactions" },
-            { path: "/admin/reports", item: "reports-dashboard" },
-            { path: "/admin/reports/", item: "reports-dashboard" },
-            { path: "/admin/reports/sales-revenue", item: "reports-sales-revenue" },
-            { path: "/admin/reports/bill-payments", item: "reports-bill-payments" },
-            { path: "/admin/reports/production-stock-revenue", item: "reports-production-stock-revenue" },
-            { path: "/admin/reports/items-sold-count", item: "reports-items-sold-count" },
-            { path: "/admin/reports/voided-items", item: "reports-voided-items" },
-            { path: "/admin/reports/expenditure", item: "reports-expenditure" },
-            { path: "/admin/reports/invoices-pending-bills", item: "reports-invoices-pending-bills" },
-            { path: "/admin/reports/purchase-orders", item: "reports-purchase-orders" },
-            { path: "/admin/reports/pnl", item: "reports-pnl" },
-        ];
-
-        // Set breadcrumbs and expanded menus based on path
-        let breadcrumbItems: Array<{ label: string, path: string }> = [];
-        const expandedMenuIds: string[] = [];
-
-        // Determine breadcrumbs and expanded menus based on path
-        if (path.includes("/supervisor/menu")) {
-            expandedMenuIds.push("menu-pricing");
-            if (path.includes("/supervisor/menu/recipes")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Menu & Pricing", path: "/supervisor/menu" },
-                    { label: "Recipes", path: "/supervisor/menu/recipes" }
-                ];
-            } else {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Menu & Pricing", path: "/supervisor/menu" }
-                ];
-            }
-        } else if (path.includes("/supervisor/production")) {
-            expandedMenuIds.push("production");
-            breadcrumbItems = [
-                { label: "Dashboard", path: "/supervisor" },
-                { label: "Production", path: "/supervisor/production" }
-            ];
-        } else if (path.includes("/supervisor/station") || path.includes("/admin/station")) {
-            expandedMenuIds.push("stations");
-            if (path.includes("/supervisor/station/user") || path.includes("/admin/station/user")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Stations", path: "/supervisor/station" },
-                    { label: "Station Users", path: "/supervisor/station/user" }
-                ];
-            } else {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Stations", path: "/supervisor/station" },
-                    { label: "Overview", path: "/supervisor/station" }
-                ];
-            }
-        } else if (path.includes("/supervisor/expenses")) {
-            breadcrumbItems = [
-                { label: "Dashboard", path: "/supervisor" },
-                { label: "Expenses", path: "/supervisor/expenses" }
-            ];
-        } else if (path.includes("/storekeeper") && (path.includes("/storekeeper/suppliers") || path.includes("/storekeeper/purchase-orders"))) {
-            expandedMenuIds.push("suppliers");
-            if (path.includes("/storekeeper/suppliers")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Suppliers", path: "/storekeeper/suppliers" },
-                    { label: "Suppliers", path: "/storekeeper/suppliers" }
-                ];
-            } else if (path.includes("/storekeeper/purchase-orders")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Suppliers", path: "/storekeeper/suppliers" },
-                    { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }
-                ];
-            }
-        } else if (path.includes("/storekeeper")) {
-            expandedMenuIds.push("inventory");
-            if (path.includes("/storekeeper/inventory/transactions")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Inventory", path: "/storekeeper" },
-                    { label: "Transactions", path: "/storekeeper/inventory/transactions" }
-                ];
-            } else if (path.includes("/storekeeper/stock")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Inventory", path: "/storekeeper" },
-                    { label: "Inventory List", path: "/storekeeper/stock" }
-                ];
-            } else {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Inventory", path: "/storekeeper" }
-                ];
-            }
-        } else if (path.includes("/admin/reports") || path.includes("/supervisor/reports")) {
-            expandedMenuIds.push("reports");
-            if (path === "/admin/reports" || path === "/admin/reports/") {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Reports", path: "/admin/reports" }
-                ];
-            } else if (path.includes("/admin/reports/sales-revenue")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Sales Revenue", path: "/admin/reports/sales-revenue" }
-                ];
-            } else if (path.includes("/admin/reports/bill-payments")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Bill Payments", path: "/admin/reports/bill-payments" }
-                ];
-            } else if (path.includes("/admin/reports/production-stock-revenue")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Production/Stock Revenue", path: "/admin/reports/production-stock-revenue" }
-                ];
-            } else if (path.includes("/admin/reports/items-sold-count")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Items Sold Count", path: "/admin/reports/items-sold-count" }
-                ];
-            } else if (path.includes("/admin/reports/voided-items")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Voided Items", path: "/admin/reports/voided-items" }
-                ];
-            } else if (path.includes("/admin/reports/expenditure")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Expenditure", path: "/admin/reports/expenditure" }
-                ];
-            } else if (path.includes("/admin/reports/invoices-pending-bills")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Invoices & Pending Bills", path: "/admin/reports/invoices-pending-bills" }
-                ];
-            } else if (path.includes("/admin/reports/purchase-orders")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Purchase Orders", path: "/admin/reports/purchase-orders" }
-                ];
-            } else if (path.includes("/admin/reports/pnl")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Reports", path: "/admin/reports" },
-                    { label: "Profit & Loss", path: "/admin/reports/pnl" }
-                ];
-            } else {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Reports", path: "/admin/reports" }
-                ];
-            }
-        } else if (path.includes("/supervisor/bills") || path.includes("/home/billing") || path.includes("/home/cashier/bills")) {
-            expandedMenuIds.push("bills");
-            if (path.includes("/supervisor/bills")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Bills Management", path: "/supervisor/bills" }
-                ];
-            } else if (path.includes("/home/billing")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Bills Management", path: "/supervisor/bills" },
-                    { label: "Create Bill", path: "/home/billing" }
-                ];
-            } else if (path.includes("/home/cashier/bills")) {
-                breadcrumbItems = [
-                    { label: "Dashboard", path: "/supervisor" },
-                    { label: "Bills Management", path: "/supervisor/bills" },
-                    { label: "Process Bills", path: "/home/cashier/bills" }
-                ];
-            }
-        } else {
-            breadcrumbItems = [{ label: "Dashboard", path: "/supervisor" }];
-        }
-
-        // Find matching path and set active item
-        const matchedItem = pathToActiveItemMap.find(({ path: pathPattern }) =>
-            path === pathPattern || path.includes(pathPattern)
-        );
-
-        if (matchedItem) {
-            setActiveItem(matchedItem.item);
-        }
-
-        setBreadcrumbs(breadcrumbItems);
-        setExpandedMenus(expandedMenuIds);
-    }, [pathname]);
 
     const menuItems = [
         {

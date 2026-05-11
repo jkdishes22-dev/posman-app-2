@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
@@ -9,6 +9,8 @@ import AppVersion from "../components/AppVersion";
 import StationSwitcher from "../components/StationSwitcher";
 import { AuthError } from "../types/types";
 import { useTooltips } from "../hooks/useTooltips";
+import { useNavigation } from "../hooks/useNavigation";
+import { storekeeperRoutes, STOREKEEPER_DEFAULT_BREADCRUMB } from "./routeConfigs";
 
 interface StoreKeeperPageLayoutProps {
   children: React.ReactNode;
@@ -26,14 +28,11 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
   useTooltips();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
-  const [activeItem, setActiveItem] = useState("");
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
-  const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
   const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
+  const { activeItem, setActiveItem, breadcrumbs, expandedMenus, setExpandedMenus } = useNavigation(storekeeperRoutes, STOREKEEPER_DEFAULT_BREADCRUMB);
   const { user, logout } = useAuth();
   const { currentStation } = useStation();
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     const update = () => setSidebarWidth(getExpandedSidebarWidth());
@@ -42,111 +41,6 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  useEffect(() => {
-    // Set active item and breadcrumbs based on current path
-    const path = pathname;
-    let activeItemId = "";
-    let breadcrumbItems: Array<{ label: string, path: string }> = [];
-    const expandedMenuIds: string[] = [];
-
-    // Dashboard
-    if (path === "/storekeeper" || path === "/storekeeper/") {
-      activeItemId = "dashboard";
-      breadcrumbItems = [{ label: "Dashboard", path: "/storekeeper" }];
-    }
-    // Inventory section
-    else if (path.includes("/storekeeper") && !path.includes("/storekeeper/suppliers") && !path.includes("/storekeeper/purchase-orders") && !path.includes("/storekeeper/production") && !path.includes("/storekeeper/reports")) {
-      expandedMenuIds.push("inventory");
-      if (path.includes("/storekeeper/inventory/transactions")) {
-        activeItemId = "inventory-transactions";
-        breadcrumbItems = [
-          { label: "Dashboard", path: "/storekeeper" },
-          { label: "Inventory", path: "/storekeeper" },
-          { label: "Transactions", path: "/storekeeper/inventory/transactions" }
-        ];
-      } else if (path.includes("/storekeeper/stock")) {
-        activeItemId = "inventory-list";
-        breadcrumbItems = [
-          { label: "Dashboard", path: "/storekeeper" },
-          { label: "Inventory", path: "/storekeeper" },
-          { label: "Inventory List", path: "/storekeeper/stock" }
-        ];
-      } else {
-        activeItemId = "";
-        breadcrumbItems = [
-          { label: "Dashboard", path: "/storekeeper" },
-          { label: "Inventory", path: "/storekeeper" }
-        ];
-      }
-    }
-    // Supplier payments ledger (must be before generic /storekeeper/suppliers match)
-    else if (path.includes("/storekeeper/suppliers/transactions")) {
-      expandedMenuIds.push("suppliers");
-      activeItemId = "suppliers-transactions";
-      breadcrumbItems = [
-        { label: "Dashboard", path: "/storekeeper" },
-        { label: "Suppliers", path: "/storekeeper/suppliers" },
-        { label: "Supplier payments", path: "/storekeeper/suppliers/transactions" },
-      ];
-    }
-    // Suppliers directory
-    else if (path.includes("/storekeeper/suppliers")) {
-      expandedMenuIds.push("suppliers");
-      activeItemId = "suppliers-list";
-      breadcrumbItems = [
-        { label: "Dashboard", path: "/storekeeper" },
-        { label: "Suppliers", path: "/storekeeper/suppliers" },
-        { label: "Suppliers", path: "/storekeeper/suppliers" },
-      ];
-    }
-    // Purchase Orders
-    else if (path.includes("/storekeeper/purchase-orders")) {
-      expandedMenuIds.push("suppliers");
-      activeItemId = "suppliers-purchase-orders";
-      breadcrumbItems = [
-        { label: "Dashboard", path: "/storekeeper" },
-        { label: "Suppliers", path: "/storekeeper/suppliers" },
-        { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }
-      ];
-    }
-    // Production section
-    else if (path.includes("/storekeeper/production")) {
-      expandedMenuIds.push("production");
-      if (path.includes("/storekeeper/production/issue")) {
-        activeItemId = "production-issuing";
-        breadcrumbItems = [
-          { label: "Dashboard", path: "/storekeeper" },
-          { label: "Production", path: "/storekeeper/production" },
-          { label: "Issue Production", path: "/storekeeper/production/issue" }
-        ];
-      } else if (path.includes("/storekeeper/production/history")) {
-        activeItemId = "production-history";
-        breadcrumbItems = [
-          { label: "Dashboard", path: "/storekeeper" },
-          { label: "Production", path: "/storekeeper/production" },
-          { label: "Production History", path: "/storekeeper/production/history" }
-        ];
-      } else {
-        activeItemId = "production-issuing";
-        breadcrumbItems = [
-          { label: "Dashboard", path: "/storekeeper" },
-          { label: "Production", path: "/storekeeper/production" }
-        ];
-      }
-    }
-    else if (path.includes("/storekeeper/reports")) {
-      expandedMenuIds.push("reports");
-      activeItemId = "reports";
-      breadcrumbItems = [
-        { label: "Dashboard", path: "/storekeeper" },
-        { label: "Reports", path: "/storekeeper/reports" },
-      ];
-    }
-
-    setActiveItem(activeItemId);
-    setBreadcrumbs(breadcrumbItems);
-    setExpandedMenus(expandedMenuIds);
-  }, [pathname]);
 
   const menuItems = [
     {

@@ -8,6 +8,8 @@ import LogoutButton from "../components/LogoutButton";
 import AppVersion from "../components/AppVersion";
 import StationSwitcher from "../components/StationSwitcher";
 import { AuthError } from "../types/types";
+import { useNavigation } from "../hooks/useNavigation";
+import { salesRoutes, SALES_DEFAULT_BREADCRUMB } from "./routeConfigs";
 
 interface SalesLayoutProps {
     children: React.ReactNode;
@@ -16,52 +18,11 @@ interface SalesLayoutProps {
 
 const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const [activeItem, setActiveItem] = useState("");
-    const [breadcrumbs, setBreadcrumbs] = useState<Array<{ label: string, path: string }>>([]);
     const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
+    const { activeItem, setActiveItem, breadcrumbs } = useNavigation(salesRoutes, SALES_DEFAULT_BREADCRUMB);
     const { user, logout } = useAuth();
     const { currentStation } = useStation();
     const router = useRouter();
-
-    useEffect(() => {
-        // Set active item and breadcrumbs based on current path
-        const path = window.location.pathname;
-        let activeItemId = "";
-        let breadcrumbItems: Array<{ label: string, path: string }> = [];
-
-        // Dashboard
-        if (path === "/home" || path === "/home/") {
-            activeItemId = "dashboard";
-            breadcrumbItems = [{ label: "Dashboard", path: "/home" }];
-        }
-        // Bill section
-        else if (path.includes("/home/billing")) {
-            activeItemId = "bill";
-            breadcrumbItems = [
-                { label: "Dashboard", path: "/home" },
-                { label: "Bill", path: "/home/billing" }
-            ];
-        }
-        // My Sales section
-        else if (path.includes("/home/my-sales")) {
-            activeItemId = "my-sales";
-            breadcrumbItems = [
-                { label: "Dashboard", path: "/home" },
-                { label: "My Sales", path: "/home/my-sales" }
-            ];
-        }
-        // Pricelist Catalog section
-        else if (path.includes("/home/pricelist-catalog")) {
-            activeItemId = "pricelist-catalog";
-            breadcrumbItems = [
-                { label: "Dashboard", path: "/home" },
-                { label: "Pricelist Catalog", path: "/home/pricelist-catalog" }
-            ];
-        }
-
-        setActiveItem(activeItemId);
-        setBreadcrumbs(breadcrumbItems);
-    }, []);
 
 
     const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement>) => {
