@@ -455,7 +455,7 @@ const LoginForm = () => {
                     onClick={() => handleInputClick("username")}
                     onKeyDown={handleUsernameKeyDown}
                   />
-                  <button type="button" className="btn btn-primary px-4" onClick={focusPasswordField}>
+                  <button type="button" className="btn btn-primary px-4" tabIndex={-1} onClick={focusPasswordField}>
                     Next
                   </button>
                 </div>
@@ -546,9 +546,9 @@ const LoginForm = () => {
           <div className="p-3 border bg-light mb-3">
             <div className="p-3 border bg-light h-100 d-flex flex-column justify-content-center align-items-center">
               <img
-                src="/images/jk-big.png"
+                src="/icons/JK-icon.svg"
                 width={300}
-                height={500}
+                height={300}
                 className="m-2"
                 alt="JK PosMan"
                 style={{ maxWidth: "100%", height: "auto", objectFit: "contain" }}

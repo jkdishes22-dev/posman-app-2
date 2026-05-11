@@ -42,7 +42,9 @@
     "electron:build:win:x86": "node scripts/build-electron.js win --arch=ia32",
     "electron:build:sqlite:win:x86": "cross-env DB_MODE=sqlite node scripts/build-electron.js win --arch=ia32",
     "electron:build:win:nsis-both": "cross-env WIN_ARCH=all node scripts/build-electron.js win",
-    "electron:build:sqlite:win:nsis-both": "cross-env DB_MODE=sqlite WIN_ARCH=all node scripts/build-electron.js win"
+    "electron:build:sqlite:win:nsis-both": "cross-env DB_MODE=sqlite WIN_ARCH=all node scripts/build-electron.js win",
+    "test:playwright": "playwright test",
+    "test:playwright:ui": "playwright test --ui"
   },
   "dependencies": {
     "@types/formidable": "^3.4.6",
@@ -87,6 +89,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/better-sqlite3": "^7.6.13",
     "@types/bootstrap": "^5.2.10",

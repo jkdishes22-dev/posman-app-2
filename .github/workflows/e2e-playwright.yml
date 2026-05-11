@@ -1,0 +1,47 @@
+name: Playwright FE Tests
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  playwright:
+    name: Playwright FE Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+n      - name: Seed test database
+        run: npx vitest run --config vitest.config.playwright-seed.ts
+        env:
+          NODE_ENV: test
+
+      - name: Run Playwright tests
+        run: npm run test:playwright
+        env:
+          CI: true
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: tests/playwright/results/
+          retention-days: 7

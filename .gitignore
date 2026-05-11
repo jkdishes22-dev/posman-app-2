@@ -68,5 +68,9 @@ dist-electron/
 # E2E test database
 .test-db/
 
+# Playwright
+/tests/playwright/results
+/playwright-report
+
 # Local tool caches - (e.g. better-sqlite3 prebuilds)
 .cache/
