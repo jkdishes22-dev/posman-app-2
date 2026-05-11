@@ -1,12 +1,6 @@
 name: Database Migration
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'migrations.sql'
-      - 'src/backend/entities/**'
-      - 'src/backend/config/**'
   workflow_dispatch:
 
 jobs:
