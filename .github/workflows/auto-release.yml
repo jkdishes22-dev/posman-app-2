@@ -1,11 +1,7 @@
 name: Auto Release on Merge to Main
 
 on:
-  push:
-    branches: [main]
-    # Don't re-trigger when this workflow pushes the version bump commit
-    paths-ignore:
-      - "package.json"
+  workflow_dispatch:
 
 jobs:
   release:
