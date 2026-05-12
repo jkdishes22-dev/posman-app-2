@@ -28,7 +28,7 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-n      - name: Seed test database
+      - name: Seed test database
         run: npx vitest run --config vitest.config.playwright-seed.ts
         env:
           NODE_ENV: test
