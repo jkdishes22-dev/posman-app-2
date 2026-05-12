@@ -42,6 +42,7 @@ export const supervisorRoutes: RouteEntry[] = sortRoutes([
   // Suppliers (storekeeper paths accessed from supervisor)
   { pattern: "/storekeeper/suppliers/transactions", activeItem: "suppliers-transactions", expandedMenuIds: ["suppliers"], breadcrumbs: [DS, SUPPLIERS_SUP, { label: "Suppliers", path: "/storekeeper/suppliers" }] },
   { pattern: "/storekeeper/purchase-orders", activeItem: "suppliers-purchase-orders", expandedMenuIds: ["suppliers"], breadcrumbs: [DS, SUPPLIERS_SUP, { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }] },
+  { pattern: "/supervisor/purchase-items", activeItem: "purchase-items", expandedMenuIds: ["suppliers"], breadcrumbs: [DS, SUPPLIERS_SUP, { label: "Purchase Items", path: "/supervisor/purchase-items" }] },
   { pattern: "/storekeeper/suppliers", activeItem: "suppliers-list", expandedMenuIds: ["suppliers"], breadcrumbs: [DS, SUPPLIERS_SUP, { label: "Suppliers", path: "/storekeeper/suppliers" }] },
   { pattern: "/storekeeper", activeItem: "", expandedMenuIds: ["inventory"], breadcrumbs: [DS, INVENTORY_SUP] },
   // Reports
@@ -93,6 +94,7 @@ export const adminRoutes: RouteEntry[] = sortRoutes([
   // Suppliers (storekeeper paths)
   { pattern: "/storekeeper/suppliers/transactions", activeItem: "suppliers-transactions", expandedMenuIds: ["suppliers"], breadcrumbs: [DA, SUPPLIERS_ADM, { label: "Supplier payments", path: "/storekeeper/suppliers/transactions" }] },
   { pattern: "/storekeeper/purchase-orders", activeItem: "suppliers-purchase-orders", expandedMenuIds: ["suppliers"], breadcrumbs: [DA, SUPPLIERS_ADM, { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }] },
+  { pattern: "/admin/purchase-items", activeItem: "purchase-items", expandedMenuIds: ["suppliers"], breadcrumbs: [DA, SUPPLIERS_ADM, { label: "Purchase Items", path: "/admin/purchase-items" }] },
   { pattern: "/storekeeper/suppliers", activeItem: "suppliers-list", expandedMenuIds: ["suppliers"], breadcrumbs: [DA, SUPPLIERS_ADM, { label: "Suppliers", path: "/storekeeper/suppliers" }] },
   // Inventory (storekeeper paths)
   { pattern: "/storekeeper/inventory/transactions", activeItem: "inventory-transactions", expandedMenuIds: ["inventory"], breadcrumbs: [DA, INVENTORY_ADM, { label: "Transactions", path: "/storekeeper/inventory/transactions" }] },
@@ -133,6 +135,7 @@ export const storekeeperRoutes: RouteEntry[] = sortRoutes([
   // Suppliers
   { pattern: "/storekeeper/suppliers/transactions", activeItem: "suppliers-transactions", expandedMenuIds: ["suppliers"], breadcrumbs: [DSK, SUPPLIERS_SK, { label: "Supplier payments", path: "/storekeeper/suppliers/transactions" }] },
   { pattern: "/storekeeper/purchase-orders", activeItem: "suppliers-purchase-orders", expandedMenuIds: ["suppliers"], breadcrumbs: [DSK, SUPPLIERS_SK, { label: "Purchase Orders", path: "/storekeeper/purchase-orders" }] },
+  { pattern: "/storekeeper/purchase-items", activeItem: "purchase-items", expandedMenuIds: ["suppliers"], breadcrumbs: [DSK, SUPPLIERS_SK, { label: "Purchase Items", path: "/storekeeper/purchase-items" }] },
   { pattern: "/storekeeper/suppliers", activeItem: "suppliers-list", expandedMenuIds: ["suppliers"], breadcrumbs: [DSK, SUPPLIERS_SK, { label: "Suppliers", path: "/storekeeper/suppliers" }] },
   // Production
   { pattern: "/storekeeper/production/history", activeItem: "production-history", expandedMenuIds: ["production"], breadcrumbs: [DSK, PRODUCTION_SK, { label: "Production History", path: "/storekeeper/production/history" }] },

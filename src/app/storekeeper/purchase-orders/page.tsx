@@ -25,6 +25,15 @@ import PageHeaderStrip from "../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { AuthError } from "../../types/types";
 
+interface SuppliableCatalogItem {
+    id: number;
+    name: string;
+    code: string;
+    purchaseUnitLabel: string | null;
+    purchaseUnitQty: number | null;
+    unitOfMeasure: string | null;
+}
+
 interface PurchaseOrderItem {
     id: number;
     item_id: number;
@@ -37,6 +46,8 @@ interface PurchaseOrderItem {
     quantity_received: number;
     unit_price: number;
     subtotal: number;
+    pack_qty?: number;
+    pack_label?: string | null;
 }
 
 interface PurchaseOrder {
@@ -63,8 +74,8 @@ export default function PurchaseOrdersPage() {
     const [suppliers, setSuppliers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    /** Active non-group items marked as stock (suppliable) — full list for PO line dropdowns. */
-    const [suppliableCatalog, setSuppliableCatalog] = useState<{ id: number; name: string; code: string }[]>([]);
+    /** Active non-group items with a purchase config — used in PO line item dropdowns. */
+    const [suppliableCatalog, setSuppliableCatalog] = useState<SuppliableCatalogItem[]>([]);
     const [suppliableCatalogLoading, setSuppliableCatalogLoading] = useState(false);
 
     // Supplier search states for type-ahead
@@ -140,7 +151,7 @@ export default function PurchaseOrdersPage() {
                 if (cancelled) return;
                 if (result.status >= 200 && result.status < 300) {
                     const raw = Array.isArray(result.data?.items) ? result.data.items : [];
-                    const byId = new Map<number, { id: number; name: string; code: string }>();
+                    const byId = new Map<number, SuppliableCatalogItem>();
                     for (const row of raw) {
                         const id = Number(row?.id);
                         if (!Number.isFinite(id) || byId.has(id)) continue;
@@ -148,6 +159,9 @@ export default function PurchaseOrdersPage() {
                             id,
                             name: String(row?.name ?? ""),
                             code: String(row?.code ?? ""),
+                            purchaseUnitLabel: row?.purchaseUnitLabel ?? null,
+                            purchaseUnitQty: row?.purchaseUnitQty != null ? Number(row.purchaseUnitQty) : null,
+                            unitOfMeasure: row?.unitOfMeasure ?? null,
                         });
                     }
                     setSuppliableCatalog([...byId.values()].sort((a, b) => a.name.localeCompare(b.name)));
@@ -817,11 +831,34 @@ export default function PurchaseOrdersPage() {
                                                                 </option>
                                                             ))}
                                                         </Form.Select>
+                                                        {(() => {
+                                                            const cfg = suppliableCatalog.find((o) => String(o.id) === item.item_id);
+                                                            if (!cfg?.purchaseUnitLabel) return null;
+                                                            return (
+                                                                <div className="mt-1 small text-muted">
+                                                                    <Badge bg="light" text="dark" className="me-1 border">
+                                                                        {cfg.purchaseUnitLabel}
+                                                                    </Badge>
+                                                                    {cfg.purchaseUnitQty !== null && cfg.purchaseUnitQty !== 1 && (
+                                                                        <span>{cfg.purchaseUnitQty} {cfg.unitOfMeasure || "units"}/pack</span>
+                                                                    )}
+                                                                    {cfg.purchaseUnitQty === 1 && cfg.unitOfMeasure && (
+                                                                        <span>{cfg.unitOfMeasure}</span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </Form.Group>
                                                 </Col>
                                                 <Col md={3}>
                                                     <Form.Group>
-                                                        <Form.Label>Quantity</Form.Label>
+                                                        <Form.Label>
+                                                            {(() => {
+                                                                const cfg = suppliableCatalog.find((o) => String(o.id) === item.item_id);
+                                                                if (cfg?.purchaseUnitQty && cfg.purchaseUnitQty !== 1) return "Qty (packs)";
+                                                                return "Quantity";
+                                                            })()}
+                                                        </Form.Label>
                                                         <Form.Control
                                                             type="number"
                                                             min="1"
@@ -834,7 +871,13 @@ export default function PurchaseOrdersPage() {
                                                 </Col>
                                                 <Col md={3}>
                                                     <Form.Group>
-                                                        <Form.Label>Unit Price</Form.Label>
+                                                        <Form.Label>
+                                                            {(() => {
+                                                                const cfg = suppliableCatalog.find((o) => String(o.id) === item.item_id);
+                                                                if (cfg?.purchaseUnitLabel) return `Price / ${cfg.purchaseUnitLabel}`;
+                                                                return "Unit Price";
+                                                            })()}
+                                                        </Form.Label>
                                                         <Form.Control
                                                             type="number"
                                                             step="0.01"
@@ -844,6 +887,17 @@ export default function PurchaseOrdersPage() {
                                                             onChange={(e) => updateItemRow(index, "unit_price", e.target.value)}
                                                             required
                                                         />
+                                                        {(() => {
+                                                            const cfg = suppliableCatalog.find((o) => String(o.id) === item.item_id);
+                                                            const qty = cfg?.purchaseUnitQty;
+                                                            const price = parseFloat(item.unit_price);
+                                                            if (!qty || qty === 1 || !price || isNaN(price)) return null;
+                                                            return (
+                                                                <Form.Text className="text-muted">
+                                                                    Per unit: {(price / qty).toFixed(4)}
+                                                                </Form.Text>
+                                                            );
+                                                        })()}
                                                     </Form.Group>
                                                 </Col>
                                                 <Col md={2} className="d-flex align-items-end">
@@ -947,17 +1001,29 @@ export default function PurchaseOrdersPage() {
                                                 <tr>
                                                     <th>Item</th>
                                                     <th>Code</th>
-                                                    <th>Quantity Ordered</th>
-                                                    <th>Quantity Received</th>
-                                                    <th>Unit Price</th>
+                                                    <th>Pack</th>
+                                                    <th>Qty Ordered</th>
+                                                    <th>Qty Received</th>
+                                                    <th>Price/Pack</th>
+                                                    <th>Per Unit</th>
                                                     <th>Subtotal</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {selectedPO.items?.map((item) => (
+                                                {selectedPO.items?.map((item) => {
+                                                    const packQty = Number(item.pack_qty ?? 1);
+                                                    const unitPrice = Number(item.unit_price);
+                                                    const perUnit = packQty > 1 ? (unitPrice / packQty).toFixed(4) : null;
+                                                    return (
                                                     <tr key={item.id}>
                                                         <td>{item.item?.name || "N/A"}</td>
                                                         <td><code>{item.item?.code || "N/A"}</code></td>
+                                                        <td className="text-muted small">
+                                                            {item.pack_label || "—"}
+                                                            {packQty > 1 && (
+                                                                <span className="ms-1 text-muted">×{packQty}</span>
+                                                            )}
+                                                        </td>
                                                         <td>{item.quantity_ordered}</td>
                                                         <td>
                                                             {item.quantity_received}
@@ -967,14 +1033,16 @@ export default function PurchaseOrdersPage() {
                                                                 </Badge>
                                                             )}
                                                         </td>
-                                                        <td>${item?.unit_price != null ? Number(item.unit_price).toFixed(2) : "0.00"}</td>
+                                                        <td>${item?.unit_price != null ? unitPrice.toFixed(2) : "0.00"}</td>
+                                                        <td className="text-muted small">{perUnit ? `$${perUnit}` : "—"}</td>
                                                         <td>${item?.subtotal != null ? Number(item.subtotal).toFixed(2) : "0.00"}</td>
                                                     </tr>
-                                                ))}
+                                                    );
+                                                })}
                                             </tbody>
                                             <tfoot>
                                                 <tr>
-                                                    <td colSpan={5} className="text-end fw-bold">
+                                                    <td colSpan={7} className="text-end fw-bold">
                                                         Total:
                                                     </td>
                                                     <td className="fw-bold">${selectedPO?.total_amount != null ? Number(selectedPO.total_amount).toFixed(2) : "0.00"}</td>
@@ -1030,18 +1098,25 @@ export default function PurchaseOrdersPage() {
                                 <thead>
                                     <tr>
                                         <th>Item</th>
+                                        <th>Pack</th>
                                         <th>Ordered</th>
-                                        <th>Already Received</th>
-                                        <th>Quantity to Receive</th>
+                                        <th>Received</th>
+                                        <th>Packs to Receive</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {selectedPO?.items?.map((item, index) => {
+                                    {selectedPO?.items?.map((item) => {
                                         const remaining = item.quantity_ordered - item.quantity_received;
                                         const receiveItem = receiveFormData.find(r => r.item_id === item.item_id);
+                                        const packQty = Number(item.pack_qty ?? 1);
+                                        const packsEntered = Number(receiveItem?.quantity_received || 0);
                                         return (
                                             <tr key={item.id}>
                                                 <td>{item.item?.name || "N/A"}</td>
+                                                <td className="text-muted small">
+                                                    {item.pack_label || "—"}
+                                                    {packQty > 1 && <span className="ms-1">×{packQty}</span>}
+                                                </td>
                                                 <td>{item.quantity_ordered}</td>
                                                 <td>{item.quantity_received}</td>
                                                 <td>
@@ -1065,6 +1140,11 @@ export default function PurchaseOrdersPage() {
                                                         }}
                                                     />
                                                     <small className="text-muted">Max: {remaining}</small>
+                                                    {packQty > 1 && packsEntered > 0 && (
+                                                        <small className="d-block text-info">
+                                                            {packsEntered} × {packQty} = {Math.round(packsEntered * packQty)} units added
+                                                        </small>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );

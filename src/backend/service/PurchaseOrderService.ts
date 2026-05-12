@@ -1,11 +1,12 @@
 import { PurchaseOrder, PurchaseOrderStatus } from "@backend/entities/PurchaseOrder";
 import { PurchaseOrderItem } from "@backend/entities/PurchaseOrderItem";
+import { PurchaseItem } from "@backend/entities/PurchaseItem";
 import { Supplier } from "@backend/entities/Supplier";
 import { Item } from "@backend/entities/Item";
 import { SupplierTransaction, SupplierTransactionType, SupplierReferenceType } from "@backend/entities/SupplierTransaction";
 import { InventoryService } from "./InventoryService";
 import { SupplierService } from "./SupplierService";
-import { DataSource, Repository } from "typeorm";
+import { DataSource, In, Repository } from "typeorm";
 
 export interface PurchaseOrderItemInput {
     item_id: number;
@@ -42,12 +43,14 @@ export class PurchaseOrderService {
         this.supplierService = new SupplierService(dataSource);
     }
 
-    /** Only non-group items marked as stock (suppliable) may appear on purchase orders. */
+    /** Only non-group stock items with a PurchaseItem config may appear on purchase orders. */
     private async assertItemsEligibleForPurchaseOrder(items: PurchaseOrderItemInput[]): Promise<void> {
         if (!items?.length) {
             return;
         }
-        const itemRepo = this.purchaseOrderRepository.manager.getRepository(Item);
+        const manager = this.purchaseOrderRepository.manager;
+        const itemRepo = manager.getRepository(Item);
+        const purchaseItemRepo = manager.getRepository(PurchaseItem);
         for (const line of items) {
             const item = await itemRepo.findOne({ where: { id: line.item_id } });
             if (!item) {
@@ -65,7 +68,23 @@ export class PurchaseOrderService {
                     `Item "${item.name}" is not marked as suppliable (stock); acquire it through production, not purchase orders`,
                 );
             }
+            const purchaseConfig = await purchaseItemRepo.findOne({
+                where: { item_id: item.id, is_active: true },
+            });
+            if (!purchaseConfig) {
+                throw new Error(
+                    `Item "${item.name}" has no purchase unit configured. Define it under Purchase Items before adding to a PO.`,
+                );
+            }
         }
+    }
+
+    /** Batch-fetch PurchaseItem configs for a set of item IDs; returns a Map<item_id, PurchaseItem>. */
+    private async fetchPurchaseItemMap(itemIds: number[]): Promise<Map<number, PurchaseItem>> {
+        if (!itemIds.length) return new Map();
+        const manager = this.purchaseOrderRepository.manager;
+        const configs = await manager.getRepository(PurchaseItem).findBy({ item_id: In(itemIds) });
+        return new Map(configs.map((c) => [c.item_id, c]));
     }
 
     /**
@@ -126,6 +145,9 @@ export class PurchaseOrderService {
             );
         }
 
+        // Batch-fetch purchase configs for pack snapshot (avoids N+1)
+        const purchaseItemMap = await this.fetchPurchaseItemMap(input.items.map((i) => i.item_id));
+
         // Generate PO number
         const orderNumber = await this.generatePONumber();
 
@@ -146,8 +168,9 @@ export class PurchaseOrderService {
 
                 const savedPO = await transactionalEntityManager.save(PurchaseOrder, purchaseOrder);
 
-                // Create purchase order items
+                // Create purchase order items with pack snapshot
                 const poItems = input.items.map((item) => {
+                    const config = purchaseItemMap.get(item.item_id);
                     const subtotal = item.quantity_ordered * item.unit_price;
                     return transactionalEntityManager.create(PurchaseOrderItem, {
                         purchase_order_id: savedPO.id,
@@ -156,6 +179,8 @@ export class PurchaseOrderService {
                         quantity_received: 0,
                         unit_price: item.unit_price,
                         subtotal,
+                        pack_qty: config ? Number(config.purchase_unit_qty) : 1,
+                        pack_label: config?.purchase_unit_label ?? null,
                         created_by: userId,
                     });
                 });
@@ -222,11 +247,14 @@ export class PurchaseOrderService {
         if (data.items) {
             await this.assertItemsEligibleForPurchaseOrder(data.items);
 
+            const purchaseItemMap = await this.fetchPurchaseItemMap(data.items.map((i) => i.item_id));
+
             // Delete existing items
             await this.purchaseOrderItemRepository.delete({ purchase_order_id: poId });
 
-            // Create new items
+            // Create new items with pack snapshot
             const newItems = data.items.map((item) => {
+                const config = purchaseItemMap.get(item.item_id);
                 const subtotal = item.quantity_ordered * item.unit_price;
                 return this.purchaseOrderItemRepository.create({
                     purchase_order_id: poId,
@@ -235,6 +263,8 @@ export class PurchaseOrderService {
                     quantity_received: 0,
                     unit_price: item.unit_price,
                     subtotal,
+                    pack_qty: config ? Number(config.purchase_unit_qty) : 1,
+                    pack_label: config?.purchase_unit_label ?? null,
                     created_by: userId,
                 });
             });
@@ -370,12 +400,14 @@ export class PurchaseOrderService {
                     poItem.quantity_received += receivedItem.quantity_received;
                     await transactionalEntityManager.save(PurchaseOrderItem, poItem);
 
-                    // Add inventory
+                    // Add inventory — multiply by pack_qty so "3 boxes of 300" → +900 stock units
                     const item = poItem.item;
                     if (item && item.isStock) {
+                        const packQty = Number(poItem.pack_qty ?? 1);
+                        const stockUnitsToAdd = Math.round(receivedItem.quantity_received * packQty);
                         await this.inventoryService.addInventoryFromPurchase(
                             item.id,
-                            receivedItem.quantity_received,
+                            stockUnitsToAdd,
                             poId,
                             userId
                         );

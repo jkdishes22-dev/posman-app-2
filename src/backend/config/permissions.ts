@@ -141,6 +141,9 @@ const permissions = {
     CAN_DELETE_PURCHASE_ORDER: "can_delete_purchase_order",
     CAN_RECEIVE_PURCHASE_ORDER: "can_receive_purchase_order",
 
+    // Purchase Item (pack config catalog — prerequisite for PO)
+    CAN_MANAGE_PURCHASE_ITEMS: "can_manage_purchase_items",
+
     // User
     CAN_ADD_USER: "can_add_user",
     CAN_EDIT_USER: "can_edit_user",

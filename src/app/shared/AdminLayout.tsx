@@ -187,6 +187,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           icon: "bi-cart-check",
           path: "/storekeeper/purchase-orders",
         },
+        {
+          id: "purchase-items",
+          label: "Purchase Items",
+          icon: "bi-box-seam",
+          path: "/admin/purchase-items",
+        },
       ],
     },
     {

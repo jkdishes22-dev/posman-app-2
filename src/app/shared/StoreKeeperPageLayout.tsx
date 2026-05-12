@@ -110,6 +110,12 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
           icon: "bi-cart-check",
           path: "/storekeeper/purchase-orders",
         },
+        {
+          id: "purchase-items",
+          label: "Purchase Items",
+          icon: "bi-box-seam",
+          path: "/storekeeper/purchase-items",
+        },
       ],
     },
     {

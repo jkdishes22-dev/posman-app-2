@@ -33,5 +33,13 @@ export class PurchaseOrderItem extends BaseEntity {
 
     @Column({ type: "decimal", precision: 10, scale: 2, default: 0 })
     subtotal: number;
+
+    /** Snapshot of PurchaseItem.purchase_unit_label at PO creation time */
+    @Column({ type: "varchar", length: 100, nullable: true, name: "pack_label" })
+    pack_label: string | null;
+
+    /** Snapshot of PurchaseItem.purchase_unit_qty; stock = quantity_received × pack_qty */
+    @Column({ type: "decimal", precision: 10, scale: 4, default: 1, name: "pack_qty" })
+    pack_qty: number;
 }
 
