@@ -22,12 +22,14 @@ vi.mock("@backend/service/SupplierService", () => ({
 import { PurchaseOrderService } from "@backend/service/PurchaseOrderService";
 import { PurchaseOrderStatus } from "@backend/entities/PurchaseOrder";
 import { Item } from "@backend/entities/Item";
+import { PurchaseItem } from "@backend/entities/PurchaseItem";
 
 describe("PurchaseOrderService", () => {
   let mockPORepo: ReturnType<typeof createMockRepository>;
   let mockPOItemRepo: ReturnType<typeof createMockRepository>;
   let mockSupplierRepo: ReturnType<typeof createMockRepository>;
   let mockItemRepo: ReturnType<typeof createMockRepository>;
+  let mockPurchaseItemRepo: ReturnType<typeof createMockRepository>;
   let service: PurchaseOrderService;
 
   beforeEach(() => {
@@ -36,14 +38,19 @@ describe("PurchaseOrderService", () => {
     mockPOItemRepo = createMockRepository();
     mockSupplierRepo = createMockRepository();
     mockItemRepo = createMockRepository();
+    mockPurchaseItemRepo = createMockRepository();
     mockItemRepo.findOne.mockImplementation(async ({ where: { id } }: any) => ({
       id,
       name: "Test item",
       isStock: true,
       isGroup: false,
     }));
+    // default: every item has a valid purchase unit configured
+    mockPurchaseItemRepo.findOne.mockResolvedValue({ id: 1, item_id: 1, is_active: true });
+    mockPurchaseItemRepo.findBy.mockResolvedValue([{ id: 1, item_id: 1, is_active: true }]);
     mockPORepo.manager.getRepository = vi.fn().mockImplementation((entity: any) => {
       if (entity === Item || entity?.name === "Item") return mockItemRepo;
+      if (entity === PurchaseItem || entity?.name === "PurchaseItem") return mockPurchaseItemRepo;
       return createMockRepository();
     });
     const mockDs = createMockDataSource({
