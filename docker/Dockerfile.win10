@@ -1,0 +1,10 @@
+FROM --platform=linux/amd64 electronuserland/builder:wine
+
+# Pin Node.js 22 (builder:wine ships LTS; upgrade via n)
+RUN npm install -g n && n 22 && hash -r && node --version
+
+COPY docker/build-win10.sh /build.sh
+RUN chmod +x /build.sh
+
+WORKDIR /project
+ENTRYPOINT ["/bin/bash", "/build.sh"]

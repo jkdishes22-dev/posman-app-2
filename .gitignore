@@ -64,6 +64,7 @@ build/signing/*.key
 
 # Electron build output
 dist-electron/
+docker-build-electron/
 
 # E2E test database
 .test-db/
