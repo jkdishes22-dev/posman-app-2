@@ -1,8 +1,0 @@
-node_modules
-.next
-dist-electron
-dist
-build
-.git
-.cache
-*.log
