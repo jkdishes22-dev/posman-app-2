@@ -223,6 +223,7 @@ function logToFile(message, level = "INFO") {
 
 // Log startup
 logToFile("=== JK PosMan Application Starting ===");
+logToFile(`App version: ${app.getVersion()}`);
 logToFile(`Platform: ${process.platform}`);
 logToFile(`Architecture: ${process.arch}`);
 logToFile(`Node version: ${process.versions.node}`);
