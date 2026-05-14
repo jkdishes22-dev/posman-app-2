@@ -6,6 +6,48 @@ import {
     receiptItemTablePre,
 } from "./receiptThermalLayout";
 
+interface ReceiptPaymentInfo {
+    label: string;
+    cashAmount?: number;
+    mpesaAmount?: number;
+    mpesaRef?: string;
+}
+
+function extractReceiptPayment(bill: any): ReceiptPaymentInfo | null {
+    // From BillingSection auto-settle (attached at bill creation time)
+    if (bill.receiptPayment) {
+        const rp = bill.receiptPayment;
+        if (rp.method === "cash") return { label: "Cash", cashAmount: rp.cashAmount };
+        if (rp.method === "mpesa") return { label: "M-Pesa", mpesaAmount: rp.mpesaAmount, mpesaRef: rp.mpesaRef };
+        if (rp.method === "cash_mpesa") return { label: "Cash + M-Pesa", cashAmount: rp.cashAmount, mpesaAmount: rp.mpesaAmount, mpesaRef: rp.mpesaRef };
+        return null;
+    }
+
+    // From API bill_payments (My Sales printed receipts)
+    const billPayments = bill.bill_payments;
+    if (!Array.isArray(billPayments) || billPayments.length === 0) return null;
+
+    let cashAmount = 0;
+    let mpesaAmount = 0;
+    let mpesaRef: string | undefined;
+
+    for (const bp of billPayments) {
+        const p = bp.payment;
+        if (!p) continue;
+        if (p.paymentType === "CASH") {
+            cashAmount += Number(p.creditAmount) || 0;
+        } else if (p.paymentType === "MPESA") {
+            mpesaAmount += Number(p.creditAmount) || 0;
+            if (p.reference) mpesaRef = p.reference;
+        }
+    }
+
+    if (cashAmount > 0 && mpesaAmount === 0) return { label: "Cash", cashAmount };
+    if (mpesaAmount > 0 && cashAmount === 0) return { label: "M-Pesa", mpesaAmount, mpesaRef };
+    if (cashAmount > 0 && mpesaAmount > 0) return { label: "Cash + M-Pesa", cashAmount, mpesaAmount, mpesaRef };
+    return null;
+}
+
 /** Branding for thermal receipts (from organisation_settings via receipt-printer-prefs). */
 export interface ReceiptBranding {
     title: string;
@@ -109,6 +151,7 @@ const ReceiptContent = ({
     label,
     showTotals = true,
     showTax = true,
+    showPaymentMode = true,
     branding,
     spacerBeforeMm = 0,
     spacerAfterMm = 0,
@@ -117,6 +160,7 @@ const ReceiptContent = ({
     label: string;
     showTotals?: boolean;
     showTax?: boolean;
+    showPaymentMode?: boolean;
     branding?: ReceiptBranding;
     /** Printable blank band before the ticket (e.g. gap before kitchen copy after customer). */
     spacerBeforeMm?: number;
@@ -161,6 +205,22 @@ const ReceiptContent = ({
                 : []),
             lineLabelValue("Total:", `${currency} ${(Number(finalTotal) || 0).toFixed(2)}`.trim()),
         ].join("\n");
+
+    const paymentInfo = showTotals && showPaymentMode ? extractReceiptPayment(bill) : null;
+    const paymentLines = paymentInfo
+        ? [
+              lineLabelValue("Payment:", paymentInfo.label),
+              ...(paymentInfo.cashAmount != null && paymentInfo.cashAmount > 0
+                  ? [lineLabelValue("Cash:", `${currency} ${paymentInfo.cashAmount.toFixed(2)}`.trim())]
+                  : []),
+              ...(paymentInfo.mpesaAmount != null && paymentInfo.mpesaAmount > 0
+                  ? [lineLabelValue("M-Pesa:", `${currency} ${paymentInfo.mpesaAmount.toFixed(2)}`.trim())]
+                  : []),
+              ...(paymentInfo.mpesaRef
+                  ? [lineLabelValue("Ref:", paymentInfo.mpesaRef)]
+                  : []),
+          ].join("\n")
+        : null;
 
     const footerMid = (b.footerLines ?? []).filter(Boolean).map((line) => centerTextLine(line));
     const footerPre = ["", ...footerMid, ...(footerMid.length ? [""] : [])].concat([
@@ -207,6 +267,12 @@ const ReceiptContent = ({
                         <pre className="receipt-pre">{totalsLines}</pre>
                     </>
                 ) : null}
+                {paymentLines ? (
+                    <>
+                        <hr className="receipt-hr" />
+                        <pre className="receipt-pre">{paymentLines}</pre>
+                    </>
+                ) : null}
                 <pre className="receipt-pre receipt-footer-pre">{footerPre}</pre>
             </div>
             {after}
@@ -251,11 +317,12 @@ export const CustomerCopyPrint = React.forwardRef<
     {
         bill: any;
         showTax?: boolean;
+        showPaymentMode?: boolean;
         receiptBranding?: ReceiptBranding;
         spacerBeforeMm?: number;
         spacerAfterMm?: number;
     }
->(({ bill, showTax, receiptBranding, spacerBeforeMm, spacerAfterMm }, ref) => {
+>(({ bill, showTax, showPaymentMode, receiptBranding, spacerBeforeMm, spacerAfterMm }, ref) => {
     if (!bill) return null;
     const taxFlag = showTax !== false;
     return (
@@ -267,6 +334,7 @@ export const CustomerCopyPrint = React.forwardRef<
                     label="Customer Copy"
                     showTotals={true}
                     showTax={taxFlag}
+                    showPaymentMode={showPaymentMode !== false}
                     branding={receiptBranding}
                     spacerBeforeMm={spacerBeforeMm}
                     spacerAfterMm={spacerAfterMm}
@@ -280,15 +348,15 @@ CustomerCopyPrint.displayName = "CustomerCopyPrint";
 
 const ReceiptPrint = React.forwardRef<
     HTMLDivElement,
-    { bill: any; showTax?: boolean; receiptBranding?: ReceiptBranding }
->(({ bill, showTax, receiptBranding }, ref) => {
+    { bill: any; showTax?: boolean; showPaymentMode?: boolean; receiptBranding?: ReceiptBranding }
+>(({ bill, showTax, showPaymentMode, receiptBranding }, ref) => {
     if (!bill) return null;
     const taxFlag = showTax !== false;
     return (
         <>
             <style>{THERMAL_RECEIPT_CSS}</style>
             <div ref={ref}>
-                <ReceiptContent bill={bill} label="Receipt" showTotals={true} showTax={taxFlag} branding={receiptBranding} />
+                <ReceiptContent bill={bill} label="Receipt" showTotals={true} showTax={taxFlag} showPaymentMode={showPaymentMode !== false} branding={receiptBranding} />
             </div>
         </>
     );

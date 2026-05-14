@@ -29,7 +29,7 @@ import PricelistSwitcher from "../components/PricelistSwitcher";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import { hasPermission } from "../../backend/config/role-permissions";
-import { fireCashSettle } from "../utils/billCashSettle";
+import { fireCashSettle, fireMpesaSettle } from "../utils/billCashSettle";
 
 const INVENTORY_TTL_MS = 15000;
 
@@ -63,6 +63,8 @@ const BillingSection = () => {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cashSettled, setCashSettled] = useState(false);
+  const [mpesaSettled, setMpesaSettled] = useState(false);
+  const [mpesaRef, setMpesaRef] = useState("");
   const [createdBill, setCreatedBill] = useState(null);
   const [billError, setBillError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,6 +96,7 @@ const BillingSection = () => {
   const [autoPrintPrinterName, setAutoPrintPrinterName] = useState("");
   const [autoPrintCopyMode, setAutoPrintCopyMode] = useState<"customer" | "business" | "both">("both");
   const [showTax, setShowTax] = useState(true);
+  const [showPaymentMode, setShowPaymentMode] = useState(true);
   const [receiptBranding, setReceiptBranding] = useState<ReceiptBranding>(() => defaultReceiptBranding());
 
   /** While a pending bill is open, exclude it from pending-demand so totals match server validation. */
@@ -151,6 +154,7 @@ const BillingSection = () => {
     apiCall("/api/system/settings?key=bill_settings").then((res) => {
       if (res.status === 200 && res.data?.value) {
         setShowTax(res.data.value.show_tax_on_receipt !== false);
+        setShowPaymentMode(res.data.value.show_payment_on_receipt !== false);
       }
     }).catch(() => {});
   }, []);
@@ -560,6 +564,8 @@ const BillingSection = () => {
     setBillError(""); // Clear error when modal is closed
     setErrorDetails(null); // Clear error details when modal is closed
     setCashSettled(false);
+    setMpesaSettled(false);
+    setMpesaRef("");
   }, []);
   const handleShowCancelModal = useCallback(() => setShowCancelModal(true), []);
   const handleCloseCancelModal = useCallback(() => setShowCancelModal(false), []);
@@ -626,12 +632,15 @@ const BillingSection = () => {
             : (apiPayload as Record<string, unknown> | undefined);
           const newBillId = createdFromApi?.id as number | undefined;
           logClientFromRenderer(
-            `create-bill: HTTP 201 billId=${newBillId ?? "?"} items=${selectedItems.length} total=${total} autoPrintEnabled=${autoPrintEnabled} cashSettled=${cashSettled}`,
+            `create-bill: HTTP 201 billId=${newBillId ?? "?"} items=${selectedItems.length} total=${total} autoPrintEnabled=${autoPrintEnabled} cashSettled=${cashSettled} mpesaSettled=${mpesaSettled}`,
           );
 
-          if (cashSettled && newBillId) {
+          if (cashSettled && !mpesaSettled && newBillId) {
             fireCashSettle(apiCall as Parameters<typeof fireCashSettle>[0], newBillId, total);
-            logClientFromRenderer(`create-bill: auto-settle fired (fire-and-forget) billId=${newBillId}`);
+            logClientFromRenderer(`create-bill: auto-settle (cash) fired (fire-and-forget) billId=${newBillId}`);
+          } else if (mpesaSettled && !cashSettled && newBillId) {
+            fireMpesaSettle(apiCall as Parameters<typeof fireMpesaSettle>[0], newBillId, total, mpesaRef.trim());
+            logClientFromRenderer(`create-bill: auto-settle (mpesa) fired (fire-and-forget) billId=${newBillId}`);
           }
 
           setShowSubmitModal(false);
@@ -645,6 +654,11 @@ const BillingSection = () => {
             })),
             user: { firstName: waitress },
             currency: "KES",
+            ...(cashSettled && !mpesaSettled
+              ? { receiptPayment: { method: "cash", cashAmount: total } }
+              : mpesaSettled && !cashSettled
+              ? { receiptPayment: { method: "mpesa", mpesaAmount: total, mpesaRef: mpesaRef.trim() } }
+              : {}),
           };
           setCreatedBill(billForReceipt);
 
@@ -658,7 +672,7 @@ const BillingSection = () => {
                 const customerPrint = await printCustomerCopyOnly(
                   billForReceipt,
                   autoPrintPrinterName || undefined,
-                  { showTax, receiptBranding }
+                  { showTax, showPaymentMode, receiptBranding }
                 );
                 if (!customerPrint.success) {
                   logClientFromRenderer(
@@ -672,7 +686,7 @@ const BillingSection = () => {
                 const captainPrint = await printCaptainCopyOnly(
                   billForReceipt,
                   autoPrintPrinterName || undefined,
-                  { showTax, receiptBranding }
+                  { showTax, showPaymentMode, receiptBranding }
                 );
                 if (!captainPrint.success) {
                   logClientFromRenderer(
@@ -686,7 +700,7 @@ const BillingSection = () => {
                 const { captain: captainPrint, customer: customerPrint } = await printCaptainOrderAndCustomerCopy(
                   billForReceipt,
                   autoPrintPrinterName || undefined,
-                  { showTax, receiptBranding }
+                  { showTax, showPaymentMode, receiptBranding }
                 );
                 if (!captainPrint.success || !customerPrint.success) {
                   logClientFromRenderer(
@@ -743,11 +757,11 @@ const BillingSection = () => {
     const printer = autoPrintPrinterName || undefined;
     logClientFromRenderer(`print: manual pending bill (billing) mode=${autoPrintCopyMode} printer=${printer ?? "default"} billId=${createdBill.id}`);
     if (autoPrintCopyMode === "customer") {
-      await printCustomerCopyOnly(createdBill, printer, { showTax, receiptBranding });
+      await printCustomerCopyOnly(createdBill, printer, { showTax, showPaymentMode, receiptBranding });
     } else if (autoPrintCopyMode === "business") {
-      await printCaptainCopyOnly(createdBill, printer, { showTax, receiptBranding });
+      await printCaptainCopyOnly(createdBill, printer, { showTax, showPaymentMode, receiptBranding });
     } else {
-      await printCaptainOrderAndCustomerCopy(createdBill, printer, { showTax, receiptBranding });
+      await printCaptainOrderAndCustomerCopy(createdBill, printer, { showTax, showPaymentMode, receiptBranding });
     }
   };
 
@@ -755,7 +769,7 @@ const BillingSection = () => {
     if (!createdBill) return;
 
     // Download Customer Copy
-    await downloadReceiptAsFile(CustomerCopyPrint, createdBill, "customer", { showTax, receiptBranding });
+    await downloadReceiptAsFile(CustomerCopyPrint, createdBill, "customer", { showTax, showPaymentMode, receiptBranding });
   };
 
   const handleConfirmCancel = useCallback(() => {
@@ -787,6 +801,8 @@ const BillingSection = () => {
     setFetchCategoryError("");
     setBillError(""); // Clear bill errors
     setCashSettled(false);
+    setMpesaSettled(false);
+    setMpesaRef("");
   }, []);
 
   const handleNewBill = useCallback(() => {
@@ -1199,7 +1215,7 @@ const BillingSection = () => {
 
       {/* Hidden Receipt Component */}
       <div style={{ display: "none" }}>
-        {createdBill && <ReceiptPrint ref={receiptRef} bill={createdBill} showTax={showTax} receiptBranding={receiptBranding} />}
+        {createdBill && <ReceiptPrint ref={receiptRef} bill={createdBill} showTax={showTax} showPaymentMode={showPaymentMode} receiptBranding={receiptBranding} />}
       </div>
 
       {/* Quantity Modal */}
@@ -1267,8 +1283,14 @@ const BillingSection = () => {
                 <div className="spinner-border text-primary mb-3" role="status" style={{ width: "3rem", height: "3rem" }}>
                   <span className="visually-hidden">Loading...</span>
                 </div>
-                <p className="fs-5 text-primary">{cashSettled ? "Creating & settling bill..." : "Creating bill..."}</p>
-                <p className="text-muted">{cashSettled ? "Please wait while we process and settle your order" : "Please wait while we process your order"}</p>
+                <p className="fs-5 text-primary">
+                  {cashSettled && !mpesaSettled
+                    ? "Creating & settling bill (Cash)..."
+                    : mpesaSettled && !cashSettled
+                    ? "Creating & settling bill (M-Pesa)..."
+                    : "Creating bill..."}
+                </p>
+                <p className="text-muted">Please wait while we process your order</p>
               </>
             ) : (
               <>
@@ -1278,10 +1300,11 @@ const BillingSection = () => {
             )}
           </div>
           <div className="mt-4 pt-3 border-top">
+            {/* Cash Settled Toggle */}
             <div className="d-flex align-items-center justify-content-between gap-3">
               <div>
                 <div className="fw-semibold fs-6">Cash Settled</div>
-                <div className="text-muted small">Bill will be automatically submitted with cash payment</div>
+                <div className="text-muted small">Automatically submit with full cash payment</div>
               </div>
               <div className="form-check form-switch m-0" style={{ transform: "scale(1.6)", transformOrigin: "right center" }}>
                 <input
@@ -1296,10 +1319,70 @@ const BillingSection = () => {
                 />
               </div>
             </div>
-            {cashSettled && (
+
+            {/* M-Pesa Settled Toggle */}
+            <div className="d-flex align-items-center justify-content-between gap-3 mt-3 pt-3 border-top">
+              <div>
+                <div className="fw-semibold fs-6">M-Pesa Settled</div>
+                <div className="text-muted small">Automatically submit with full M-Pesa payment</div>
+              </div>
+              <div className="form-check form-switch m-0" style={{ transform: "scale(1.6)", transformOrigin: "right center" }}>
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  role="switch"
+                  id="mpesaSettledToggle"
+                  checked={mpesaSettled}
+                  onChange={(e) => {
+                    setMpesaSettled(e.target.checked);
+                    if (!e.target.checked) setMpesaRef("");
+                  }}
+                  disabled={isSubmitting}
+                  style={{ cursor: "pointer" }}
+                />
+              </div>
+            </div>
+
+            {/* M-Pesa Reference Input */}
+            {mpesaSettled && !cashSettled && (
+              <div className="mt-2">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="M-Pesa reference (e.g. QRM123456789)"
+                  value={mpesaRef}
+                  onChange={(e) => setMpesaRef(e.target.value.toUpperCase())}
+                  disabled={isSubmitting}
+                  autoComplete="off"
+                  spellCheck={false}
+                  style={{ fontSize: "1rem", padding: "0.6rem 0.75rem", letterSpacing: "0.04em" }}
+                />
+                {!mpesaRef.trim() && (
+                  <div className="text-muted small mt-1">
+                    <i className="bi bi-info-circle me-1"></i>
+                    Reference required to auto-settle via M-Pesa
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Status alerts */}
+            {cashSettled && !mpesaSettled && (
               <div className="mt-2 alert alert-success py-2 px-3 mb-0 d-flex align-items-center gap-2">
                 <i className="bi bi-cash-coin fs-5"></i>
                 <span className="fw-medium">KES {(Number(totalAmount) || 0).toFixed(2)} will be recorded as cash payment</span>
+              </div>
+            )}
+            {mpesaSettled && !cashSettled && mpesaRef.trim() && (
+              <div className="mt-2 alert alert-success py-2 px-3 mb-0 d-flex align-items-center gap-2">
+                <i className="bi bi-phone fs-5"></i>
+                <span className="fw-medium">KES {(Number(totalAmount) || 0).toFixed(2)} M-Pesa — Ref: {mpesaRef.trim()}</span>
+              </div>
+            )}
+            {cashSettled && mpesaSettled && (
+              <div className="mt-2 alert alert-info py-2 px-3 mb-0 d-flex align-items-center gap-2">
+                <i className="bi bi-info-circle fs-5"></i>
+                <span className="fw-medium">Both methods selected — bill will be created pending. Go to My Sales to submit with a split payment.</span>
               </div>
             )}
           </div>
@@ -1317,17 +1400,26 @@ const BillingSection = () => {
             variant="success"
             onClick={handleConfirmSubmit}
             className="fw-medium"
-            disabled={isSubmitting}
+            disabled={isSubmitting || (mpesaSettled && !cashSettled && !mpesaRef.trim())}
           >
             {isSubmitting ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                {cashSettled ? "Creating & settling..." : "Creating..."}
+                {cashSettled && !mpesaSettled
+                  ? "Creating & settling (Cash)..."
+                  : mpesaSettled && !cashSettled
+                  ? "Creating & settling (M-Pesa)..."
+                  : "Creating..."}
               </>
-            ) : cashSettled ? (
+            ) : cashSettled && !mpesaSettled ? (
               <>
                 <i className="bi bi-cash-coin me-1"></i>
-                Create &amp; Settle Bill
+                Create &amp; Settle (Cash)
+              </>
+            ) : mpesaSettled && !cashSettled ? (
+              <>
+                <i className="bi bi-phone me-1"></i>
+                Create &amp; Settle (M-Pesa)
               </>
             ) : (
               <>
