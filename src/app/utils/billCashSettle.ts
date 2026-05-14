@@ -19,3 +19,26 @@ export function fireCashSettle(
     }),
   }).catch(() => {});
 }
+
+/**
+ * Fires an M-Pesa settlement for a newly created bill without blocking the caller.
+ * On network/API failure the bill stays pending — the user can submit manually from My Sales.
+ */
+export function fireMpesaSettle(
+  apiCall: (url: string, options: Record<string, unknown>) => Promise<unknown>,
+  billId: number,
+  total: number,
+  mpesaCode: string,
+): void {
+  apiCall("/api/bills/submit", {
+    method: "POST",
+    body: JSON.stringify({
+      paymentMethod: "mpesa",
+      cashAmount: 0,
+      mpesaAmount: total,
+      mpesaCode,
+      pendingAmount: 0,
+      billId,
+    }),
+  }).catch(() => {});
+}

@@ -223,6 +223,7 @@ function logToFile(message, level = "INFO") {
 
 // Log startup
 logToFile("=== JK PosMan Application Starting ===");
+logToFile(`App version: ${app.getVersion()}`);
 logToFile(`Platform: ${process.platform}`);
 logToFile(`Architecture: ${process.arch}`);
 logToFile(`Node version: ${process.versions.node}`);
@@ -490,11 +491,14 @@ function startNextServer() {
         nextServer.on("exit", (code, signal) => {
             if (code !== 0 && code !== null) {
                 logToFile(`Next.js server exited with code ${code} and signal ${signal}`, "ERROR");
-                // If server exits before we resolve, reject the promise
-                if (code !== null) {
+                // Only reject if the startup Promise hasn't already settled (timeout or success).
+                if (!pollTimedOut && !pollResolved) {
                     const error = `Next.js server exited unexpectedly with code ${code}`;
                     logToFile(error, "ERROR");
-                    // Give stdout/stderr pipes a moment to flush (Windows often needs this for startup errors).
+                    // Clear the overall timeout so it doesn't fire a second (no-op) reject later.
+                    clearTimeout(overallTimeout);
+                    pollTimedOut = true; // Prevent further poll ticks from trying to resolve.
+                    // Give stdout/stderr pipes a moment to flush before rejecting.
                     setTimeout(() => reject(new Error(error)), 150);
                 }
             } else {
@@ -744,7 +748,11 @@ function createWindow() {
         logToFile(`Error code: ${errorCode}, Description: ${errorDescription}`, "ERROR");
     });
 
-    mainWindow.loadURL(url);
+    mainWindow.loadURL(url).catch((err) => {
+        // Navigation may be cancelled immediately when app.whenReady() overrides this with
+        // the loading-page URL before the server is up — log but don't treat as fatal.
+        logToFile(`createWindow loadURL rejected (non-fatal): ${err?.message || err}`, "ERROR");
+    });
 
     // Handle external links
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -953,13 +961,17 @@ border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
 <p class="sub">Starting application, please wait…</p>
 <p class="hint">First launch initialises the database and may take up to a minute.</p>
 </div></body></html>`);
-    mainWindow.loadURL(loadingPage);
+    mainWindow.loadURL(loadingPage).catch((err) => {
+        logToFile(`Failed to load loading page: ${err?.message || err}`, "ERROR");
+    });
 
     try {
         logToFile("Starting Next.js server...");
         await startNextServer();
         logToFile("Server ready, loading app URL...");
-        mainWindow.loadURL(`http://${HOST}:${PORT}`);
+        mainWindow.loadURL(`http://${HOST}:${PORT}`).catch((err) => {
+            logToFile(`Failed to load app URL: ${err?.message || err}`, "ERROR");
+        });
         logToFile("App URL load initiated");
 
         // Warm bootstrap + backup without blocking first paint
@@ -1002,9 +1014,15 @@ button:hover{background:#2563eb}</style></head>
 <button onclick="location.reload()">Retry</button>
 </div></body></html>`);
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.loadURL(errorPage);
+            mainWindow.loadURL(errorPage).catch((loadErr) => {
+                logToFile(`Failed to load error page: ${loadErr?.message || loadErr}`, "ERROR");
+            });
         }
     }
+}).catch((err) => {
+    // Safety net: if something throws outside the inner try/catch, log it here.
+    logToFile(`Unhandled error in app.whenReady startup: ${err?.message || err}`, "ERROR");
+    logToFile(`Stack: ${err?.stack || "(no stack)"}`, "ERROR");
 });
 
 // Auto-updater: prompt the user to restart when a new version is ready

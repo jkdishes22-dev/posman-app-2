@@ -30,6 +30,7 @@ interface PrinterSettings {
 
 interface BillSettings {
     show_tax_on_receipt: boolean;
+    show_payment_on_receipt: boolean;
 }
 
 interface DbBackupSettings {
@@ -155,7 +156,7 @@ export default function AdminSettingsPage() {
     const [printTestBusy, setPrintTestBusy] = useState(false);
 
     // Bill settings
-    const [billSettings, setBillSettings] = useState<BillSettings>({ show_tax_on_receipt: true });
+    const [billSettings, setBillSettings] = useState<BillSettings>({ show_tax_on_receipt: true, show_payment_on_receipt: true });
     const [billSettingsSaving, setBillSettingsSaving] = useState(false);
     const [billSettingsResult, setBillSettingsResult] = useState<{ success: boolean; error?: string } | null>(null);
 
@@ -672,7 +673,7 @@ export default function AdminSettingsPage() {
                     </div>
                 </PageHeaderStrip>
 
-                {/* Top row: License + Bill Settings */}
+                {/* Top row: License + Business Shifts */}
                 <Row className="mb-4">
                     <Col md={6} className="mb-4 mb-md-0">
                         <Card className="shadow-sm h-100">
@@ -759,121 +760,91 @@ export default function AdminSettingsPage() {
 
                     <Col md={6}>
                         <Card className="shadow-sm h-100">
-                            <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1">
-                                <span>Bill Settings</span>
-                                <HelpPopover id="bill-settings-intro" title="Bill presentation">
-                                    Controls customer-facing bill behaviour—for example whether tax lines appear on printed or downloaded receipts (subject to item setup).
+                            <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1 flex-wrap">
+                                <span>Business shifts</span>
+                                <HelpPopover id="business-shifts-help" title="Business shift windows">
+                                    Define unlimited shift windows for operational tracking (for example 07:00-12:00 and 15:00-22:00).
+                                    These shifts will be used later in shift-based sales and cashier reporting.
                                 </HelpPopover>
                             </Card.Header>
                             <Card.Body>
-                                {billSettingsResult && (
-                                    <Alert variant={billSettingsResult.success ? "success" : "danger"} dismissible onClose={() => setBillSettingsResult(null)} className="mb-3">
-                                        {billSettingsResult.success ? "Bill settings saved." : billSettingsResult.error}
+                                {shiftSettingsResult && (
+                                    <Alert
+                                        variant={shiftSettingsResult.success ? "success" : "danger"}
+                                        dismissible
+                                        onClose={() => setShiftSettingsResult(null)}
+                                        className="mb-3"
+                                    >
+                                        {shiftSettingsResult.success ? "Shift settings saved." : shiftSettingsResult.error}
                                     </Alert>
                                 )}
-                                <Form.Check
-                                    type="switch"
-                                    id="show-tax-switch"
-                                    label="Show tax on receipt"
-                                    checked={billSettings.show_tax_on_receipt}
-                                    onChange={(e) => setBillSettings((s) => ({ ...s, show_tax_on_receipt: e.target.checked }))}
-                                    className="mb-3"
-                                />
-                                <Button variant="primary" onClick={handleSaveBillSettings} disabled={billSettingsSaving}>
-                                    {billSettingsSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save"}
+                                <p className="text-muted mb-3 small">
+                                    Add one or more business shifts. Leave none if your business does not use shift segmentation yet.
+                                </p>
+                                <Button variant="primary" className="mb-3" onClick={addBusinessShift}>
+                                    <i className="bi bi-plus-lg me-1"></i>
+                                    Add shift
+                                </Button>
+                                {businessShifts.length === 0 ? (
+                                    <p className="text-muted small fst-italic mb-0">No shifts configured.</p>
+                                ) : (
+                                    <Table responsive bordered size="sm" className="mb-0 align-middle">
+                                        <thead className="table-light">
+                                            <tr>
+                                                <th style={{ width: "36%" }}>Shift name (optional)</th>
+                                                <th style={{ width: "24%" }}>Start time</th>
+                                                <th style={{ width: "24%" }}>End time</th>
+                                                <th style={{ width: "16%" }} />
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {businessShifts.map((shift, index) => (
+                                                <tr key={shift.id}>
+                                                    <td>
+                                                        <Form.Control
+                                                            size="sm"
+                                                            placeholder={`Shift ${index + 1} (e.g. Morning)`}
+                                                            value={shift.name}
+                                                            onChange={(e) => patchBusinessShift(shift.id, { name: e.target.value })}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <Form.Control
+                                                            size="sm"
+                                                            type="time"
+                                                            value={shift.start_time}
+                                                            onChange={(e) => patchBusinessShift(shift.id, { start_time: e.target.value })}
+                                                            required
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <Form.Control
+                                                            size="sm"
+                                                            type="time"
+                                                            value={shift.end_time}
+                                                            onChange={(e) => patchBusinessShift(shift.id, { end_time: e.target.value })}
+                                                            required
+                                                        />
+                                                    </td>
+                                                    <td className="text-end">
+                                                        <Button variant="outline-danger" size="sm" onClick={() => removeBusinessShift(shift.id)}>
+                                                            Remove
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                )}
+                                <Button className="mt-3" variant="primary" onClick={handleSaveShiftSettings} disabled={shiftSettingsSaving}>
+                                    {shiftSettingsSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save shifts"}
                                 </Button>
                             </Card.Body>
                         </Card>
                     </Col>
                 </Row>
 
-                <Card className="shadow-sm mb-4">
-                    <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1 flex-wrap">
-                        <span>Business shifts</span>
-                        <HelpPopover id="business-shifts-help" title="Business shift windows">
-                            Define unlimited shift windows for operational tracking (for example 07:00-12:00 and 15:00-22:00).
-                            These shifts will be used later in shift-based sales and cashier reporting.
-                        </HelpPopover>
-                    </Card.Header>
-                    <Card.Body>
-                        {shiftSettingsResult && (
-                            <Alert
-                                variant={shiftSettingsResult.success ? "success" : "danger"}
-                                dismissible
-                                onClose={() => setShiftSettingsResult(null)}
-                                className="mb-3"
-                            >
-                                {shiftSettingsResult.success ? "Shift settings saved." : shiftSettingsResult.error}
-                            </Alert>
-                        )}
-
-                        <div className="d-flex justify-content-between align-items-center mb-3">
-                            <p className="text-muted mb-0 small">
-                                Add one or more business shifts. Leave none if your business does not use shift segmentation yet.
-                            </p>
-                            <Button variant="outline-primary" size="sm" onClick={addBusinessShift}>
-                                Add shift
-                            </Button>
-                        </div>
-
-                        {businessShifts.length === 0 ? (
-                            <p className="text-muted small fst-italic mb-0">No shifts configured.</p>
-                        ) : (
-                            <Table responsive bordered size="sm" className="mb-0 align-middle">
-                                <thead className="table-light">
-                                    <tr>
-                                        <th style={{ width: "36%" }}>Shift name (optional)</th>
-                                        <th style={{ width: "24%" }}>Start time</th>
-                                        <th style={{ width: "24%" }}>End time</th>
-                                        <th style={{ width: "16%" }} />
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {businessShifts.map((shift, index) => (
-                                        <tr key={shift.id}>
-                                            <td>
-                                                <Form.Control
-                                                    size="sm"
-                                                    placeholder={`Shift ${index + 1} (e.g. Morning)`}
-                                                    value={shift.name}
-                                                    onChange={(e) => patchBusinessShift(shift.id, { name: e.target.value })}
-                                                />
-                                            </td>
-                                            <td>
-                                                <Form.Control
-                                                    size="sm"
-                                                    type="time"
-                                                    value={shift.start_time}
-                                                    onChange={(e) => patchBusinessShift(shift.id, { start_time: e.target.value })}
-                                                    required
-                                                />
-                                            </td>
-                                            <td>
-                                                <Form.Control
-                                                    size="sm"
-                                                    type="time"
-                                                    value={shift.end_time}
-                                                    onChange={(e) => patchBusinessShift(shift.id, { end_time: e.target.value })}
-                                                    required
-                                                />
-                                            </td>
-                                            <td className="text-end">
-                                                <Button variant="outline-danger" size="sm" onClick={() => removeBusinessShift(shift.id)}>
-                                                    Remove
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </Table>
-                        )}
-
-                        <Button className="mt-3" variant="primary" onClick={handleSaveShiftSettings} disabled={shiftSettingsSaving}>
-                            {shiftSettingsSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save shifts"}
-                        </Button>
-                    </Card.Body>
-                </Card>
-
+                {/* Organisation & Receipts — consolidated: branding, display options, printer */}
                 <Card className="shadow-sm mb-4">
                     <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1 flex-wrap">
                         <span>Organisation &amp; receipts</span>
@@ -883,11 +854,14 @@ export default function AdminSettingsPage() {
                                 <strong>Default</strong> is printed above the thank-you footer.
                             </p>
                             <p className="mb-0">
-                                Staff with the print permission receive branding via the same API as printer preferences.
+                                Receipt display and printer settings are also managed here.
                             </p>
                         </HelpPopover>
                     </Card.Header>
                     <Card.Body>
+
+                        {/* ── Organisation branding ───────────────────────────────── */}
+                        <h6 className="fw-bold mb-3">Organisation branding</h6>
                         {organisationResult && (
                             <Alert variant={organisationResult.success ? "success" : "danger"} dismissible onClose={() => setOrganisationResult(null)} className="mb-3">
                                 {organisationResult.success ? "Organisation settings saved." : organisationResult.error}
@@ -1012,19 +986,42 @@ export default function AdminSettingsPage() {
                         <Button className="mt-3" variant="primary" onClick={handleSaveOrganisation} disabled={organisationSaving}>
                             {organisationSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save organisation"}
                         </Button>
-                    </Card.Body>
-                </Card>
 
-                {/* System Configuration card — Printer + DB Backup side by side, Logs below */}
-                <Card className="shadow-sm mb-4">
-                    <Card.Header className="bg-light fw-bold">System Configuration</Card.Header>
-                    <Card.Body className="p-0">
+                        <hr className="my-4" />
 
-                        <Row className="g-0">
-                            {/* Printer Settings */}
-                            <Col md={6} className="p-4 border-end">
+                        {/* ── Receipt display + Printer side by side ─────────────── */}
+                        <Row className="g-4">
+                            <Col md={6}>
+                                <h6 className="fw-bold mb-3">Receipt display</h6>
+                                {billSettingsResult && (
+                                    <Alert variant={billSettingsResult.success ? "success" : "danger"} dismissible onClose={() => setBillSettingsResult(null)} className="mb-3">
+                                        {billSettingsResult.success ? "Display settings saved." : billSettingsResult.error}
+                                    </Alert>
+                                )}
+                                <Form.Check
+                                    type="switch"
+                                    id="show-tax-switch"
+                                    label="Show tax on receipt"
+                                    checked={billSettings.show_tax_on_receipt}
+                                    onChange={(e) => setBillSettings((s) => ({ ...s, show_tax_on_receipt: e.target.checked }))}
+                                    className="mb-2"
+                                />
+                                <Form.Check
+                                    type="switch"
+                                    id="show-payment-switch"
+                                    label="Show payment mode on receipt"
+                                    checked={billSettings.show_payment_on_receipt !== false}
+                                    onChange={(e) => setBillSettings((s) => ({ ...s, show_payment_on_receipt: e.target.checked }))}
+                                    className="mb-3"
+                                />
+                                <Button variant="primary" onClick={handleSaveBillSettings} disabled={billSettingsSaving}>
+                                    {billSettingsSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save display settings"}
+                                </Button>
+                            </Col>
+
+                            <Col md={6} className="border-start">
                                 <div className="d-flex align-items-center gap-1 mb-3">
-                                    <h6 className="fw-bold mb-0">Printer Settings</h6>
+                                    <h6 className="fw-bold mb-0">Printer settings</h6>
                                     <HelpPopover id="printer-settings-intro" title="Printer settings">
                                         Configure thermal/receipt printing for the desktop app. Use <strong>Test Print</strong> after choosing a device.
                                     </HelpPopover>
@@ -1106,13 +1103,22 @@ export default function AdminSettingsPage() {
                                         {printTestBusy ? <><Spinner animation="border" size="sm" className="me-1" />Sending…</> : "Test Print"}
                                     </Button>
                                     <Button variant="primary" onClick={handleSavePrinterSettings} disabled={printerSaving}>
-                                        {printerSaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save"}
+                                        {printerSaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save printer"}
                                     </Button>
                                 </div>
                             </Col>
+                        </Row>
 
-                            {/* Database Backup */}
-                            <Col md={6} className="p-4">
+                    </Card.Body>
+                </Card>
+
+                {/* System Configuration card — DB Backup + Logs */}
+                <Card className="shadow-sm mb-4">
+                    <Card.Header className="bg-light fw-bold">System Configuration</Card.Header>
+                    <Card.Body className="p-0">
+
+                        {/* Database Backup */}
+                        <div className="p-4">
                                 <div className="d-flex align-items-center gap-1 mb-3">
                                     <h6 className="fw-bold mb-0">Database Backup</h6>
                                     <HelpPopover id="db-backup-overview" title="Database backup" wide>
@@ -1241,8 +1247,7 @@ export default function AdminSettingsPage() {
                                         {dbBackupSaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save"}
                                     </Button>
                                 </div>
-                            </Col>
-                        </Row>
+                        </div>
 
                         <hr className="m-0" />
 

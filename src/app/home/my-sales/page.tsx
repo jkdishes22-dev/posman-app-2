@@ -87,6 +87,7 @@ const MySales = () => {
   const [isLoadingBillDetails, setIsLoadingBillDetails] = useState(false);
   /** Matches admin “Show tax details on receipt” (`bill_settings.show_tax_on_receipt`). */
   const [showTax, setShowTax] = useState(true);
+  const [showPaymentMode, setShowPaymentMode] = useState(true);
   const [receiptBranding, setReceiptBranding] = useState<ReceiptBranding>(() => defaultReceiptBranding());
 
   // Void request state
@@ -129,6 +130,7 @@ const MySales = () => {
       .then((res) => {
         if (res.status === 200 && res.data?.value) {
           setShowTax(res.data.value.show_tax_on_receipt !== false);
+          setShowPaymentMode(res.data.value.show_payment_on_receipt !== false);
         }
       })
       .catch(() => {});
@@ -444,14 +446,14 @@ const MySales = () => {
   const handlePrint = async () => {
     if (!selectedBill) return;
     logClientFromRenderer(`print: my-sales customer-copy-only billId=${selectedBill.id}`);
-    await printCustomerCopyOnly(selectedBill, undefined, { showTax, receiptBranding });
+    await printCustomerCopyOnly(selectedBill, undefined, { showTax, showPaymentMode, receiptBranding });
   };
 
   const handleDownload = async () => {
     if (!selectedBill) return;
 
     // Download Customer Copy
-    await downloadReceiptAsFile(CustomerCopyPrint, selectedBill, "customer", { showTax, receiptBranding });
+    await downloadReceiptAsFile(CustomerCopyPrint, selectedBill, "customer", { showTax, showPaymentMode, receiptBranding });
   };
 
   // Void request functions
