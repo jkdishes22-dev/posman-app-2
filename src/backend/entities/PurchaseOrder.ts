@@ -17,7 +17,7 @@ export enum PurchaseOrderStatus {
 @Index(["supplier_id"])
 @Index(["order_number"], { unique: true })
 export class PurchaseOrder extends BaseEntity {
-    @Column({ type: "int", nullable: true, name: "supplier_id" })
+    @Column({ type: "int", nullable: false, name: "supplier_id" })
     supplier_id: number;
 
     @ManyToOne(() => Supplier)
