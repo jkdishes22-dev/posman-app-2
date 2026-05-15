@@ -1406,67 +1406,78 @@ const MySales = () => {
           {/* Void Request Modal */}
           {showVoidModal && (
             <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-              <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-dialog modal-dialog-centered modal-lg">
                 <div className="modal-content">
-                  <div className="modal-header">
-                    <h5 className="modal-title">
-                      Request Void for Item: {selectedItem?.item?.name}
-                    </h5>
-                    <button
-                      type="button"
-                      className="btn-close"
-                      onClick={closeVoidModal}
-                    ></button>
+                  <div className="modal-header py-2">
+                    <h6 className="modal-title fw-semibold">
+                      <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
+                      Void — <span className="text-primary">{selectedItem?.item?.name}</span>
+                    </h6>
+                    <button type="button" className="btn-close" onClick={closeVoidModal}></button>
                   </div>
-                  <div className="modal-body">
-                    <p>You are requesting to void <strong>{selectedItem?.item?.name}</strong> (Quantity: {selectedItem?.quantity}) from Bill #{selectedBill?.id}.</p>
-                    <Form.Group className="mb-3">
-                      <Form.Label>Reason for Voiding</Form.Label>
-                      <Form.Control
-                        as="textarea"
-                        rows={2}
-                        value={voidReason}
-                        onChange={(e) => setVoidReason(e.target.value)}
-                        placeholder="e.g., Customer changed mind, wrong item entered, etc."
-                        isInvalid={!!voidError}
-                      />
-                      <Form.Control.Feedback type="invalid">
-                        {voidError}
-                      </Form.Control.Feedback>
-                    </Form.Group>
-                    <SubmitBillVirtualKeyboard
-                      mode="alpha"
-                      alphaHeading="Void reason"
-                      alphaSpacing="compact"
-                      onCharacter={(ch) => setVoidReason(prev => prev + ch)}
-                      onSpecialKey={(key) => {
-                        if (key === "Backspace") setVoidReason(prev => prev.slice(0, -1));
-                        else if (key === "Clear") setVoidReason("");
-                        else if (key === "Space") setVoidReason(prev => prev + " ");
-                      }}
-                    />
-                    <ErrorDisplay
-                      error={voidError}
-                      errorDetails={voidErrorDetails}
-                      onDismiss={() => { setVoidError(null); setVoidErrorDetails(null); }}
-                    />
+                  <div className="modal-body p-0">
+                    <div className="row g-0" style={{ minHeight: 340 }}>
+                      {/* LEFT — keyboard */}
+                      <div className="col-6 border-end bg-light p-3">
+                        <SubmitBillVirtualKeyboard
+                          mode="alpha"
+                          alphaHeading="Void reason"
+                          alphaSpacing="compact"
+                          onCharacter={(ch) => setVoidReason(prev => prev + ch)}
+                          onSpecialKey={(key) => {
+                            if (key === "Backspace") setVoidReason(prev => prev.slice(0, -1));
+                            else if (key === "Clear") setVoidReason("");
+                            else if (key === "Space") setVoidReason(prev => prev + " ");
+                          }}
+                        />
+                      </div>
+                      {/* RIGHT — details + reason */}
+                      <div className="col-6 p-3 d-flex flex-column gap-3">
+                        <ErrorDisplay
+                          error={voidError}
+                          errorDetails={voidErrorDetails}
+                          onDismiss={() => { setVoidError(null); setVoidErrorDetails(null); }}
+                        />
+                        {/* Item summary strip */}
+                        <div className="rounded border px-3 py-2 bg-white small">
+                          <div className="d-flex justify-content-between mb-1">
+                            <span className="text-muted">Bill</span>
+                            <span className="fw-semibold">#{selectedBill?.id}</span>
+                          </div>
+                          <div className="d-flex justify-content-between mb-1">
+                            <span className="text-muted">Quantity</span>
+                            <span className="fw-semibold">{selectedItem?.quantity}</span>
+                          </div>
+                          <div className="d-flex justify-content-between">
+                            <span className="text-muted">Subtotal</span>
+                            <span className="fw-semibold text-danger">KES {(Number(selectedItem?.subtotal) || 0).toFixed(2)}</span>
+                          </div>
+                        </div>
+                        {/* Reason textarea */}
+                        <Form.Group className="flex-grow-1 d-flex flex-column">
+                          <Form.Label className="fw-semibold mb-1">Reason for Voiding</Form.Label>
+                          <Form.Control
+                            as="textarea"
+                            value={voidReason}
+                            onChange={(e) => setVoidReason(e.target.value)}
+                            placeholder="e.g., Customer changed mind, wrong item entered…"
+                            isInvalid={!!voidError}
+                            style={{ resize: "none", flexGrow: 1, minHeight: 80 }}
+                          />
+                          <Form.Control.Feedback type="invalid">{voidError}</Form.Control.Feedback>
+                          <Form.Text className="text-muted" style={{ fontSize: "0.72rem" }}>
+                            Reviewed by cashier / supervisor
+                          </Form.Text>
+                        </Form.Group>
+                      </div>
+                    </div>
                   </div>
-                  <div className="modal-footer d-flex justify-content-between">
-                    <Button
-                      variant="outline-secondary"
-                      onClick={closeVoidModal}
-                      className="d-flex align-items-center gap-1"
-                    >
-                      <i className="bi bi-x-circle me-1"></i>
-                      Cancel
+                  <div className="modal-footer py-2">
+                    <Button variant="outline-secondary" size="sm" onClick={closeVoidModal}>
+                      <i className="bi bi-x-circle me-1"></i>Cancel
                     </Button>
-                    <Button
-                      variant="danger"
-                      onClick={handleVoidSubmit}
-                      className="d-flex align-items-center gap-1"
-                    >
-                      <i className="bi bi-exclamation-triangle-fill me-1"></i>
-                      Submit Void Request
+                    <Button variant="danger" size="sm" onClick={handleVoidSubmit} disabled={!voidReason.trim()}>
+                      <i className="bi bi-exclamation-triangle-fill me-1"></i>Submit Void Request
                     </Button>
                   </div>
                 </div>
