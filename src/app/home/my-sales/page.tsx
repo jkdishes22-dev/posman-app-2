@@ -21,6 +21,7 @@ import { ApiErrorResponse } from "../../utils/errorUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import QuantityChangeModal from "../../components/QuantityChangeModal";
 import { useAuth } from "../../contexts/AuthContext";
+import SubmitBillVirtualKeyboard from "../../components/SubmitBillVirtualKeyboard";
 
 // Receipt component for printing
 const Receipt = React.forwardRef<HTMLDivElement, { bill: any }>(({ bill }, ref) => {
@@ -89,6 +90,8 @@ const MySales = () => {
   const [showTax, setShowTax] = useState(true);
   const [showPaymentMode, setShowPaymentMode] = useState(true);
   const [receiptBranding, setReceiptBranding] = useState<ReceiptBranding>(() => defaultReceiptBranding());
+
+  const [showBillIdKeyboard, setShowBillIdKeyboard] = useState(false);
 
   // Void request state
   const [showVoidModal, setShowVoidModal] = useState<boolean>(false);
@@ -624,7 +627,7 @@ const MySales = () => {
                   <div className="col-md-4">
                     <div className="form-group">
                       <label htmlFor="billId" className="form-label">Bill ID</label>
-                      <div>
+                      <div className="d-flex gap-1">
                         <Form.Control
                           type="text"
                           className="form-control"
@@ -633,7 +636,29 @@ const MySales = () => {
                           value={billIdFilter}
                           onChange={handleBillIdChange}
                         />
+                        <button
+                          type="button"
+                          className={`btn btn-sm ${showBillIdKeyboard ? "btn-primary" : "btn-outline-secondary"}`}
+                          onClick={() => setShowBillIdKeyboard(p => !p)}
+                          title="Toggle keypad"
+                        >
+                          <i className="bi bi-keyboard"></i>
+                        </button>
                       </div>
+                      {showBillIdKeyboard && (
+                        <div className="mt-2">
+                          <SubmitBillVirtualKeyboard
+                            mode="numeric"
+                            numericDecimal={false}
+                            numericHeading="Bill ID keypad"
+                            onCharacter={(ch) => setBillIdFilter(prev => prev + ch)}
+                            onSpecialKey={(key) => {
+                              if (key === "Backspace") setBillIdFilter(prev => prev.slice(0, -1));
+                              else if (key === "Clear") setBillIdFilter("");
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="col-md-4 d-flex align-items-end">
@@ -1210,22 +1235,20 @@ const MySales = () => {
                                     item.status === "pending" && (
                                       <div className="d-flex gap-1 flex-wrap">
                                         <Button
-                                          variant="outline-danger"
+                                          variant="danger"
                                           size="sm"
                                           onClick={() => handleVoidRequest(item)}
-                                          style={{ fontSize: "0.75rem", padding: "0.2rem 0.4rem" }}
                                         >
-                                          <i className="bi bi-exclamation-triangle-fill"></i>
-                                          <span className="d-none d-md-inline ms-1">Void</span>
+                                          <i className="bi bi-exclamation-triangle-fill me-1"></i>
+                                          Void
                                         </Button>
                                         <Button
-                                          variant="outline-warning"
+                                          variant="warning"
                                           size="sm"
                                           onClick={() => handleQuantityChangeRequest(item)}
-                                          style={{ fontSize: "0.75rem", padding: "0.2rem 0.4rem" }}
                                         >
-                                          <i className="bi bi-pencil-square"></i>
-                                          <span className="d-none d-md-inline ms-1">Qty</span>
+                                          <i className="bi bi-pencil-square me-1"></i>
+                                          Qty
                                         </Button>
                                       </div>
                                     )}
@@ -1401,7 +1424,7 @@ const MySales = () => {
                       <Form.Label>Reason for Voiding</Form.Label>
                       <Form.Control
                         as="textarea"
-                        rows={3}
+                        rows={2}
                         value={voidReason}
                         onChange={(e) => setVoidReason(e.target.value)}
                         placeholder="e.g., Customer changed mind, wrong item entered, etc."
@@ -1411,6 +1434,17 @@ const MySales = () => {
                         {voidError}
                       </Form.Control.Feedback>
                     </Form.Group>
+                    <SubmitBillVirtualKeyboard
+                      mode="alpha"
+                      alphaHeading="Void reason"
+                      alphaSpacing="compact"
+                      onCharacter={(ch) => setVoidReason(prev => prev + ch)}
+                      onSpecialKey={(key) => {
+                        if (key === "Backspace") setVoidReason(prev => prev.slice(0, -1));
+                        else if (key === "Clear") setVoidReason("");
+                        else if (key === "Space") setVoidReason(prev => prev + " ");
+                      }}
+                    />
                     <ErrorDisplay
                       error={voidError}
                       errorDetails={voidErrorDetails}
