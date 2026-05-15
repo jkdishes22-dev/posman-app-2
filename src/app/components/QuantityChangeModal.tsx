@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Modal, Button, Form, Alert } from "react-bootstrap";
+import { Modal, Button, Form } from "react-bootstrap";
 import { BillItem } from "../types/types";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
@@ -27,7 +27,6 @@ const QuantityChangeModal: React.FC<QuantityChangeModalProps> = ({
     const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
     const [activeKeyboard, setActiveKeyboard] = useState<"quantity" | "reason">("quantity");
 
-    // Reset form when modal opens/closes
     React.useEffect(() => {
         if (show && item) {
             setRequestedQuantity(item.quantity);
@@ -40,19 +39,16 @@ const QuantityChangeModal: React.FC<QuantityChangeModalProps> = ({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
         if (!item) return;
 
         if (requestedQuantity === item.quantity) {
             setError("Requested quantity must be different from current quantity");
             return;
         }
-
         if (requestedQuantity <= 0) {
             setError("Requested quantity must be greater than 0");
             return;
         }
-
         if (!reason.trim()) {
             setError("Please provide a reason for the quantity change");
             return;
@@ -67,10 +63,7 @@ const QuantityChangeModal: React.FC<QuantityChangeModalProps> = ({
                 `/api/bills/${item.bill_id}/items/${item.id}/quantity-change-request`,
                 {
                     method: "POST",
-                    body: JSON.stringify({
-                        requestedQuantity,
-                        reason: reason.trim(),
-                    }),
+                    body: JSON.stringify({ requestedQuantity, reason: reason.trim() }),
                 }
             );
 
@@ -81,7 +74,7 @@ const QuantityChangeModal: React.FC<QuantityChangeModalProps> = ({
                 setError(result.error || "Failed to submit quantity change request");
                 setErrorDetails(result.errorDetails);
             }
-        } catch (error) {
+        } catch {
             setError("Network error occurred");
             setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
         } finally {
@@ -89,153 +82,152 @@ const QuantityChangeModal: React.FC<QuantityChangeModalProps> = ({
         }
     };
 
-    const handleClose = () => {
-        if (!loading) {
-            onHide();
-        }
-    };
+    const handleClose = () => { if (!loading) onHide(); };
 
     if (!item) return null;
 
+    const unitPrice = (Number(item.subtotal) || 0) / (Number(item.quantity) || 1);
+    const newSubtotal = unitPrice * (Number(requestedQuantity) || 0);
+    const diff = newSubtotal - (Number(item.subtotal) || 0);
+    const qtyChanged = requestedQuantity !== item.quantity;
+
     return (
         <Modal show={show} onHide={handleClose} size="lg" centered>
-            <Modal.Header closeButton>
-                <Modal.Title>
-                    <i className="bi bi-pencil-square me-2"></i>
-                    Request Quantity Change
+            <Modal.Header closeButton className="py-2">
+                <Modal.Title className="fs-6 fw-semibold">
+                    <i className="bi bi-pencil-square me-2 text-warning"></i>
+                    Qty Change — <span className="text-primary">{item.item.name}</span>
                 </Modal.Title>
             </Modal.Header>
 
             <Form onSubmit={handleSubmit}>
-                <Modal.Body>
-                    <ErrorDisplay
-                        error={error}
-                        errorDetails={errorDetails}
-                        onDismiss={() => {
-                            setError(null);
-                            setErrorDetails(null);
-                        }}
-                    />
+                <Modal.Body className="p-0">
+                    <div className="row g-0" style={{ minHeight: 380 }}>
 
-                    <div className="mb-3">
-                        <h6>Item Details</h6>
-                        <div className="bg-light p-3 rounded">
-                            <div className="row">
-                                <div className="col-6">
-                                    <strong>Item:</strong> {item.item.name}
+                        {/* LEFT — keyboard */}
+                        <div className="col-6 border-end bg-light p-3 d-flex flex-column">
+                            <div className="mb-2 d-flex gap-2">
+                                <button
+                                    type="button"
+                                    className={`btn btn-sm flex-grow-1 ${activeKeyboard === "quantity" ? "btn-primary" : "btn-outline-secondary"}`}
+                                    onClick={() => setActiveKeyboard("quantity")}
+                                >
+                                    <i className="bi bi-hash me-1"></i>Qty
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`btn btn-sm flex-grow-1 ${activeKeyboard === "reason" ? "btn-primary" : "btn-outline-secondary"}`}
+                                    onClick={() => setActiveKeyboard("reason")}
+                                >
+                                    <i className="bi bi-keyboard me-1"></i>Reason
+                                </button>
+                            </div>
+
+                            {activeKeyboard === "quantity" ? (
+                                <SubmitBillVirtualKeyboard
+                                    mode="numeric"
+                                    numericDecimal={false}
+                                    numericHeading="New Quantity"
+                                    onCharacter={(ch) => setRequestedQuantity(prev => {
+                                        const str = String(prev === 0 ? "" : prev) + ch;
+                                        return parseInt(str) || 0;
+                                    })}
+                                    onSpecialKey={(key) => {
+                                        if (key === "Backspace") setRequestedQuantity(prev => parseInt(String(prev).slice(0, -1)) || 0);
+                                        else if (key === "Clear") setRequestedQuantity(0);
+                                    }}
+                                />
+                            ) : (
+                                <SubmitBillVirtualKeyboard
+                                    mode="alpha"
+                                    alphaHeading="Reason for change"
+                                    alphaSpacing="compact"
+                                    onCharacter={(ch) => setReason(prev => prev + ch)}
+                                    onSpecialKey={(key) => {
+                                        if (key === "Backspace") setReason(prev => prev.slice(0, -1));
+                                        else if (key === "Clear") setReason("");
+                                        else if (key === "Space") setReason(prev => prev + " ");
+                                    }}
+                                />
+                            )}
+                        </div>
+
+                        {/* RIGHT — form fields */}
+                        <div className="col-6 p-3 d-flex flex-column gap-3">
+                            <ErrorDisplay
+                                error={error}
+                                errorDetails={errorDetails}
+                                onDismiss={() => { setError(null); setErrorDetails(null); }}
+                            />
+
+                            {/* Item summary strip */}
+                            <div className="rounded border px-3 py-2 bg-white small">
+                                <div className="d-flex justify-content-between mb-1">
+                                    <span className="text-muted">Unit price</span>
+                                    <span className="fw-semibold">KES {unitPrice.toFixed(2)}</span>
                                 </div>
-                                <div className="col-6">
-                                    <strong>Current Quantity:</strong> {item.quantity}
+                                <div className="d-flex justify-content-between">
+                                    <span className="text-muted">Current ({item.quantity}×)</span>
+                                    <span className="fw-semibold">KES {(Number(item.subtotal) || 0).toFixed(2)}</span>
                                 </div>
                             </div>
-                            <div className="row mt-2">
-                                <div className="col-6">
-                                    <strong>Unit Price:</strong> KES {item.item.price}
-                                </div>
-                                <div className="col-6">
-                                    <strong>Current Subtotal:</strong> KES {item.subtotal}
-                                </div>
-                            </div>
+
+                            {/* New quantity */}
+                            <Form.Group>
+                                <Form.Label className="fw-semibold mb-1">New Quantity</Form.Label>
+                                <Form.Control
+                                    type="number"
+                                    min="1"
+                                    value={requestedQuantity}
+                                    onChange={(e) => setRequestedQuantity(parseInt(e.target.value) || 1)}
+                                    onFocus={() => setActiveKeyboard("quantity")}
+                                    disabled={loading}
+                                    required
+                                    className="fs-5 text-center fw-bold"
+                                />
+                                {qtyChanged && (
+                                    <div className={`mt-1 small fw-semibold ${diff >= 0 ? "text-success" : "text-danger"}`}>
+                                        New subtotal: KES {newSubtotal.toFixed(2)}
+                                        <span className="ms-2">({diff >= 0 ? "+" : ""}{diff.toFixed(2)})</span>
+                                    </div>
+                                )}
+                            </Form.Group>
+
+                            {/* Reason */}
+                            <Form.Group className="flex-grow-1 d-flex flex-column">
+                                <Form.Label className="fw-semibold mb-1">Reason</Form.Label>
+                                <Form.Control
+                                    as="textarea"
+                                    value={reason}
+                                    onChange={(e) => setReason(e.target.value)}
+                                    onFocus={() => setActiveKeyboard("reason")}
+                                    disabled={loading}
+                                    placeholder="Why does the quantity need to change?"
+                                    required
+                                    style={{ resize: "none", flexGrow: 1, minHeight: 80 }}
+                                />
+                                <Form.Text className="text-muted" style={{ fontSize: "0.72rem" }}>
+                                    Reviewed by cashier / supervisor
+                                </Form.Text>
+                            </Form.Group>
                         </div>
                     </div>
-
-                    <Form.Group className="mb-3">
-                        <Form.Label>
-                            <strong>New Quantity</strong>
-                        </Form.Label>
-                        <Form.Control
-                            type="number"
-                            min="1"
-                            value={requestedQuantity}
-                            onChange={(e) => setRequestedQuantity(parseInt(e.target.value) || 1)}
-                            onFocus={() => setActiveKeyboard("quantity")}
-                            disabled={loading}
-                            required
-                        />
-                        <Form.Text className="text-muted">
-                            Enter the correct quantity for this item
-                        </Form.Text>
-                    </Form.Group>
-
-                    <Form.Group className="mb-3">
-                        <Form.Label>
-                            <strong>Reason for Change</strong>
-                        </Form.Label>
-                        <Form.Control
-                            as="textarea"
-                            rows={2}
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            onFocus={() => setActiveKeyboard("reason")}
-                            disabled={loading}
-                            placeholder="Explain why the quantity needs to be changed..."
-                            required
-                        />
-                        <Form.Text className="text-muted">
-                            This will be reviewed by the cashier/supervisor
-                        </Form.Text>
-                    </Form.Group>
-
-                    {requestedQuantity !== item.quantity && (
-                        <Alert variant="info" className="mb-3">
-                            <strong>New Subtotal:</strong> KES {(((Number(item.subtotal) || 0) / (Number(item.quantity) || 1)) * (Number(requestedQuantity) || 0)).toFixed(2)}
-                            <br />
-                            <strong>Difference:</strong> KES {((((Number(item.subtotal) || 0) / (Number(item.quantity) || 1)) * (Number(requestedQuantity) || 0)) - (Number(item.subtotal) || 0)).toFixed(2)}
-                        </Alert>
-                    )}
-
-                    {activeKeyboard === "quantity" ? (
-                        <SubmitBillVirtualKeyboard
-                            mode="numeric"
-                            numericDecimal={false}
-                            numericHeading="New Quantity"
-                            onCharacter={(ch) => setRequestedQuantity(prev => {
-                                const str = String(prev === 0 ? "" : prev) + ch;
-                                return parseInt(str) || 0;
-                            })}
-                            onSpecialKey={(key) => {
-                                if (key === "Backspace") setRequestedQuantity(prev => parseInt(String(prev).slice(0, -1)) || 0);
-                                else if (key === "Clear") setRequestedQuantity(0);
-                            }}
-                        />
-                    ) : (
-                        <SubmitBillVirtualKeyboard
-                            mode="alpha"
-                            alphaHeading="Reason for change"
-                            alphaSpacing="compact"
-                            onCharacter={(ch) => setReason(prev => prev + ch)}
-                            onSpecialKey={(key) => {
-                                if (key === "Backspace") setReason(prev => prev.slice(0, -1));
-                                else if (key === "Clear") setReason("");
-                                else if (key === "Space") setReason(prev => prev + " ");
-                            }}
-                        />
-                    )}
                 </Modal.Body>
 
-                <Modal.Footer>
-                    <Button
-                        variant="secondary"
-                        onClick={handleClose}
-                        disabled={loading}
-                    >
+                <Modal.Footer className="py-2">
+                    <Button variant="outline-secondary" size="sm" onClick={handleClose} disabled={loading}>
                         Cancel
                     </Button>
                     <Button
                         variant="primary"
+                        size="sm"
                         type="submit"
-                        disabled={loading || requestedQuantity === item.quantity || !reason.trim()}
+                        disabled={loading || !qtyChanged || !reason.trim()}
                     >
                         {loading ? (
-                            <>
-                                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                Submitting...
-                            </>
+                            <><span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Submitting…</>
                         ) : (
-                            <>
-                                <i className="bi bi-send me-2"></i>
-                                Submit Request
-                            </>
+                            <><i className="bi bi-send me-1"></i>Submit Request</>
                         )}
                     </Button>
                 </Modal.Footer>
