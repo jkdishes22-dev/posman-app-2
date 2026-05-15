@@ -17,6 +17,7 @@ import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterS
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import BillActions from "../../../components/BillActions";
 import SubmitBillModal from "../../my-sales/submit-bill";
+import SubmitBillVirtualKeyboard from "../../../components/SubmitBillVirtualKeyboard";
 
 type BillStatusFilter = "submitted" | "closed" | "voided" | "reopened" | "all";
 
@@ -104,6 +105,8 @@ const CashierBillsPage = () => {
   const [reopenReason, setReopenReason] = useState("");
   const [reopenDescription, setReopenDescription] = useState("");
   const [reopenNotes, setReopenNotes] = useState("");
+  const [showBillIdKeyboard, setShowBillIdKeyboard] = useState(false);
+  const [reopenActiveKeyboard, setReopenActiveKeyboard] = useState<"description" | "notes">("description");
   const [reopenReasons, setReopenReasons] = useState<{ value: string; label: string; description: string }[]>([]);
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [showBillItems, setShowBillItems] = useState(false);
@@ -742,6 +745,14 @@ const CashierBillsPage = () => {
                         />
                         <button
                           type="button"
+                          className={`btn btn-sm ${showBillIdKeyboard ? "btn-primary" : "btn-outline-secondary"}`}
+                          onClick={() => setShowBillIdKeyboard(p => !p)}
+                          title="Toggle keypad"
+                        >
+                          <i className="bi bi-keyboard"></i>
+                        </button>
+                        <button
+                          type="button"
                           className="btn btn-primary"
                           onClick={handleBillIdSearch}
                           disabled={!billIdInput.trim()}
@@ -749,6 +760,20 @@ const CashierBillsPage = () => {
                           <i className="bi bi-search"></i>
                         </button>
                       </div>
+                      {showBillIdKeyboard && (
+                        <div className="mt-2">
+                          <SubmitBillVirtualKeyboard
+                            mode="numeric"
+                            numericDecimal={false}
+                            numericHeading="Bill ID keypad"
+                            onCharacter={(ch) => setBillIdInput(prev => prev + ch)}
+                            onSpecialKey={(key) => {
+                              if (key === "Backspace") setBillIdInput(prev => prev.slice(0, -1));
+                              else if (key === "Clear") setBillIdInput("");
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="col-12 col-md-6 col-lg-3">
@@ -1850,75 +1875,110 @@ const CashierBillsPage = () => {
 
       {/* Reopen Bill Modal */}
       <Modal show={showReopenModal} onHide={handleCloseReopenModal} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
+        <Modal.Header closeButton className="py-2">
+          <Modal.Title className="fs-6 fw-semibold">
             <i className="bi bi-arrow-clockwise me-2 text-warning"></i>
-            Reopen Bill #{selectedBill?.id}
+            Reopen Bill <span className="text-primary">#{selectedBill?.id}</span>
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <div className="alert alert-warning">
-            <i className="bi bi-exclamation-triangle me-2"></i>
-            <strong>Warning:</strong> This bill cannot be closed because it's not fully paid.
-            Reopening will allow the sales person to modify the bill or add additional payments.
+        <Modal.Body className="p-0">
+          <div className="row g-0" style={{ minHeight: 380 }}>
+            {/* LEFT — keyboard */}
+            <div className="col-6 border-end bg-light p-3 d-flex flex-column">
+              <div className="mb-2 d-flex gap-2">
+                <button
+                  type="button"
+                  className={`btn btn-sm flex-grow-1 ${reopenActiveKeyboard === "description" ? "btn-primary" : "btn-outline-secondary"}`}
+                  onClick={() => setReopenActiveKeyboard("description")}
+                >
+                  <i className="bi bi-card-text me-1"></i>Description
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm flex-grow-1 ${reopenActiveKeyboard === "notes" ? "btn-primary" : "btn-outline-secondary"}`}
+                  onClick={() => setReopenActiveKeyboard("notes")}
+                >
+                  <i className="bi bi-sticky me-1"></i>Notes
+                </button>
+              </div>
+              <SubmitBillVirtualKeyboard
+                mode="alpha"
+                alphaHeading={reopenActiveKeyboard === "description" ? "Description" : "Internal Notes"}
+                alphaSpacing="compact"
+                onCharacter={(ch) => {
+                  if (reopenActiveKeyboard === "description") setReopenDescription(prev => prev + ch);
+                  else setReopenNotes(prev => prev + ch);
+                }}
+                onSpecialKey={(key) => {
+                  const setter = reopenActiveKeyboard === "description" ? setReopenDescription : setReopenNotes;
+                  if (key === "Backspace") setter(prev => prev.slice(0, -1));
+                  else if (key === "Clear") setter("");
+                  else if (key === "Space") setter(prev => prev + " ");
+                }}
+              />
+            </div>
+
+            {/* RIGHT — form fields */}
+            <div className="col-6 p-3 d-flex flex-column gap-3">
+              <div className="alert alert-warning py-2 mb-0 small">
+                <i className="bi bi-exclamation-triangle me-1"></i>
+                Reopening allows the waiter to modify the bill or add payments.
+              </div>
+
+              <Form.Group>
+                <Form.Label className="fw-semibold mb-1">Reason *</Form.Label>
+                <Form.Select
+                  value={reopenReason}
+                  onChange={(e) => setReopenReason(e.target.value)}
+                  required
+                >
+                  <option value="">Select a reason…</option>
+                  {reopenReasons.map((reason) => (
+                    <option key={reason.value} value={reason.value}>
+                      {reason.label}
+                    </option>
+                  ))}
+                </Form.Select>
+                {reopenReason && (
+                  <Form.Text className="text-muted" style={{ fontSize: "0.72rem" }}>
+                    {reopenReasons.find(r => r.value === reopenReason)?.description}
+                  </Form.Text>
+                )}
+              </Form.Group>
+
+              <Form.Group>
+                <Form.Label className="fw-semibold mb-1">Description</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={2}
+                  value={reopenDescription}
+                  onChange={(e) => setReopenDescription(e.target.value)}
+                  onFocus={() => setReopenActiveKeyboard("description")}
+                  placeholder="Additional details…"
+                  style={{ resize: "none" }}
+                />
+              </Form.Group>
+
+              <Form.Group className="flex-grow-1 d-flex flex-column">
+                <Form.Label className="fw-semibold mb-1">Internal Notes</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  value={reopenNotes}
+                  onChange={(e) => setReopenNotes(e.target.value)}
+                  onFocus={() => setReopenActiveKeyboard("notes")}
+                  placeholder="Internal notes for tracking…"
+                  style={{ resize: "none", flexGrow: 1, minHeight: 60 }}
+                />
+              </Form.Group>
+            </div>
           </div>
-
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">Reason for Reopening *</Form.Label>
-              <Form.Select
-                value={reopenReason}
-                onChange={(e) => setReopenReason(e.target.value)}
-                required
-              >
-                <option value="">Select a reason...</option>
-                {reopenReasons.map((reason) => (
-                  <option key={reason.value} value={reason.value}>
-                    {reason.label}
-                  </option>
-                ))}
-              </Form.Select>
-              {reopenReason && (
-                <Form.Text className="text-muted">
-                  {reopenReasons.find(r => r.value === reopenReason)?.description}
-                </Form.Text>
-              )}
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">Description</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                value={reopenDescription}
-                onChange={(e) => setReopenDescription(e.target.value)}
-                placeholder="Provide additional details about why this bill needs to be reopened..."
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label className="fw-bold">Internal Notes</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                value={reopenNotes}
-                onChange={(e) => setReopenNotes(e.target.value)}
-                placeholder="Internal notes for tracking purposes..."
-              />
-            </Form.Group>
-          </Form>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" onClick={handleCloseReopenModal}>
+        <Modal.Footer className="py-2">
+          <Button variant="outline-secondary" size="sm" onClick={handleCloseReopenModal}>
             Cancel
           </Button>
-          <Button
-            variant="warning"
-            onClick={handleConfirmReopen}
-            disabled={!reopenReason}
-          >
-            <i className="bi bi-arrow-clockwise me-1"></i>
-            Reopen Bill
+          <Button variant="warning" size="sm" onClick={handleConfirmReopen} disabled={!reopenReason}>
+            <i className="bi bi-arrow-clockwise me-1"></i>Reopen Bill
           </Button>
         </Modal.Footer>
       </Modal>
