@@ -30,6 +30,7 @@ import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import { hasPermission } from "../../backend/config/role-permissions";
 import { fireCashSettle, fireMpesaSettle } from "../utils/billCashSettle";
+import SubmitBillVirtualKeyboard from "../components/SubmitBillVirtualKeyboard";
 
 const INVENTORY_TTL_MS = 15000;
 
@@ -65,6 +66,8 @@ const BillingSection = () => {
   const [cashSettled, setCashSettled] = useState(false);
   const [mpesaSettled, setMpesaSettled] = useState(false);
   const [mpesaRef, setMpesaRef] = useState("");
+  const [mpesaRefValidationError, setMpesaRefValidationError] = useState("");
+  const [isValidatingMpesaRef, setIsValidatingMpesaRef] = useState(false);
   const [createdBill, setCreatedBill] = useState(null);
   const [billError, setBillError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -566,7 +569,48 @@ const BillingSection = () => {
     setCashSettled(false);
     setMpesaSettled(false);
     setMpesaRef("");
+    setMpesaRefValidationError("");
+    setIsValidatingMpesaRef(false);
   }, []);
+  const handleMpesaRefCharacter = (ch: string) => {
+    setMpesaRef((prev) => (prev + ch).toUpperCase());
+  };
+
+  const handleMpesaRefSpecialKey = (key: "Backspace" | "Clear" | "Space") => {
+    if (key === "Backspace") setMpesaRef((prev) => prev.slice(0, -1));
+    else if (key === "Clear") setMpesaRef("");
+    // Space is not valid in M-Pesa references — ignore
+  };
+
+  useEffect(() => {
+    if (!mpesaSettled || cashSettled || !mpesaRef.trim()) {
+      setMpesaRefValidationError("");
+      return;
+    }
+    const id = setTimeout(async () => {
+      setIsValidatingMpesaRef(true);
+      setMpesaRefValidationError("");
+      try {
+        const result = await apiCall("/api/payments/check-reference", {
+          method: "POST",
+          body: JSON.stringify({ reference: mpesaRef.trim() }),
+        });
+        if (result.status === 200) {
+          setMpesaRefValidationError(
+            result.data.exists ? "M-Pesa reference already exists. Please use a different code." : ""
+          );
+        } else {
+          setMpesaRefValidationError("Failed to validate M-Pesa reference.");
+        }
+      } catch {
+        setMpesaRefValidationError("Network error while validating M-Pesa reference.");
+      } finally {
+        setIsValidatingMpesaRef(false);
+      }
+    }, 500);
+    return () => clearTimeout(id);
+  }, [mpesaRef, mpesaSettled, cashSettled, apiCall]);
+
   const handleShowCancelModal = useCallback(() => setShowCancelModal(true), []);
   const handleCloseCancelModal = useCallback(() => setShowCancelModal(false), []);
 
@@ -1262,130 +1306,158 @@ const BillingSection = () => {
       )}
 
       {/* Submit Confirmation Modal - Simple Bill Creation */}
-      <Modal show={showSubmitModal} onHide={handleCloseSubmitModal} centered backdrop="static" keyboard={false}>
+      <Modal show={showSubmitModal} onHide={handleCloseSubmitModal} size="lg" centered backdrop="static" keyboard={false}>
         <Modal.Header closeButton className="bg-primary text-white">
           <Modal.Title className="fw-bold">
             Confirm create bill: KES {(Number(totalAmount) || 0).toFixed(2)}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="py-4">
-          <ErrorDisplay
-            error={billError}
-            errorDetails={errorDetails}
-            onDismiss={() => {
-              setBillError("");
-              setErrorDetails(null);
-            }}
-          />
-          <div className="text-center">
-            {isSubmitting ? (
-              <>
-                <div className="spinner-border text-primary mb-3" role="status" style={{ width: "3rem", height: "3rem" }}>
-                  <span className="visually-hidden">Loading...</span>
+          <Row className="g-3 flex-lg-nowrap align-items-start">
+            <Col lg={mpesaSettled && !cashSettled ? 6 : 12}>
+              <ErrorDisplay
+                error={billError}
+                errorDetails={errorDetails}
+                onDismiss={() => {
+                  setBillError("");
+                  setErrorDetails(null);
+                }}
+              />
+              <div className="text-center">
+                {isSubmitting ? (
+                  <>
+                    <div className="spinner-border text-primary mb-3" role="status" style={{ width: "3rem", height: "3rem" }}>
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="fs-5 text-primary">
+                      {cashSettled && !mpesaSettled
+                        ? "Creating & settling bill (Cash)..."
+                        : mpesaSettled && !cashSettled
+                        ? "Creating & settling bill (M-Pesa)..."
+                        : "Creating bill..."}
+                    </p>
+                    <p className="text-muted">Please wait while we process your order</p>
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-receipt fs-1 text-primary mb-3 d-block"></i>
+                    <h3 className="text-success fw-bold">KES {(Number(totalAmount) || 0).toFixed(2)}</h3>
+                  </>
+                )}
+              </div>
+              <div className="mt-4 pt-3 border-top">
+                {/* Cash Settled Toggle */}
+                <div className="d-flex align-items-center justify-content-between gap-3">
+                  <div>
+                    <div className="fw-semibold fs-6">Cash Settled</div>
+                    <div className="text-muted small">Automatically submit with full cash payment</div>
+                  </div>
+                  <div className="form-check form-switch m-0" style={{ transform: "scale(1.6)", transformOrigin: "right center" }}>
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      role="switch"
+                      id="cashSettledToggle"
+                      checked={cashSettled}
+                      onChange={(e) => setCashSettled(e.target.checked)}
+                      disabled={isSubmitting}
+                      style={{ cursor: "pointer" }}
+                    />
+                  </div>
                 </div>
-                <p className="fs-5 text-primary">
-                  {cashSettled && !mpesaSettled
-                    ? "Creating & settling bill (Cash)..."
-                    : mpesaSettled && !cashSettled
-                    ? "Creating & settling bill (M-Pesa)..."
-                    : "Creating bill..."}
-                </p>
-                <p className="text-muted">Please wait while we process your order</p>
-              </>
-            ) : (
-              <>
-                <i className="bi bi-receipt fs-1 text-primary mb-3 d-block"></i>
-                <h3 className="text-success fw-bold">KES {(Number(totalAmount) || 0).toFixed(2)}</h3>
-              </>
-            )}
-          </div>
-          <div className="mt-4 pt-3 border-top">
-            {/* Cash Settled Toggle */}
-            <div className="d-flex align-items-center justify-content-between gap-3">
-              <div>
-                <div className="fw-semibold fs-6">Cash Settled</div>
-                <div className="text-muted small">Automatically submit with full cash payment</div>
-              </div>
-              <div className="form-check form-switch m-0" style={{ transform: "scale(1.6)", transformOrigin: "right center" }}>
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  role="switch"
-                  id="cashSettledToggle"
-                  checked={cashSettled}
-                  onChange={(e) => setCashSettled(e.target.checked)}
-                  disabled={isSubmitting}
-                  style={{ cursor: "pointer" }}
-                />
-              </div>
-            </div>
 
-            {/* M-Pesa Settled Toggle */}
-            <div className="d-flex align-items-center justify-content-between gap-3 mt-3 pt-3 border-top">
-              <div>
-                <div className="fw-semibold fs-6">M-Pesa Settled</div>
-                <div className="text-muted small">Automatically submit with full M-Pesa payment</div>
-              </div>
-              <div className="form-check form-switch m-0" style={{ transform: "scale(1.6)", transformOrigin: "right center" }}>
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  role="switch"
-                  id="mpesaSettledToggle"
-                  checked={mpesaSettled}
-                  onChange={(e) => {
-                    setMpesaSettled(e.target.checked);
-                    if (!e.target.checked) setMpesaRef("");
-                  }}
-                  disabled={isSubmitting}
-                  style={{ cursor: "pointer" }}
-                />
-              </div>
-            </div>
+                {/* M-Pesa Settled Toggle */}
+                <div className="d-flex align-items-center justify-content-between gap-3 mt-3 pt-3 border-top">
+                  <div>
+                    <div className="fw-semibold fs-6">M-Pesa Settled</div>
+                    <div className="text-muted small">Automatically submit with full M-Pesa payment</div>
+                  </div>
+                  <div className="form-check form-switch m-0" style={{ transform: "scale(1.6)", transformOrigin: "right center" }}>
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      role="switch"
+                      id="mpesaSettledToggle"
+                      checked={mpesaSettled}
+                      onChange={(e) => {
+                        setMpesaSettled(e.target.checked);
+                        if (!e.target.checked) setMpesaRef("");
+                      }}
+                      disabled={isSubmitting}
+                      style={{ cursor: "pointer" }}
+                    />
+                  </div>
+                </div>
 
-            {/* M-Pesa Reference Input */}
-            {mpesaSettled && !cashSettled && (
-              <div className="mt-2">
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="M-Pesa reference (e.g. QRM123456789)"
-                  value={mpesaRef}
-                  onChange={(e) => setMpesaRef(e.target.value.toUpperCase())}
-                  disabled={isSubmitting}
-                  autoComplete="off"
-                  spellCheck={false}
-                  style={{ fontSize: "1rem", padding: "0.6rem 0.75rem", letterSpacing: "0.04em" }}
-                />
-                {!mpesaRef.trim() && (
-                  <div className="text-muted small mt-1">
-                    <i className="bi bi-info-circle me-1"></i>
-                    Reference required to auto-settle via M-Pesa
+                {/* M-Pesa Reference Input */}
+                {mpesaSettled && !cashSettled && (
+                  <div className="mt-2">
+                    <div className="position-relative">
+                      <input
+                        type="text"
+                        className={`form-control${mpesaRefValidationError && mpesaRef.trim() ? " is-invalid" : mpesaRef.trim() && !isValidatingMpesaRef && !mpesaRefValidationError ? " is-valid" : ""}`}
+                        placeholder="M-Pesa reference (e.g. QRM123456789)"
+                        value={mpesaRef}
+                        onChange={(e) => setMpesaRef(e.target.value.toUpperCase())}
+                        disabled={isSubmitting}
+                        autoComplete="off"
+                        spellCheck={false}
+                        style={{ fontSize: "1rem", padding: "0.6rem 0.75rem", letterSpacing: "0.04em" }}
+                      />
+                      {isValidatingMpesaRef && (
+                        <div className="position-absolute top-50 end-0 translate-middle-y me-2">
+                          <Spinner animation="border" size="sm" />
+                        </div>
+                      )}
+                    </div>
+                    {!mpesaRef.trim() && (
+                      <div className="text-muted small mt-1">
+                        <i className="bi bi-info-circle me-1"></i>
+                        Reference required to auto-settle via M-Pesa
+                      </div>
+                    )}
+                    {mpesaRefValidationError && (
+                      <div className="invalid-feedback d-block">{mpesaRefValidationError}</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Status alerts */}
+                {cashSettled && !mpesaSettled && (
+                  <div className="mt-2 alert alert-success py-2 px-3 mb-0 d-flex align-items-center gap-2">
+                    <i className="bi bi-cash-coin fs-5"></i>
+                    <span className="fw-medium">KES {(Number(totalAmount) || 0).toFixed(2)} will be recorded as cash payment</span>
+                  </div>
+                )}
+                {mpesaSettled && !cashSettled && mpesaRef.trim() && !mpesaRefValidationError && !isValidatingMpesaRef && (
+                  <div className="mt-2 alert alert-success py-2 px-3 mb-0 d-flex align-items-center gap-2">
+                    <i className="bi bi-phone fs-5"></i>
+                    <span className="fw-medium">KES {(Number(totalAmount) || 0).toFixed(2)} M-Pesa — Ref: {mpesaRef.trim()}</span>
+                  </div>
+                )}
+                {cashSettled && mpesaSettled && (
+                  <div className="mt-2 alert alert-info py-2 px-3 mb-0 d-flex align-items-center gap-2">
+                    <i className="bi bi-info-circle fs-5"></i>
+                    <span className="fw-medium">Both methods selected — bill will be created pending. Go to My Sales to submit with a split payment.</span>
                   </div>
                 )}
               </div>
+            </Col>
+            {mpesaSettled && !cashSettled && (
+              <Col lg={6} className="ps-lg-2">
+                <div className="sticky-lg-top" style={{ top: 4 }}>
+                  <SubmitBillVirtualKeyboard
+                    mode="alpha"
+                    alphaSpacing="comfortable"
+                    alphaHeading="M-Pesa Reference"
+                    defaultCapsLock
+                    onCharacter={handleMpesaRefCharacter}
+                    onSpecialKey={handleMpesaRefSpecialKey}
+                  />
+                </div>
+              </Col>
             )}
-
-            {/* Status alerts */}
-            {cashSettled && !mpesaSettled && (
-              <div className="mt-2 alert alert-success py-2 px-3 mb-0 d-flex align-items-center gap-2">
-                <i className="bi bi-cash-coin fs-5"></i>
-                <span className="fw-medium">KES {(Number(totalAmount) || 0).toFixed(2)} will be recorded as cash payment</span>
-              </div>
-            )}
-            {mpesaSettled && !cashSettled && mpesaRef.trim() && (
-              <div className="mt-2 alert alert-success py-2 px-3 mb-0 d-flex align-items-center gap-2">
-                <i className="bi bi-phone fs-5"></i>
-                <span className="fw-medium">KES {(Number(totalAmount) || 0).toFixed(2)} M-Pesa — Ref: {mpesaRef.trim()}</span>
-              </div>
-            )}
-            {cashSettled && mpesaSettled && (
-              <div className="mt-2 alert alert-info py-2 px-3 mb-0 d-flex align-items-center gap-2">
-                <i className="bi bi-info-circle fs-5"></i>
-                <span className="fw-medium">Both methods selected — bill will be created pending. Go to My Sales to submit with a split payment.</span>
-              </div>
-            )}
-          </div>
+          </Row>
         </Modal.Body>
         <Modal.Footer className="border-0">
           <Button
@@ -1400,7 +1472,7 @@ const BillingSection = () => {
             variant="success"
             onClick={handleConfirmSubmit}
             className="fw-medium"
-            disabled={isSubmitting || (mpesaSettled && !cashSettled && !mpesaRef.trim())}
+            disabled={isSubmitting || (mpesaSettled && !cashSettled && (!mpesaRef.trim() || !!mpesaRefValidationError || isValidatingMpesaRef))}
           >
             {isSubmitting ? (
               <>
