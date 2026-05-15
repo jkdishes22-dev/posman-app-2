@@ -101,6 +101,9 @@ const BillingSection = () => {
   const [showTax, setShowTax] = useState(true);
   const [showPaymentMode, setShowPaymentMode] = useState(true);
   const [receiptBranding, setReceiptBranding] = useState<ReceiptBranding>(() => defaultReceiptBranding());
+  const [showingTopItems, setShowingTopItems] = useState(false);
+  const [topNLimit, setTopNLimit] = useState(10);
+  const [topNLookbackDays, setTopNLookbackDays] = useState(30);
 
   /** While a pending bill is open, exclude it from pending-demand so totals match server validation. */
   const pendingBillExcludeIdRef = useRef<number | undefined>(undefined);
@@ -158,6 +161,8 @@ const BillingSection = () => {
       if (res.status === 200 && res.data?.value) {
         setShowTax(res.data.value.show_tax_on_receipt !== false);
         setShowPaymentMode(res.data.value.show_payment_on_receipt !== false);
+        if (res.data.value.top_n_billing_items) setTopNLimit(Number(res.data.value.top_n_billing_items));
+        if (res.data.value.top_n_lookback_days) setTopNLookbackDays(Number(res.data.value.top_n_lookback_days));
       }
     }).catch(() => {});
   }, []);
@@ -359,6 +364,30 @@ const BillingSection = () => {
     preloadAllItems();
   }, [currentPricelist, itemsPreloaded, apiCall, refreshAvailability]);
 
+  const fetchTopItems = useCallback(async () => {
+    if (!currentPricelist) return;
+    try {
+      const result = await apiCall(
+        `/api/menu/items/top-selling?pricelistId=${currentPricelist.id}&limit=${topNLimit}&lookbackDays=${topNLookbackDays}`
+      );
+      if (result.status === 200) {
+        const topItems = result.data.items || [];
+        setItems(topItems);
+        setShowingTopItems(topItems.length > 0);
+        if (topItems.length > 0) {
+          const itemIds = topItems.map((i: Item) => i.id);
+          refreshAvailability("custom", itemIds);
+        }
+      } else {
+        setItems([]);
+        setShowingTopItems(false);
+      }
+    } catch {
+      setItems([]);
+      setShowingTopItems(false);
+    }
+  }, [currentPricelist, topNLimit, topNLookbackDays, apiCall, refreshAvailability]);
+
   // Memoized fetchItems - uses preloaded data if available, otherwise fetches from API
   const fetchItems = useCallback(async (
     categoryId: string,
@@ -430,17 +459,17 @@ const BillingSection = () => {
   useEffect(() => {
     if (currentPricelist && selectedCategory) {
       fetchItems(selectedCategory.id);
-    } else if (!selectedCategory) {
-      // Clear items when no category is selected
-      setItems([]);
+    } else if (currentPricelist && !selectedCategory) {
+      fetchTopItems();
     }
-  }, [currentPricelist?.id, selectedCategory?.id, fetchItems]); // Include fetchItems in dependencies
+  }, [currentPricelist?.id, selectedCategory?.id, fetchItems, fetchTopItems]);
 
   // Reset preload state when pricelist changes
   useEffect(() => {
     setItemsPreloaded(false);
     setAllPricelistItems([]);
     setItems([]);
+    setShowingTopItems(false);
   }, [currentPricelist?.id]);
 
   const handlePickItem = useCallback((item: Item) => {
@@ -756,10 +785,12 @@ const BillingSection = () => {
                 }
               }
               resetForNewBill();
+              setSelectedCategory(null);
             })();
           } else {
             logClientFromRenderer(`create-bill: auto-print skipped (disabled) billId=${billForReceipt.id}`);
             resetForNewBill();
+            setSelectedCategory(null);
           }
 
           // Refresh inventory after bill creation in the background.
@@ -851,6 +882,7 @@ const BillingSection = () => {
 
   const handleNewBill = useCallback(() => {
     resetForNewBill();
+    setSelectedCategory(null);
     applyCachedInventory(allPricelistItems.map((item: Item) => item.id));
     refreshAvailability("all", [], { force: true, background: true });
   }, [resetForNewBill, refreshAvailability, applyCachedInventory, allPricelistItems]);
@@ -1035,6 +1067,17 @@ const BillingSection = () => {
                 errorDetails={errorDetails}
                 onDismiss={() => setErrorDetails(null)}
               />
+              {(showingTopItems || selectedCategory) && (
+                <div className="px-3 pt-2 pb-0">
+                  <small className="text-muted fw-semibold">
+                    {showingTopItems ? (
+                      <><i className="bi bi-star-fill me-1 text-warning"></i>Top Selling Items</>
+                    ) : (
+                      <><i className="bi bi-tag me-1"></i>{(selectedCategory as any)?.name}</>
+                    )}
+                  </small>
+                </div>
+              )}
               <Suspense fallback={
                 <div className="text-center p-4">
                   <Spinner animation="border" size="sm" className="me-2" />
@@ -1242,6 +1285,7 @@ const BillingSection = () => {
                     if (createdBill) {
                       resetForNewBill();
                     }
+                    setShowingTopItems(false);
                     setSelectedCategory(category);
                     const noInFlightSelections = selectedItems.length === 0;
                     fetchItems(category.id, { preferCache: noInFlightSelections });
