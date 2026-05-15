@@ -4,6 +4,7 @@ import { BillItem } from "../types/types";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import ErrorDisplay from "./ErrorDisplay";
+import SubmitBillVirtualKeyboard from "./SubmitBillVirtualKeyboard";
 
 interface QuantityChangeModalProps {
     show: boolean;
@@ -24,6 +25,7 @@ const QuantityChangeModal: React.FC<QuantityChangeModalProps> = ({
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+    const [activeKeyboard, setActiveKeyboard] = useState<"quantity" | "reason">("quantity");
 
     // Reset form when modal opens/closes
     React.useEffect(() => {
@@ -32,6 +34,7 @@ const QuantityChangeModal: React.FC<QuantityChangeModalProps> = ({
             setReason("");
             setError(null);
             setErrorDetails(null);
+            setActiveKeyboard("quantity");
         }
     }, [show, item]);
 
@@ -145,6 +148,7 @@ const QuantityChangeModal: React.FC<QuantityChangeModalProps> = ({
                             min="1"
                             value={requestedQuantity}
                             onChange={(e) => setRequestedQuantity(parseInt(e.target.value) || 1)}
+                            onFocus={() => setActiveKeyboard("quantity")}
                             disabled={loading}
                             required
                         />
@@ -159,9 +163,10 @@ const QuantityChangeModal: React.FC<QuantityChangeModalProps> = ({
                         </Form.Label>
                         <Form.Control
                             as="textarea"
-                            rows={3}
+                            rows={2}
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
+                            onFocus={() => setActiveKeyboard("reason")}
                             disabled={loading}
                             placeholder="Explain why the quantity needs to be changed..."
                             required
@@ -172,11 +177,39 @@ const QuantityChangeModal: React.FC<QuantityChangeModalProps> = ({
                     </Form.Group>
 
                     {requestedQuantity !== item.quantity && (
-                        <Alert variant="info" className="mb-0">
+                        <Alert variant="info" className="mb-3">
                             <strong>New Subtotal:</strong> KES {(((Number(item.subtotal) || 0) / (Number(item.quantity) || 1)) * (Number(requestedQuantity) || 0)).toFixed(2)}
                             <br />
                             <strong>Difference:</strong> KES {((((Number(item.subtotal) || 0) / (Number(item.quantity) || 1)) * (Number(requestedQuantity) || 0)) - (Number(item.subtotal) || 0)).toFixed(2)}
                         </Alert>
+                    )}
+
+                    {activeKeyboard === "quantity" ? (
+                        <SubmitBillVirtualKeyboard
+                            mode="numeric"
+                            numericDecimal={false}
+                            numericHeading="New Quantity"
+                            onCharacter={(ch) => setRequestedQuantity(prev => {
+                                const str = String(prev === 0 ? "" : prev) + ch;
+                                return parseInt(str) || 0;
+                            })}
+                            onSpecialKey={(key) => {
+                                if (key === "Backspace") setRequestedQuantity(prev => parseInt(String(prev).slice(0, -1)) || 0);
+                                else if (key === "Clear") setRequestedQuantity(0);
+                            }}
+                        />
+                    ) : (
+                        <SubmitBillVirtualKeyboard
+                            mode="alpha"
+                            alphaHeading="Reason for change"
+                            alphaSpacing="compact"
+                            onCharacter={(ch) => setReason(prev => prev + ch)}
+                            onSpecialKey={(key) => {
+                                if (key === "Backspace") setReason(prev => prev.slice(0, -1));
+                                else if (key === "Clear") setReason("");
+                                else if (key === "Space") setReason(prev => prev + " ");
+                            }}
+                        />
                     )}
                 </Modal.Body>
 
