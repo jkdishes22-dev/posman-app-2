@@ -539,6 +539,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                 <SubmitBillVirtualKeyboard
                   mode={keyboardMode}
                   alphaSpacing="comfortable"
+                  defaultCapsLock
                   onCharacter={handleVirtualCharacter}
                   onSpecialKey={handleVirtualSpecialKey}
                 />

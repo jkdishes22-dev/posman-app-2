@@ -20,6 +20,8 @@ interface SubmitBillVirtualKeyboardProps {
    * `comfortable` = larger gaps and keys; rows use CSS grid so keys don’t wrap.
    */
   alphaSpacing?: "compact" | "comfortable";
+  /** Start with Caps Lock on. Default false. */
+  defaultCapsLock?: boolean;
 }
 
 /**
@@ -34,8 +36,9 @@ export default function SubmitBillVirtualKeyboard({
   numericHeading,
   alphaHeading,
   alphaSpacing = "compact",
+  defaultCapsLock = false,
 }: SubmitBillVirtualKeyboardProps) {
-  const [capsLock, setCapsLock] = useState(false);
+  const [capsLock, setCapsLock] = useState(defaultCapsLock);
 
   const comfortable = alphaSpacing === "comfortable";
 

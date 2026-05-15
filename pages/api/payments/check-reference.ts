@@ -14,25 +14,28 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     try {
         const { reference, billId } = req.body;
 
-        if (!reference || !billId) {
-            return res.status(400).json({ error: "Reference and billId are required" });
+        if (!reference) {
+            return res.status(400).json({ error: "Reference is required" });
         }
 
-        const parsedBillId = Number(billId);
-        if (Number.isNaN(parsedBillId) || parsedBillId <= 0) {
-            return res.status(400).json({ error: "Invalid billId" });
-        }
+        // billId is optional — only relevant when resubmitting an existing bill
+        if (billId !== undefined && billId !== null) {
+            const parsedBillId = Number(billId);
+            if (Number.isNaN(parsedBillId) || parsedBillId <= 0) {
+                return res.status(400).json({ error: "Invalid billId" });
+            }
 
-        const billRepository = req.db.getRepository(Bill);
-        const bill = await billRepository.findOne({ where: { id: parsedBillId } });
-        if (!bill) {
-            return res.status(404).json({ error: "Bill not found" });
+            const billRepository = req.db.getRepository(Bill);
+            const bill = await billRepository.findOne({ where: { id: parsedBillId } });
+            if (!bill) {
+                return res.status(404).json({ error: "Bill not found" });
+            }
         }
 
         const paymentService = new PaymentService(req.db);
 
-        // Check if M-Pesa reference already exists
-        const exists = await paymentService.checkMpesaReferenceExists(reference, parsedBillId);
+        // Check if M-Pesa reference already exists (global check across all payments)
+        const exists = await paymentService.checkMpesaReferenceExists(reference);
 
         return res.status(200).json({
             exists: exists,
