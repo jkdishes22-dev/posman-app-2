@@ -79,7 +79,7 @@ const MySales = () => {
   const pageSize = 10;
   const [total, setTotal] = useState(0);
   const [selectedBills, setSelectedBills] = useState<number[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>("pending");
+  const [statusFilter, setStatusFilter] = useState<string>("open");
   const [showFilters, setShowFilters] = useState(true);
   const receiptRef = useRef<HTMLDivElement>(null);
   const isLoadingBillsRef = useRef(false);
@@ -186,7 +186,12 @@ const MySales = () => {
     }
 
     if (status && status !== "all") {
-      params.push(`status=${status}`);
+      if (status === "open") {
+        // "Open" = all unsettled bills (matches dashboard "Open Bills" count)
+        ["pending", "submitted", "reopened"].forEach(s => params.push(`status=${s}`));
+      } else {
+        params.push(`status=${status}`);
+      }
     }
 
     if (billId && billId.trim()) {
@@ -198,7 +203,10 @@ const MySales = () => {
     params.push(`page=${pageToUse}`);
     params.push(`pageSize=${pageSize}`);
 
-    // Note: billingUserId will be handled by backend based on user context
+    // Always scope to the current user so backend filters correctly for all roles
+    if (user?.id) {
+      params.push(`billingUserId=${user.id}`);
+    }
 
     if (params.length > 0) {
       url += params.join("&");
@@ -208,15 +216,10 @@ const MySales = () => {
       const result = await apiCall(url);
       if (result.status === 200) {
         const allBills = result.data?.bills || [];
-        // Filter bills to only show those belonging to the current user
-        const userBills = user && user.id
-          ? allBills.filter((bill: Bill) => bill.user?.id === user.id)
-          : allBills;
 
-        setBills(userBills);
-        setFilteredBills(userBills);
-        // Update total to reflect filtered count
-        setTotal(userBills.length);
+        setBills(allBills);
+        setFilteredBills(allBills);
+        setTotal(result.data?.total ?? allBills.length);
         setError("");
       } else {
         setError(result.error || "Failed to fetch bills");
@@ -238,18 +241,18 @@ const MySales = () => {
 
   const mySalesFiltersDirty =
     billIdFilter !== "" ||
-    statusFilter !== "pending" ||
+    statusFilter !== "open" ||
     dateToYmdEat(selectedDate) !== todayEAT();
 
   const clearMySalesFilters = useCallback(() => {
     const today = ymdToDateEat(todayEAT()) ?? new Date();
     setBillIdFilter("");
-    setStatusFilter("pending");
+    setStatusFilter("open");
     setSelectedDate(today);
     setSelectedBill(null);
     setSelectedBills([]);
     setPage(1);
-    fetchBills(today, "pending", "", 1);
+    fetchBills(today, "open", "", 1);
   }, [fetchBills]);
 
   // Debounced bill ID change handler for better performance
@@ -637,6 +640,15 @@ const MySales = () => {
                     <div className="btn-group btn-group-sm w-100 flex-wrap" role="group" aria-label="Filter actions">
                       <button
                         type="button"
+                        className={`btn btn-outline-success${statusFilter === "open" ? " active" : ""}`}
+                        onClick={() => handleStatusFilterChange("open")}
+                        style={{ fontSize: "0.8rem" }}
+                        title="Pending + Submitted + Reopened"
+                      >
+                        Open
+                      </button>
+                      <button
+                        type="button"
                         className={`btn btn-outline-primary${statusFilter === "pending" ? " active" : ""}`}
                         onClick={() => handleStatusFilterChange("pending")}
                         style={{ fontSize: "0.8rem" }}
@@ -653,6 +665,14 @@ const MySales = () => {
                       </button>
                       <button
                         type="button"
+                        className={`btn btn-outline-primary${statusFilter === "reopened" ? " active" : ""}`}
+                        onClick={() => handleStatusFilterChange("reopened")}
+                        style={{ fontSize: "0.8rem" }}
+                      >
+                        Reopened
+                      </button>
+                      <button
+                        type="button"
                         className={`btn btn-outline-primary${statusFilter === "closed" ? " active" : ""}`}
                         onClick={() => handleStatusFilterChange("closed")}
                         style={{ fontSize: "0.8rem" }}
@@ -666,14 +686,6 @@ const MySales = () => {
                         style={{ fontSize: "0.8rem" }}
                       >
                         Voided
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-outline-primary${statusFilter === "reopened" ? " active" : ""}`}
-                        onClick={() => handleStatusFilterChange("reopened")}
-                        style={{ fontSize: "0.8rem" }}
-                      >
-                        Reopened
                       </button>
                     </div>
                   </div>

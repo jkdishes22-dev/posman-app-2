@@ -209,7 +209,11 @@ export class BillService {
       }
 
       if (status) {
-        query.andWhere("bill.status = :status", { status });
+        if (Array.isArray(status)) {
+          query.andWhere("bill.status IN (:...statuses)", { statuses: status });
+        } else {
+          query.andWhere("bill.status = :status", { status });
+        }
       }
 
       if (billId) {
@@ -251,7 +255,11 @@ export class BillService {
         }
 
         if (status) {
-          countQuery.andWhere("bill.status = :status", { status });
+          if (Array.isArray(status)) {
+            countQuery.andWhere("bill.status IN (:...statuses)", { statuses: status });
+          } else {
+            countQuery.andWhere("bill.status = :status", { status });
+          }
         }
 
         // If billingUserId is provided, use it (takes precedence for filtering by specific waitress)

@@ -4,6 +4,8 @@ import { Currency, PricelistItem } from "@entities/PricelistItem";
 import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { ItemGroup } from "@entities/ItemGroup";
 import { Inventory } from "@entities/Inventory";
+import { BillItem } from "@entities/BillItem";
+import { BillStatus } from "@entities/Bill";
 import logger from "../utils/logger";
 import { cache } from "@backend/utils/cache";
 import { AuditService } from "./AuditService";
@@ -214,6 +216,69 @@ export class ItemService {
     // Cache the result (prices can change, but cache for performance)
     cache.set(cacheKey, result);
     return result;
+  }
+
+  public async fetchTopSellingItems(
+    pricelistId: number,
+    limit: number,
+    lookbackDays: number
+  ): Promise<any[]> {
+    const billItemRepo = this.itemRepository.manager.getRepository(BillItem);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - lookbackDays);
+
+    const rows = await billItemRepo
+      .createQueryBuilder("bi")
+      .innerJoin("bi.item", "item")
+      .innerJoin("item.category", "category")
+      .innerJoin(
+        "pricelist_item",
+        "pi",
+        "pi.item_id = bi.item_id AND pi.is_enabled = 1"
+      )
+      .innerJoin("pricelist", "pl", "pl.id = pi.pricelist_id")
+      .innerJoin("bi.bill", "bill")
+      .where("bill.status IN (:...statuses)", {
+        statuses: [BillStatus.SUBMITTED, BillStatus.CLOSED, BillStatus.REOPENED],
+      })
+      .andWhere("bill.created_at >= :cutoff", { cutoff })
+      .andWhere("pi.pricelist_id = :pricelistId", { pricelistId })
+      .andWhere("item.status = :itemStatus", { itemStatus: ItemStatus.ACTIVE })
+      .andWhere(
+        "(category.id IS NULL OR category.status != :catDeleted)",
+        { catDeleted: CategoryStatus.DELETED }
+      )
+      .select("bi.item_id", "itemId")
+      .addSelect("SUM(bi.quantity)", "totalQty")
+      .addSelect("item.name", "itemName")
+      .addSelect("item.code", "itemCode")
+      .addSelect("item.isGroup", "isGroup")
+      .addSelect("item.isStock", "isStock")
+      .addSelect("item.allowNegativeInventory", "allowNegativeInventory")
+      .addSelect("pi.price", "price")
+      .addSelect("pi.id", "pricelistItemId")
+      .addSelect("pl.name", "pricelistName")
+      .addSelect("category.id", "categoryId")
+      .addSelect("category.name", "categoryName")
+      .groupBy("bi.item_id")
+      .orderBy("totalQty", "DESC")
+      .limit(limit)
+      .getRawMany();
+
+    return rows.map(row => ({
+      id: row.itemId,
+      name: row.itemName,
+      code: row.itemCode,
+      isGroup: Boolean(row.isGroup),
+      isStock: Boolean(row.isStock),
+      allowNegativeInventory: Boolean(row.allowNegativeInventory),
+      category: { id: row.categoryId, name: row.categoryName },
+      price: parseFloat(row.price) || 0,
+      pricelistItemId: row.pricelistItemId,
+      pricelistId,
+      pricelistName: row.pricelistName || "",
+      pricelist_item_isEnabled: true,
+    }));
   }
 
   /**

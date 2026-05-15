@@ -31,6 +31,8 @@ interface PrinterSettings {
 interface BillSettings {
     show_tax_on_receipt: boolean;
     show_payment_on_receipt: boolean;
+    top_n_billing_items: number;
+    top_n_lookback_days: number;
 }
 
 interface DbBackupSettings {
@@ -156,7 +158,7 @@ export default function AdminSettingsPage() {
     const [printTestBusy, setPrintTestBusy] = useState(false);
 
     // Bill settings
-    const [billSettings, setBillSettings] = useState<BillSettings>({ show_tax_on_receipt: true, show_payment_on_receipt: true });
+    const [billSettings, setBillSettings] = useState<BillSettings>({ show_tax_on_receipt: true, show_payment_on_receipt: true, top_n_billing_items: 10, top_n_lookback_days: 30 });
     const [billSettingsSaving, setBillSettingsSaving] = useState(false);
     const [billSettingsResult, setBillSettingsResult] = useState<{ success: boolean; error?: string } | null>(null);
 
@@ -247,7 +249,7 @@ export default function AdminSettingsPage() {
         });
         // bill_settings is its own top-level key (product settings)
         apiCall("/api/system/settings?key=bill_settings").then((res) => {
-            if (res.status === 200 && res.data?.value) setBillSettings(res.data.value);
+            if (res.status === 200 && res.data?.value) setBillSettings((prev) => ({ ...prev, ...res.data.value }));
         });
         apiCall("/api/system/settings?key=system_settings&sub=business_shifts").then((res) => {
             if (res.status === 200 && Array.isArray(res.data?.value)) {
@@ -1014,6 +1016,31 @@ export default function AdminSettingsPage() {
                                     onChange={(e) => setBillSettings((s) => ({ ...s, show_payment_on_receipt: e.target.checked }))}
                                     className="mb-3"
                                 />
+                                <h6 className="fw-bold mb-2 mt-3">Billing page defaults</h6>
+                                <Form.Group className="mb-2">
+                                    <Form.Label className="small mb-1">Top items to show on billing page load</Form.Label>
+                                    <Form.Control
+                                        type="number"
+                                        min={1}
+                                        max={50}
+                                        value={billSettings.top_n_billing_items}
+                                        onChange={(e) => setBillSettings((s) => ({ ...s, top_n_billing_items: Math.max(1, Number(e.target.value)) }))}
+                                        style={{ width: "100px" }}
+                                    />
+                                    <Form.Text className="text-muted">Items shown before a category is selected (1–50).</Form.Text>
+                                </Form.Group>
+                                <Form.Group className="mb-3">
+                                    <Form.Label className="small mb-1">Lookback window for top items (days)</Form.Label>
+                                    <Form.Control
+                                        type="number"
+                                        min={1}
+                                        max={365}
+                                        value={billSettings.top_n_lookback_days}
+                                        onChange={(e) => setBillSettings((s) => ({ ...s, top_n_lookback_days: Math.max(1, Number(e.target.value)) }))}
+                                        style={{ width: "100px" }}
+                                    />
+                                    <Form.Text className="text-muted">How many past days of sales to consider when ranking items.</Form.Text>
+                                </Form.Group>
                                 <Button variant="primary" onClick={handleSaveBillSettings} disabled={billSettingsSaving}>
                                     {billSettingsSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save display settings"}
                                 </Button>
