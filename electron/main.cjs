@@ -477,6 +477,17 @@ function startNextServer() {
                 `    globalThis.structuredClone=function(v){return JSON.parse(JSON.stringify(v));};`,
                 `    process.stdout.write('[ESM-LOADER] structuredClone polyfill applied\\n');`,
                 `  }`,
+                // ReadableStream, WritableStream, TransformStream — global in Node 18, module-only in Node 16.
+                // Next.js uses all three as bare globals (node-web-streams-helper.js, pipe-readable.js, etc.)
+                `  (function(){`,
+                `    var sw=require('stream/web');`,
+                `    if(!globalThis.ReadableStream&&sw.ReadableStream)globalThis.ReadableStream=sw.ReadableStream;`,
+                `    if(!globalThis.WritableStream&&sw.WritableStream)globalThis.WritableStream=sw.WritableStream;`,
+                `    if(!globalThis.TransformStream&&sw.TransformStream)globalThis.TransformStream=sw.TransformStream;`,
+                `  })();`,
+                // Blob — global in Node 18, available as require('buffer').Blob in Node 16.
+                // Next.js uses new Blob([...]) in incremental-cache/index.js.
+                `  if(!globalThis.Blob){var _b=require('buffer');if(_b.Blob)globalThis.Blob=_b.Blob;}`,
                 `})();`,
                 `import(_url).catch(function(e){var m='[ESM-LOADER] import failed: '+(e&&e.stack?e.stack:String(e))+'\\n';process.stdout.write(m);process.stderr.write(m);process.exit(1);});`,
             ].join("\n"));
