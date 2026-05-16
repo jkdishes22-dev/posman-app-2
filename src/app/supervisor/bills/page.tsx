@@ -81,15 +81,15 @@ const SupervisorBillsPage: React.FC = () => {
     // Load billing-capable staff (sales + supervisor) once on mount.
     // We exclude admin/cashier/storekeeper because they don't create bills.
     useEffect(() => {
-        apiCall("/api/users?role=sales,supervisor&pageSize=200").then((res) => {
+        apiCall("/api/users/billing-staff").then((res) => {
             if (res.status === 200) {
-                const list = Array.isArray(res.data) ? res.data : (res.data?.users || []);
+                const list = res.data?.users || [];
                 setStaffUsers(list);
             }
         }).catch(() => {});
-        apiCall("/api/system/settings?key=system_settings&sub=business_shifts").then((res) => {
-            if (res.status === 200 && Array.isArray(res.data?.value)) {
-                setBusinessShifts(res.data.value);
+        apiCall("/api/system/business-shifts").then((res) => {
+            if (res.status === 200 && Array.isArray(res.data?.shifts)) {
+                setBusinessShifts(res.data.shifts);
             }
         }).catch(() => {});
     }, []);
@@ -331,13 +331,13 @@ const SupervisorBillsPage: React.FC = () => {
                                         </select>
                                     </div>
                                     <div className="col-12 col-md-6 col-lg-2">
-                                        <label className="form-label">Staff</label>
+                                        <label className="form-label">Select sales user</label>
                                         <select
                                             className="form-select"
                                             value={staffUserId}
                                             onChange={(e) => setStaffUserId(e.target.value)}
                                         >
-                                            <option value="">All Staff</option>
+                                            <option value="">All</option>
                                             {staffUsers.map((u) => (
                                                 <option key={u.id} value={u.id}>
                                                     {u.firstName} {u.lastName}
@@ -476,7 +476,7 @@ const SupervisorBillsPage: React.FC = () => {
             <Modal.Body>
                 {/* Independent filters */}
                 <div className="row g-2 mb-3">
-                    <div className={businessShifts.length > 0 ? "col-12 col-md-3" : "col-12 col-md-4"}>
+                    <div className="col-12 col-md-3">
                         <FilterDatePicker
                             label="From"
                             value={previewStartDate}
@@ -484,7 +484,7 @@ const SupervisorBillsPage: React.FC = () => {
                             maxDate={previewEndDate ? ymdToDateEat(previewEndDate) ?? new Date() : new Date()}
                         />
                     </div>
-                    <div className={businessShifts.length > 0 ? "col-12 col-md-3" : "col-12 col-md-4"}>
+                    <div className="col-12 col-md-3">
                         <FilterDatePicker
                             label="To"
                             value={previewEndDate}
@@ -493,7 +493,7 @@ const SupervisorBillsPage: React.FC = () => {
                             maxDate={new Date()}
                         />
                     </div>
-                    <div className={businessShifts.length > 0 ? "col-12 col-md-3" : "col-12 col-md-4"}>
+                    <div className="col-12 col-md-3">
                         <label className="form-label">Salesperson</label>
                         <select
                             className="form-select"
@@ -506,21 +506,20 @@ const SupervisorBillsPage: React.FC = () => {
                             ))}
                         </select>
                     </div>
-                    {businessShifts.length > 0 && (
-                        <div className="col-12 col-md-3">
-                            <label className="form-label">Shift</label>
-                            <select
-                                className="form-select"
-                                value={previewShiftId}
-                                onChange={(e) => setPreviewShiftId(e.target.value)}
-                            >
-                                <option value="">All day</option>
-                                {businessShifts.map(s => (
-                                    <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
+                    <div className="col-12 col-md-3">
+                        <label className="form-label">Shift</label>
+                        <select
+                            className="form-select"
+                            value={previewShiftId}
+                            onChange={(e) => setPreviewShiftId(e.target.value)}
+                            disabled={businessShifts.length === 0}
+                        >
+                            <option value="">{businessShifts.length === 0 ? "No shifts configured" : "All day"}</option>
+                            {businessShifts.map(s => (
+                                <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
                 <div className="mb-3">
                     <Button
