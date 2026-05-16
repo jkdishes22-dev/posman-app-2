@@ -394,9 +394,9 @@ const CashierBillsPage = () => {
 
   const fetchBusinessShifts = async () => {
     try {
-      const res = await apiCall("/api/system/settings?key=system_settings&sub=business_shifts");
-      if (res.status === 200 && Array.isArray(res.data?.value)) {
-        setBusinessShifts(res.data.value);
+      const res = await apiCall("/api/system/business-shifts");
+      if (res.status === 200 && Array.isArray(res.data?.shifts)) {
+        setBusinessShifts(res.data.shifts);
       }
     } catch {
       // Non-critical — fall back to "all day" mode silently

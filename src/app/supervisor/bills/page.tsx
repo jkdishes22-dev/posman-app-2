@@ -87,9 +87,9 @@ const SupervisorBillsPage: React.FC = () => {
                 setStaffUsers(list);
             }
         }).catch(() => {});
-        apiCall("/api/system/settings?key=system_settings&sub=business_shifts").then((res) => {
-            if (res.status === 200 && Array.isArray(res.data?.value)) {
-                setBusinessShifts(res.data.value);
+        apiCall("/api/system/business-shifts").then((res) => {
+            if (res.status === 200 && Array.isArray(res.data?.shifts)) {
+                setBusinessShifts(res.data.shifts);
             }
         }).catch(() => {});
     }, []);
