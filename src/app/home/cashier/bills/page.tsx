@@ -351,11 +351,8 @@ const CashierBillsPage = () => {
   };
 
   const fetchSalesPersons = async () => {
-    // Fetch only the roles that can create bills: user, sales, waitress, supervisor.
-    // We deliberately exclude admin / cashier / storekeeper because they don't
-    // appear as bill creators in the cashier bills filter dropdown.
     try {
-      const result = await apiCall("/api/users?role=user,sales,waitress,supervisor&pageSize=500");
+      const result = await apiCall("/api/users/billing-staff");
 
       if (result.status !== 200) {
         console.warn("Failed to fetch billing-capable users:", result.error);
@@ -886,7 +883,7 @@ const CashierBillsPage = () => {
                   <div className="col-12 col-md-6 col-lg-3">
                     <div className="form-group">
                       <label htmlFor="waitress" className="form-label fw-semibold">
-                        Select Waitress
+                        Select sales user
                       </label>
                       <div>
                         <select
@@ -895,7 +892,7 @@ const CashierBillsPage = () => {
                           value={filters.selectedWaitress}
                           onChange={handleWaitressChange}
                         >
-                          <option value="">Select waitress</option>
+                          <option value="">Select sales user</option>
                           {Array.isArray(waitresses) && waitresses.map((waitress) => (
                             <option key={waitress.id} value={waitress.id}>
                               {waitress.firstName} {waitress.lastName}
@@ -1875,7 +1872,7 @@ const CashierBillsPage = () => {
         <Modal.Body>
           {/* Independent filters */}
           <div className="row g-2 mb-3">
-            <div className={businessShifts.length > 0 ? "col-12 col-md-4" : "col-12 col-md-6"}>
+            <div className="col-12 col-md-4">
               <FilterDatePicker
                 label="Date"
                 value={previewDate ? dateToYmdEat(previewDate) : ""}
@@ -1883,7 +1880,7 @@ const CashierBillsPage = () => {
                 maxDate={new Date()}
               />
             </div>
-            <div className={businessShifts.length > 0 ? "col-12 col-md-4" : "col-12 col-md-6"}>
+            <div className="col-12 col-md-4">
               <label className="form-label fw-semibold">Salesperson</label>
               <select
                 className="form-select"
@@ -1896,21 +1893,20 @@ const CashierBillsPage = () => {
                 ))}
               </select>
             </div>
-            {businessShifts.length > 0 && (
-              <div className="col-12 col-md-4">
-                <label className="form-label fw-semibold">Shift</label>
-                <select
-                  className="form-select"
-                  value={previewShiftId}
-                  onChange={e => setPreviewShiftId(e.target.value)}
-                >
-                  <option value="">All day</option>
-                  {businessShifts.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div className="col-12 col-md-4">
+              <label className="form-label fw-semibold">Shift</label>
+              <select
+                className="form-select"
+                value={previewShiftId}
+                onChange={e => setPreviewShiftId(e.target.value)}
+                disabled={businessShifts.length === 0}
+              >
+                <option value="">{businessShifts.length === 0 ? "No shifts configured" : "All day"}</option>
+                {businessShifts.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="mb-3">
             <Button
