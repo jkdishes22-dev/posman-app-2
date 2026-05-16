@@ -8,6 +8,7 @@ export interface CreatePurchaseItemInput {
     purchase_unit_qty: number;
     unit_of_measure?: string | null;
     is_active?: boolean;
+    default_purchase_price?: number | null;
 }
 
 export interface UpdatePurchaseItemInput {
@@ -15,6 +16,7 @@ export interface UpdatePurchaseItemInput {
     purchase_unit_qty?: number;
     unit_of_measure?: string | null;
     is_active?: boolean;
+    default_purchase_price?: number | null;
 }
 
 export class PurchaseItemService {
@@ -76,6 +78,7 @@ export class PurchaseItemService {
             purchase_unit_qty: input.purchase_unit_qty,
             unit_of_measure: input.unit_of_measure?.trim() || null,
             is_active: input.is_active !== false,
+            default_purchase_price: input.default_purchase_price ?? null,
             created_by: userId,
         });
         return this.repo.save(record);
@@ -97,6 +100,9 @@ export class PurchaseItemService {
         }
         if (input.is_active !== undefined) {
             record.is_active = input.is_active;
+        }
+        if (input.default_purchase_price !== undefined) {
+            record.default_purchase_price = input.default_purchase_price ?? null;
         }
         record.updated_by = userId;
         return this.repo.save(record);

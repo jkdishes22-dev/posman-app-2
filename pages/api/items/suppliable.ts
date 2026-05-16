@@ -72,6 +72,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     purchaseUnitLabel: config?.purchase_unit_label ?? null,
                     purchaseUnitQty: config ? Number(config.purchase_unit_qty) : null,
                     unitOfMeasure: config?.unit_of_measure ?? null,
+                    defaultPurchasePrice: config?.default_purchase_price != null ? Number(config.default_purchase_price) : null,
                     hasPurchaseConfig: !!config,
                 };
             });
