@@ -14,6 +14,7 @@ import {
 } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import PageHeaderStrip from "../../components/PageHeaderStrip";
+import HelpPopover from "../../components/HelpPopover";
 
 interface SuppliableItem {
     id: number;
@@ -21,6 +22,7 @@ interface SuppliableItem {
     code: string;
     category: string;
     hasPurchaseConfig: boolean;
+    purchaseConfigActive: boolean | null;
     purchaseUnitLabel: string | null;
     purchaseUnitQty: number | null;
     unitOfMeasure: string | null;
@@ -38,25 +40,21 @@ interface PurchaseItemRecord {
     item: { id: number; name: string; code: string };
 }
 
-const UOM_GROUPS = [
-    {
-        label: "Weight / Mass",
-        units: ["kg", "grams", "mg", "lbs", "oz", "tonnes"],
-    },
-    {
-        label: "Volume",
-        units: ["liters", "ml", "gallons", "cups", "tablespoons", "teaspoons"],
-    },
-    {
-        label: "Count / Packaging",
-        units: ["pieces", "dozens", "pairs", "sets", "bundles", "cartons", "boxes", "packs", "rolls", "sheets", "bags", "cans", "bottles", "sachets"],
-    },
-    {
-        label: "Length",
-        units: ["meters", "cm", "mm", "inches", "feet"],
-    },
-];
-const ALL_KNOWN_UOM = UOM_GROUPS.flatMap((g) => g.units);
+interface UomSettings {
+    mass: string[];
+    volume: string[];
+    count: string[];
+    length: string[];
+}
+
+const UOM_CATEGORY_LABELS: Record<keyof UomSettings, string> = {
+    mass: "Weight / Mass",
+    volume: "Volume",
+    count: "Count / Packaging",
+    length: "Length",
+};
+
+const DEFAULT_UOM: UomSettings = { mass: [], volume: [], count: [], length: [] };
 
 export default function PurchaseItemsPage() {
     const apiCall = useApiCall();
@@ -65,6 +63,10 @@ export default function PurchaseItemsPage() {
     const [filteredItems, setFilteredItems] = useState<SuppliableItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const [uomSettings, setUomSettings] = useState<UomSettings>(DEFAULT_UOM);
+    const [uomGroups, setUomGroups] = useState<{ label: string; units: string[] }[]>([]);
+    const [allKnownUom, setAllKnownUom] = useState<string[]>([]);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [filterConfigured, setFilterConfigured] = useState<"all" | "yes" | "no">("all");
@@ -85,6 +87,28 @@ export default function PurchaseItemsPage() {
     const [formError, setFormError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
+    useEffect(() => {
+        apiCall("/api/system/settings?key=unit_of_measurement").then((res) => {
+            if (res.status === 200 && res.data?.value && typeof res.data.value === "object") {
+                const val = res.data.value as UomSettings;
+                const settings: UomSettings = {
+                    mass: Array.isArray(val.mass) ? val.mass : [],
+                    volume: Array.isArray(val.volume) ? val.volume : [],
+                    count: Array.isArray(val.count) ? val.count : [],
+                    length: Array.isArray(val.length) ? val.length : [],
+                };
+                setUomSettings(settings);
+                setUomGroups(
+                    (Object.keys(UOM_CATEGORY_LABELS) as (keyof UomSettings)[])
+                        .filter((k) => settings[k].length > 0)
+                        .map((k) => ({ label: UOM_CATEGORY_LABELS[k], units: settings[k] }))
+                );
+                setAllKnownUom([...settings.mass, ...settings.volume, ...settings.count, ...settings.length]);
+            }
+        }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const fetchItems = useCallback(async () => {
         setIsLoading(true);
@@ -253,10 +277,13 @@ export default function PurchaseItemsPage() {
 
     const configuredCount = items.filter((i) => i.hasPurchaseConfig).length;
 
+    const isCustomUom = formUom !== "" && !allKnownUom.includes(formUom);
+    const uomSelectValue = isCustomUom ? "__custom__" : formUom;
+
     return (
         <RoleAwareLayout>
             <PageHeaderStrip>
-                <h1 className="h4 mb-0 fw-bold">Purchase Items</h1>
+                <h1 className="h4 mb-0 fw-bold">Purchase Item Config</h1>
                 <small className="opacity-75">Define pack sizes and units for suppliable items before creating purchase orders</small>
             </PageHeaderStrip>
 
@@ -328,7 +355,9 @@ export default function PurchaseItemsPage() {
                                                         : "—"}
                                                 </td>
                                                 <td>
-                                                    <Badge bg="success">Configured</Badge>
+                                                    {item.purchaseConfigActive
+                                                        ? <Badge bg="success">Active</Badge>
+                                                        : <Badge bg="warning" text="dark">Inactive</Badge>}
                                                 </td>
                                                 <td className="text-end">
                                                     <Button
@@ -398,95 +427,91 @@ export default function PurchaseItemsPage() {
                         </Alert>
                     )}
                     <Form.Group className="mb-3">
-                        <Form.Label>
+                        <Form.Label className="d-flex align-items-center gap-1">
                             Pack Label <span className="text-danger">*</span>
+                            <HelpPopover id="pack-label">
+                                Human-readable name for one purchased unit of this item.
+                                Examples: <em>Box of 300</em>, <em>25 kg Bag</em>, <em>Liter</em>.
+                            </HelpPopover>
                         </Form.Label>
                         <Form.Control
-                            placeholder='e.g. "Box of 300", "25 kg Bag", "Liter"'
                             value={formLabel}
                             onChange={(e) => setFormLabel(e.target.value)}
                             disabled={saving}
                         />
-                        <Form.Text className="text-muted">
-                            Human-readable name for one purchased unit of this item.
-                        </Form.Text>
                     </Form.Group>
                     <Form.Group className="mb-3">
-                        <Form.Label>
+                        <Form.Label className="d-flex align-items-center gap-1">
                             Pack Quantity <span className="text-danger">*</span>
+                            <HelpPopover id="pack-qty">
+                                How many stock units are in one pack. Use <strong>1</strong> for
+                                variable quantities (liquids, weight-based items).
+                            </HelpPopover>
                         </Form.Label>
                         <Form.Control
                             type="number"
                             min="0.0001"
                             step="any"
-                            placeholder="e.g. 300"
                             value={formQty}
                             onChange={(e) => setFormQty(e.target.value)}
                             disabled={saving}
                         />
-                        <Form.Text className="text-muted">
-                            How many stock units are in one pack. Use&nbsp;
-                            <strong>1</strong> for variable quantities (liquids, weight-based).
-                        </Form.Text>
                     </Form.Group>
                     <Form.Group className="mb-3">
-                        <Form.Label>Unit of Measure</Form.Label>
-                        {(() => {
-                            const isCustom = formUom !== "" && !ALL_KNOWN_UOM.includes(formUom);
-                            const selectValue = isCustom ? "__custom__" : formUom;
-                            return (
-                                <>
-                                    <Form.Select
-                                        value={selectValue}
-                                        onChange={(e) => {
-                                            if (e.target.value === "__custom__") {
-                                                setFormUom("");
-                                            } else {
-                                                setFormUom(e.target.value);
-                                            }
-                                        }}
-                                        disabled={saving}
-                                    >
-                                        <option value="">— select a unit —</option>
-                                        {UOM_GROUPS.map((group) => (
-                                            <optgroup key={group.label} label={group.label}>
-                                                {group.units.map((u) => (
-                                                    <option key={u} value={u}>{u}</option>
-                                                ))}
-                                            </optgroup>
-                                        ))}
-                                        <option value="__custom__">Other (type custom)…</option>
-                                    </Form.Select>
-                                    {(selectValue === "__custom__" || isCustom) && (
-                                        <Form.Control
-                                            className="mt-2"
-                                            placeholder="Type custom unit…"
-                                            value={formUom}
-                                            onChange={(e) => setFormUom(e.target.value)}
-                                            disabled={saving}
-                                        />
-                                    )}
-                                </>
-                            );
-                        })()}
-                        <Form.Text className="text-muted">
-                            Optional display label for the lowest stock unit.
-                        </Form.Text>
+                        <Form.Label className="d-flex align-items-center gap-1">
+                            Unit of Measure
+                            <HelpPopover id="uom">
+                                Optional display label for the base stock unit (e.g. <em>kg</em>,{" "}
+                                <em>pieces</em>). Manage available units under Admin &rsaquo; Settings.
+                            </HelpPopover>
+                        </Form.Label>
+                        <Form.Select
+                            value={uomSelectValue}
+                            onChange={(e) => {
+                                if (e.target.value === "__custom__") {
+                                    setFormUom("");
+                                } else {
+                                    setFormUom(e.target.value);
+                                }
+                            }}
+                            disabled={saving}
+                        >
+                            <option value="">— select a unit —</option>
+                            {uomGroups.map((group) => (
+                                <optgroup key={group.label} label={group.label}>
+                                    {group.units.map((u) => (
+                                        <option key={u} value={u}>{u}</option>
+                                    ))}
+                                </optgroup>
+                            ))}
+                            <option value="__custom__">Other (type custom)…</option>
+                        </Form.Select>
+                        {(uomSelectValue === "__custom__" || isCustomUom) && (
+                            <Form.Control
+                                className="mt-2"
+                                placeholder="Type custom unit…"
+                                value={formUom}
+                                onChange={(e) => setFormUom(e.target.value)}
+                                disabled={saving}
+                            />
+                        )}
                     </Form.Group>
                     <Form.Group className="mb-3">
-                        <Form.Label>Default Price (per pack)</Form.Label>
+                        <Form.Label className="d-flex align-items-center gap-1">
+                            Default Price (per pack)
+                            <HelpPopover id="default-price">
+                                Optional. Pre-fills the unit price when this item is added to a
+                                purchase order.
+                            </HelpPopover>
+                        </Form.Label>
                         <Form.Control
                             type="number"
                             min="0"
                             step="0.01"
-                            placeholder="e.g. 1500.00"
                             value={formPrice}
                             onChange={(e) => setFormPrice(e.target.value)}
                             disabled={saving}
                         />
-                        <Form.Text className="text-muted">
-                            Optional. Pre-fills the unit price when this item is added to a purchase order.
-                        </Form.Text>
                     </Form.Group>
                     {editingRecord && (
                         <Form.Check

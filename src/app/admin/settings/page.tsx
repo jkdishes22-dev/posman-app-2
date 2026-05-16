@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
-import { Card, Button, Alert, Spinner, Form, Badge, Row, Col, Table, Modal } from "react-bootstrap";
+import { Card, Button, Alert, Spinner, Form, Badge, Row, Col, Table, Modal, InputGroup } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import type { ApiErrorResponse } from "../../utils/errorUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
@@ -212,6 +212,20 @@ export default function AdminSettingsPage() {
         }
     };
 
+    // UOM settings
+    interface UomSettings { mass: string[]; volume: string[]; count: string[]; length: string[]; }
+    type UomCategory = keyof UomSettings;
+    const UOM_CATEGORY_LABELS: Record<UomCategory, string> = {
+        mass: "Weight / Mass",
+        volume: "Volume",
+        count: "Count / Packaging",
+        length: "Length",
+    };
+    const [uomSettings, setUomSettings] = useState<UomSettings>({ mass: [], volume: [], count: [], length: [] });
+    const [uomNewInputs, setUomNewInputs] = useState<Record<UomCategory, string>>({ mass: "", volume: "", count: "", length: "" });
+    const [uomSaving, setUomSaving] = useState(false);
+    const [uomResult, setUomResult] = useState<{ success: boolean; error?: string } | null>(null);
+
     // Log settings
     const [logRetentionDays, setLogRetentionDays] = useState(14);
     const [logRetentionInput, setLogRetentionInput] = useState("14");
@@ -285,6 +299,18 @@ export default function AdminSettingsPage() {
                 setLicenseWarning({
                     months: Math.max(0, Number(res.data.value.months || 0)),
                     days: Math.max(0, Number(res.data.value.days || 0)),
+                });
+            }
+        }).catch(() => {});
+
+        apiCall("/api/system/settings?key=unit_of_measurement").then((res) => {
+            if (res.status === 200 && res.data?.value && typeof res.data.value === "object") {
+                const v = res.data.value;
+                setUomSettings({
+                    mass: Array.isArray(v.mass) ? v.mass : [],
+                    volume: Array.isArray(v.volume) ? v.volume : [],
+                    count: Array.isArray(v.count) ? v.count : [],
+                    length: Array.isArray(v.length) ? v.length : [],
                 });
             }
         }).catch(() => {});
@@ -651,6 +677,34 @@ export default function AdminSettingsPage() {
             setLicenseWarningResult({ success: false, error: "Network error occurred" });
         } finally {
             setLicenseWarningSaving(false);
+        }
+    };
+
+    const addUomUnit = (category: UomCategory) => {
+        const raw = uomNewInputs[category].trim();
+        if (!raw) return;
+        if (uomSettings[category].map((u) => u.toLowerCase()).includes(raw.toLowerCase())) return;
+        setUomSettings((prev) => ({ ...prev, [category]: [...prev[category], raw] }));
+        setUomNewInputs((prev) => ({ ...prev, [category]: "" }));
+    };
+
+    const removeUomUnit = (category: UomCategory, unit: string) => {
+        setUomSettings((prev) => ({ ...prev, [category]: prev[category].filter((u) => u !== unit) }));
+    };
+
+    const handleSaveUom = async () => {
+        setUomSaving(true);
+        setUomResult(null);
+        try {
+            const result = await apiCall("/api/system/settings?key=unit_of_measurement", {
+                method: "PUT",
+                body: JSON.stringify(uomSettings),
+            });
+            setUomResult(result.status === 200 ? { success: true } : { success: false, error: result.error || "Failed to save" });
+        } catch {
+            setUomResult({ success: false, error: "Network error occurred" });
+        } finally {
+            setUomSaving(false);
         }
     };
 
@@ -1322,6 +1376,72 @@ export default function AdminSettingsPage() {
                             )}
                         </div>
 
+                    </Card.Body>
+                </Card>
+
+                {/* Units of Measurement */}
+                <Card className="shadow-sm mb-4">
+                    <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1">
+                        Units of Measurement
+                        <HelpPopover id="uom-settings" title="Units of measurement">
+                            These units appear in the Purchase Item Config dropdown. Add units per category so staff
+                            can pick from a consistent list. Units are shared across all items.
+                        </HelpPopover>
+                    </Card.Header>
+                    <Card.Body>
+                        {uomResult && (
+                            <Alert variant={uomResult.success ? "success" : "danger"} dismissible onClose={() => setUomResult(null)} className="mb-3">
+                                {uomResult.success ? "Units of measurement saved." : uomResult.error}
+                            </Alert>
+                        )}
+                        <Row className="g-3">
+                            {(Object.keys(UOM_CATEGORY_LABELS) as UomCategory[]).map((cat) => (
+                                <Col key={cat} md={6}>
+                                    <div className="border rounded p-3 h-100">
+                                        <div className="fw-medium small mb-2">{UOM_CATEGORY_LABELS[cat]}</div>
+                                        <div className="d-flex flex-wrap gap-1 mb-2 min-height-chips" style={{ minHeight: 32 }}>
+                                            {uomSettings[cat].length === 0 && (
+                                                <span className="text-muted small fst-italic">No units yet</span>
+                                            )}
+                                            {uomSettings[cat].map((unit) => (
+                                                <Badge
+                                                    key={unit}
+                                                    bg="light"
+                                                    text="dark"
+                                                    className="border d-flex align-items-center gap-1 px-2 py-1"
+                                                    style={{ fontWeight: 400 }}
+                                                >
+                                                    {unit}
+                                                    <button
+                                                        type="button"
+                                                        className="btn-close btn-close-sm ms-1"
+                                                        style={{ fontSize: "0.55rem" }}
+                                                        aria-label={`Remove ${unit}`}
+                                                        onClick={() => removeUomUnit(cat, unit)}
+                                                    />
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                        <InputGroup size="sm">
+                                            <Form.Control
+                                                placeholder="Add unit…"
+                                                value={uomNewInputs[cat]}
+                                                onChange={(e) => setUomNewInputs((prev) => ({ ...prev, [cat]: e.target.value }))}
+                                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addUomUnit(cat); } }}
+                                            />
+                                            <Button variant="outline-secondary" onClick={() => addUomUnit(cat)}>
+                                                <i className="bi bi-plus" />
+                                            </Button>
+                                        </InputGroup>
+                                    </div>
+                                </Col>
+                            ))}
+                        </Row>
+                        <div className="mt-3">
+                            <Button variant="primary" onClick={handleSaveUom} disabled={uomSaving}>
+                                {uomSaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save Units"}
+                            </Button>
+                        </div>
                     </Card.Body>
                 </Card>
 

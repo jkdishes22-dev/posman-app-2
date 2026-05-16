@@ -14,6 +14,17 @@ function canReadBillReceiptPrefs(req: NextApiRequest): boolean {
     );
 }
 
+function canReadUom(req: NextApiRequest): boolean {
+    const userPermissions = req.user.permissions.map((p: { name: string }) => p.name);
+    const userRoles = req.user.roles.map((r: { name: string }) => r.name);
+    if (userRoles.includes("admin")) return true;
+    return (
+        userPermissions.includes(permissions.CAN_VIEW_PURCHASE_ORDER) ||
+        userPermissions.includes(permissions.CAN_MANAGE_PURCHASE_ITEMS) ||
+        userPermissions.includes(permissions.CAN_VIEW_SYSTEM_SETTINGS)
+    );
+}
+
 async function settingsGetInner(request: NextApiRequest, response: NextApiResponse) {
     const { key, sub } = request.query;
     if (!key || typeof key !== "string") {
@@ -52,8 +63,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 requiredAnyOf: [permissions.CAN_PRINT, permissions.CAN_VIEW_SYSTEM_SETTINGS],
             });
         }
+        if (key === "unit_of_measurement" && !canReadUom(req)) {
+            return res.status(403).json({
+                message: "Forbidden (Missing permissions)",
+                requiredAnyOf: [permissions.CAN_VIEW_PURCHASE_ORDER, permissions.CAN_MANAGE_PURCHASE_ITEMS, permissions.CAN_VIEW_SYSTEM_SETTINGS],
+            });
+        }
         const getAuthorized =
-            key === "bill_settings"
+            key === "bill_settings" || key === "unit_of_measurement"
                 ? (h: typeof settingsGetInner) => h
                 : (h: typeof settingsGetInner) => authorize([permissions.CAN_VIEW_SYSTEM_SETTINGS])(h);
         return getAuthorized(settingsGetInner)(req, res);
