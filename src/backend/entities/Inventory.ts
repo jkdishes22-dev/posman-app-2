@@ -9,6 +9,8 @@ export class Inventory extends BaseEntity {
     @JoinColumn({ name: "item_id" })
     item: Item;
 
+    // perf: index the FK — used as the primary lookup key in all inventory queries
+    @Index()
     @Column({ name: "item_id", type: "int" })
     item_id: number;
 
