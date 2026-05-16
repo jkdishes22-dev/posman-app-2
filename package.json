@@ -43,7 +43,7 @@
     "electron:build:sqlite:win:x86": "cross-env DB_MODE=sqlite node scripts/build-electron.js win --arch=ia32",
     "electron:build:win:nsis-both": "cross-env WIN_ARCH=all node scripts/build-electron.js win",
     "electron:build:sqlite:win:nsis-both": "cross-env DB_MODE=sqlite WIN_ARCH=all node scripts/build-electron.js win",
-    "test:playwright": "playwright test",
+    "test:playwright": "vitest run --config vitest.config.playwright-seed.ts && playwright test",
     "test:playwright:ui": "playwright test --ui"
   },
   "dependencies": {

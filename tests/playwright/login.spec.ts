@@ -18,10 +18,10 @@ test.describe('Login page', () => {
       await expect(page.locator('#password')).toHaveAttribute('type', 'password');
     });
 
-    test('logo uses JK-icon.svg', async ({ page }) => {
+    test('logo renders correctly', async ({ page }) => {
       const logo = page.locator('img[alt="JK PosMan"]');
       await expect(logo).toBeVisible();
-      await expect(logo).toHaveAttribute('src', '/icons/JK-icon.svg');
+      await expect(logo).toHaveAttribute('src', '/images/jk-big.png');
     });
 
     test('numpad digits 0-9 are visible', async ({ page }) => {
@@ -31,7 +31,7 @@ test.describe('Login page', () => {
     });
 
     test('Next and Backspace buttons are visible', async ({ page }) => {
-      await expect(page.getByRole('button', { name: 'Next' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: /backspace/i })).toBeVisible();
     });
   });
@@ -68,7 +68,7 @@ test.describe('Login page', () => {
 
     test('Next button switches numpad input to password field', async ({ page }) => {
       await page.fill('#username', 'admin');
-      await page.getByRole('button', { name: 'Next' }).click();
+      await page.getByRole('button', { name: 'Next', exact: true }).click();
       await page.getByRole('button', { name: '4', exact: true }).click();
       await page.getByRole('button', { name: '5', exact: true }).click();
       await expect(page.locator('#password')).toHaveValue('45');
