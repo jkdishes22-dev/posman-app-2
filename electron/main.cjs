@@ -443,10 +443,41 @@ function startNextServer() {
             // raw Win32 paths are rejected by the ESM loader in Node 16 on Windows.
             const loaderPath = path.join(app.getPath("userData"), "server-esm-loader.cjs");
             const serverFileUrl = require("url").pathToFileURL(serverPath).href;
+            // Pass the standalone dir so the loader can require() undici from it.
+            const standaloneDir = path.dirname(serverPath);
             fs.writeFileSync(loaderPath, [
                 `var _url=${JSON.stringify(serverFileUrl)};`,
+                `var _sd=${JSON.stringify(standaloneDir)};`,
                 `process.on('uncaughtException',function(e){var m='[ESM-LOADER] uncaughtException: '+(e&&e.stack?e.stack:String(e))+'\\n';process.stdout.write(m);process.stderr.write(m);process.exit(1);});`,
                 `process.on('unhandledRejection',function(r){var m='[ESM-LOADER] unhandledRejection: '+(r&&r.stack?r.stack:String(r))+'\\n';process.stdout.write(m);process.stderr.write(m);process.exit(1);});`,
+                // Next.js 15 requires Web Fetch API globals (Request, Response, Headers, fetch).
+                // These are built-in from Node 18+ but Electron 22 ships Node 16 — polyfill them
+                // using Next.js's own compiled undici bundle present in every standalone output.
+                `(function(){`,
+                `  if(typeof globalThis.Request!=='undefined') return;`,
+                `  var p=require('path');`,
+                `  var candidates=[`,
+                `    p.join(_sd,'node_modules','next','dist','compiled','undici'),`,
+                `    p.join(_sd,'node_modules','undici'),`,
+                `  ];`,
+                `  for(var i=0;i<candidates.length;i++){`,
+                `    try{`,
+                `      var u=require(candidates[i]);`,
+                `      if(u.fetch)globalThis.fetch=u.fetch;`,
+                `      if(u.Request)globalThis.Request=u.Request;`,
+                `      if(u.Response)globalThis.Response=u.Response;`,
+                `      if(u.Headers)globalThis.Headers=u.Headers;`,
+                `      if(u.FormData)globalThis.FormData=u.FormData;`,
+                `      process.stdout.write('[ESM-LOADER] fetch polyfill OK from: '+candidates[i]+'\\n');`,
+                `      break;`,
+                `    }catch(e){process.stdout.write('[ESM-LOADER] polyfill skip ('+candidates[i]+'): '+e.message+'\\n');}`,
+                `  }`,
+                // structuredClone was added in Node 17 — also missing in Node 16.
+                `  if(typeof globalThis.structuredClone==='undefined'){`,
+                `    globalThis.structuredClone=function(v){return JSON.parse(JSON.stringify(v));};`,
+                `    process.stdout.write('[ESM-LOADER] structuredClone polyfill applied\\n');`,
+                `  }`,
+                `})();`,
                 `import(_url).catch(function(e){var m='[ESM-LOADER] import failed: '+(e&&e.stack?e.stack:String(e))+'\\n';process.stdout.write(m);process.stderr.write(m);process.exit(1);});`,
             ].join("\n"));
             logToFile(`ESM loader written to: ${loaderPath}`);
