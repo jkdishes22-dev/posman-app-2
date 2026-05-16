@@ -439,11 +439,16 @@ function startNextServer() {
         try {
             // Next.js 15 emits an ESM server.js. utilityProcess.fork() loads via require(),
             // which throws ERR_REQUIRE_ESM. Write a CJS wrapper that dynamic-imports it instead.
+            // Use pathToFileURL so the Windows "C:\..." path becomes a valid file:/// URL —
+            // raw Win32 paths are rejected by the ESM loader in Node 16 on Windows.
             const loaderPath = path.join(app.getPath("userData"), "server-esm-loader.cjs");
-            fs.writeFileSync(
-                loaderPath,
-                `import(${JSON.stringify(serverPath)}).catch(e=>{process.stderr.write(e.stack+"\\n");process.exit(1);});\n`
-            );
+            const serverFileUrl = require("url").pathToFileURL(serverPath).href;
+            fs.writeFileSync(loaderPath, [
+                `var _url=${JSON.stringify(serverFileUrl)};`,
+                `process.on('uncaughtException',function(e){var m='[ESM-LOADER] uncaughtException: '+(e&&e.stack?e.stack:String(e))+'\\n';process.stdout.write(m);process.stderr.write(m);process.exit(1);});`,
+                `process.on('unhandledRejection',function(r){var m='[ESM-LOADER] unhandledRejection: '+(r&&r.stack?r.stack:String(r))+'\\n';process.stdout.write(m);process.stderr.write(m);process.exit(1);});`,
+                `import(_url).catch(function(e){var m='[ESM-LOADER] import failed: '+(e&&e.stack?e.stack:String(e))+'\\n';process.stdout.write(m);process.stderr.write(m);process.exit(1);});`,
+            ].join("\n"));
             logToFile(`ESM loader written to: ${loaderPath}`);
 
             nextServer = utilityProcess.fork(loaderPath, [], {
