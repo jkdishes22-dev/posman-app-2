@@ -715,6 +715,25 @@ export class InventoryService {
             throw new Error(`Cannot deduct inventory for bill ${billId} with status ${bill.status}`);
         }
 
+        // perf: pre-batch all ratio lookups for every bill item in one query
+        const billItemIds = (bill.bill_items || []).map(bi => bi.item?.id).filter((id): id is number => Boolean(id));
+        const allRatios = billItemIds.length > 0
+            ? await this.itemGroupRepository
+                .createQueryBuilder("ig")
+                .leftJoinAndSelect("ig.subItem", "subItem")
+                .leftJoinAndSelect("ig.item", "item")
+                .where("ig.item_id IN (:...ids)", { ids: billItemIds })
+                .getMany()
+            : [];
+        const ratiosByItemId = new Map<number, typeof allRatios>();
+        for (const ratio of allRatios) {
+            const id = ratio.item?.id;
+            if (id) {
+                if (!ratiosByItemId.has(id)) ratiosByItemId.set(id, []);
+                ratiosByItemId.get(id)!.push(ratio);
+            }
+        }
+
         // Use transaction to ensure atomicity
         await this.inventoryRepository.manager.transaction(async (transactionalEntityManager) => {
             for (const billItem of bill.bill_items || []) {
@@ -725,10 +744,8 @@ export class InventoryService {
                     continue;
                 }
 
-                // Check if item has ratio definitions (composite item)
-                const hasRatioDefinitions = await this.itemGroupRepository.count({
-                    where: { item: { id: item.id } },
-                }) > 0;
+                // perf: use pre-fetched ratios map instead of per-item count query
+                const hasRatioDefinitions = (ratiosByItemId.get(item.id)?.length ?? 0) > 0;
 
                 // If item has ratio definitions, deduct stock items per ratio
                 if (hasRatioDefinitions) {

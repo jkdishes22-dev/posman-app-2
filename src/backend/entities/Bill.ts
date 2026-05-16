@@ -62,8 +62,8 @@ export class Bill extends BaseEntity {
   @JoinColumn({ name: "station_id" })
   station: Station;
 
-  // Resolved by table name to avoid class-reference fragility in webpack bundles.
-  @OneToMany("bill_item", (billItem: BillItem) => billItem.bill, { eager: true })
+  // perf: eager removed — all callers use explicit relations or QB joins
+  @OneToMany("bill_item", (billItem: BillItem) => billItem.bill)
   bill_items: BillItem[];
 
   @OneToMany("bill_payment", (billPayment: BillPayment) => billPayment.bill)

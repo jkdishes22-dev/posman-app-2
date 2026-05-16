@@ -1148,14 +1148,30 @@ export class BillService {
 
     const bills = await queryBuilder.getMany();
 
+    // perf: batch-load all requestor users in one pass instead of N+1 getUserById calls
+    const voidRequesterIds = [
+      ...new Set(
+        bills.flatMap(b =>
+          (b.bill_items?.filter(i => i.status === BillItemStatus.VOID_PENDING) || [])
+            .map(i => i.void_requested_by)
+            .filter((id): id is number => Boolean(id))
+        )
+      ),
+    ];
+    const voidRequesterResults = await Promise.all(
+      voidRequesterIds.map(id => this.userService.getUserById(id).catch(() => null))
+    );
+    const voidRequesterMap = new Map<number, any>(
+      voidRequesterIds.map((id, i) => [id, voidRequesterResults[i]])
+    );
+
     // Transform to void request format expected by VoidRequestManager
     const voidRequests = [];
     for (const bill of bills) {
       const pendingItems = bill.bill_items?.filter(item => item.status === BillItemStatus.VOID_PENDING) || [];
       for (const item of pendingItems) {
-        // Get the user who requested the void
         const requestedByUser = item.void_requested_by
-          ? await this.userService.getUserById(item.void_requested_by).catch(() => null)
+          ? voidRequesterMap.get(item.void_requested_by) ?? null
           : null;
 
         voidRequests.push({
@@ -1290,14 +1306,30 @@ export class BillService {
 
     const bills = await queryBuilder.getMany();
 
+    // perf: batch-load all requestor users in one pass instead of N+1 getUserById calls
+    const qcRequesterIds = [
+      ...new Set(
+        bills.flatMap(b =>
+          (b.bill_items?.filter(i => i.status === BillItemStatus.QUANTITY_CHANGE_REQUEST) || [])
+            .map(i => i.quantity_change_requested_by)
+            .filter((id): id is number => Boolean(id))
+        )
+      ),
+    ];
+    const qcRequesterResults = await Promise.all(
+      qcRequesterIds.map(id => this.userService.getUserById(id).catch(() => null))
+    );
+    const qcRequesterMap = new Map<number, any>(
+      qcRequesterIds.map((id, i) => [id, qcRequesterResults[i]])
+    );
+
     // Transform to quantity change request format
     const quantityChangeRequests = [];
     for (const bill of bills) {
       const pendingItems = bill.bill_items?.filter(item => item.status === BillItemStatus.QUANTITY_CHANGE_REQUEST) || [];
       for (const item of pendingItems) {
-        // Get the user who requested the quantity change
         const requestedByUser = item.quantity_change_requested_by
-          ? await this.userService.getUserById(item.quantity_change_requested_by).catch(() => null)
+          ? qcRequesterMap.get(item.quantity_change_requested_by) ?? null
           : null;
 
         // Calculate new bill total after quantity change
