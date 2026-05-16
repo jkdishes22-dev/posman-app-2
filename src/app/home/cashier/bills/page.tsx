@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { formatISO } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import FilterDatePicker from "../../../shared/FilterDatePicker";
-import { todayEAT } from "../../../shared/eatDate";
+import { todayEAT, EAT_TIMEZONE } from "../../../shared/eatDate";
 import { dateToYmdEat, ymdToDateEat } from "../../../shared/filterDateUtils";
 import { Bill, BillItem, BillPayment, User } from "src/app/types/types";
 import { Modal, Button, Form } from "react-bootstrap";
@@ -95,8 +96,20 @@ const CashierBillsPage = () => {
   const pageSize = 10;
   const [total, setTotal] = useState(0);
   const [allBillIds, setAllBillIds] = useState<number[]>([]);
-  const [bulkCloseResults, setBulkCloseResults] = useState<null | { billId: number, status: string, error?: string }[]>(null);
-  const [showBulkCloseModal, setShowBulkCloseModal] = useState(false);
+  const [businessShifts, setBusinessShifts] = useState<{ id: string; name: string; start_time: string; end_time: string }[]>([]);
+  const [showBulkClosePreviewModal, setShowBulkClosePreviewModal] = useState(false);
+  const [bulkClosePreviewData, setBulkClosePreviewData] = useState<{
+    bills: Bill[];
+    totalBilled: number;
+    totalPaid: number;
+    discrepancies: Bill[];
+  } | null>(null);
+  const [bulkClosePreviewLoading, setBulkClosePreviewLoading] = useState(false);
+  // Independent filter state for the preview modal (not tied to the page filter)
+  const [previewDate, setPreviewDate] = useState<Date | null>(null);
+  const [previewWaitressId, setPreviewWaitressId] = useState("");
+  const [previewShiftId, setPreviewShiftId] = useState("");
+  const [previewSalespersons, setPreviewSalespersons] = useState<{ id: number; firstName: string; lastName: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [bulkSubmitResults, setBulkSubmitResults] = useState<null | { billId: number, status: string, error?: string }[]>(null);
@@ -154,12 +167,13 @@ const CashierBillsPage = () => {
   useEffect(() => {
     fetchSalesPersons();
     fetchReopenReasons();
+    fetchBusinessShifts();
   }, []);
 
   useEffect(() => {
     setShowCloseBillModal(false);
     setShowCloseBillSuccessModal(false);
-    setShowBulkCloseModal(false);
+    setShowBulkClosePreviewModal(false);
     setShowBulkSubmitModal(false);
     setShowReopenModal(false);
     setShowSubmitModal(false);
@@ -381,6 +395,126 @@ const CashierBillsPage = () => {
     }
   };
 
+  const fetchBusinessShifts = async () => {
+    try {
+      const res = await apiCall("/api/system/settings?key=system_settings&sub=business_shifts");
+      if (res.status === 200 && Array.isArray(res.data?.value)) {
+        setBusinessShifts(res.data.value);
+      }
+    } catch {
+      // Non-critical — fall back to "all day" mode silently
+    }
+  };
+
+  const filterBillsByShift = (bills: Bill[], shiftId: string): Bill[] => {
+    if (!shiftId) return bills;
+    const shift = businessShifts.find(s => s.id === shiftId);
+    if (!shift) return bills;
+    return bills.filter(bill => {
+      const t = formatInTimeZone(new Date(bill.created_at), EAT_TIMEZONE, "HH:mm");
+      const overnight = shift.start_time > shift.end_time;
+      return overnight
+        ? t >= shift.start_time || t < shift.end_time
+        : t >= shift.start_time && t < shift.end_time;
+    });
+  };
+
+  // Core preview fetch — accepts params explicitly so it works both on open and on "Update Preview"
+  // Fetches all submitted bills for the date (no salesperson filter at API level) so we can:
+  //   1. Derive the salesperson dropdown from actual bill owners
+  //   2. Apply salesperson + shift filters client-side
+  const doFetchBulkClosePreview = async (date: Date | null, waitressId: string, shiftId: string) => {
+    setBulkClosePreviewLoading(true);
+    setBulkClosePreviewData(null);
+
+    const params = ["status=submitted", "pageSize=1000"];
+    if (date) params.push(`date=${formatISO(date, { representation: "date" })}`);
+    // No billingUserId here — filter client-side so the salesperson list stays populated
+
+    try {
+      const result = await apiCall(`/api/bills?${params.join("&")}`);
+      if (result.status === 200) {
+        const allBills: Bill[] = result.data.bills || [];
+
+        // Extract unique salespersons from all fetched bills (unfiltered)
+        const seen = new Set<number>();
+        const persons: { id: number; firstName: string; lastName: string }[] = [];
+        for (const b of allBills) {
+          if (b.user?.id && !seen.has(b.user.id)) {
+            seen.add(b.user.id);
+            persons.push({ id: b.user.id, firstName: b.user.firstName, lastName: b.user.lastName });
+          }
+        }
+        setPreviewSalespersons(persons);
+
+        // Apply salesperson filter client-side
+        let fetched: Bill[] = waitressId
+          ? allBills.filter(b => String(b.user?.id) === waitressId)
+          : allBills;
+
+        // Apply shift filter client-side
+        fetched = filterBillsByShift(fetched, shiftId);
+
+        setBulkClosePreviewData({
+          bills: fetched,
+          totalBilled: fetched.reduce((s, b) => s + (Number(b.total) || 0), 0),
+          totalPaid: fetched.reduce((s, b) =>
+            s + (b.bill_payments?.reduce(
+              (ps: number, bp: any) => ps + (Number(bp.payment?.creditAmount) || 0), 0
+            ) || 0), 0),
+          discrepancies: fetched.filter(b => {
+            const paid = b.bill_payments?.reduce(
+              (ps: number, bp: any) => ps + (Number(bp.payment?.creditAmount) || 0), 0
+            ) || 0;
+            return Math.abs(paid - (Number(b.total) || 0)) > 0.01;
+          }),
+        });
+      }
+    } catch {
+      // Preview data stays null — modal shows fallback
+    }
+    setBulkClosePreviewLoading(false);
+  };
+
+  // Opens the modal pre-populated with current page filters, then fetches immediately
+  const handleBulkCloseClick = async () => {
+    const initDate = filters.billingDate;
+    const initWaitress = filters.selectedWaitress;
+    setPreviewDate(initDate);
+    setPreviewWaitressId(initWaitress);
+    setPreviewShiftId("");
+    setShowBulkClosePreviewModal(true);
+    await doFetchBulkClosePreview(initDate, initWaitress, "");
+  };
+
+  // Called by "Update Preview" button inside the modal (uses modal's own filter state)
+  const fetchBulkClosePreview = () => {
+    doFetchBulkClosePreview(previewDate, previewWaitressId, previewShiftId);
+  };
+
+  const handleBulkCloseConfirm = async () => {
+    if (!bulkClosePreviewData?.bills.length) return;
+    setShowBulkClosePreviewModal(false);
+    try {
+      const result = await apiCall("/api/bills/bulk-close", {
+        method: "POST",
+        body: JSON.stringify({ billIds: bulkClosePreviewData.bills.map(b => b.id) }),
+      });
+      if (result.status === 200) {
+        fetchBills();
+        setSelectedBills([]);
+        setError(null);
+        setErrorDetails(null);
+      } else {
+        setError(result.error || "Failed to bulk close bills");
+        setErrorDetails(result.errorDetails);
+      }
+    } catch {
+      setError("Network error occurred");
+      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
+    }
+  };
+
   const handleFilterChange = (key: string, value: any) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
     // Clear selected bill when filters change
@@ -458,33 +592,6 @@ const CashierBillsPage = () => {
   };
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedBills(event.target.checked ? bills.filter((b) => b.status !== "voided").map((b) => b.id) : []);
-  };
-  const handleBulkProcess = async () => {
-    setBulkCloseResults(null);
-    try {
-      const result = await apiCall("/api/bills/bulk-close", {
-        method: "POST",
-        body: JSON.stringify({ billIds: selectedBills }),
-      });
-      if (result.status === 200) {
-        setBulkCloseResults(result.data.results);
-        setShowBulkCloseModal(true);
-        fetchBills();
-        setSelectedBills([]);
-        setError(null);
-        setErrorDetails(null);
-      } else {
-        setError(result.error || "Failed to bulk close bills");
-        setErrorDetails(result.errorDetails);
-        setBulkCloseResults([{ billId: 0, status: "failed", error: result.error }]);
-        setShowBulkCloseModal(true);
-      }
-    } catch (error: any) {
-      setError("Network error occurred");
-      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
-      setBulkCloseResults([{ billId: 0, status: "failed", error: "Network error occurred" }]);
-      setShowBulkCloseModal(true);
-    }
   };
   const handleProcessClick = (bill: Bill) => {
     setCloseBillError("");
@@ -949,8 +1056,7 @@ const CashierBillsPage = () => {
                     {filters.status === "submitted" && (
                       <button
                         className="btn btn-success btn-sm"
-                        onClick={handleBulkProcess}
-                        disabled={selectedBills.length === 0}
+                        onClick={handleBulkCloseClick}
                       >
                         <i className="bi bi-check-circle me-1"></i>
                         Bulk Close
@@ -1758,28 +1864,126 @@ const CashierBillsPage = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-      <Modal show={showBulkCloseModal} onHide={() => setShowBulkCloseModal(false)}>
+      {/* Bulk Close Preview Modal — has its own independent filter controls */}
+      <Modal show={showBulkClosePreviewModal} onHide={() => setShowBulkClosePreviewModal(false)} size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>Bulk Close Results</Modal.Title>
+          <Modal.Title>
+            <i className="bi bi-check-circle me-2 text-success"></i>
+            Bulk Close Bills
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {bulkCloseResults && (
-            <ul>
-              {bulkCloseResults.map((result) => (
-                <li key={result.billId}>
-                  Bill {result.billId}: {result.status}
-                  {result.error && <span style={{ color: "red" }}> ({result.error})</span>}
-                </li>
-              ))}
-            </ul>
+          {/* Independent filters */}
+          <div className="row g-2 mb-3">
+            <div className={businessShifts.length > 0 ? "col-12 col-md-4" : "col-12 col-md-6"}>
+              <FilterDatePicker
+                label="Date"
+                value={previewDate ? dateToYmdEat(previewDate) : ""}
+                onChange={(ymd) => setPreviewDate(ymd ? ymdToDateEat(ymd) : null)}
+                maxDate={new Date()}
+              />
+            </div>
+            <div className={businessShifts.length > 0 ? "col-12 col-md-4" : "col-12 col-md-6"}>
+              <label className="form-label fw-semibold">Salesperson</label>
+              <select
+                className="form-select"
+                value={previewWaitressId}
+                onChange={e => setPreviewWaitressId(e.target.value)}
+              >
+                <option value="">All</option>
+                {previewSalespersons.map(p => (
+                  <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
+                ))}
+              </select>
+            </div>
+            {businessShifts.length > 0 && (
+              <div className="col-12 col-md-4">
+                <label className="form-label fw-semibold">Shift</label>
+                <select
+                  className="form-select"
+                  value={previewShiftId}
+                  onChange={e => setPreviewShiftId(e.target.value)}
+                >
+                  <option value="">All day</option>
+                  {businessShifts.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+          <div className="mb-3">
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={fetchBulkClosePreview}
+              disabled={bulkClosePreviewLoading}
+            >
+              <i className="bi bi-search me-1"></i>
+              {bulkClosePreviewLoading ? "Loading…" : "Update Preview"}
+            </Button>
+          </div>
+
+          <hr className="my-2" />
+
+          {/* Results */}
+          {bulkClosePreviewLoading ? (
+            <div className="text-center py-3">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading…</span>
+              </div>
+              <p className="mt-2 text-muted mb-0">Fetching submitted bills…</p>
+            </div>
+          ) : bulkClosePreviewData ? (
+            bulkClosePreviewData.bills.length === 0 ? (
+              <div className="alert alert-info mb-0">
+                <i className="bi bi-info-circle me-1"></i>
+                No submitted bills found for the selected filters.
+              </div>
+            ) : (
+              <div>
+                <p className="mb-2">
+                  <strong>{bulkClosePreviewData.bills.length}</strong> submitted bill(s) will be closed.
+                </p>
+                <table className="table table-sm mb-2">
+                  <tbody>
+                    <tr>
+                      <td className="text-muted">Total billed</td>
+                      <td className="text-end fw-semibold">KES {bulkClosePreviewData.totalBilled.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td className="text-muted">Total paid</td>
+                      <td className="text-end fw-semibold">KES {bulkClosePreviewData.totalPaid.toFixed(2)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                {bulkClosePreviewData.discrepancies.length > 0 && (
+                  <div className="alert alert-warning py-2 mb-0">
+                    <i className="bi bi-exclamation-triangle me-1"></i>
+                    <strong>{bulkClosePreviewData.discrepancies.length}</strong> bill(s) have payment
+                    discrepancies (Bill IDs: {bulkClosePreviewData.discrepancies.map(b => `#${b.id}`).join(", ")}).
+                    These will fail to close.
+                  </div>
+                )}
+              </div>
+            )
+          ) : (
+            <p className="text-muted small mb-0">Select filters above and click <strong>Update Preview</strong> to see matching bills.</p>
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowBulkCloseModal(false)}>
-            Close
+          <Button variant="secondary" onClick={() => setShowBulkClosePreviewModal(false)}>Cancel</Button>
+          <Button
+            variant="success"
+            onClick={handleBulkCloseConfirm}
+            disabled={bulkClosePreviewLoading || !bulkClosePreviewData?.bills.length}
+          >
+            <i className="bi bi-check-circle me-1"></i>
+            Close {bulkClosePreviewData?.bills.length ?? 0} Bill(s)
           </Button>
         </Modal.Footer>
       </Modal>
+
       <Modal show={showBulkSubmitModal} onHide={() => setShowBulkSubmitModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>

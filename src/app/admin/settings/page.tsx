@@ -373,10 +373,10 @@ export default function AdminSettingsPage() {
                 setShiftSettingsResult({ success: false, error: "Each shift must have both start and end time." });
                 return;
             }
-            if (shift.start_time >= shift.end_time) {
+            if (shift.start_time === shift.end_time) {
                 setShiftSettingsResult({
                     success: false,
-                    error: `Shift${shift.name ? ` "${shift.name}"` : ""} must have an end time after start time.`,
+                    error: `Shift${shift.name ? ` "${shift.name}"` : ""} start and end time cannot be the same.`,
                 });
                 return;
             }

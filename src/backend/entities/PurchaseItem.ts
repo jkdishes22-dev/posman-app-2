@@ -27,4 +27,7 @@ export class PurchaseItem extends BaseEntity {
 
     @Column({ type: "boolean", default: true, name: "is_active" })
     is_active: boolean;
+
+    @Column({ type: "decimal", precision: 10, scale: 2, nullable: true, name: "default_purchase_price" })
+    default_purchase_price: number | null;
 }

@@ -24,6 +24,7 @@ interface SuppliableItem {
     purchaseUnitLabel: string | null;
     purchaseUnitQty: number | null;
     unitOfMeasure: string | null;
+    defaultPurchasePrice: number | null;
 }
 
 interface PurchaseItemRecord {
@@ -33,10 +34,29 @@ interface PurchaseItemRecord {
     purchase_unit_qty: number;
     unit_of_measure: string | null;
     is_active: boolean;
+    default_purchase_price: number | null;
     item: { id: number; name: string; code: string };
 }
 
-const UOM_SUGGESTIONS = ["pieces", "kg", "grams", "liters", "ml", "dozens", "cartons", "bags"];
+const UOM_GROUPS = [
+    {
+        label: "Weight / Mass",
+        units: ["kg", "grams", "mg", "lbs", "oz", "tonnes"],
+    },
+    {
+        label: "Volume",
+        units: ["liters", "ml", "gallons", "cups", "tablespoons", "teaspoons"],
+    },
+    {
+        label: "Count / Packaging",
+        units: ["pieces", "dozens", "pairs", "sets", "bundles", "cartons", "boxes", "packs", "rolls", "sheets", "bags", "cans", "bottles", "sachets"],
+    },
+    {
+        label: "Length",
+        units: ["meters", "cm", "mm", "inches", "feet"],
+    },
+];
+const ALL_KNOWN_UOM = UOM_GROUPS.flatMap((g) => g.units);
 
 export default function PurchaseItemsPage() {
     const apiCall = useApiCall();
@@ -60,6 +80,7 @@ export default function PurchaseItemsPage() {
     const [formLabel, setFormLabel] = useState("");
     const [formQty, setFormQty] = useState("");
     const [formUom, setFormUom] = useState("");
+    const [formPrice, setFormPrice] = useState("");
     const [formActive, setFormActive] = useState(true);
     const [formError, setFormError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
@@ -111,6 +132,7 @@ export default function PurchaseItemsPage() {
         setFormLabel("");
         setFormQty("");
         setFormUom("");
+        setFormPrice("");
         setFormActive(true);
         setFormError(null);
         setShowModal(true);
@@ -130,6 +152,7 @@ export default function PurchaseItemsPage() {
                 setFormLabel(record?.purchase_unit_label || "");
                 setFormQty(record ? String(Number(record.purchase_unit_qty)) : "");
                 setFormUom(record?.unit_of_measure || "");
+                setFormPrice(record?.default_purchase_price != null ? String(record.default_purchase_price) : "");
                 setFormActive(record?.is_active !== false);
             } else {
                 setFormError("Failed to load config");
@@ -155,6 +178,7 @@ export default function PurchaseItemsPage() {
         setSaving(true);
         try {
             let result;
+            const defaultPrice = formPrice.trim() ? parseFloat(formPrice) : null;
             if (editingRecord) {
                 result = await apiCall(
                     `/api/purchase-items/${editingRecord.id}`,
@@ -165,6 +189,7 @@ export default function PurchaseItemsPage() {
                             purchase_unit_qty: qty,
                             unit_of_measure: formUom.trim() || null,
                             is_active: formActive,
+                            default_purchase_price: defaultPrice,
                         }),
                     }
                 );
@@ -179,6 +204,7 @@ export default function PurchaseItemsPage() {
                             purchase_unit_qty: qty,
                             unit_of_measure: formUom.trim() || null,
                             is_active: true,
+                            default_purchase_price: defaultPrice,
                         }),
                     }
                 );
@@ -280,6 +306,7 @@ export default function PurchaseItemsPage() {
                                     <th>Pack Label</th>
                                     <th>Pack Qty</th>
                                     <th>UoM</th>
+                                    <th>Default Price</th>
                                     <th>Status</th>
                                     <th className="text-end">Actions</th>
                                 </tr>
@@ -295,6 +322,11 @@ export default function PurchaseItemsPage() {
                                                 <td>{item.purchaseUnitLabel}</td>
                                                 <td>{Number(item.purchaseUnitQty)}</td>
                                                 <td className="text-muted small">{item.unitOfMeasure || "—"}</td>
+                                                <td className="text-muted small">
+                                                    {item.defaultPurchasePrice != null
+                                                        ? Number(item.defaultPurchasePrice).toFixed(2)
+                                                        : "—"}
+                                                </td>
                                                 <td>
                                                     <Badge bg="success">Configured</Badge>
                                                 </td>
@@ -321,7 +353,7 @@ export default function PurchaseItemsPage() {
                                             </>
                                         ) : (
                                             <>
-                                                <td colSpan={3} className="text-muted fst-italic small">
+                                                <td colSpan={4} className="text-muted fst-italic small">
                                                     Not configured
                                                 </td>
                                                 <td>
@@ -399,20 +431,61 @@ export default function PurchaseItemsPage() {
                     </Form.Group>
                     <Form.Group className="mb-3">
                         <Form.Label>Unit of Measure</Form.Label>
-                        <Form.Control
-                            list="uom-suggestions"
-                            placeholder='e.g. "pieces", "liters", "kg"'
-                            value={formUom}
-                            onChange={(e) => setFormUom(e.target.value)}
-                            disabled={saving}
-                        />
-                        <datalist id="uom-suggestions">
-                            {UOM_SUGGESTIONS.map((u) => (
-                                <option key={u} value={u} />
-                            ))}
-                        </datalist>
+                        {(() => {
+                            const isCustom = formUom !== "" && !ALL_KNOWN_UOM.includes(formUom);
+                            const selectValue = isCustom ? "__custom__" : formUom;
+                            return (
+                                <>
+                                    <Form.Select
+                                        value={selectValue}
+                                        onChange={(e) => {
+                                            if (e.target.value === "__custom__") {
+                                                setFormUom("");
+                                            } else {
+                                                setFormUom(e.target.value);
+                                            }
+                                        }}
+                                        disabled={saving}
+                                    >
+                                        <option value="">— select a unit —</option>
+                                        {UOM_GROUPS.map((group) => (
+                                            <optgroup key={group.label} label={group.label}>
+                                                {group.units.map((u) => (
+                                                    <option key={u} value={u}>{u}</option>
+                                                ))}
+                                            </optgroup>
+                                        ))}
+                                        <option value="__custom__">Other (type custom)…</option>
+                                    </Form.Select>
+                                    {(selectValue === "__custom__" || isCustom) && (
+                                        <Form.Control
+                                            className="mt-2"
+                                            placeholder="Type custom unit…"
+                                            value={formUom}
+                                            onChange={(e) => setFormUom(e.target.value)}
+                                            disabled={saving}
+                                        />
+                                    )}
+                                </>
+                            );
+                        })()}
                         <Form.Text className="text-muted">
                             Optional display label for the lowest stock unit.
+                        </Form.Text>
+                    </Form.Group>
+                    <Form.Group className="mb-3">
+                        <Form.Label>Default Price (per pack)</Form.Label>
+                        <Form.Control
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="e.g. 1500.00"
+                            value={formPrice}
+                            onChange={(e) => setFormPrice(e.target.value)}
+                            disabled={saving}
+                        />
+                        <Form.Text className="text-muted">
+                            Optional. Pre-fills the unit price when this item is added to a purchase order.
                         </Form.Text>
                     </Form.Group>
                     {editingRecord && (

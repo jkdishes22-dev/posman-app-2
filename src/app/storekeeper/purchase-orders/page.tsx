@@ -32,6 +32,7 @@ interface SuppliableCatalogItem {
     purchaseUnitLabel: string | null;
     purchaseUnitQty: number | null;
     unitOfMeasure: string | null;
+    defaultPurchasePrice: number | null;
 }
 
 interface PurchaseOrderItem {
@@ -162,6 +163,7 @@ export default function PurchaseOrdersPage() {
                             purchaseUnitLabel: row?.purchaseUnitLabel ?? null,
                             purchaseUnitQty: row?.purchaseUnitQty != null ? Number(row.purchaseUnitQty) : null,
                             unitOfMeasure: row?.unitOfMeasure ?? null,
+                            defaultPurchasePrice: row?.defaultPurchasePrice != null ? Number(row.defaultPurchasePrice) : null,
                         });
                     }
                     setSuppliableCatalog([...byId.values()].sort((a, b) => a.name.localeCompare(b.name)));
@@ -272,7 +274,7 @@ export default function PurchaseOrdersPage() {
         setReceiveFormData(
             po.items.map(item => ({
                 item_id: item.item_id,
-                quantity_received: item.quantity_received.toString()
+                quantity_received: ""
             }))
         );
         clearFormErrorState();
@@ -302,6 +304,17 @@ export default function PurchaseOrdersPage() {
     const updateItemRow = (index: number, field: string, value: string) => {
         const newItems = [...formData.items];
         newItems[index] = { ...newItems[index], [field]: value };
+        setFormData({ ...formData, items: newItems });
+    };
+
+    const handleItemSelect = (index: number, itemId: string) => {
+        const cfg = suppliableCatalog.find((o) => String(o.id) === itemId);
+        const newItems = [...formData.items];
+        newItems[index] = {
+            ...newItems[index],
+            item_id: itemId,
+            unit_price: cfg?.defaultPurchasePrice != null ? String(cfg.defaultPurchasePrice) : "",
+        };
         setFormData({ ...formData, items: newItems });
     };
 
@@ -818,7 +831,7 @@ export default function PurchaseOrdersPage() {
                                                         </div>
                                                         <Form.Select
                                                             value={item.item_id}
-                                                            onChange={(e) => updateItemRow(index, "item_id", e.target.value)}
+                                                            onChange={(e) => handleItemSelect(index, e.target.value)}
                                                             required
                                                             disabled={suppliableCatalogLoading}
                                                         >
@@ -1124,7 +1137,7 @@ export default function PurchaseOrdersPage() {
                                                         type="number"
                                                         min="0"
                                                         max={remaining}
-                                                        value={receiveItem?.quantity_received || "0"}
+                                                        value={receiveItem?.quantity_received ?? ""}
                                                         onChange={(e) => {
                                                             const newData = [...receiveFormData];
                                                             const existingIndex = newData.findIndex(r => r.item_id === item.item_id);
