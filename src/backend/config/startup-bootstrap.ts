@@ -448,6 +448,12 @@ export async function applyPendingMigrationsAtStartup(): Promise<void> {
       console.info(
         `[startup] Applied ${executedList.length} pending migration(s): ${executedList.map((m) => m.name).join(", ")}`,
       );
+      // After schema-altering migrations, TypeORM's internal connection state can be stale.
+      // Reconnect so the first real queries see a clean DataSource.
+      if (sqlite) {
+        await AppDataSource.destroy();
+        await AppDataSource.initialize();
+      }
     }
     if (await shouldRunIntegrityCheck(AppDataSource)) {
       await assertSqliteQuickCheckOrThrow(AppDataSource);
