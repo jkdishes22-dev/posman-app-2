@@ -1290,7 +1290,7 @@ const BillingSection = () => {
                     const noInFlightSelections = selectedItems.length === 0;
                     fetchItems(category.id, { preferCache: noInFlightSelections });
                   }}
-                  onDeleteCategory={canDeleteCategoryOnBill ? openBillingCategoryDelete : undefined}
+                  onDeleteCategory={undefined}
                   fetchError={fetchCategoryError}
                   showHeader={false}
                   billingMode={true}
