@@ -506,3 +506,28 @@ input[type="number"] {
   color: rgba(255, 255, 255, 0.85) !important;
 }
 
+/* Profile control: high-contrast on bg-primary strip (avoid btn-light blending into blue) */
+.page-header-strip .page-header-strip-profile-btn {
+  background-color: #fff !important;
+  color: #0d47a1 !important;
+  border: 2px solid #fff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  font-weight: 600;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.85rem;
+}
+
+.page-header-strip .page-header-strip-profile-btn:hover,
+.page-header-strip .page-header-strip-profile-btn:focus,
+.page-header-strip .page-header-strip-profile-btn.show {
+  background-color: #fff !important;
+  color: #0d47a1 !important;
+  border-color: #fff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.page-header-strip .page-header-strip-profile-btn .bi-person-circle {
+  font-size: 1.15rem;
+  vertical-align: -0.1em;
+}
+
