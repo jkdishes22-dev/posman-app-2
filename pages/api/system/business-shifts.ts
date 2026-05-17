@@ -3,6 +3,7 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import permissions from "@backend/config/permissions";
+import { sysSettingsSelectSql } from "@backend/utils/settingsQuery";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method !== "GET") {
@@ -13,7 +14,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     return authorize([permissions.CAN_VIEW_BILL])(async (req, res) => {
         try {
             const rows: unknown[] = await req.db.query(
-                "SELECT value FROM system_settings WHERE key = ?",
+                sysSettingsSelectSql(req.db),
                 ["system_settings"]
             );
             if (!rows.length) {

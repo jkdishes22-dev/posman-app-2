@@ -3,6 +3,7 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import permissions from "@backend/config/permissions";
+import { sysSettingsSelectSql, sysSettingsUpsertSql } from "@backend/utils/settingsQuery";
 
 const SETTINGS_KEY = "module_visibility";
 
@@ -31,7 +32,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
         try {
             const rows: unknown[] = await req.db.query(
-                "SELECT value FROM system_settings WHERE key = ?",
+                sysSettingsSelectSql(req.db),
                 [SETTINGS_KEY]
             );
             if (!rows.length) {
@@ -58,7 +59,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 }
                 try {
                     const existing: unknown[] = await request.db.query(
-                        "SELECT value FROM system_settings WHERE key = ?",
+                        sysSettingsSelectSql(req.db),
                         [SETTINGS_KEY]
                     );
                     const current = existing.length
@@ -66,8 +67,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                         : {};
                     const merged = { ...current, [role]: visibility };
                     await request.db.query(
-                        "INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) " +
-                        "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+                        sysSettingsUpsertSql(request.db),
                         [SETTINGS_KEY, JSON.stringify(merged)]
                     );
                     return response.status(200).json({ role, visibility });

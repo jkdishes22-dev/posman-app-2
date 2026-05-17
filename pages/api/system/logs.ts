@@ -3,6 +3,7 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import permissions from "@backend/config/permissions";
+import { sysSettingsSelectSql } from "@backend/utils/settingsQuery";
 import fs from "fs";
 import path from "path";
 
@@ -17,7 +18,8 @@ function lastLines(text: string, n: number): string {
 async function getRetentionDays(db: NextApiRequest["db"]): Promise<number> {
     try {
         const rows: { value: string }[] = await db.query(
-            "SELECT value FROM system_settings WHERE key = 'system_settings'"
+            sysSettingsSelectSql(db),
+            ["system_settings"]
         );
         if (rows.length > 0) {
             const parsed = JSON.parse(rows[0].value);

@@ -3,6 +3,7 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import permissions from "@backend/config/permissions";
+import { sysSettingsSelectSql, sysSettingsUpsertSql } from "@backend/utils/settingsQuery";
 
 function canReadBillReceiptPrefs(req: NextApiRequest): boolean {
     const userPermissions = req.user.permissions.map((p: { name: string }) => p.name);
@@ -32,7 +33,7 @@ async function settingsGetInner(request: NextApiRequest, response: NextApiRespon
     }
     const subKey = typeof sub === "string" ? sub : undefined;
     try {
-        const rows: unknown[] = await request.db.query("SELECT value FROM system_settings WHERE key = ?", [key]);
+        const rows: unknown[] = await request.db.query(sysSettingsSelectSql(request.db), [key]);
         if (!rows.length) {
             return response.status(404).json({ error: "Setting not found" });
         }
@@ -93,14 +94,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     const current = existing.length ? JSON.parse(existing[0].value) : {};
                     const merged = { ...current, [subKey]: body };
                     await request.db.query(
-                        "INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+                        sysSettingsUpsertSql(request.db),
                         [key, JSON.stringify(merged)]
                     );
                     return response.status(200).json({ key, sub: subKey, value: body });
                 }
 
                 await request.db.query(
-                    "INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP",
+                    sysSettingsUpsertSql(request.db),
                     [key, JSON.stringify(body)]
                 );
                 return response.status(200).json({ key, value: body });

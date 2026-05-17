@@ -4,6 +4,7 @@ import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import permissions from "@backend/config/permissions";
 import { parseOrganisationSettingsRow } from "@backend/utils/organisationReceiptBranding";
+import { sysSettingsSelectSql } from "@backend/utils/settingsQuery";
 
 /**
  * Read-only printer prefs for receipt auto-print (billing UIs).
@@ -17,7 +18,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     try {
         const rows: { value: string }[] = await req.db.query(
-            "SELECT value FROM system_settings WHERE key = ?",
+            sysSettingsSelectSql(req.db),
             ["system_settings"],
         );
         let printer: unknown = null;
@@ -27,7 +28,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         }
         if (!printer) {
             const legacy: { value: string }[] = await req.db.query(
-                "SELECT value FROM system_settings WHERE key = ?",
+                sysSettingsSelectSql(req.db),
                 ["printer_settings"],
             );
             if (legacy?.length) {
@@ -37,7 +38,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         let organisationValue: string | undefined;
         try {
             const orgRows: { value: string }[] = await req.db.query(
-                "SELECT value FROM system_settings WHERE key = ?",
+                sysSettingsSelectSql(req.db),
                 ["organisation_settings"],
             );
             organisationValue = orgRows?.length ? orgRows[0].value : undefined;
