@@ -19,6 +19,7 @@ const verboseStartup =
 
 let mainWindow = null;
 let nextServer = null;
+let resolvedStandaloneDir = null;
 // Use custom port 8817 to avoid conflicts with other services (like Metabase on 3000, Next.js dev on 3000, etc.)
 const PORT = process.env.PORT || 2026;
 const HOST = "localhost";
@@ -376,6 +377,9 @@ function startNextServer() {
             nextPath = path.join(__dirname, "../.next/standalone");
             serverPath = path.join(nextPath, "server.js");
         }
+
+        // Store for use by backup helpers (better-sqlite3 lives inside standalone/node_modules)
+        resolvedStandaloneDir = nextPath;
 
         if (verboseStartup) {
             logToFile(`Looking for Next.js server at: ${serverPath}`);
@@ -843,7 +847,7 @@ function getDbPath() {
     return path.join(app.getPath("userData"), "posman.db");
 }
 
-function performBackup() {
+async function performBackup() {
     const dbPath = getDbPath();
     const backupDir = getBackupDir();
     const today = formatDateYmdInTimeZone(new Date(), APP_LOG_TIMEZONE);
@@ -858,12 +862,30 @@ function performBackup() {
         fs.mkdirSync(backupDir, { recursive: true });
     }
 
+    // Use better-sqlite3's online backup API so the backup is consistent even while the
+    // server process has the DB open. Falls back to file copy if the module isn't available.
+    if (resolvedStandaloneDir) {
+        try {
+            const Database = require(path.join(resolvedStandaloneDir, "node_modules", "better-sqlite3"));
+            const db = new Database(dbPath, { readonly: true });
+            try {
+                await db.backup(backupPath);
+            } finally {
+                db.close();
+            }
+            logToFile(`Database backed up to: ${backupPath}`);
+            return backupPath;
+        } catch (err) {
+            logToFile(`Online backup failed, falling back to file copy: ${err.message}`, "WARN");
+        }
+    }
+
     fs.copyFileSync(dbPath, backupPath);
-    logToFile(`Database backed up to: ${backupPath}`);
+    logToFile(`Database backed up to: ${backupPath} (file copy fallback)`);
     return backupPath;
 }
 
-function runDailyAutoBackup() {
+async function runDailyAutoBackup() {
     try {
         const backupDir = getBackupDir();
         const today = formatDateYmdInTimeZone(new Date(), APP_LOG_TIMEZONE);
@@ -872,7 +894,7 @@ function runDailyAutoBackup() {
             logToFile("Auto-backup skipped: today's backup already exists");
             return;
         }
-        performBackup();
+        await performBackup();
     } catch (err) {
         logToFile(`Auto-backup failed (non-fatal): ${err.message}`, "WARN");
     }
@@ -968,7 +990,7 @@ ipcMain.handle("get-printers", async (event) => {
 // IPC: manual backup triggered from admin UI via Next.js API route
 ipcMain.handle("backup-database", async () => {
     try {
-        const backupPath = performBackup();
+        const backupPath = await performBackup();
         if (!backupPath) return { success: false, error: "Database file not found" };
         return { success: true, path: backupPath };
     } catch (err) {
