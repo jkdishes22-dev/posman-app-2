@@ -428,7 +428,7 @@ const LoginForm = () => {
                       </p>
                       <button
                         type="button"
-                        className="btn btn-primary btn-sm"
+                        className="btn btn-success btn-sm"
                         onClick={handleActivateLicense}
                         disabled={isActivatingLicense || !licenseCode.trim()}
                       >
@@ -493,7 +493,7 @@ const LoginForm = () => {
               </div>
               <button
                 type="submit"
-                className="btn btn-primary btn-block"
+                className="btn btn-success btn-block"
                 disabled={
                   isSubmitting ||
                   isRedirecting ||
@@ -517,14 +517,14 @@ const LoginForm = () => {
               <div className="btn-group w-100 mb-2" role="group" aria-label="Keyboard layout">
                 <button
                   type="button"
-                  className={`btn ${keyboardMode === "numeric" ? "btn-primary" : "btn-outline-secondary"}`}
+                  className={`btn btn-sm ${keyboardMode === "numeric" ? "btn-secondary" : "btn-outline-secondary"}`}
                   onClick={() => setKeyboardMode("numeric")}
                 >
                   123
                 </button>
                 <button
                   type="button"
-                  className={`btn ${keyboardMode === "alpha" ? "btn-primary" : "btn-outline-secondary"}`}
+                  className={`btn btn-sm ${keyboardMode === "alpha" ? "btn-secondary" : "btn-outline-secondary"}`}
                   onClick={() => setKeyboardMode("alpha")}
                 >
                   ABC

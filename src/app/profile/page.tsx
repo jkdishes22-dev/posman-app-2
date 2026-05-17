@@ -215,7 +215,7 @@ const ProfilePage = () => {
                                             <label className="form-label fw-semibold">Confirm New Password</label>
                                             <input type="password" className="form-control" name="confirm" value={pwForm.confirm} onChange={handlePwChange} />
                                         </div>
-                                        <button type="submit" className="btn btn-primary" disabled={pwLoading}>
+                                        <button type="submit" className="btn btn-success" disabled={pwLoading}>
                                             {pwLoading ? "Updating..." : "Update Password"}
                                         </button>
                                     </form>

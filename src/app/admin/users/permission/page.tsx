@@ -404,7 +404,7 @@ export default function UsersPage() {
                               </h6>
                               <button
                                 onClick={() => handleShowAddModal(selectedScope)}
-                                className="btn btn-primary btn-sm"
+                                className="btn btn-success btn-sm"
                               >
                                 <i className="bi bi-plus-circle me-1"></i>
                                 Add Permission

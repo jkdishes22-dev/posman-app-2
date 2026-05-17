@@ -210,7 +210,7 @@ const CategoryPage: React.FC = () => {
                       required
                     />
                   </div>
-                  <button type="submit" className="btn btn-primary btn-sm">
+                  <button type="submit" className="btn btn-success btn-sm">
                     <i className="bi bi-plus-circle me-2"></i>
                     Add Category
                   </button>

@@ -175,7 +175,7 @@ export default function PricelistAdd({
                   <i className="bi bi-x-circle me-1"></i>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-success">
                   <i className="bi bi-plus-circle me-1"></i>
                   Add Pricelist
                 </button>

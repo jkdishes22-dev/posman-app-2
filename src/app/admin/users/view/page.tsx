@@ -606,7 +606,7 @@ function UsersPage() {
                     </div>
                     <button
                       type="button"
-                      className="btn btn-primary btn-sm flex-shrink-0"
+                      className="btn btn-success btn-sm flex-shrink-0"
                       onClick={handleShow}
                       data-bs-toggle="tooltip"
                       data-bs-placement="left"
@@ -885,7 +885,7 @@ function UsersPage() {
                         </h6>
                         <button
                           type="button"
-                          className="btn btn-primary btn-sm"
+                          className="btn btn-success btn-sm"
                           disabled={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !["sales", "supervisor", "admin"].includes(selectedUser.roles[0].name)}
                           onClick={() => {
                             fetchAvailableStations();
@@ -1044,7 +1044,7 @@ function UsersPage() {
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAssignRoleModal(false)}>
                   Cancel
                 </button>
-                <button type="button" className="btn btn-primary" onClick={handleAssignRole} disabled={!selectedRoleId}>
+                <button type="button" className="btn btn-success" onClick={handleAssignRole} disabled={!selectedRoleId}>
                   Assign
                 </button>
               </div>
@@ -1213,7 +1213,7 @@ function UsersPage() {
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAddStationModal(false)}>
                   Cancel
                 </button>
-                <button type="button" className="btn btn-primary" onClick={handleAddStation} disabled={!selectedStationId}>
+                <button type="button" className="btn btn-success" onClick={handleAddStation} disabled={!selectedStationId}>
                   Add Station
                 </button>
               </div>

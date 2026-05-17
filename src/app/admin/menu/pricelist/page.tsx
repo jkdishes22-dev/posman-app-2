@@ -598,7 +598,7 @@ export default function PricelistPage() {
                   {selectedPricelistId && (
                     <div className="d-flex gap-2">
                       <button
-                        className="btn btn-primary btn-sm"
+                        className="btn btn-success btn-sm"
                         onClick={handleShowItemModal}
                         disabled={filteredPricelists.find(p => p.id === selectedPricelistId)?.status === "inactive"}
                         title={filteredPricelists.find(p => p.id === selectedPricelistId)?.status === "inactive" ? "Cannot add items to inactive pricelist" : ""}

@@ -67,6 +67,15 @@
     --md-divider: #e0e0e0;
 }
 
+/* ── Button semantic convention ──────────────────────────────────────────
+ *  btn-primary    Navigate / select / view / filter
+ *  btn-success    Create / add / confirm / submit / complete
+ *  btn-warning    Caution — reversible but impactful (void, reset)
+ *  btn-danger     Destructive / delete
+ *  btn-secondary  Cancel / dismiss / neutral / toggle state
+ *  btn-outline-*  Secondary variant of the above
+ * ─────────────────────────────────────────────────────────────────────── */
+
 /* Material Design Shadows */
 .shadow-1 {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -82,6 +91,17 @@
 
 .shadow-4 {
     box-shadow: 0 16px 24px rgba(0, 0, 0, 0.16);
+}
+
+/* POS category card — billing mode active state */
+.pos-category-card {
+    background-color: var(--md-primary);
+    border-color: var(--md-primary-dark);
+    color: #ffffff;
+}
+
+.pos-category-card .card-title {
+    color: #ffffff;
 }
 
 /* Material Design Cards */

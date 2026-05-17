@@ -83,6 +83,16 @@ jobs:
           npx --yes prebuild-install --runtime electron --target $env:ELECTRON_VERSION --arch x64 --platform win32 --tag-prefix v
           Pop-Location
 
+      - name: Install undici v5 into standalone (Node 16 fetch polyfill)
+        shell: pwsh
+        run: |
+          # Next.js 15 dropped its bundled undici (targets Node 18+ which has native fetch).
+          # Electron 22 ships Node 16 which has no fetch globals — our ESM loader wrapper
+          # polyfills them from this module before importing server.js.
+          Push-Location ".next/standalone"
+          npm install --no-save undici@5
+          Pop-Location
+
       - name: Decode signing certificate
         shell: pwsh
         run: |
