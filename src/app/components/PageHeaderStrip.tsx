@@ -32,7 +32,7 @@ export default function PageHeaderStrip({
           {showProfileMenu ? (
             <div className="dropdown">
               <button
-                className="btn btn-outline-light btn-sm"
+                className="btn btn-light btn-sm"
                 type="button"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
