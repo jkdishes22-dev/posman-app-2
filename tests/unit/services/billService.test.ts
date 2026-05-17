@@ -178,4 +178,50 @@ describe("BillService", () => {
       expect(AppDataSource.transaction).not.toHaveBeenCalled();
     });
   });
+
+  describe("closeBill", () => {
+    it("runs close flow in a transaction and updates bill + items", async () => {
+      const updateQbBill = {
+        update: vi.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        execute: vi.fn().mockResolvedValue({ affected: 1 }),
+      };
+      const updateQbItems = {
+        update: vi.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        execute: vi.fn().mockResolvedValue({ affected: 2 }),
+      };
+      const readQb = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi
+          .fn()
+          .mockResolvedValueOnce({
+            id: 4,
+            total: 100,
+            bill_payments: [{ payment: { creditAmount: 100 } }],
+          })
+          .mockResolvedValueOnce({ id: 4, status: BillStatus.CLOSED }),
+      };
+
+      const manager = {
+        createQueryBuilder: vi
+          .fn()
+          .mockReturnValueOnce(readQb)
+          .mockReturnValueOnce(updateQbBill)
+          .mockReturnValueOnce(updateQbItems)
+          .mockReturnValueOnce(readQb),
+      };
+      (AppDataSource.transaction as any).mockImplementationOnce(async (cb: any) => cb(manager));
+
+      const result = await service.closeBill(4);
+
+      expect(AppDataSource.transaction).toHaveBeenCalled();
+      expect(updateQbBill.update).toHaveBeenCalled();
+      expect(updateQbItems.update).toHaveBeenCalled();
+      expect(result).toBeTruthy();
+    });
+  });
 });

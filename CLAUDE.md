@@ -6,4 +6,5 @@
 - Never skip pre-commit hooks
 - Never introduce breaking changes, always ask when in doubt
 - Prefer editing existing files over creating new ones
+- Always add unit and or e2e tests for all changes done. If a change breaks test, do not make assumptions but rather ask
 - Run `npm run tsc` before committing TypeScript changes
