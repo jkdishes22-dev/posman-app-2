@@ -455,7 +455,7 @@ export async function applyPendingMigrationsAtStartup(): Promise<void> {
         await AppDataSource.initialize();
       }
     }
-    if (await shouldRunIntegrityCheck(AppDataSource)) {
+    if (sqlite && (await shouldRunIntegrityCheck(AppDataSource))) {
       await assertSqliteQuickCheckOrThrow(AppDataSource);
       await recordIntegrityCheckRan(AppDataSource);
     }
@@ -587,6 +587,22 @@ async function checkStatusInternal(): Promise<SetupStatusPayload> {
     const coreSchemaReady = await hasCoreSchema();
     if (!coreSchemaReady) {
       return getInitializationRequiredStatus();
+    }
+
+    // Apply any pending migrations added after initial setup (e.g. new columns).
+    // Non-fatal: a migration warning should not prevent the app from starting.
+    try {
+      if (!AppDataSource.isInitialized) {
+        await AppDataSource.initialize();
+      }
+      const ran = await AppDataSource.runMigrations();
+      if (Array.isArray(ran) && ran.length > 0) {
+        console.info(
+          `[startup] Applied ${ran.length} pending MySQL migration(s): ${ran.map((m) => m.name).join(", ")}`,
+        );
+      }
+    } catch (mErr: any) {
+      console.warn("[startup] MySQL auto-migration failed (non-fatal):", mErr?.message || mErr);
     }
 
     const licenseStatus = await licenseService.getStatus();
