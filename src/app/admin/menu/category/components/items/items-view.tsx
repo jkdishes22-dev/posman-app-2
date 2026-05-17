@@ -508,9 +508,9 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
                         </td>
                       )}
                       {isBillingSection && (
-                        <td>
+                        <td style={{ minWidth: "90px" }}>
                           <button
-                            className="btn btn-primary btn-sm"
+                            className="btn btn-success w-100"
                             onClick={() => onItemPick?.(item)}
                             disabled={
                               !item.allowNegativeInventory &&
@@ -527,7 +527,7 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
                                 : "Add to bill"
                             }
                           >
-                            Pick
+                            <i className="bi bi-cart-plus me-1"></i>Pick
                           </button>
                         </td>
                       )}
