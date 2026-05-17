@@ -141,8 +141,15 @@ describe("InventoryService", () => {
 
   describe("addInventoryFromProduction", () => {
     it("creates new inventory record when none exists and adds quantity", async () => {
-      mockInventoryRepo.findOne.mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({ id: 1, item_id: 1, quantity: 5, reserved_quantity: 0 });
+      const txn = createMockTransactionalEntityManager();
+      txn.getRepository = vi.fn().mockImplementation((entity: any) => {
+        const name = typeof entity === "string" ? entity : entity?.name;
+        if (name === "Inventory") return mockInventoryRepo;
+        if (name === "InventoryTransaction") return mockTransactionRepo;
+        return createMockRepository();
+      });
+      mockInventoryRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
+      mockInventoryRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 1, item_id: 1, quantity: 5, reserved_quantity: 0 });
 
       await service.addInventoryFromProduction(1, 5, 10, 1);
 
@@ -152,19 +159,34 @@ describe("InventoryService", () => {
     });
 
     it("increments quantity on existing inventory record", async () => {
+      const txn = createMockTransactionalEntityManager();
+      txn.getRepository = vi.fn().mockImplementation((entity: any) => {
+        const name = typeof entity === "string" ? entity : entity?.name;
+        if (name === "Inventory") return mockInventoryRepo;
+        if (name === "InventoryTransaction") return mockTransactionRepo;
+        return createMockRepository();
+      });
+      mockInventoryRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
       const existing = { item_id: 1, quantity: 10, reserved_quantity: 2 };
       mockInventoryRepo.findOne.mockResolvedValue(existing);
 
       await service.addInventoryFromProduction(1, 5, 10, 1);
 
       expect(existing.quantity).toBe(15);
-      expect(mockInventoryRepo.update).toHaveBeenCalledWith(
-        { item: { id: 1 } },
-        expect.objectContaining({ quantity: 15 })
-      );
+      const qb = mockInventoryRepo.createQueryBuilder();
+      expect(qb.update).toHaveBeenCalled();
+      expect(qb.where).toHaveBeenCalledWith("item_id = :itemId", { itemId: 1 });
     });
 
     it("creates a PRODUCTION inventory transaction record", async () => {
+      const txn = createMockTransactionalEntityManager();
+      txn.getRepository = vi.fn().mockImplementation((entity: any) => {
+        const name = typeof entity === "string" ? entity : entity?.name;
+        if (name === "Inventory") return mockInventoryRepo;
+        if (name === "InventoryTransaction") return mockTransactionRepo;
+        return createMockRepository();
+      });
+      mockInventoryRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
       const existing = { item_id: 1, quantity: 10, reserved_quantity: 0 };
       mockInventoryRepo.findOne.mockResolvedValue(existing);
 
@@ -173,6 +195,44 @@ describe("InventoryService", () => {
       expect(mockTransactionRepo.insert).toHaveBeenCalledWith(
         expect.objectContaining({ item_id: 1, quantity: 5, reference_id: 10 })
       );
+    });
+  });
+
+  describe("transactional write methods", () => {
+    it("runs adjustInventory in a transaction and updates quantity", async () => {
+      const txn = createMockTransactionalEntityManager();
+      txn.getRepository = vi.fn().mockImplementation((entity: any) => {
+        const name = typeof entity === "string" ? entity : entity?.name;
+        if (name === "Inventory") return mockInventoryRepo;
+        if (name === "InventoryTransaction") return mockTransactionRepo;
+        return createMockRepository();
+      });
+      mockInventoryRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
+      mockInventoryRepo.findOne.mockResolvedValue({ item_id: 1, quantity: 7 });
+
+      const result = await service.adjustInventory(1, 10, "recount", 2);
+
+      expect(mockInventoryRepo.manager.transaction).toHaveBeenCalledTimes(1);
+      expect(result.quantity).toBe(10);
+      expect(mockTransactionRepo.insert).toHaveBeenCalledWith(expect.objectContaining({
+        item_id: 1,
+        transaction_type: "adjustment",
+      }));
+    });
+
+    it("propagates error when addInventoryFromPurchase transaction insert fails", async () => {
+      const txn = createMockTransactionalEntityManager();
+      txn.getRepository = vi.fn().mockImplementation((entity: any) => {
+        const name = typeof entity === "string" ? entity : entity?.name;
+        if (name === "Inventory") return mockInventoryRepo;
+        if (name === "InventoryTransaction") return mockTransactionRepo;
+        return createMockRepository();
+      });
+      mockInventoryRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
+      mockInventoryRepo.findOne.mockResolvedValue({ item_id: 1, quantity: 5 });
+      mockTransactionRepo.insert.mockRejectedValueOnce(new Error("tx insert failed"));
+
+      await expect(service.addInventoryFromPurchase(1, 3, 9, 4)).rejects.toThrow("tx insert failed");
     });
   });
 

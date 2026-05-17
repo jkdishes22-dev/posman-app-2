@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   createMockDataSource,
   createMockRepository,
+  createMockTransactionalEntityManager,
 } from "../mocks/createMockDataSource";
 
 const mockAddInventoryFromProduction = vi.fn().mockResolvedValue({});
@@ -78,7 +79,9 @@ describe("ProductionPreparationService", () => {
 
   describe("approvePreparation", () => {
     it("throws when preparation not found", async () => {
-      mockPrepRepo.findOne.mockResolvedValue(null);
+      const txn = createMockTransactionalEntityManager();
+      txn.findOne.mockResolvedValue(null);
+      mockPrepRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
 
       await expect(service.approvePreparation(99, 1)).rejects.toThrow(
         "Preparation 99 not found"
@@ -86,10 +89,12 @@ describe("ProductionPreparationService", () => {
     });
 
     it("throws when preparation is not PENDING", async () => {
-      mockPrepRepo.findOne.mockResolvedValue({
+      const txn = createMockTransactionalEntityManager();
+      txn.findOne.mockResolvedValue({
         id: 1,
         status: ProductionPreparationStatus.ISSUED,
       });
+      mockPrepRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
 
       await expect(service.approvePreparation(1, 1)).rejects.toThrow(
         "Cannot approve"
@@ -103,26 +108,47 @@ describe("ProductionPreparationService", () => {
         quantity_prepared: 10,
         status: ProductionPreparationStatus.PENDING,
       };
-      mockPrepRepo.findOne.mockResolvedValue(prep);
-      mockUserRepo.findOne.mockResolvedValue({ id: 1 });
-      mockPrepRepo.save.mockResolvedValue({
+      const txn = createMockTransactionalEntityManager();
+      txn.findOne
+        .mockResolvedValueOnce(prep)
+        .mockResolvedValueOnce({ id: 1 });
+      txn.save.mockResolvedValue({
         ...prep,
         status: ProductionPreparationStatus.ISSUED,
       });
+      mockPrepRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
 
       await service.approvePreparation(1, 1);
 
-      expect(mockAddInventoryFromProduction).toHaveBeenCalledWith(3, 10, 1, 1);
+      expect(mockAddInventoryFromProduction).toHaveBeenCalledWith(3, 10, 1, 1, txn);
     });
 
     it("does NOT call addInventoryFromProduction when approval fails", async () => {
-      mockPrepRepo.findOne.mockResolvedValue({
+      const txn = createMockTransactionalEntityManager();
+      txn.findOne.mockResolvedValue({
         id: 1,
         status: ProductionPreparationStatus.REJECTED,
       });
+      mockPrepRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
 
       await expect(service.approvePreparation(1, 1)).rejects.toThrow();
       expect(mockAddInventoryFromProduction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("issueDirectly", () => {
+    it("adds inventory within the same transaction manager", async () => {
+      const txn = createMockTransactionalEntityManager();
+      txn.findOne
+        .mockResolvedValueOnce({ id: 3, isGroup: false }) // item
+        .mockResolvedValueOnce({ id: 1 }); // user
+      txn.create.mockImplementation((_cls: any, data: any) => data);
+      txn.save.mockResolvedValue({ id: 15, item_id: 3, quantity_prepared: 4 });
+      mockPrepRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
+
+      await service.issueDirectly({ item_id: 3, quantity_prepared: 4 }, 1);
+
+      expect(mockAddInventoryFromProduction).toHaveBeenCalledWith(3, 4, 15, 1, txn);
     });
   });
 
