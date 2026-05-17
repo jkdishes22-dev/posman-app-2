@@ -1,21 +1,6 @@
 !macro customInstall
   SetShellVarContext current
 
-  ; --- Installation performance note ---
-  ; The app ships ~5 000 small Node.js module files inside the installer.
-  ; Real-time antivirus scanning each file as it is written to disk can extend
-  ; installation time to 15–30 minutes on older hardware.
-  ; If installation appears stuck:
-  ;   1. Temporarily disable real-time AV protection for the duration of this
-  ;      install only (re-enable immediately after).
-  ;   2. Do NOT add a permanent exclusion — that would leave the install directory
-  ;      unmonitored after setup completes.
-  ;   3. Always verify the installer was downloaded directly from the official
-  ;      GitHub releases page before disabling AV.
-  DetailPrint "Note: installing ~5 000 files — if progress stalls, temporarily"
-  DetailPrint "      disable real-time antivirus protection for this install only."
-  DetailPrint "      Re-enable AV as soon as the installer finishes."
-
   StrCpy $0 "$INSTDIR\resources\public\license\public-key.pem"
   StrCpy $1 "$APPDATA\JK PosMan\license"
   StrCpy $2 "$1\public-key.pem"
