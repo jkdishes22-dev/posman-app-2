@@ -359,7 +359,7 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
         {!isBillingSection && selectedCategory && !isPricelistSection && (
           <div className="mb-3">
             <button
-              className="btn btn-primary btn-sm"
+              className="btn btn-success btn-sm"
               onClick={handleAddItemClick}
             >
               <i className="bi bi-plus-circle me-1"></i>

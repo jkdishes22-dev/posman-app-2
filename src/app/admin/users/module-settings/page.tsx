@@ -440,7 +440,7 @@ function ModuleSettingsContent() {
                                         <span></span>
                                     )}
                                     <button
-                                        className="btn btn-primary"
+                                        className="btn btn-success"
                                         onClick={() => handleSave(role)}
                                         disabled={savingRole === role}
                                     >

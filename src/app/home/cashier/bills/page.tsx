@@ -1061,7 +1061,7 @@ const CashierBillsPage = () => {
                     )}
                     {bills.some((bill) => selectedBills.includes(bill.id) && bill.status === "pending") && (
                       <button
-                        className="btn btn-primary btn-sm"
+                        className="btn btn-success btn-sm"
                         onClick={handleBulkSubmit}
                         disabled={selectedBills.filter((id) => {
                           const bill = bills.find((b) => b.id === id);

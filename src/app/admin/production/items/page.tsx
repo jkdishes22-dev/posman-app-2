@@ -153,7 +153,7 @@ export default function InventoryPage() {
                 </Form.Group>
             </CollapsibleFilterSectionCard>
 
-            <Button onClick={handleShowModal} className="btn btn-primary w-100 mb-3">
+            <Button onClick={handleShowModal} className="btn btn-success w-100 mb-3">
               <i className="bi bi-plus-circle me-2"></i>
               Create Stock Item
             </Button>

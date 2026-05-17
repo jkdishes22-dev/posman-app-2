@@ -191,7 +191,7 @@ export default function NewUser({ onClose, onSave, error }) {
             <button
               type="button"
               onClick={handleSave}
-              className="btn btn-primary"
+              className="btn btn-success"
             >
               Save Changes
             </button>
