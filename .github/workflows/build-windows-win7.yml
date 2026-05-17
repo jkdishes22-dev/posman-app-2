@@ -114,7 +114,6 @@ jobs:
             --win --x64 `
             --config electron-builder.config.cjs `
             --config.npmRebuild=false `
-            --config.compression=normal `
             --config.win.artifactName='JK PosMan Setup ${{ inputs.version }}-win7-${arch}.${ext}' `
             --publish never
         env:

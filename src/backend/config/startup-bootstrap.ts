@@ -483,7 +483,11 @@ async function checkSqliteStatus(): Promise<SetupStatusPayload> {
     // Always apply pending migrations — core tables alone are not enough (e.g. system_settings,
     // expenses). Previously we only checked five tables and skipped runMigrations forever after
     // first boot, leaving DBs stuck at an old migration revision.
-    await AppDataSource.runMigrations();
+    const migratedHere = await AppDataSource.runMigrations();
+    if (Array.isArray(migratedHere) && migratedHere.length > 0) {
+      await AppDataSource.destroy();
+      await AppDataSource.initialize();
+    }
     if (await shouldRunIntegrityCheck(AppDataSource)) {
       await assertSqliteQuickCheckOrThrow(AppDataSource);
       await recordIntegrityCheckRan(AppDataSource);

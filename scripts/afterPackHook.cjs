@@ -83,6 +83,12 @@ async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot,
     }
     const bsq3Version = JSON.parse(fs.readFileSync(bsq3PkgPath, "utf8")).version;
 
+    const existingMachine = readPeMachine(destBinaryPath);
+    if (existingMachine != null && peMachineMatchesTargetArch(existingMachine, arch)) {
+        log(`   ✅ better_sqlite3.node already matches target arch (${arch}) — skipping download`);
+        return;
+    }
+
     /** Prefer env / installed electron package — electron-builder context often tracks package.json devDependency, not CI-pinned Electron (e.g. Win7 legacy line). */
     function resolveElectronVersionForPack() {
         const envV = (process.env.ELECTRON_VERSION || "").trim();

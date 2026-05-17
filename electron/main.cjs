@@ -492,6 +492,12 @@ function startNextServer() {
                 // Blob — global in Node 18, available as require('buffer').Blob in Node 16.
                 // Next.js uses new Blob([...]) in incremental-cache/index.js.
                 `  if(!globalThis.Blob){var _b=require('buffer');if(_b.Blob)globalThis.Blob=_b.Blob;}`,
+                // FormData — if the first undici candidate (next/dist/compiled/undici) set fetch
+                // but didn't export FormData, the loop breaks before trying undici@5. Patch the
+                // gap here so FormData is always available regardless of which candidate won.
+                `  if(typeof globalThis.FormData==='undefined'){`,
+                `    try{var _ud=require(p.join(_sd,'node_modules','undici'));if(_ud.FormData)globalThis.FormData=_ud.FormData;process.stdout.write('[ESM-LOADER] FormData polyfill OK\\n');}catch(e){process.stdout.write('[ESM-LOADER] FormData polyfill skip: '+e.message+'\\n');}`,
+                `  }`,
                 `})();`,
                 `import(_url).catch(function(e){var m='[ESM-LOADER] import failed: '+(e&&e.stack?e.stack:String(e))+'\\n';process.stdout.write(m);process.stderr.write(m);process.exit(1);});`,
             ].join("\n"));
