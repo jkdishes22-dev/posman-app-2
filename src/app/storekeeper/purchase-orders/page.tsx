@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { todayEAT } from "../../shared/eatDate";
 import FilterDatePicker from "../../shared/FilterDatePicker";
 import { ymdToDateEat } from "../../shared/filterDateUtils";
@@ -67,8 +68,10 @@ interface PurchaseOrder {
     items: PurchaseOrderItem[];
 }
 
-export default function PurchaseOrdersPage() {
+function PurchaseOrdersContent() {
     const apiCall = useApiCall();
+    const searchParams = useSearchParams();
+    const urlSearch = searchParams.get("search")?.trim() ?? "";
 
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
     const [filteredPOs, setFilteredPOs] = useState<PurchaseOrder[]>([]);
@@ -132,6 +135,10 @@ export default function PurchaseOrdersPage() {
         setStartDate(d);
         setEndDate(d);
     };
+
+    useEffect(() => {
+        if (urlSearch) setSearchTerm(urlSearch);
+    }, [urlSearch]);
 
     useEffect(() => {
         fetchPurchaseOrders();
@@ -1227,6 +1234,23 @@ export default function PurchaseOrdersPage() {
                 </Modal>
             </div>
         </RoleAwareLayout>
+    );
+}
+
+export default function PurchaseOrdersPage() {
+    return (
+        <Suspense
+            fallback={
+                <RoleAwareLayout>
+                    <div className="container-fluid py-5 text-center">
+                        <Spinner animation="border" />
+                        <p className="mt-2 mb-0">Loading purchase orders...</p>
+                    </div>
+                </RoleAwareLayout>
+            }
+        >
+            <PurchaseOrdersContent />
+        </Suspense>
     );
 }
 
