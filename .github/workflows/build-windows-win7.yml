@@ -163,5 +163,21 @@ jobs:
             - Support scope: security/critical fixes only
             - Channel: win7_branch
             - Electron: ${{ env.ELECTRON_VERSION }}
+
+            ## Installation notes
+
+            **If the installer appears stuck or takes more than a few minutes:**
+            Real-time antivirus scanning can cause installation to stall for 15–30 minutes
+            on older hardware because the installer writes ~5 000 small Node.js module files.
+
+            Temporary workaround (during install only):
+            1. Temporarily disable real-time AV protection for the duration of this install.
+            2. Re-enable AV immediately after setup finishes.
+            3. Do **not** add a permanent exclusion — that would leave the install directory unmonitored.
+            4. Always verify the installer was downloaded from the official GitHub releases page before disabling AV.
+
+            > **Future improvement:** The node_modules tree will be pre-bundled into a single
+            > compressed archive in a future release, reducing file count and eliminating this
+            > bottleneck without any AV exclusion being needed.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
