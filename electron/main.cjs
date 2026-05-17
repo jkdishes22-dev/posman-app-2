@@ -812,7 +812,7 @@ function createWindow() {
 
     // Handle external links
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-        shell.openExternal(url);
+        shell.openExternal(url).catch(() => {});
         return { action: "deny" };
     });
 
@@ -823,7 +823,7 @@ function createWindow() {
         if (parsedUrl.origin !== `http://${HOST}:${PORT}` &&
             parsedUrl.origin !== `http://localhost:${PORT}`) {
             event.preventDefault();
-            shell.openExternal(navigationUrl);
+            shell.openExternal(navigationUrl).catch(() => {});
         }
     });
 
@@ -1134,7 +1134,7 @@ app.on("before-quit", () => {
 app.on("web-contents-created", (event, contents) => {
     contents.on("new-window", (event, navigationUrl) => {
         event.preventDefault();
-        shell.openExternal(navigationUrl);
+        shell.openExternal(navigationUrl).catch(() => {});
     });
 });
 
