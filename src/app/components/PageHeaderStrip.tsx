@@ -6,7 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 export interface PageHeaderStripProps {
   /** Title row: use `<h1 className="h4 mb-0 fw-bold">` (+ optional icon / HelpPopover with `className="text-white"`). */
   children: React.ReactNode;
-  /** Right-aligned actions (buttons, links, secondary text). Prefer `variant="light"` / `btn-outline-light` on strip. */
+  /** Right-aligned actions (buttons, links). Use `btn-outline-light` or white buttons so they stand out on the blue strip. */
   actions?: React.ReactNode;
   className?: string;
   showProfileMenu?: boolean;
@@ -32,13 +32,14 @@ export default function PageHeaderStrip({
           {showProfileMenu ? (
             <div className="dropdown">
               <button
-                className="btn btn-outline-light btn-sm"
+                className="btn btn-sm dropdown-toggle page-header-strip-profile-btn"
                 type="button"
                 data-bs-toggle="dropdown"
                 aria-expanded="false"
+                aria-label="Profile menu"
                 title="Profile options"
               >
-                <i className="bi bi-person-circle me-1"></i>
+                <i className="bi bi-person-circle me-1" aria-hidden></i>
                 Profile
               </button>
               <ul className="dropdown-menu dropdown-menu-end" style={{ zIndex: 1060 }}>

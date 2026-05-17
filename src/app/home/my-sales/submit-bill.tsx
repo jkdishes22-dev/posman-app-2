@@ -1,4 +1,4 @@
-import React, { useState, useEffect, type CSSProperties } from "react";
+import React, { useState, useEffect, useRef, type CSSProperties } from "react";
 import { Modal, Button, Form, Spinner, Row, Col } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
@@ -35,6 +35,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
 
   const apiCall = useApiCall();
+  const mpesaCodeRef = useRef<HTMLInputElement>(null);
 
   const totalAmount = selectedBill?.total || 0;
 
@@ -396,29 +397,12 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                           setMpesaAmount(total);
                           setCashAmount("");
                           setPaymentValidationError("");
-                          setActiveField("mpesaAmount");
+                          setActiveField("mpesaCode");
+                          setTimeout(() => mpesaCodeRef.current?.focus(), 0);
                         }}
                       />
                       <label className="btn btn-outline-primary py-1 px-1 lh-sm text-wrap" htmlFor="submit-bill-pm-mpesa">
                         M-Pesa
-                      </label>
-                      <input
-                        type="radio"
-                        className="btn-check"
-                        name="paymentMethodUi"
-                        id="submit-bill-pm-both"
-                        autoComplete="off"
-                        checked={paymentMethod === "cash_mpesa"}
-                        onChange={() => {
-                          setPaymentMethod("cash_mpesa");
-                          setCashAmount("");
-                          setMpesaAmount("");
-                          setPaymentValidationError("");
-                          setActiveField("cash");
-                        }}
-                      />
-                      <label className="btn btn-outline-primary py-1 px-1 lh-sm text-wrap" htmlFor="submit-bill-pm-both" title="Cash and M-Pesa">
-                        Cash&nbsp;+&nbsp;M-Pesa
                       </label>
                     </div>
                   </Form.Group>
@@ -466,6 +450,7 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                     <Form.Label className="fw-semibold small">M-Pesa payment code</Form.Label>
                     <div className="position-relative">
                       <Form.Control
+                        ref={mpesaCodeRef}
                         type="text"
                         size="sm"
                         inputMode="text"

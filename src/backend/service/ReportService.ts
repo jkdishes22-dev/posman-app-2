@@ -21,12 +21,15 @@ export interface ReportFilters {
   userId?: number;
   supplierId?: number;
   period?: "day" | "week" | "month" | "year";
+  shiftStart?: string;
+  shiftEnd?: string;
 }
 
 export interface BillPaymentsReportFilters {
   paymentType?: PaymentType;
   reference?: string;
-  paymentDate?: Date;
+  startDate?: Date;
+  endDate?: Date;
   userId?: number;
 }
 
@@ -282,7 +285,7 @@ export class ReportService {
   }
 
   async getSalesRevenueReport(filters: ReportFilters): Promise<SalesRevenueReportItem[]> {
-    const { startDate, endDate, itemId, userId, period } = filters;
+    const { startDate, endDate, itemId, userId, period, shiftStart, shiftEnd } = filters;
 
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
@@ -322,6 +325,30 @@ export class ReportService {
     if (userId) {
       actualQuery = actualQuery.andWhere("bill.user_id = :userId", { userId });
       projectedQuery = projectedQuery.andWhere("bill.user_id = :userId", { userId });
+    }
+
+    if (shiftStart && shiftEnd) {
+      const overnight = shiftStart > shiftEnd;
+      const eatExpr = "strftime('%H:%M', datetime(bill.created_at, '+3 hours'))";
+      if (overnight) {
+        actualQuery = actualQuery.andWhere(
+          `(${eatExpr} >= :shiftStart OR ${eatExpr} < :shiftEnd)`,
+          { shiftStart, shiftEnd }
+        );
+        projectedQuery = projectedQuery.andWhere(
+          `(${eatExpr} >= :shiftStart OR ${eatExpr} < :shiftEnd)`,
+          { shiftStart, shiftEnd }
+        );
+      } else {
+        actualQuery = actualQuery.andWhere(
+          `${eatExpr} >= :shiftStart AND ${eatExpr} < :shiftEnd`,
+          { shiftStart, shiftEnd }
+        );
+        projectedQuery = projectedQuery.andWhere(
+          `${eatExpr} >= :shiftStart AND ${eatExpr} < :shiftEnd`,
+          { shiftStart, shiftEnd }
+        );
+      }
     }
 
     const actualBills = await actualQuery.getMany();
@@ -383,7 +410,7 @@ export class ReportService {
   }
 
   async getBillPaymentsReport(filters: BillPaymentsReportFilters): Promise<BillPaymentReportItem[]> {
-    const { paymentType, reference, paymentDate, userId } = filters;
+    const { paymentType, reference, startDate, endDate, userId } = filters;
 
     let query = this.billPaymentRepository
       .createQueryBuilder("billPayment")
@@ -403,14 +430,12 @@ export class ReportService {
       });
     }
 
-    if (paymentDate) {
-      const start = new Date(paymentDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(paymentDate);
-      end.setHours(23, 59, 59, 999);
-      query = query
-        .andWhere("payment.paid_at >= :start", { start })
-        .andWhere("payment.paid_at <= :end", { end });
+    if (startDate) {
+      query = query.andWhere("payment.paid_at >= :startDate", { startDate });
+    }
+
+    if (endDate) {
+      query = query.andWhere("payment.paid_at <= :endDate", { endDate });
     }
 
     if (userId) {
@@ -503,7 +528,7 @@ export class ReportService {
   }
 
   async getItemsSoldCountReport(filters: ReportFilters): Promise<ItemsSoldCountReportItem[]> {
-    const { startDate, endDate, itemId, userId, period } = filters;
+    const { startDate, endDate, itemId, userId, period, shiftStart, shiftEnd } = filters;
 
     if (!startDate || !endDate) {
       throw new Error("Start date and end date are required");
@@ -527,6 +552,22 @@ export class ReportService {
 
     if (userId) {
       query = query.andWhere("bill.user_id = :userId", { userId });
+    }
+
+    if (shiftStart && shiftEnd) {
+      const overnight = shiftStart > shiftEnd;
+      const eatExpr = "strftime('%H:%M', datetime(bill.created_at, '+3 hours'))";
+      if (overnight) {
+        query = query.andWhere(
+          `(${eatExpr} >= :shiftStart OR ${eatExpr} < :shiftEnd)`,
+          { shiftStart, shiftEnd }
+        );
+      } else {
+        query = query.andWhere(
+          `${eatExpr} >= :shiftStart AND ${eatExpr} < :shiftEnd`,
+          { shiftStart, shiftEnd }
+        );
+      }
     }
 
     const billItems = await query.getMany();
