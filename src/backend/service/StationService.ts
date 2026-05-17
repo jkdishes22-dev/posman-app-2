@@ -113,7 +113,7 @@ export class StationService {
         FROM 
           station s
         JOIN user_station us ON us.station_id = s.id
-        JOIN "user" u ON u.id = us.user_id
+        JOIN \`user\` u ON u.id = us.user_id
         WHERE
           s.id = ?
       `;
@@ -615,6 +615,7 @@ export class StationService {
       return cached;
     }
 
+    // Backtick-quote `user` — reserved word in MySQL; backticks are also valid in SQLite.
     const query = `
       SELECT DISTINCT
         u.id,
@@ -622,12 +623,12 @@ export class StationService {
         u.lastName,
         u.username,
         r.name as role_name
-      FROM "user" u
+      FROM \`user\` u
       JOIN user_roles ur ON ur.user_id = u.id
       JOIN roles r ON r.id = ur.role_id
       WHERE u.id NOT IN (
-        SELECT us.user_id 
-        FROM user_station us 
+        SELECT us.user_id
+        FROM user_station us
         WHERE us.station_id = ?
       )
       AND r.name IN ('sales', 'admin', 'supervisor')
