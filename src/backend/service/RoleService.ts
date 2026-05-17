@@ -83,29 +83,27 @@ export class RoleService {
   }
 
   async assignRoleToUser(userId: number, roleId: number) {
-    await this.userRoleRepository.delete({ user: { id: userId } });
-    const existing = await this.userRoleRepository
-      .createQueryBuilder("ur")
-      .where("ur.user_id = :userId", { userId })
-      .andWhere("ur.role_id = :roleId", { roleId })
-      .getOne();
-    if (!existing) {
-      const userRole = new UserRole();
-      userRole.user = { id: userId } as any;
-      userRole.role = { id: roleId } as any;
-      const saved = await this.userRoleRepository.save(userRole);
+    try {
+      const saved = await this.roleRepository.manager.transaction(async (manager) => {
+        await manager
+          .createQueryBuilder()
+          .delete()
+          .from(UserRole)
+          .where("user_id = :userId", { userId })
+          .execute();
 
-      // Invalidate user-related caches after assigning role
+        const userRole = new UserRole();
+        userRole.user = { id: userId } as any;
+        userRole.role = { id: roleId } as any;
+        return manager.save(UserRole, userRole);
+      });
+
       cache.invalidateMany([`user_roles_permissions_${userId}`, `user_roles_stations_${userId}`, `user_${userId}`]);
-
       return saved;
+    } catch (error: any) {
+      console.error(`Error assigning role ${roleId} to user ${userId}:`, error);
+      throw new Error(error?.message || "Failed to assign role to user");
     }
-
-    // Invalidate user-related caches even if role already exists
-    cache.invalidateMany([`user_roles_permissions_${userId}`, `user_roles_stations_${userId}`, `user_${userId}`]);
-
-    // If already exists, return existing
-    return existing;
   }
 
   /**

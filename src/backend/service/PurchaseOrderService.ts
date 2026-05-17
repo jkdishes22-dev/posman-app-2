@@ -222,75 +222,75 @@ export class PurchaseOrderService {
         }>,
         userId: number
     ): Promise<PurchaseOrder> {
-        const po = await this.purchaseOrderRepository.findOne({
-            where: { id: poId },
-            relations: ["items"],
-        });
+        try {
+            return await this.purchaseOrderRepository.manager.transaction(async (manager) => {
+                const poRepository = manager.getRepository(PurchaseOrder);
+                const poItemRepository = manager.getRepository(PurchaseOrderItem);
 
-        if (!po) {
-            throw new Error(`Purchase order ${poId} not found`);
-        }
-
-        if (po.status !== PurchaseOrderStatus.DRAFT) {
-            throw new Error(`Cannot update purchase order ${poId} with status ${po.status}`);
-        }
-
-        // Update basic fields
-        if (data.expected_delivery_date !== undefined) {
-            po.expected_delivery_date = data.expected_delivery_date;
-        }
-        if (data.notes !== undefined) {
-            po.notes = data.notes;
-        }
-
-        // Update items if provided
-        if (data.items) {
-            await this.assertItemsEligibleForPurchaseOrder(data.items);
-
-            const purchaseItemMap = await this.fetchPurchaseItemMap(data.items.map((i) => i.item_id));
-
-            // Delete existing items
-            await this.purchaseOrderItemRepository.delete({ purchase_order_id: poId });
-
-            // Create new items with pack snapshot
-            const newItems = data.items.map((item) => {
-                const config = purchaseItemMap.get(item.item_id);
-                const subtotal = item.quantity_ordered * item.unit_price;
-                return this.purchaseOrderItemRepository.create({
-                    purchase_order_id: poId,
-                    item_id: item.item_id,
-                    quantity_ordered: item.quantity_ordered,
-                    quantity_received: 0,
-                    unit_price: item.unit_price,
-                    subtotal,
-                    pack_qty: config ? Number(config.purchase_unit_qty) : 1,
-                    pack_label: config?.purchase_unit_label ?? null,
-                    created_by: userId,
+                const po = await poRepository.findOne({
+                    where: { id: poId },
+                    relations: ["items"],
                 });
+
+                if (!po) {
+                    throw new Error(`Purchase order ${poId} not found`);
+                }
+
+                if (po.status !== PurchaseOrderStatus.DRAFT) {
+                    throw new Error(`Cannot update purchase order ${poId} with status ${po.status}`);
+                }
+
+                if (data.expected_delivery_date !== undefined) {
+                    po.expected_delivery_date = data.expected_delivery_date;
+                }
+                if (data.notes !== undefined) {
+                    po.notes = data.notes;
+                }
+
+                if (data.items) {
+                    await this.assertItemsEligibleForPurchaseOrder(data.items);
+
+                    const purchaseItemMap = await this.fetchPurchaseItemMap(data.items.map((i) => i.item_id));
+
+                    await poItemRepository.delete({ purchase_order_id: poId });
+
+                    const newItems = data.items.map((item) => {
+                        const config = purchaseItemMap.get(item.item_id);
+                        const subtotal = item.quantity_ordered * item.unit_price;
+                        return poItemRepository.create({
+                            purchase_order_id: poId,
+                            item_id: item.item_id,
+                            quantity_ordered: item.quantity_ordered,
+                            quantity_received: 0,
+                            unit_price: item.unit_price,
+                            subtotal,
+                            pack_qty: config ? Number(config.purchase_unit_qty) : 1,
+                            pack_label: config?.purchase_unit_label ?? null,
+                            created_by: userId,
+                        });
+                    });
+
+                    await poItemRepository.save(newItems);
+
+                    const totalAmount = data.items.reduce(
+                        (sum, item) => sum + item.quantity_ordered * item.unit_price,
+                        0
+                    );
+                    po.total_amount = totalAmount;
+                }
+
+                po.updated_by = userId;
+                await poRepository.save(po);
+
+                return await poRepository.findOne({
+                    where: { id: poId },
+                    relations: ["items", "items.item", "supplier"],
+                })!;
             });
-
-            await this.purchaseOrderItemRepository.save(newItems);
-
-            // Recalculate total
-            const totalAmount = data.items.reduce(
-                (sum, item) => sum + item.quantity_ordered * item.unit_price,
-                0
-            );
-            po.total_amount = totalAmount;
-
-            // Update supplier transaction
-            // Note: This is simplified - in production, you might want to update the transaction
-            // or create a reversal and new transaction
+        } catch (error: any) {
+            console.error(`Error updating purchase order ${poId}:`, error);
+            throw new Error(error?.message || "Failed to update purchase order");
         }
-
-        po.updated_by = userId;
-        // updated_at is automatically managed by TypeORM's UpdateDateColumn
-        await this.purchaseOrderRepository.save(po);
-
-        return await this.purchaseOrderRepository.findOne({
-            where: { id: poId },
-            relations: ["items", "items.item", "supplier"],
-        })!;
     }
 
     /**

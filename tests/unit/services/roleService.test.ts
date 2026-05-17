@@ -123,23 +123,24 @@ describe("RoleService", () => {
 
   describe("assignRoleToUser", () => {
     it("deletes all existing user roles before assigning new one", async () => {
-      const qb = mockUserRoleRepo.createQueryBuilder();
-      qb.getOne.mockResolvedValue(null);
-      mockUserRoleRepo.save.mockResolvedValue({});
+      const txn = createMockTransactionalEntityManager();
+      const qb = txn.createQueryBuilder();
+      txn.save.mockResolvedValue({});
+      mockRoleRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
 
       await service.assignRoleToUser(5, 2);
 
-      expect(mockUserRoleRepo.delete).toHaveBeenCalledWith({ user: { id: 5 } });
-      expect(mockUserRoleRepo.createQueryBuilder).toHaveBeenCalledWith("ur");
-      expect(qb.where).toHaveBeenCalledWith("ur.user_id = :userId", { userId: 5 });
-      expect(qb.andWhere).toHaveBeenCalledWith("ur.role_id = :roleId", { roleId: 2 });
+      expect(qb.delete).toHaveBeenCalled();
+      expect(qb.from).toHaveBeenCalled();
+      expect(qb.where).toHaveBeenCalledWith("user_id = :userId", { userId: 5 });
+      expect(qb.execute).toHaveBeenCalled();
     });
 
     it("invalidates user-related caches after role assignment", async () => {
       const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
-      const qb = mockUserRoleRepo.createQueryBuilder();
-      qb.getOne.mockResolvedValue(null);
-      mockUserRoleRepo.save.mockResolvedValue({});
+      const txn = createMockTransactionalEntityManager();
+      txn.save.mockResolvedValue({});
+      mockRoleRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
 
       await service.assignRoleToUser(5, 2);
 
