@@ -186,17 +186,22 @@ export class StationService {
    * Set user's default station
    */
   async setUserDefaultStation(userId: number, stationId: number): Promise<void> {
-    // First, unset any existing default for this user
-    await this.userStationRepository.update(
-      { user: { id: userId } },
-      { isDefault: false }
-    );
+    await this.userStationRepository.manager.transaction(async (manager) => {
+      await manager
+        .createQueryBuilder()
+        .update(UserStation)
+        .set({ isDefault: false })
+        .where("user_id = :userId", { userId })
+        .execute();
 
-    // Set the new default
-    await this.userStationRepository.update(
-      { user: { id: userId }, station: { id: stationId } },
-      { isDefault: true }
-    );
+      await manager
+        .createQueryBuilder()
+        .update(UserStation)
+        .set({ isDefault: true })
+        .where("user_id = :userId", { userId })
+        .andWhere("station_id = :stationId", { stationId })
+        .execute();
+    });
 
     // Invalidate cache
     cache.invalidateMany([`user_default_station_${userId}`, "user_stations"]);
@@ -344,10 +349,13 @@ export class StationService {
 
   // Unlink a pricelist from a station
   async unlinkPricelistFromStation(stationId: number, pricelistId: number): Promise<void> {
-    const result = await this.stationPricelistRepository.delete({
-      station: { id: stationId },
-      pricelist: { id: pricelistId }
-    });
+    const result = await this.stationPricelistRepository
+      .createQueryBuilder()
+      .delete()
+      .from(StationPricelist)
+      .where("station_id = :stationId", { stationId })
+      .andWhere("pricelist_id = :pricelistId", { pricelistId })
+      .execute();
 
     if (result.affected === 0) {
       throw new Error("Pricelist not found or not linked to this station");
@@ -359,32 +367,45 @@ export class StationService {
 
   // Set a pricelist as default for a station
   async setDefaultPricelist(stationId: number, pricelistId: number): Promise<void> {
-    // First, unset any existing default pricelist for this station
-    await this.stationPricelistRepository.update(
-      { station: { id: stationId }, is_default: true },
-      { is_default: false }
-    );
+    try {
+      await this.stationPricelistRepository.manager.transaction(async (manager) => {
+        await manager
+          .createQueryBuilder()
+          .update(StationPricelist)
+          .set({ is_default: false })
+          .where("station_id = :stationId", { stationId })
+          .andWhere("is_default = :isDefault", { isDefault: true })
+          .execute();
 
-    // Set the new pricelist as default
-    const result = await this.stationPricelistRepository.update(
-      { station: { id: stationId }, pricelist: { id: pricelistId } },
-      { is_default: true }
-    );
+        const result = await manager
+          .createQueryBuilder()
+          .update(StationPricelist)
+          .set({ is_default: true })
+          .where("station_id = :stationId", { stationId })
+          .andWhere("pricelist_id = :pricelistId", { pricelistId })
+          .execute();
 
-    if (result.affected === 0) {
-      throw new Error("Pricelist not found or not linked to this station");
+        if (result.affected === 0) {
+          throw new Error("Pricelist not found or not linked to this station");
+        }
+      });
+
+      cache.invalidateMany([`station_pricelists_${stationId}`, `station_default_pricelist_${stationId}`, `pricelist_stations_${pricelistId}`]);
+    } catch (error: any) {
+      console.error(`Error setting default pricelist for station ${stationId}:`, error);
+      throw new Error(error?.message || "Failed to set default pricelist");
     }
-
-    // Invalidate cache
-    cache.invalidateMany([`station_pricelists_${stationId}`, `station_default_pricelist_${stationId}`, `pricelist_stations_${pricelistId}`]);
   }
 
   // Remove default pricelist for a station
   async removeDefaultPricelist(stationId: number): Promise<void> {
-    await this.stationPricelistRepository.update(
-      { station: { id: stationId }, is_default: true },
-      { is_default: false }
-    );
+    await this.stationPricelistRepository
+      .createQueryBuilder()
+      .update(StationPricelist)
+      .set({ is_default: false })
+      .where("station_id = :stationId", { stationId })
+      .andWhere("is_default = :isDefault", { isDefault: true })
+      .execute();
 
     // Invalidate cache
     cache.invalidateMany([`station_pricelists_${stationId}`, `station_default_pricelist_${stationId}`]);
@@ -470,13 +491,13 @@ export class StationService {
     status: StationPricelistStatus,
     notes?: string
   ): Promise<void> {
-    const result = await this.stationPricelistRepository.update(
-      { station: { id: stationId }, pricelist: { id: pricelistId } },
-      {
-        status,
-        notes: notes || undefined
-      }
-    );
+    const result = await this.stationPricelistRepository
+      .createQueryBuilder()
+      .update(StationPricelist)
+      .set({ status, notes: notes || undefined })
+      .where("station_id = :stationId", { stationId })
+      .andWhere("pricelist_id = :pricelistId", { pricelistId })
+      .execute();
 
     if (result.affected === 0) {
       throw new Error("Pricelist not found or not linked to this station");
@@ -554,10 +575,13 @@ export class StationService {
    * Remove a user from a station
    */
   async removeUserFromStation(stationId: number, userId: number): Promise<void> {
-    const result = await this.userStationRepository.delete({
-      station: { id: stationId },
-      user: { id: userId }
-    });
+    const result = await this.userStationRepository
+      .createQueryBuilder()
+      .delete()
+      .from(UserStation)
+      .where("station_id = :stationId", { stationId })
+      .andWhere("user_id = :userId", { userId })
+      .execute();
 
     if (result.affected === 0) {
       throw new Error("User is not linked to this station");
@@ -571,10 +595,13 @@ export class StationService {
    * Deactivate a user from a station (keeps them linked but inactive)
    */
   async disableUserFromStation(stationId: number, userId: number): Promise<void> {
-    const result = await this.userStationRepository.update(
-      { station: { id: stationId }, user: { id: userId } },
-      { status: UserStationStatus.INACTIVE }
-    );
+    const result = await this.userStationRepository
+      .createQueryBuilder()
+      .update(UserStation)
+      .set({ status: UserStationStatus.INACTIVE })
+      .where("station_id = :stationId", { stationId })
+      .andWhere("user_id = :userId", { userId })
+      .execute();
 
     if (result.affected === 0) {
       throw new Error("User is not linked to this station");
@@ -588,10 +615,13 @@ export class StationService {
    * Activate a user for a station
    */
   async enableUserForStation(stationId: number, userId: number): Promise<void> {
-    const result = await this.userStationRepository.update(
-      { station: { id: stationId }, user: { id: userId } },
-      { status: UserStationStatus.ACTIVE }
-    );
+    const result = await this.userStationRepository
+      .createQueryBuilder()
+      .update(UserStation)
+      .set({ status: UserStationStatus.ACTIVE })
+      .where("station_id = :stationId", { stationId })
+      .andWhere("user_id = :userId", { userId })
+      .execute();
 
     if (result.affected === 0) {
       throw new Error("User is not linked to this station");
