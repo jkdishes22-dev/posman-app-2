@@ -34,6 +34,13 @@ interface User {
   username: string;
 }
 
+interface BusinessShift {
+  id: string;
+  name: string;
+  start_time: string;
+  end_time: string;
+}
+
 export default function ItemsSoldCountReportPage() {
   const [reports, setReports] = useState<ItemsSoldCountReportItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,6 +58,8 @@ export default function ItemsSoldCountReportPage() {
   const [loadingFilters, setLoadingFilters] = useState(false);
   const [filterError, setFilterError] = useState<string | null>(null);
   const [filterErrorDetails, setFilterErrorDetails] = useState<ApiErrorResponse | null>(null);
+  const [businessShifts, setBusinessShifts] = useState<BusinessShift[]>([]);
+  const [selectedShiftId, setSelectedShiftId] = useState<string>("");
   const apiCall = useApiCall();
 
   useEffect(() => {
@@ -84,6 +93,20 @@ export default function ItemsSoldCountReportPage() {
     fetchFilters();
   }, [apiCall]);
 
+  useEffect(() => {
+    const fetchBusinessShifts = async () => {
+      try {
+        const res = await apiCall("/api/system/business-shifts");
+        if (res.status === 200 && Array.isArray(res.data?.shifts)) {
+          setBusinessShifts(res.data.shifts);
+        }
+      } catch {
+        // Non-critical
+      }
+    };
+    fetchBusinessShifts();
+  }, [apiCall]);
+
   const fetchReport = async () => {
     try {
       setLoading(true);
@@ -96,6 +119,13 @@ export default function ItemsSoldCountReportPage() {
       });
       if (selectedItemId) params.append("itemId", selectedItemId);
       if (selectedUserId) params.append("userId", selectedUserId);
+      if (selectedShiftId) {
+        const shift = businessShifts.find((s) => s.id === selectedShiftId);
+        if (shift) {
+          params.append("shiftStart", shift.start_time);
+          params.append("shiftEnd", shift.end_time);
+        }
+      }
       const result = await apiCall(`/api/reports/items-sold-count?${params.toString()}`);
       if (result.status === 200) {
         setReports(result.data?.reports || []);
@@ -151,6 +181,17 @@ export default function ItemsSoldCountReportPage() {
                   <div className="col-md-2"><Form.Label>Period</Form.Label><Form.Select value={period} onChange={(e) => setPeriod(e.target.value as "day" | "week" | "month" | "year")}><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option><option value="year">Year</option></Form.Select></div>
                   <div className="col-md-2"><Form.Label>Item</Form.Label><Form.Select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}><option value="">All Items</option>{items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ""}</option>)}</Form.Select></div>
                   <div className="col-md-2"><Form.Label>Sales User</Form.Label><Form.Select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)}><option value="">All Users</option>{users.map((user) => <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>)}</Form.Select></div>
+                  {businessShifts.length > 0 && (
+                    <div className="col-md-2">
+                      <Form.Label>Shift</Form.Label>
+                      <Form.Select value={selectedShiftId} onChange={(e) => setSelectedShiftId(e.target.value)}>
+                        <option value="">All shifts</option>
+                        {businessShifts.map((s) => (
+                          <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
+                        ))}
+                      </Form.Select>
+                    </div>
+                  )}
                   <div className="col-md-2"><Button type="button" variant="primary" onClick={fetchReport} disabled={loading || loadingFilters} className="w-100"><i className="bi bi-search me-1"></i>{loading ? "Loading..." : "Generate Report"}</Button></div>
                 </div>
                 </Form>

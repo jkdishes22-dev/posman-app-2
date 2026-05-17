@@ -33,6 +33,13 @@ interface User {
   username: string;
 }
 
+interface BusinessShift {
+  id: string;
+  name: string;
+  start_time: string;
+  end_time: string;
+}
+
 export default function SalesRevenueReportPage() {
   const [reports, setReports] = useState<SalesRevenueReportItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,22 +55,33 @@ export default function SalesRevenueReportPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loadingFilters, setLoadingFilters] = useState(false);
+  const [businessShifts, setBusinessShifts] = useState<BusinessShift[]>([]);
+  const [selectedShiftId, setSelectedShiftId] = useState<string>("");
   const apiCall = useApiCall();
 
   useEffect(() => {
     fetchFilters();
+    const fetchBusinessShifts = async () => {
+      try {
+        const res = await apiCall("/api/system/business-shifts");
+        if (res.status === 200 && Array.isArray(res.data?.shifts)) {
+          setBusinessShifts(res.data.shifts);
+        }
+      } catch {
+        // Non-critical
+      }
+    };
+    fetchBusinessShifts();
   }, []);
 
   const fetchFilters = async () => {
     setLoadingFilters(true);
     try {
-      // Fetch items
       const itemsResult = await apiCall("/api/production");
       if (itemsResult.status === 200) {
         setItems(Array.isArray(itemsResult.data) ? itemsResult.data : []);
       }
 
-      // Fetch users (sales users - typically users with sales role)
       const usersResult = await apiCall("/api/users?page=1&pageSize=1000");
       if (usersResult.status === 200) {
         const usersArray = Array.isArray(usersResult.data?.users) ? usersResult.data.users : [];
@@ -94,6 +112,14 @@ export default function SalesRevenueReportPage() {
 
       if (selectedUserId) {
         params.append("userId", selectedUserId);
+      }
+
+      if (selectedShiftId) {
+        const shift = businessShifts.find((s) => s.id === selectedShiftId);
+        if (shift) {
+          params.append("shiftStart", shift.start_time);
+          params.append("shiftEnd", shift.end_time);
+        }
       }
 
       const result = await apiCall(`/api/reports/sales-revenue?${params.toString()}`);
@@ -229,6 +255,22 @@ export default function SalesRevenueReportPage() {
                       ))}
                     </Form.Select>
                   </Col>
+                  {businessShifts.length > 0 && (
+                    <Col md={2}>
+                      <Form.Label>Shift</Form.Label>
+                      <Form.Select
+                        value={selectedShiftId}
+                        onChange={(e) => setSelectedShiftId(e.target.value)}
+                      >
+                        <option value="">All shifts</option>
+                        {businessShifts.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.start_time}–{s.end_time})
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                  )}
                   <Col md={2} className="d-flex flex-wrap gap-2 justify-content-md-end">
                     <Button
                       type="button"

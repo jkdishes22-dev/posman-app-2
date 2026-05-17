@@ -17,20 +17,12 @@ interface ReportCard {
 
 const reportCards: ReportCard[] = [
   {
-    id: "bill-payments",
-    title: "Bill Payments",
-    description: "List all bill payments with payment type, reference, and date filters",
-    icon: "bi-receipt-cutoff",
-    path: "/admin/reports/bill-payments",
-    color: "success"
-  },
-  {
-    id: "pnl",
-    title: "Profit & Loss",
-    description: "Comprehensive P&L analysis with actual and projected revenue",
-    icon: "bi-graph-up-arrow",
-    path: "/admin/reports/pnl",
-    color: "success"
+    id: "items-sold-count",
+    title: "Items Sold Count",
+    description: "Count of items sold with quantity tracking",
+    icon: "bi-cart",
+    path: "/admin/reports/items-sold-count",
+    color: "info"
   },
   {
     id: "sales-revenue",
@@ -41,20 +33,12 @@ const reportCards: ReportCard[] = [
     color: "primary"
   },
   {
-    id: "items-sold-count",
-    title: "Items Sold Count",
-    description: "Count of items sold with quantity tracking",
-    icon: "bi-cart",
-    path: "/admin/reports/items-sold-count",
-    color: "info"
-  },
-  {
-    id: "production-stock-revenue",
-    title: "Stock & Production",
-    description: "Compare revenue from production items vs stock items",
-    icon: "bi-box-seam",
-    path: "/admin/reports/production-stock-revenue",
-    color: "secondary"
+    id: "bill-payments",
+    title: "Bill Payments",
+    description: "List all bill payments with payment type, reference, and date filters",
+    icon: "bi-receipt-cutoff",
+    path: "/admin/reports/bill-payments",
+    color: "success"
   },
   {
     id: "expenditure",
@@ -71,6 +55,22 @@ const reportCards: ReportCard[] = [
     icon: "bi-cart-check",
     path: "/admin/reports/purchase-orders",
     color: "dark"
+  },
+  {
+    id: "production-stock-revenue",
+    title: "Stock & Production",
+    description: "Compare revenue from production items vs stock items",
+    icon: "bi-box-seam",
+    path: "/admin/reports/production-stock-revenue",
+    color: "secondary"
+  },
+  {
+    id: "pnl",
+    title: "Profit & Loss",
+    description: "Comprehensive P&L analysis with actual and projected revenue",
+    icon: "bi-graph-up-arrow",
+    path: "/admin/reports/pnl",
+    color: "success"
   },
 ];
 
@@ -89,14 +89,14 @@ export default function ReportsDashboardPage() {
         <Row className="g-2">
           {reportCards.map((report) => (
             <Col key={report.id} xs={12} sm={6} lg={4}>
-              <Link 
-                href={report.path} 
+              <Link
+                href={report.path}
                 style={{ textDecoration: "none", color: "inherit" }}
                 className="d-block h-100"
               >
-                <Card 
+                <Card
                   className={`h-100 border-${report.color} shadow-sm`}
-                  style={{ 
+                  style={{
                     transition: "transform 0.2s, box-shadow 0.2s",
                     cursor: "pointer"
                   }}
@@ -179,4 +179,3 @@ export default function ReportsDashboardPage() {
     </RoleAwareLayout>
   );
 }
-
