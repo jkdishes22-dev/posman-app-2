@@ -4,6 +4,7 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { StationService } from "@backend/service/StationService";
 import permissions from "@backend/config/permissions";
+import { cache } from "@backend/utils/cache";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     const { stationId } = req.query;
@@ -26,6 +27,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     }
 
                     await stationService.setDefaultPricelist(Number(stationId), Number(pricelistId));
+                    cache.invalidate(`api_station_pricelists_${stationId}`);
+                    cache.invalidate(`pricelists_by_station_${stationId}_false`);
+                    cache.invalidate(`pricelists_by_station_${stationId}_true`);
                     res.status(200).json({
                         message: "Default pricelist set successfully"
                     });
@@ -36,6 +40,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 // Remove default pricelist for a station
                 await authorize([permissions.CAN_EDIT_STATION_PRICELIST])(async (req, res) => {
                     await stationService.removeDefaultPricelist(Number(stationId));
+                    cache.invalidate(`api_station_pricelists_${stationId}`);
+                    cache.invalidate(`pricelists_by_station_${stationId}_false`);
+                    cache.invalidate(`pricelists_by_station_${stationId}_true`);
                     res.status(200).json({
                         message: "Default pricelist removed successfully"
                     });

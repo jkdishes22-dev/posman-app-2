@@ -390,7 +390,13 @@ export class StationService {
         }
       });
 
-      cache.invalidateMany([`station_pricelists_${stationId}`, `station_default_pricelist_${stationId}`, `pricelist_stations_${pricelistId}`]);
+      cache.invalidateMany([
+        `station_pricelists_${stationId}`,
+        `station_default_pricelist_${stationId}`,
+        `pricelist_stations_${pricelistId}`,
+        `pricelists_by_station_${stationId}_false`,
+        `pricelists_by_station_${stationId}_true`,
+      ]);
     } catch (error: any) {
       console.error(`Error setting default pricelist for station ${stationId}:`, error);
       throw new Error(error?.message || "Failed to set default pricelist");
@@ -407,8 +413,12 @@ export class StationService {
       .andWhere("is_default = :isDefault", { isDefault: true })
       .execute();
 
-    // Invalidate cache
-    cache.invalidateMany([`station_pricelists_${stationId}`, `station_default_pricelist_${stationId}`]);
+    cache.invalidateMany([
+      `station_pricelists_${stationId}`,
+      `station_default_pricelist_${stationId}`,
+      `pricelists_by_station_${stationId}_false`,
+      `pricelists_by_station_${stationId}_true`,
+    ]);
   }
 
   // Get all pricelists for a station
