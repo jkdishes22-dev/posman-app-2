@@ -1403,7 +1403,7 @@ const BillingSection = () => {
                       role="switch"
                       id="cashSettledToggle"
                       checked={cashSettled}
-                      onChange={(e) => setCashSettled(e.target.checked)}
+                      onChange={(e) => { setCashSettled(e.target.checked); if (e.target.checked) { setMpesaSettled(false); setMpesaRef(""); } }}
                       disabled={isSubmitting}
                       style={{ cursor: "pointer" }}
                     />
@@ -1426,6 +1426,7 @@ const BillingSection = () => {
                       onChange={(e) => {
                         setMpesaSettled(e.target.checked);
                         if (!e.target.checked) setMpesaRef("");
+                        if (e.target.checked) setCashSettled(false);
                       }}
                       disabled={isSubmitting}
                       style={{ cursor: "pointer" }}
@@ -1477,12 +1478,6 @@ const BillingSection = () => {
                   <div className="mt-2 alert alert-success py-2 px-3 mb-0 d-flex align-items-center gap-2">
                     <i className="bi bi-phone fs-5"></i>
                     <span className="fw-medium">KES {(Number(totalAmount) || 0).toFixed(2)} M-Pesa — Ref: {mpesaRef.trim()}</span>
-                  </div>
-                )}
-                {cashSettled && mpesaSettled && (
-                  <div className="mt-2 alert alert-info py-2 px-3 mb-0 d-flex align-items-center gap-2">
-                    <i className="bi bi-info-circle fs-5"></i>
-                    <span className="fw-medium">Both methods selected — bill will be created pending. Go to My Sales to submit with a split payment.</span>
                   </div>
                 )}
               </div>

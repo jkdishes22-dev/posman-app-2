@@ -404,6 +404,24 @@ const SubmitBillModal = ({ show, onHide, selectedBill, onBillSubmitted }) => {
                       <label className="btn btn-outline-primary py-1 px-1 lh-sm text-wrap" htmlFor="submit-bill-pm-mpesa">
                         M-Pesa
                       </label>
+                      <input
+                        type="radio"
+                        className="btn-check"
+                        name="paymentMethodUi"
+                        id="submit-bill-pm-both"
+                        autoComplete="off"
+                        checked={paymentMethod === "cash_mpesa"}
+                        onChange={() => {
+                          setPaymentMethod("cash_mpesa");
+                          setCashAmount("");
+                          setMpesaAmount("");
+                          setPaymentValidationError("");
+                          setActiveField("cash");
+                        }}
+                      />
+                      <label className="btn btn-outline-primary py-1 px-1 lh-sm text-wrap" htmlFor="submit-bill-pm-both">
+                        Cash&nbsp;+&nbsp;M-Pesa
+                      </label>
                     </div>
                   </Form.Group>
 
