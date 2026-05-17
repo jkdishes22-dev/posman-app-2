@@ -394,6 +394,23 @@ export class PricelistService {
     return result;
   }
 
+  async addItemToPricelist(pricelistId: number, itemId: number, price: number): Promise<void> {
+    const existing = await this.pricelistItemRepository.findOne({
+      where: { pricelist: { id: pricelistId }, item: { id: itemId } },
+    });
+    if (existing) {
+      throw new Error("Item is already in this pricelist");
+    }
+    const pricelistItem = this.pricelistItemRepository.create({
+      pricelist: { id: pricelistId } as any,
+      item: { id: itemId } as any,
+      price,
+      is_enabled: true,
+    });
+    await this.pricelistItemRepository.save(pricelistItem);
+    cache.invalidateMany([`pricelist_items_${pricelistId}`, "items"]);
+  }
+
   async removeItemFromPricelist(pricelistId: number, itemId: number): Promise<void> {
     const result = await this.pricelistItemRepository.delete({
       pricelist: { id: pricelistId },

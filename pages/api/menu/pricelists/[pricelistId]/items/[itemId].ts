@@ -18,7 +18,32 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         return res.status(400).json({ message: "Invalid item ID" });
     }
 
-    if (req.method === "DELETE") {
+    if (req.method === "POST") {
+        return authMiddleware(
+            authorize([permissions.CAN_ADD_ITEM])(async (req, res) => {
+                try {
+                    const { price } = req.body ?? {};
+                    if (price === undefined || price === null || isNaN(Number(price))) {
+                        return res.status(400).json({ message: "price is required" });
+                    }
+                    const connection = await getConnection();
+                    const pricelistService = new PricelistService(connection);
+                    await pricelistService.addItemToPricelist(
+                        Number(pricelistId),
+                        Number(itemId),
+                        Number(price)
+                    );
+                    res.status(201).json({ message: "Item added to pricelist successfully" });
+                } catch (error: any) {
+                    if (error.message === "Item is already in this pricelist") {
+                        return res.status(409).json({ message: error.message });
+                    }
+                    console.error("Error adding item to pricelist:", error);
+                    res.status(500).json({ message: "Some error occurred. Please try again." });
+                }
+            })
+        )(req, res);
+    } else if (req.method === "DELETE") {
         return authMiddleware(
             authorize([permissions.CAN_DELETE_ITEM])(async (req, res) => {
                 try {
@@ -45,7 +70,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             })
         )(req, res);
     } else {
-        res.setHeader("Allow", ["DELETE"]);
+        res.setHeader("Allow", ["POST", "DELETE"]);
         res.status(405).json({ error: `Method ${req.method} not allowed` });
     }
 };

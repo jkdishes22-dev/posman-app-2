@@ -13,6 +13,7 @@ import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import ExpressItemSearchModal from "../../../components/ExpressItemSearchModal";
 import PricelistUploadModal from "../../../components/PricelistUploadModal";
 import PricelistAuditLog from "../../../components/PricelistAuditLog";
+import LinkItemModal from "./link-item-modal";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { useTooltips } from "../../../hooks/useTooltips";
@@ -21,6 +22,7 @@ export default function PricelistPage() {
   useTooltips();
   const [showModal, setShowModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
+  const [showLinkItemModal, setShowLinkItemModal] = useState(false);
   const [showExpressSearch, setShowExpressSearch] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showAuditModal, setShowAuditModal] = useState(false);
@@ -601,10 +603,19 @@ export default function PricelistPage() {
                         className="btn btn-success btn-sm"
                         onClick={handleShowItemModal}
                         disabled={filteredPricelists.find(p => p.id === selectedPricelistId)?.status === "inactive"}
-                        title={filteredPricelists.find(p => p.id === selectedPricelistId)?.status === "inactive" ? "Cannot add items to inactive pricelist" : ""}
+                        title={filteredPricelists.find(p => p.id === selectedPricelistId)?.status === "inactive" ? "Cannot add items to inactive pricelist" : "Create a brand-new item"}
                       >
                         <i className="bi bi-plus-circle me-1"></i>
-                        Add Item
+                        New Item
+                      </button>
+                      <button
+                        className="btn btn-outline-success btn-sm"
+                        onClick={() => setShowLinkItemModal(true)}
+                        disabled={filteredPricelists.find(p => p.id === selectedPricelistId)?.status === "inactive"}
+                        title="Link an existing item to this pricelist"
+                      >
+                        <i className="bi bi-link-45deg me-1"></i>
+                        Link Existing
                       </button>
                       <button
                         className="btn btn-success btn-sm"
@@ -736,6 +747,15 @@ export default function PricelistPage() {
           selectedCategory={null}
           selectedPricelistId={selectedPricelistId}
         />
+
+        {selectedPricelistId && (
+          <LinkItemModal
+            show={showLinkItemModal}
+            pricelistId={selectedPricelistId}
+            onHide={() => setShowLinkItemModal(false)}
+            onLinked={() => fetchPricelistItems(selectedPricelistId, true)}
+          />
+        )}
 
         <ExpressItemSearchModal
           show={showExpressSearch}
