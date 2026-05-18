@@ -19,6 +19,13 @@ interface BillPaymentEntry {
     payment: { creditAmount: number };
 }
 
+interface BillItemEntry {
+    id: number;
+    quantity: number;
+    subtotal: number;
+    item: { name: string };
+}
+
 interface Bill {
     id: number;
     total: number;
@@ -33,6 +40,7 @@ interface Bill {
         name: string;
     };
     bill_payments?: BillPaymentEntry[];
+    bill_items?: BillItemEntry[];
 }
 
 interface StaffUser {
@@ -79,6 +87,9 @@ const SupervisorBillsPage: React.FC = () => {
     const [bulkSubmitPreviewLoading, setBulkSubmitPreviewLoading] = useState(false);
     const [bulkSubmitCheckedIds, setBulkSubmitCheckedIds] = useState<number[]>([]);
     const [bulkSubmitError, setBulkSubmitError] = useState<string | null>(null);
+    const [bulkSubmitFromDate, setBulkSubmitFromDate] = useState<string>("");
+    const [bulkSubmitToDate, setBulkSubmitToDate] = useState<string>("");
+    const [expandedBillIds, setExpandedBillIds] = useState<number[]>([]);
 
     const [searchPage, setSearchPage] = useState(1);
 
@@ -214,14 +225,15 @@ const SupervisorBillsPage: React.FC = () => {
         }
     };
 
-    const handleBulkSubmitClick = async () => {
-        setShowBulkSubmitModal(true);
-        setBulkSubmitError(null);
+    const doFetchBulkSubmitPreview = async (fromDate: string, toDate: string) => {
         setBulkSubmitPreviewLoading(true);
         setBulkSubmitPreviewBills([]);
+        setExpandedBillIds([]);
+        const params = ["status=pending", "pageSize=1000"];
+        if (user?.id) params.push(`billingUserId=${user.id}`);
+        if (fromDate) params.push(`startDate=${fromDate}`);
+        if (toDate) params.push(`endDate=${toDate}`);
         try {
-            const params = ["status=pending", "pageSize=1000"];
-            if (user?.id) params.push(`billingUserId=${user.id}`);
             const result = await apiCall(`/api/bills?${params.join("&")}`);
             if (result.status === 200) {
                 const pending: Bill[] = result.data.bills || [];
@@ -231,6 +243,16 @@ const SupervisorBillsPage: React.FC = () => {
         } catch { /* modal shows empty state */ }
         setBulkSubmitPreviewLoading(false);
     };
+
+    const handleBulkSubmitClick = async () => {
+        setBulkSubmitFromDate("");
+        setBulkSubmitToDate("");
+        setShowBulkSubmitModal(true);
+        setBulkSubmitError(null);
+        await doFetchBulkSubmitPreview("", "");
+    };
+
+    const fetchBulkSubmitPreview = () => doFetchBulkSubmitPreview(bulkSubmitFromDate, bulkSubmitToDate);
 
     const handleBulkSubmitConfirm = async () => {
         const toSubmit = bulkSubmitPreviewBills.filter((b) => bulkSubmitCheckedIds.includes(b.id));
@@ -664,6 +686,41 @@ const SupervisorBillsPage: React.FC = () => {
                     Bills requiring M-Pesa must be submitted individually.
                 </div>
 
+                {/* Date filters */}
+                <div className="row g-2 mb-3">
+                    <div className="col-12 col-sm-5">
+                        <FilterDatePicker
+                            label="From"
+                            value={bulkSubmitFromDate}
+                            onChange={setBulkSubmitFromDate}
+                            maxDate={bulkSubmitToDate ? ymdToDateEat(bulkSubmitToDate) ?? new Date() : new Date()}
+                        />
+                    </div>
+                    <div className="col-12 col-sm-5">
+                        <FilterDatePicker
+                            label="To"
+                            value={bulkSubmitToDate}
+                            onChange={setBulkSubmitToDate}
+                            minDate={bulkSubmitFromDate ? ymdToDateEat(bulkSubmitFromDate) ?? undefined : undefined}
+                            maxDate={new Date()}
+                        />
+                    </div>
+                    <div className="col-12 col-sm-2 d-flex align-items-end">
+                        <Button
+                            variant="outline-primary"
+                            size="sm"
+                            className="w-100"
+                            onClick={fetchBulkSubmitPreview}
+                            disabled={bulkSubmitPreviewLoading}
+                        >
+                            <i className="bi bi-search me-1"></i>
+                            {bulkSubmitPreviewLoading ? "…" : "Load"}
+                        </Button>
+                    </div>
+                </div>
+
+                <hr className="my-2" />
+
                 {bulkSubmitPreviewLoading ? (
                     <div className="text-center py-3">
                         <div className="spinner-border text-primary" role="status">
@@ -674,7 +731,7 @@ const SupervisorBillsPage: React.FC = () => {
                 ) : bulkSubmitPreviewBills.length === 0 ? (
                     <div className="alert alert-secondary mb-0">
                         <i className="bi bi-info-circle me-1"></i>
-                        No pending bills found for your account.
+                        No pending bills found. Try adjusting the date range.
                     </div>
                 ) : (
                     <>
@@ -691,32 +748,82 @@ const SupervisorBillsPage: React.FC = () => {
                                                 }
                                             />
                                         </th>
+                                        <th style={{ width: 32 }}></th>
                                         <th>Bill #</th>
                                         <th>Date</th>
                                         <th className="text-end">Total (KES)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {bulkSubmitPreviewBills.map((bill) => (
-                                        <tr key={bill.id}>
-                                            <td>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={bulkSubmitCheckedIds.includes(bill.id)}
-                                                    onChange={(e) =>
-                                                        setBulkSubmitCheckedIds((prev) =>
-                                                            e.target.checked
-                                                                ? [...prev, bill.id]
-                                                                : prev.filter((id) => id !== bill.id)
-                                                        )
-                                                    }
-                                                />
-                                            </td>
-                                            <td>#{bill.id}</td>
-                                            <td>{new Date(bill.created_at).toLocaleDateString()}</td>
-                                            <td className="text-end fw-semibold">{Number(bill.total).toFixed(2)}</td>
-                                        </tr>
-                                    ))}
+                                    {bulkSubmitPreviewBills.map((bill) => {
+                                        const isExpanded = expandedBillIds.includes(bill.id);
+                                        return (
+                                            <React.Fragment key={bill.id}>
+                                                <tr>
+                                                    <td>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={bulkSubmitCheckedIds.includes(bill.id)}
+                                                            onChange={(e) =>
+                                                                setBulkSubmitCheckedIds((prev) =>
+                                                                    e.target.checked
+                                                                        ? [...prev, bill.id]
+                                                                        : prev.filter((id) => id !== bill.id)
+                                                                )
+                                                            }
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-link btn-sm p-0 text-muted"
+                                                            onClick={() =>
+                                                                setExpandedBillIds((prev) =>
+                                                                    isExpanded ? prev.filter((id) => id !== bill.id) : [...prev, bill.id]
+                                                                )
+                                                            }
+                                                            title={isExpanded ? "Collapse items" : "Expand items"}
+                                                        >
+                                                            <i className={`bi bi-chevron-${isExpanded ? "up" : "down"}`}></i>
+                                                        </button>
+                                                    </td>
+                                                    <td>#{bill.id}</td>
+                                                    <td>{new Date(bill.created_at).toLocaleDateString()}</td>
+                                                    <td className="text-end fw-semibold">{Number(bill.total).toFixed(2)}</td>
+                                                </tr>
+                                                {isExpanded && (
+                                                    <tr>
+                                                        <td colSpan={5} className="p-0">
+                                                            <div className="px-4 py-2 bg-light border-bottom">
+                                                                {bill.bill_items && bill.bill_items.length > 0 ? (
+                                                                    <table className="table table-sm mb-0">
+                                                                        <thead>
+                                                                            <tr>
+                                                                                <th className="fw-normal text-muted">Item</th>
+                                                                                <th className="fw-normal text-muted text-center" style={{ width: 60 }}>Qty</th>
+                                                                                <th className="fw-normal text-muted text-end" style={{ width: 90 }}>Subtotal</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {bill.bill_items.map((item) => (
+                                                                                <tr key={item.id}>
+                                                                                    <td>{item.item?.name}</td>
+                                                                                    <td className="text-center">{item.quantity}</td>
+                                                                                    <td className="text-end">{Number(item.subtotal).toFixed(2)}</td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                ) : (
+                                                                    <p className="text-muted small mb-0">No items</p>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
