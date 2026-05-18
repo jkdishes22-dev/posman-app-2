@@ -35,7 +35,7 @@ module.exports = class ProductionRefactor1700000000044 {
             CREATE TABLE IF NOT EXISTS \`production_item\` (
                 \`id\`                INT NOT NULL AUTO_INCREMENT,
                 \`production_id\`     INT DEFAULT NULL,
-                \`item_id\`           INT NOT NULL,
+                \`item_id\`           INT UNSIGNED NOT NULL,
                 \`quantity_produced\`  INT NOT NULL,
                 \`status\`            VARCHAR(20) NOT NULL DEFAULT 'issued',
                 \`issued_by\`         INT DEFAULT NULL,
