@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import SecureRoute from "../../components/SecureRoute";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import { formatISO } from "date-fns";
-import { Button, Form } from "react-bootstrap";
+import { Button, Form, Modal } from "react-bootstrap";
 import SubmitBillModal from "./submit-bill";
 import TimeZoneAwareDatePicker from "src/app/shared/TimezoneAwareDatePicker";
 import FilterDatePicker from "src/app/shared/FilterDatePicker";
@@ -80,6 +80,15 @@ const MySales = () => {
   const pageSize = 10;
   const [total, setTotal] = useState(0);
   const [selectedBills, setSelectedBills] = useState<number[]>([]);
+  const [showBulkSubmitModal, setShowBulkSubmitModal] = useState(false);
+  const [bulkSubmitPreviewBills, setBulkSubmitPreviewBills] = useState<Bill[]>([]);
+  const [bulkSubmitPreviewLoading, setBulkSubmitPreviewLoading] = useState(false);
+  const [bulkSubmitCheckedIds, setBulkSubmitCheckedIds] = useState<number[]>([]);
+
+  const [bulkSubmitFromDate, setBulkSubmitFromDate] = useState<string>("");
+  const [bulkSubmitToDate, setBulkSubmitToDate] = useState<string>("");
+  const [expandedBillIds, setExpandedBillIds] = useState<number[]>([]);
+  const [showBulkSubmitConfirmModal, setShowBulkSubmitConfirmModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("open");
   const [showFilters, setShowFilters] = useState(true);
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -440,12 +449,59 @@ const MySales = () => {
     }
   };
 
-  // Bulk submit handler (for now, open modal for first selected bill)
-  const handleBulkSubmit = () => {
-    const firstBill = filteredBills.find((bill) => selectedBills.includes(bill.id));
-    if (firstBill) {
-      setSelectedBill(firstBill);
-      setIsModalOpen(true);
+  const doFetchBulkSubmitPreview = async (fromDate: string, toDate: string) => {
+    setBulkSubmitPreviewLoading(true);
+    setBulkSubmitPreviewBills([]);
+    setExpandedBillIds([]);
+    const params = ["status=pending", "pageSize=1000"];
+    if (user?.id) params.push(`billingUserId=${user.id}`);
+    if (fromDate) params.push(`startDate=${fromDate}`);
+    if (toDate) params.push(`endDate=${toDate}`);
+    try {
+      const result = await apiCall(`/api/bills?${params.join("&")}`);
+      if (result.status === 200) {
+        const pending: Bill[] = result.data.bills || [];
+        setBulkSubmitPreviewBills(pending);
+        setBulkSubmitCheckedIds(pending.map((b) => b.id));
+      }
+    } catch { /* modal shows empty state */ }
+    setBulkSubmitPreviewLoading(false);
+  };
+
+  const handleBulkSubmit = async () => {
+    setBulkSubmitFromDate("");
+    setBulkSubmitToDate("");
+    setShowBulkSubmitModal(true);
+    await doFetchBulkSubmitPreview("", "");
+  };
+
+  const fetchBulkSubmitPreview = () => doFetchBulkSubmitPreview(bulkSubmitFromDate, bulkSubmitToDate);
+
+  const handleBulkSubmitConfirm = async () => {
+    const toSubmit = bulkSubmitPreviewBills.filter((b) => bulkSubmitCheckedIds.includes(b.id));
+    if (!toSubmit.length) return;
+    setShowBulkSubmitConfirmModal(false);
+    setShowBulkSubmitModal(false);
+    const billPayments = toSubmit.map((bill) => ({
+      billId: bill.id,
+      paymentMethod: "cash",
+      cashAmount: bill.total,
+      mpesaAmount: 0,
+      mpesaCode: "",
+    }));
+    try {
+      const result = await apiCall("/api/bills/bulk-submit", {
+        method: "POST",
+        body: JSON.stringify({ billPayments }),
+      });
+      if (result.status === 200) {
+        fetchBills(selectedDate, statusFilter, billIdFilter, page);
+        setSelectedBills([]);
+      } else {
+        setError(result.error || "Failed to bulk submit bills");
+      }
+    } catch {
+      setError("Network error occurred");
     }
   };
 
@@ -739,17 +795,11 @@ const MySales = () => {
                 <div className="card-header bg-light d-flex justify-content-between align-items-center py-2 flex-shrink-0">
                   <h6 className="mb-0 fw-bold">Bills List</h6>
                   <Button
-                    variant="success"
+                    variant="primary"
                     size="sm"
-                    disabled={
-                      selectedBills.length === 0 ||
-                      !filteredBills.some((bill) =>
-                        selectedBills.includes(bill.id) && bill.status === "pending"
-                      )
-                    }
                     onClick={handleBulkSubmit}
                   >
-                    Submit All
+                    <i className="bi bi-send me-1"></i>Submit All
                   </Button>
                 </div>
                 <div className="card-body p-2 d-flex flex-column" style={{ overflow: "hidden", flex: "1 1 auto" }}>
@@ -1492,6 +1542,225 @@ const MySales = () => {
             item={selectedQuantityChangeItem}
             onSuccess={handleQuantityChangeSuccess}
           />
+
+          {/* Bulk Submit Preview Modal */}
+          <Modal show={showBulkSubmitModal} onHide={() => setShowBulkSubmitModal(false)} size="lg">
+            <Modal.Header closeButton>
+              <Modal.Title>
+                <i className="bi bi-send me-2 text-primary"></i>Bulk Submit Bills
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="alert alert-info py-2 mb-3">
+                <i className="bi bi-info-circle me-1"></i>
+                All selected bills will be submitted as <strong>cash payments</strong>.
+                Bills requiring M-Pesa must be submitted individually.
+              </div>
+
+              {/* Date filters */}
+              <div className="row g-2 mb-3">
+                <div className="col-12 col-sm-5">
+                  <FilterDatePicker
+                    label="From"
+                    value={bulkSubmitFromDate}
+                    onChange={setBulkSubmitFromDate}
+                    maxDate={bulkSubmitToDate ? ymdToDateEat(bulkSubmitToDate) ?? new Date() : new Date()}
+                  />
+                </div>
+                <div className="col-12 col-sm-5">
+                  <FilterDatePicker
+                    label="To"
+                    value={bulkSubmitToDate}
+                    onChange={setBulkSubmitToDate}
+                    minDate={bulkSubmitFromDate ? ymdToDateEat(bulkSubmitFromDate) ?? undefined : undefined}
+                    maxDate={new Date()}
+                  />
+                </div>
+                <div className="col-12 col-sm-2 d-flex align-items-end">
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    className="w-100"
+                    onClick={fetchBulkSubmitPreview}
+                    disabled={bulkSubmitPreviewLoading}
+                  >
+                    <i className="bi bi-search me-1"></i>
+                    {bulkSubmitPreviewLoading ? "…" : "Load"}
+                  </Button>
+                </div>
+              </div>
+
+              <hr className="my-2" />
+
+              {bulkSubmitPreviewLoading ? (
+                <div className="text-center py-3">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading…</span>
+                  </div>
+                  <p className="mt-2 text-muted mb-0">Loading pending bills…</p>
+                </div>
+              ) : bulkSubmitPreviewBills.length === 0 ? (
+                <div className="alert alert-secondary mb-0">
+                  <i className="bi bi-info-circle me-1"></i>
+                  No pending bills found. Try adjusting the date range.
+                </div>
+              ) : (
+                <>
+                  <div className="table-responsive">
+                    <table className="table table-sm table-hover mb-2">
+                      <thead>
+                        <tr>
+                          <th style={{ width: 36 }}>
+                            <input
+                              type="checkbox"
+                              checked={bulkSubmitCheckedIds.length === bulkSubmitPreviewBills.length && bulkSubmitPreviewBills.length > 0}
+                              onChange={(e) =>
+                                setBulkSubmitCheckedIds(e.target.checked ? bulkSubmitPreviewBills.map((b) => b.id) : [])
+                              }
+                            />
+                          </th>
+                          <th style={{ width: 32 }}></th>
+                          <th>Bill #</th>
+                          <th>Date</th>
+                          <th className="text-end">Total (KES)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bulkSubmitPreviewBills.map((bill) => {
+                          const isExpanded = expandedBillIds.includes(bill.id);
+                          return (
+                            <React.Fragment key={bill.id}>
+                              <tr>
+                                <td>
+                                  <input
+                                    type="checkbox"
+                                    checked={bulkSubmitCheckedIds.includes(bill.id)}
+                                    onChange={(e) =>
+                                      setBulkSubmitCheckedIds((prev) =>
+                                        e.target.checked
+                                          ? [...prev, bill.id]
+                                          : prev.filter((id) => id !== bill.id)
+                                      )
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline-secondary btn-sm"
+                                    style={{ minWidth: 28, fontWeight: "bold", lineHeight: 1 }}
+                                    onClick={() =>
+                                      setExpandedBillIds((prev) =>
+                                        isExpanded ? prev.filter((id) => id !== bill.id) : [...prev, bill.id]
+                                      )
+                                    }
+                                    title={isExpanded ? "Collapse items" : "Expand items"}
+                                  >
+                                    {isExpanded ? "−" : "+"}
+                                  </button>
+                                </td>
+                                <td>#{bill.id}</td>
+                                <td>{new Date(bill.created_at).toLocaleDateString()}</td>
+                                <td className="text-end fw-semibold">{Number(bill.total).toFixed(2)}</td>
+                              </tr>
+                              {isExpanded && (
+                                <tr>
+                                  <td colSpan={5} className="p-0">
+                                    <div className="px-4 py-2 bg-light border-bottom">
+                                      {bill.bill_items && bill.bill_items.length > 0 ? (
+                                        <table className="table table-sm mb-0">
+                                          <thead>
+                                            <tr>
+                                              <th className="fw-normal text-muted">Item</th>
+                                              <th className="fw-normal text-muted text-center" style={{ width: 60 }}>Qty</th>
+                                              <th className="fw-normal text-muted text-end" style={{ width: 90 }}>Subtotal</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {bill.bill_items.map((item) => (
+                                              <tr key={item.id}>
+                                                <td>{item.item?.name}</td>
+                                                <td className="text-center">{item.quantity}</td>
+                                                <td className="text-end">{Number(item.subtotal).toFixed(2)}</td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      ) : (
+                                        <p className="text-muted small mb-0">No items</p>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot className="table-light">
+                        <tr>
+                          <td colSpan={4} className="text-end text-muted small fw-normal">
+                            {bulkSubmitCheckedIds.length} bill(s) selected
+                          </td>
+                          <td className="text-end fw-semibold">
+                            KES {bulkSubmitPreviewBills
+                              .filter((b) => bulkSubmitCheckedIds.includes(b.id))
+                              .reduce((s, b) => s + Number(b.total), 0)
+                              .toFixed(2)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowBulkSubmitModal(false)}>Cancel</Button>
+              <Button
+                variant="success"
+                onClick={() => setShowBulkSubmitConfirmModal(true)}
+                disabled={bulkSubmitCheckedIds.length === 0}
+              >
+                <i className="bi bi-send me-1"></i>
+                Submit {bulkSubmitCheckedIds.length} Bill(s)
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+          {/* Bulk Submit Confirmation Modal */}
+          <Modal
+            show={showBulkSubmitConfirmModal}
+            onHide={() => setShowBulkSubmitConfirmModal(false)}
+            centered
+            size="sm"
+          >
+            <Modal.Header closeButton>
+              <Modal.Title className="fs-6">
+                <i className="bi bi-send me-2 text-success"></i>Confirm Bulk Submit
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <p className="mb-0">
+                Submit{" "}
+                <strong>{bulkSubmitCheckedIds.length} bill(s)</strong> totalling{" "}
+                <strong>
+                  KES {bulkSubmitPreviewBills
+                    .filter((b) => bulkSubmitCheckedIds.includes(b.id))
+                    .reduce((s, b) => s + Number(b.total), 0)
+                    .toFixed(2)}
+                </strong>{" "}
+                as cash payments?
+              </p>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" size="sm" onClick={() => setShowBulkSubmitConfirmModal(false)}>Cancel</Button>
+              <Button variant="success" size="sm" onClick={handleBulkSubmitConfirm}>
+                <i className="bi bi-check-circle me-1"></i>Confirm
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
         </div>
       </SecureRoute>
     </RoleAwareLayout>
