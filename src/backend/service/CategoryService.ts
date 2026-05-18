@@ -9,9 +9,10 @@ export class CategoryService {
     this.categoryRepository = dataSource.getRepository(Category);
   }
 
-  public async createCategory(name: string): Promise<Category> {
+  public async createCategory(name: string, code?: string): Promise<Category> {
     const category: Category = this.categoryRepository.create({
       name,
+      ...(code ? { code } : {}),
       status: CategoryStatus.ACTIVE,
     });
     const saved = await this.categoryRepository.save(category);

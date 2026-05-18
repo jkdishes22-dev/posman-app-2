@@ -630,8 +630,8 @@ export class PricelistUploadService {
     const refLines: string[] = [
       "",
       "# === REFERENCE (safe to delete before uploading) ===",
-      `# Available pricelists: ${allPricelists.map(p => `${p.code} (${p.name})`).join(" | ") || "none"}`,
-      `# Available categories: ${categories.map(c => `${c.code} (${c.name})`).join(" | ") || "none"}`,
+      `# Available pricelists: ${allPricelists.map(p => `${p.code ?? "(no code)"} (${p.name})`).join(" | ") || "none"}`,
+      `# Available categories: ${categories.map(c => `${c.code ?? "(no code)"} (${c.name})`).join(" | ") || "none"}`,
     ];
 
     return [headers, ...sampleRows, ...refLines].join("\n");

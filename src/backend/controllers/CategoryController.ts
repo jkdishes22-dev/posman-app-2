@@ -6,10 +6,10 @@ export const createCategoryHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
 ) => {
-  const { name } = req.body;
+  const { name, code } = req.body;
   const categoryService = new CategoryService(req.db);
   try {
-    const newCategory = await categoryService.createCategory(name);
+    const newCategory = await categoryService.createCategory(name, code || undefined);
     res.status(201).json(newCategory);
   } catch (error: any) {
     const { userMessage, errorCode } = handleApiError(error, {

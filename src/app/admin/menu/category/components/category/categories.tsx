@@ -4,6 +4,7 @@ import { useTooltips } from "../../../../../hooks/useTooltips";
 interface Category {
   id: string;
   name: string;
+  code?: string;
   status?: string;
 }
 
@@ -121,9 +122,12 @@ const CategoriesComponent = ({
                     </div>
                   </div>
                   <div className="text-center pt-2">
-                    <h5 className="card-title">
+                    <h5 className="card-title mb-1">
                       {category.name}
                     </h5>
+                    {category.code && (
+                      <span className="badge bg-secondary small">{category.code}</span>
+                    )}
                   </div>
                 </div>
               </div>

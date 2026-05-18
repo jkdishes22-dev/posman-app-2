@@ -29,6 +29,7 @@ export default function PricelistPage() {
   interface Pricelist {
     id: number;
     name: string;
+    code?: string;
     status?: string;
     description?: string;
     station?: {
@@ -527,6 +528,7 @@ export default function PricelistPage() {
                       <tr>
                         <th className="fw-semibold">#</th>
                         <th className="fw-semibold">Name</th>
+                        <th className="fw-semibold">Code</th>
                         <th className="fw-semibold text-center">Status</th>
                         <th className="fw-semibold text-center">Actions</th>
                       </tr>
@@ -541,6 +543,12 @@ export default function PricelistPage() {
                         >
                           <td className="fw-medium">{index + 1}</td>
                           <td>{pricelist.name}</td>
+                          <td>
+                            {pricelist.code
+                              ? <span className="badge bg-secondary">{pricelist.code}</span>
+                              : <span className="text-muted small">—</span>
+                            }
+                          </td>
                           <td className="text-center">
                             <span className={`badge ${pricelist.status === "active" ? "bg-success" : "bg-secondary"}`}>
                               {pricelist.status === "active" ? "Active" : "Inactive"}
