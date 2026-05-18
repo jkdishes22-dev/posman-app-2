@@ -257,6 +257,8 @@ const SupervisorBillsPage: React.FC = () => {
     const handleBulkSubmitConfirm = async () => {
         const toSubmit = bulkSubmitPreviewBills.filter((b) => bulkSubmitCheckedIds.includes(b.id));
         if (!toSubmit.length) return;
+        const total = toSubmit.reduce((s, b) => s + Number(b.total), 0).toFixed(2);
+        if (!window.confirm(`Submit ${toSubmit.length} bill(s) totalling KES ${total} as cash payments?`)) return;
         setShowBulkSubmitModal(false);
         setBulkSubmitError(null);
         const billPayments = toSubmit.map((bill) => ({
@@ -826,18 +828,21 @@ const SupervisorBillsPage: React.FC = () => {
                                         );
                                     })}
                                 </tbody>
+                                <tfoot className="table-light">
+                                    <tr>
+                                        <td colSpan={4} className="text-end text-muted small fw-normal">
+                                            {bulkSubmitCheckedIds.length} bill(s) selected
+                                        </td>
+                                        <td className="text-end fw-semibold">
+                                            KES {bulkSubmitPreviewBills
+                                                .filter((b) => bulkSubmitCheckedIds.includes(b.id))
+                                                .reduce((s, b) => s + Number(b.total), 0)
+                                                .toFixed(2)}
+                                        </td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
-                        <p className="text-muted small mb-0">
-                            <strong>{bulkSubmitCheckedIds.length}</strong> bill(s) selected —{" "}
-                            KES{" "}
-                            <strong>
-                                {bulkSubmitPreviewBills
-                                    .filter((b) => bulkSubmitCheckedIds.includes(b.id))
-                                    .reduce((s, b) => s + Number(b.total), 0)
-                                    .toFixed(2)}
-                            </strong>
-                        </p>
                     </>
                 )}
                 {bulkSubmitError && (
