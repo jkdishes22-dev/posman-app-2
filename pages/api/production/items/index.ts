@@ -5,10 +5,9 @@ import { fetchAllProductionItemsHandler } from "@backend/controllers/ProductionI
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 
-// Kept for backward compat — GET delegates to production_item table now.
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (req.method === "GET") {
-        return authorize([permissions.CAN_VIEW_INVENTORY])(fetchAllProductionItemsHandler)(req, res);
+        return authorize([permissions.CAN_VIEW_PRODUCTION_HISTORY])(fetchAllProductionItemsHandler)(req, res);
     } else {
         res.setHeader("Allow", ["GET"]);
         res.status(405).json({ error: `Method ${req.method} not allowed` });

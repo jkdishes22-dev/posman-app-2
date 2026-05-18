@@ -106,7 +106,7 @@ export default function StorekeeperProductionHistoryPage() {
             }
             params.append("limit", "100");
 
-            const result = await apiCall(`/api/production/issues?${params.toString()}`);
+            const result = await apiCall(`/api/production/items?${params.toString()}`);
             if (result.status >= 200 && result.status < 300) {
                 const data = result.data?.issues || [];
                 setProductionIssues(data);
