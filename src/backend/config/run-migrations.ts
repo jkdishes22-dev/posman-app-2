@@ -1,12 +1,14 @@
-// Load environment variables FIRST, before any other imports
+// Load environment variables FIRST — must happen before data-source is imported
+// because data-source.factory reads process.env at module-load time.
+// In ESM, static `import` statements are hoisted before any code, so we use
+// dotenv first via a static import (side-effect only) then dynamic-import the DataSource.
+import "reflect-metadata";
 import dotenv from "dotenv";
 import { resolve } from "path";
 
-// Load .env file from project root
 dotenv.config({ path: resolve(process.cwd(), ".env") });
 
-import "reflect-metadata";
-import { AppDataSource } from "./data-source.js"; // ES modules require .js extension (ts-node will resolve .ts)
+const { AppDataSource } = await import("./data-source.js");
 
 async function runMigrations() {
     try {
@@ -34,7 +36,6 @@ async function runMigrations() {
         console.error("❌ Migration failed:");
         console.error(error);
 
-        // Provide helpful error messages
         if (error.code === "ER_BAD_DB_ERROR") {
             console.error("\n💡 Tip: Make sure the database exists and DB_NAME is set correctly in .env");
         } else if (error.code === "ECONNREFUSED") {
@@ -52,11 +53,9 @@ async function runMigrations() {
     }
 }
 
-// Handle unhandled promise rejections
 process.on("unhandledRejection", (error) => {
     console.error("Unhandled promise rejection:", error);
     process.exit(1);
 });
 
-// Run migrations
 runMigrations();
