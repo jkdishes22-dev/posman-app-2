@@ -88,6 +88,7 @@ const MySales = () => {
   const [bulkSubmitFromDate, setBulkSubmitFromDate] = useState<string>("");
   const [bulkSubmitToDate, setBulkSubmitToDate] = useState<string>("");
   const [expandedBillIds, setExpandedBillIds] = useState<number[]>([]);
+  const [showBulkSubmitConfirmModal, setShowBulkSubmitConfirmModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("open");
   const [showFilters, setShowFilters] = useState(true);
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -479,8 +480,7 @@ const MySales = () => {
   const handleBulkSubmitConfirm = async () => {
     const toSubmit = bulkSubmitPreviewBills.filter((b) => bulkSubmitCheckedIds.includes(b.id));
     if (!toSubmit.length) return;
-    const total = toSubmit.reduce((s, b) => s + Number(b.total), 0).toFixed(2);
-    if (!window.confirm(`Submit ${toSubmit.length} bill(s) totalling KES ${total} as cash payments?`)) return;
+    setShowBulkSubmitConfirmModal(false);
     setShowBulkSubmitModal(false);
     const billPayments = toSubmit.map((bill) => ({
       billId: bill.id,
@@ -1719,11 +1719,44 @@ const MySales = () => {
               <Button variant="secondary" onClick={() => setShowBulkSubmitModal(false)}>Cancel</Button>
               <Button
                 variant="success"
-                onClick={handleBulkSubmitConfirm}
+                onClick={() => setShowBulkSubmitConfirmModal(true)}
                 disabled={bulkSubmitCheckedIds.length === 0}
               >
                 <i className="bi bi-send me-1"></i>
                 Submit {bulkSubmitCheckedIds.length} Bill(s)
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+          {/* Bulk Submit Confirmation Modal */}
+          <Modal
+            show={showBulkSubmitConfirmModal}
+            onHide={() => setShowBulkSubmitConfirmModal(false)}
+            centered
+            size="sm"
+          >
+            <Modal.Header closeButton>
+              <Modal.Title className="fs-6">
+                <i className="bi bi-send me-2 text-success"></i>Confirm Bulk Submit
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <p className="mb-0">
+                Submit{" "}
+                <strong>{bulkSubmitCheckedIds.length} bill(s)</strong> totalling{" "}
+                <strong>
+                  KES {bulkSubmitPreviewBills
+                    .filter((b) => bulkSubmitCheckedIds.includes(b.id))
+                    .reduce((s, b) => s + Number(b.total), 0)
+                    .toFixed(2)}
+                </strong>{" "}
+                as cash payments?
+              </p>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" size="sm" onClick={() => setShowBulkSubmitConfirmModal(false)}>Cancel</Button>
+              <Button variant="success" size="sm" onClick={handleBulkSubmitConfirm}>
+                <i className="bi bi-check-circle me-1"></i>Confirm
               </Button>
             </Modal.Footer>
           </Modal>
