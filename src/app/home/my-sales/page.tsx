@@ -84,8 +84,7 @@ const MySales = () => {
   const [bulkSubmitPreviewBills, setBulkSubmitPreviewBills] = useState<Bill[]>([]);
   const [bulkSubmitPreviewLoading, setBulkSubmitPreviewLoading] = useState(false);
   const [bulkSubmitCheckedIds, setBulkSubmitCheckedIds] = useState<number[]>([]);
-  const [bulkSubmitResults, setBulkSubmitResults] = useState<any[] | null>(null);
-  const [showBulkSubmitResultsModal, setShowBulkSubmitResultsModal] = useState(false);
+
   const [bulkSubmitFromDate, setBulkSubmitFromDate] = useState<string>("");
   const [bulkSubmitToDate, setBulkSubmitToDate] = useState<string>("");
   const [expandedBillIds, setExpandedBillIds] = useState<number[]>([]);
@@ -494,12 +493,6 @@ const MySales = () => {
         body: JSON.stringify({ billPayments }),
       });
       if (result.status === 200) {
-        const enhanced = result.data.results.map((r: any) => {
-          const bill = toSubmit.find((b) => b.id === r.billId);
-          return { ...r, billTotal: bill?.total || 0, billDate: bill?.created_at || null };
-        });
-        setBulkSubmitResults(enhanced);
-        setShowBulkSubmitResultsModal(true);
         fetchBills(selectedDate, statusFilter, billIdFilter, page);
         setSelectedBills([]);
       } else {
@@ -1652,7 +1645,8 @@ const MySales = () => {
                                 <td>
                                   <button
                                     type="button"
-                                    className="btn btn-link btn-sm p-0 text-muted"
+                                    className="btn btn-outline-secondary btn-sm"
+                                    style={{ minWidth: 28, fontWeight: "bold", lineHeight: 1 }}
                                     onClick={() =>
                                       setExpandedBillIds((prev) =>
                                         isExpanded ? prev.filter((id) => id !== bill.id) : [...prev, bill.id]
@@ -1660,7 +1654,7 @@ const MySales = () => {
                                     }
                                     title={isExpanded ? "Collapse items" : "Expand items"}
                                   >
-                                    <i className={`bi bi-chevron-${isExpanded ? "up" : "down"}`}></i>
+                                    {isExpanded ? "−" : "+"}
                                   </button>
                                 </td>
                                 <td>#{bill.id}</td>
@@ -1729,28 +1723,6 @@ const MySales = () => {
             </Modal.Footer>
           </Modal>
 
-          {/* Bulk Submit Results Modal */}
-          <Modal show={showBulkSubmitResultsModal} onHide={() => setShowBulkSubmitResultsModal(false)}>
-            <Modal.Header closeButton>
-              <Modal.Title>
-                <i className="bi bi-check-circle-fill text-success me-2"></i>Bulk Submit Results
-              </Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              {bulkSubmitResults?.map((r, i) => (
-                <div
-                  key={i}
-                  className={`d-flex justify-content-between mb-1 ${r.status === "failed" ? "text-danger" : "text-success"}`}
-                >
-                  <span>Bill #{r.billId}</span>
-                  <span>{r.status === "submitted" ? "✓ Submitted" : `✗ ${r.error || "Failed"}`}</span>
-                </div>
-              ))}
-            </Modal.Body>
-            <Modal.Footer>
-              <Button variant="primary" onClick={() => setShowBulkSubmitResultsModal(false)}>Done</Button>
-            </Modal.Footer>
-          </Modal>
         </div>
       </SecureRoute>
     </RoleAwareLayout>

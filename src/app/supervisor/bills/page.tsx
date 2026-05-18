@@ -776,7 +776,8 @@ const SupervisorBillsPage: React.FC = () => {
                                                     <td>
                                                         <button
                                                             type="button"
-                                                            className="btn btn-link btn-sm p-0 text-muted"
+                                                            className="btn btn-outline-secondary btn-sm"
+                                                            style={{ minWidth: 28, fontWeight: "bold", lineHeight: 1 }}
                                                             onClick={() =>
                                                                 setExpandedBillIds((prev) =>
                                                                     isExpanded ? prev.filter((id) => id !== bill.id) : [...prev, bill.id]
@@ -784,7 +785,7 @@ const SupervisorBillsPage: React.FC = () => {
                                                             }
                                                             title={isExpanded ? "Collapse items" : "Expand items"}
                                                         >
-                                                            <i className={`bi bi-chevron-${isExpanded ? "up" : "down"}`}></i>
+                                                            {isExpanded ? "−" : "+"}
                                                         </button>
                                                     </td>
                                                     <td>#{bill.id}</td>
