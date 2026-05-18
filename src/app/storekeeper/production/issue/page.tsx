@@ -1,5 +1,4 @@
 "use client";
-
 import React from "react";
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
 import ProductionIssueForm from "../../../shared/production/ProductionIssueForm";
@@ -19,7 +18,8 @@ export default function StorekeeperProductionIssuePage() {
               Issue Production
             </span>
             <HelpPopover id="issue-direct-storekeeper" title="Issue production" className="text-white">
-              Record finished production and add quantities to inventory. Choose the item, quantity, and date—stock updates immediately after a successful issue.
+              Select or create a production run, then record finished items to update inventory.
+              Multiple runs per day are supported.
             </HelpPopover>
           </h1>
         </PageHeaderStrip>
