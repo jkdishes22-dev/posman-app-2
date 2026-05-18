@@ -11,13 +11,16 @@ interface StationSelectorProps {
     showLabel?: boolean;
     size?: "sm" | "lg";
     disabled?: boolean;
+    /** When true, any authenticated user with assigned stations can switch (e.g. on billing page) */
+    allowAllUsers?: boolean;
 }
 
 const StationSelector: React.FC<StationSelectorProps> = ({
     className = "",
     showLabel = true,
     size = "sm",
-    disabled = false
+    disabled = false,
+    allowAllUsers = false,
 }) => {
     const {
         currentStation,
@@ -30,8 +33,7 @@ const StationSelector: React.FC<StationSelectorProps> = ({
 
     const [isChanging, setIsChanging] = useState(false);
 
-    // Check if user has permission to switch stations (admin/supervisor only)
-    const canSwitchStations = user?.roles?.some(role =>
+    const canSwitchStations = allowAllUsers || user?.roles?.some(role =>
         role.name === "admin" || role.name === "supervisor"
     ) || false;
 

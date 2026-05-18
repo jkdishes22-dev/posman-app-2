@@ -10,13 +10,19 @@ interface StationSwitcherProps {
     onStationChange?: (station: Station) => void;
     showLabel?: boolean;
     size?: "sm" | "md" | "lg";
+    /** Bootstrap button variant for the trigger button, e.g. "outline-light" on dark backgrounds */
+    buttonVariant?: string;
+    /** When true, any authenticated user with assigned stations can switch (e.g. on billing page) */
+    allowAllUsers?: boolean;
 }
 
 const StationSwitcher: React.FC<StationSwitcherProps> = ({
     className = "",
     onStationChange,
     showLabel = true,
-    size = "md"
+    size = "md",
+    buttonVariant = "outline-primary",
+    allowAllUsers = false,
 }) => {
     const { currentStation, availableStations, setCurrentStation } = useStation();
     const { user } = useAuth();
@@ -24,8 +30,7 @@ const StationSwitcher: React.FC<StationSwitcherProps> = ({
     const [stationError, setStationError] = useState<string | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // Check if user has permission to switch stations (admin/supervisor only)
-    const canSwitchStations = user?.roles?.some(role =>
+    const canSwitchStations = allowAllUsers || user?.roles?.some(role =>
         role.name === "admin" || role.name === "supervisor"
     ) || false;
 
@@ -80,7 +85,7 @@ const StationSwitcher: React.FC<StationSwitcherProps> = ({
                 </label>
             )}
             <button
-                className={`btn btn-outline-primary dropdown-toggle ${sizeClasses[size]}`}
+                className={`btn btn-${buttonVariant} dropdown-toggle ${sizeClasses[size]}`}
                 type="button"
                 onClick={() => setShowDropdown(!showDropdown)}
                 aria-expanded={showDropdown}
