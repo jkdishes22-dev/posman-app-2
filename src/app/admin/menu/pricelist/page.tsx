@@ -10,7 +10,6 @@ import { Button, Form } from "react-bootstrap";
 import { AuthError } from "src/app/types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
-import ExpressItemSearchModal from "../../../components/ExpressItemSearchModal";
 import PricelistUploadModal from "../../../components/PricelistUploadModal";
 import PricelistAuditLog from "../../../components/PricelistAuditLog";
 import LinkItemModal from "./link-item-modal";
@@ -23,7 +22,6 @@ export default function PricelistPage() {
   const [showModal, setShowModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
   const [showLinkItemModal, setShowLinkItemModal] = useState(false);
-  const [showExpressSearch, setShowExpressSearch] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showAuditModal, setShowAuditModal] = useState(false);
   interface Pricelist {
@@ -53,7 +51,6 @@ export default function PricelistPage() {
   const [confirmAction, setConfirmAction] = useState<{ type: "activate" | "deactivate", pricelistId: number, pricelistName: string } | null>(null);
   const [pricelistItems, setPricelistItems] = useState([]);
   const [selectedPricelistId, setSelectedPricelistId] = useState<number | null>(null);
-  const [isRefreshingItems, setIsRefreshingItems] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [authError, setAuthError] = useState<AuthError>(null);
@@ -167,32 +164,18 @@ export default function PricelistPage() {
   }, [pricelists, stationScopedPricelists, selectedStationId, statusFilter, searchTerm]);
 
   const fetchPricelistItems = async (pricelistId: number, forceRefresh = false) => {
-    if (forceRefresh) {
-      setIsRefreshingItems(true);
-    }
-
     try {
       const url = forceRefresh
         ? `/api/menu/pricelists/${pricelistId}/items?t=${Date.now()}`
         : `/api/menu/pricelists/${pricelistId}/items`;
-
       const result = await apiCall(url);
-
       if (result.status >= 200 && result.status < 300) {
-        // Success - apiCall handles all 2XX codes
         setPricelistItems(result.data || []);
       } else {
-        // Error - apiCall already standardizes all non-2XX errors
-        console.error(`Failed to fetch pricelist items: ${result.error}`);
         setPricelistItems([]);
       }
-    } catch (error: any) {
-      console.error("Failed to fetch pricelist items", error);
+    } catch {
       setPricelistItems([]);
-    } finally {
-      if (forceRefresh) {
-        setIsRefreshingItems(false);
-      }
     }
   };
 
@@ -300,6 +283,33 @@ export default function PricelistPage() {
       console.error("Failed to delete item from pricelist", error);
       setItemError("Failed to delete item: " + error.message);
     }
+  };
+
+  const handleDownloadItems = () => {
+    if (!pricelistItems.length || !selectedPricelistId) return;
+    const pl = filteredPricelists.find(p => p.id === selectedPricelistId);
+    const plCode = pl?.code ?? "";
+    const plName = (pl?.name ?? "pricelist").replace(/[^a-z0-9]/gi, "_");
+    const headers = ["code", "name", "category", "pricelist_code", "price", "currency", "is_stock", "is_enabled"];
+    const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, "\"\"")}"`;
+    const rows = pricelistItems.map((item: any) => [
+      esc(item.code),
+      esc(item.name),
+      esc(item.category?.name ?? ""),
+      esc(plCode),
+      esc(item.price ?? 0),
+      "KES",
+      item.isStock ? "true" : "false",
+      item.pricelist_item_isEnabled !== false ? "true" : "false",
+    ].join(","));
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${plName}_items.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleManageRecipe = (item: any) => {
@@ -426,27 +436,10 @@ export default function PricelistPage() {
                     <i className="bi bi-list-ul me-2 text-primary"></i>
                     Pricelists
                   </h5>
-                  <div className="d-flex gap-2">
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => setShowExpressSearch(true)}
-                      data-bs-toggle="tooltip"
-                      data-bs-placement="bottom"
-                      title="Search for items across all pricelists"
-                    >
-                      <i className="bi bi-lightning me-1"></i>
-                      Quick Search
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={handleShowModal}
-                    >
-                      <i className="bi bi-plus-circle me-1"></i>
-                      Add Pricelist
-                    </Button>
-                  </div>
+                  <Button variant="primary" size="sm" onClick={handleShowModal}>
+                    <i className="bi bi-plus-circle me-1"></i>
+                    Add Pricelist
+                  </Button>
                 </div>
               </div>
               <div className="card-body p-0">
@@ -635,30 +628,21 @@ export default function PricelistPage() {
                         Upload
                       </button>
                       <button
+                        className="btn btn-outline-secondary btn-sm"
+                        onClick={handleDownloadItems}
+                        disabled={!pricelistItems.length}
+                        title="Download items as CSV"
+                      >
+                        <i className="bi bi-download me-1"></i>
+                        Download
+                      </button>
+                      <button
                         className="btn btn-info btn-sm"
                         onClick={() => setShowAuditModal(true)}
                         title="View audit log"
                       >
                         <i className="bi bi-clock-history me-1"></i>
                         Audit Log
-                      </button>
-                      <button
-                        className="btn btn-outline-secondary btn-sm"
-                        onClick={() => fetchPricelistItems(selectedPricelistId, true)}
-                        title="Refresh items"
-                        disabled={isRefreshingItems}
-                      >
-                        {isRefreshingItems ? (
-                          <>
-                            <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                            Refreshing...
-                          </>
-                        ) : (
-                          <>
-                            <i className="bi bi-arrow-clockwise me-1"></i>
-                            Refresh
-                          </>
-                        )}
                       </button>
                     </div>
                   )}
@@ -765,19 +749,6 @@ export default function PricelistPage() {
           />
         )}
 
-        <ExpressItemSearchModal
-          show={showExpressSearch}
-          onHide={() => setShowExpressSearch(false)}
-          onPricelistSelect={(pricelistId, pricelistName) => {
-            console.log("Express search selected pricelist:", pricelistId, pricelistName);
-            setSelectedPricelistId(pricelistId);
-            setShowExpressSearch(false);
-          }}
-          onItemSelect={(item) => {
-            console.log("Express search selected item:", item);
-            // You can add logic here to show the item in the current view
-          }}
-        />
         {selectedPricelistId && (
           <>
             <PricelistUploadModal
