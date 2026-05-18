@@ -6,6 +6,12 @@ import { assertSqliteQuickCheckOrThrow } from "@backend/utils/sqliteIntegrity";
 // runMigrations() call when the instrumentation hook already ran them in this process.
 let migrationsAppliedThisProcess = false;
 
+// Set to true once the MySQL auto-migration block in checkStatusInternal() confirms
+// that all migrations ran (or were already applied). While false, getStartupSetupStatus()
+// will not serve a cached "ready" for MySQL — forcing a retry on the next status check
+// so a transient migration failure is not silently locked in for the process lifetime.
+let mysqlAutoMigrationDone = false;
+
 type SetupState =
   | "ready"
   | "db_server_unavailable"
@@ -590,7 +596,9 @@ async function checkStatusInternal(): Promise<SetupStatusPayload> {
     }
 
     // Apply any pending migrations added after initial setup (e.g. new columns).
-    // Non-fatal: a migration warning should not prevent the app from starting.
+    // Non-fatal: a migration error does not block startup, but the "ready" state is
+    // not cached until this block succeeds so that each subsequent request retries
+    // rather than locking the process into a permanently outdated schema.
     try {
       if (!AppDataSource.isInitialized) {
         await AppDataSource.initialize();
@@ -601,8 +609,12 @@ async function checkStatusInternal(): Promise<SetupStatusPayload> {
           `[startup] Applied ${ran.length} pending MySQL migration(s): ${ran.map((m) => m.name).join(", ")}`,
         );
       }
+      mysqlAutoMigrationDone = true;
     } catch (mErr: any) {
-      console.warn("[startup] MySQL auto-migration failed (non-fatal):", mErr?.message || mErr);
+      console.error(
+        "[startup] MySQL auto-migration failed — will retry on next request. Run `npm run migration:run` to apply manually.",
+        mErr?.message || mErr,
+      );
     }
 
     const licenseStatus = await licenseService.getStatus();
@@ -628,9 +640,15 @@ async function checkStatusInternal(): Promise<SetupStatusPayload> {
 }
 
 export async function getStartupSetupStatus(forceRefresh = false): Promise<SetupStatusPayload> {
+  // For MySQL "ready": only serve from cache once the auto-migration block has confirmed
+  // success. While mysqlAutoMigrationDone is false (migration threw), re-run the check
+  // so the migration is retried on each request rather than staying permanently cached
+  // with an outdated schema.
+  const mysqlReadyCacheable = isSqliteMode() || mysqlAutoMigrationDone;
+
   if (
     !forceRefresh &&
-    (bootstrapState.current.state === "ready" ||
+    (((bootstrapState.current.state === "ready") && mysqlReadyCacheable) ||
       bootstrapState.current.state === "db_server_unavailable" ||
       bootstrapState.current.state === "initialization_required" ||
       bootstrapState.current.state === "license_required" ||
