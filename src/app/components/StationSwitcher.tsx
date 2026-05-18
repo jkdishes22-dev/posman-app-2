@@ -85,7 +85,7 @@ const StationSwitcher: React.FC<StationSwitcherProps> = ({
                 </label>
             )}
             <button
-                className={`btn btn-${buttonVariant} dropdown-toggle ${sizeClasses[size]}`}
+                className={`btn btn-${buttonVariant} dropdown-toggle ${sizeClasses[size]} page-header-strip-profile-btn`}
                 type="button"
                 onClick={() => setShowDropdown(!showDropdown)}
                 aria-expanded={showDropdown}

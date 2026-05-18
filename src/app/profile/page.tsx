@@ -6,6 +6,7 @@ import { withSecureRoute } from "../components/withSecureRoute";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import ErrorDisplay from "../components/ErrorDisplay";
+import { useStation } from "../contexts/StationContext";
 
 const ProfilePage = () => {
     const [user, setUser] = useState(null);
@@ -22,6 +23,7 @@ const ProfilePage = () => {
     const [stationDefaultSuccess, setStationDefaultSuccess] = useState("");
 
     const apiCall = useApiCall();
+    const { refreshStations } = useStation();
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -97,6 +99,7 @@ const ProfilePage = () => {
                 setStationDefaultSuccess("Default station updated");
                 const refreshed = await apiCall("/api/users/me");
                 if (refreshed.status === 200) setUser(refreshed.data);
+                await refreshStations();
             } else {
                 setStationDefaultError(result.error || "Failed to set default station");
             }
