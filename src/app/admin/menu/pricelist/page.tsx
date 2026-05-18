@@ -290,17 +290,23 @@ export default function PricelistPage() {
     const pl = filteredPricelists.find(p => p.id === selectedPricelistId);
     const plCode = pl?.code ?? "";
     const plName = (pl?.name ?? "pricelist").replace(/[^a-z0-9]/gi, "_");
-    const headers = ["code", "name", "category", "pricelist_code", "price", "currency", "is_stock", "is_enabled"];
+    const headers = [
+      "code", "name", "category_code", "category_name",
+      "pricelist_code", "price", "currency",
+      "is_stock", "allow_negative_inventory", "is_enabled",
+    ];
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, "\"\"")}"`;
     const rows = pricelistItems.map((item: any) => [
       esc(item.code),
       esc(item.name),
+      esc(item.category?.code ?? ""),
       esc(item.category?.name ?? ""),
       esc(plCode),
       esc(item.price ?? 0),
       "KES",
       item.isStock ? "true" : "false",
-      item.pricelist_item_isEnabled !== false ? "true" : "false",
+      item.allowNegativeInventory ? "true" : "false",
+      "true",
     ].join(","));
     const csv = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
