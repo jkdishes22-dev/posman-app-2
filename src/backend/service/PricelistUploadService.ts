@@ -567,9 +567,33 @@ export class PricelistUploadService {
   }
 
   /**
-   * Generate a CSV template pre-filled with the pricelist code
+   * Fetch all active categories (used for template generation)
    */
-  public generateTemplate(pricelistCode: string): string {
+  public async getActiveCategories(): Promise<Category[]> {
+    return this.categoryRepository
+      .createQueryBuilder("category")
+      .where("category.status = :status", { status: CategoryStatus.ACTIVE })
+      .orderBy("category.name", "ASC")
+      .getMany();
+  }
+
+  /**
+   * Fetch all pricelists (used for template generation)
+   */
+  public async getAllPricelists(): Promise<Pricelist[]> {
+    return this.pricelistRepository
+      .createQueryBuilder("pricelist")
+      .orderBy("pricelist.name", "ASC")
+      .getMany();
+  }
+
+  /**
+   * Generate a CSV template pre-filled with real pricelist and category codes.
+   * One sample row per active category so users can see valid codes at a glance.
+   */
+  public generateTemplate(pricelist: Pricelist, categories: Category[], allPricelists: Pricelist[]): string {
+    const pricelistCode = pricelist.code ?? "";
+
     const headers = [
       "code",
       "name",
@@ -583,32 +607,33 @@ export class PricelistUploadService {
       "is_enabled",
     ].join(",");
 
-    const example1 = [
-      "ITEM001",
-      "Example Item 1",
-      "CATEGORY_CODE",
-      "Category Name",
-      pricelistCode,
-      "500",
-      "KES",
-      "false",
-      "false",
-      "true",
-    ].join(",");
+    const sampleRows = categories.length > 0
+      ? categories.map((cat, i) => [
+          `ITEM${String(i + 1).padStart(3, "0")}`,
+          `Sample Item ${i + 1}`,
+          cat.code ?? "CATEGORY_CODE",
+          cat.name ?? "Category Name",
+          pricelistCode,
+          "500",
+          "KES",
+          "false",
+          "false",
+          "true",
+        ].join(","))
+      : [
+          ["ITEM001", "Example Item 1", "CATEGORY_CODE", "Category Name", pricelistCode, "500", "KES", "false", "false", "true"].join(","),
+          ["ITEM002", "Example Item 2", "CATEGORY_CODE", "Category Name", pricelistCode, "250", "KES", "true", "false", "true"].join(","),
+        ];
 
-    const example2 = [
-      "ITEM002",
-      "Example Item 2",
-      "CATEGORY_CODE",
-      "Category Name",
-      pricelistCode,
-      "250",
-      "KES",
-      "true",
-      "false",
-      "true",
-    ].join(",");
+    // Reference lines — rows with no `name` are silently dropped by the parser,
+    // so these are safe to include and won't create phantom items on re-upload.
+    const refLines: string[] = [
+      "",
+      "# === REFERENCE (safe to delete before uploading) ===",
+      `# Available pricelists: ${allPricelists.map(p => `${p.code ?? "(no code)"} (${p.name})`).join(" | ") || "none"}`,
+      `# Available categories: ${categories.map(c => `${c.code ?? "(no code)"} (${c.name})`).join(" | ") || "none"}`,
+    ];
 
-    return [headers, example1, example2].join("\n");
+    return [headers, ...sampleRows, ...refLines].join("\n");
   }
 }

@@ -18,12 +18,14 @@ const CategoryPage: React.FC = () => {
   useTooltips();
 
   const [name, setName] = useState("");
+  const [code, setCode] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; code?: string }>>([]);
   const [selectedCategory, setSelectedCategory] = useState<{
     id: string;
     name: string;
+    code?: string;
   } | null>(null);
   const [items, setItems] = useState([]);
   const [itemError, setItemError] = useState("");
@@ -42,7 +44,8 @@ const CategoryPage: React.FC = () => {
       setFormError("Please fill in all fields");
       return;
     }
-    const formData = { name };
+    const formData: { name: string; code?: string } = { name };
+    if (code.trim()) formData.code = code.trim().toUpperCase();
 
     const result = await apiCall("/api/menu/categories", {
       method: "POST",
@@ -58,6 +61,7 @@ const CategoryPage: React.FC = () => {
         return [...safePrev, result.data];
       });
       setName("");
+      setCode("");
     } else {
       // Error - apiCall already standardizes all non-2XX errors (400, 403, 500, etc.)
       if (result.status === 403) {
@@ -204,10 +208,24 @@ const CategoryPage: React.FC = () => {
                       value={name}
                       onChange={(e) => {
                         setName(e.target.value);
-                        if (formError) setFormError(null); // Clear error when user starts typing
+                        if (formError) setFormError(null);
                       }}
                       placeholder="Enter category name"
                       required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label htmlFor="categoryCode" className="form-label fw-semibold">
+                      Code <span className="text-muted fw-normal small">(optional, used in CSV uploads)</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      id="categoryCode"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. BRK"
+                      maxLength={20}
                     />
                   </div>
                   <button type="submit" className="btn btn-success btn-sm">

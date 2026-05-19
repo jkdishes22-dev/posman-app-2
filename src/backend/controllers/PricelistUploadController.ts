@@ -101,8 +101,11 @@ export const downloadTemplateHandler = async (
     if (!pricelist) {
       return res.status(404).json({ error: "Pricelist not found" });
     }
-    const pricelistCode = pricelist.code;
-    const csv = uploadService.generateTemplate(pricelistCode);
+    const [categories, allPricelists] = await Promise.all([
+      uploadService.getActiveCategories(),
+      uploadService.getAllPricelists(),
+    ]);
+    const csv = uploadService.generateTemplate(pricelist, categories, allPricelists);
 
     res.setHeader("Content-Type", "text/csv");
     res.setHeader(
