@@ -194,23 +194,57 @@ function getActivationPath() {
 
 function computeFingerprint() {
     const parts = [];
-    const nets  = Object.values(os.networkInterfaces()).flat();
-    const phys  = nets.find(n => !n.internal && n.mac && n.mac !== "00:00:00:00:00:00");
+
+    // MAC: prefer universally-administered addresses (bit 1 of first octet = 0).
+    // Locally-administered MACs (0x02 bit set) are typical of virtual adapters
+    // (Hyper-V, Docker, VirtualBox, VMware). Fall back to any non-zero MAC if
+    // no universally-administered one is found (e.g. machines with only VMs).
+    const nets     = Object.values(os.networkInterfaces()).flat();
+    const isUniversal = (mac) => (parseInt(mac.split(":")[0], 16) & 0x02) === 0;
+    const pickMac  = (strict) => nets.find(n =>
+        !n.internal && n.mac && n.mac !== "00:00:00:00:00:00" &&
+        (!strict || isUniversal(n.mac))
+    );
+    const phys = pickMac(true) ?? pickMac(false);
     if (phys) parts.push(phys.mac.replace(/:/g, "").toUpperCase());
+
     const cpus = os.cpus();
     if (cpus.length) parts.push(cpus[0].model.trim());
     parts.push(os.hostname());
+
     if (process.platform === "win32") {
-        try {
-            const { execSync } = require("child_process");
-            const out = execSync("wmic diskdrive get serialnumber /value", { timeout: 3000, windowsHide: true }).toString();
-            const m   = out.match(/SerialNumber=(.+)/);
-            if (m && m[1].trim()) parts.push(m[1].trim());
-        } catch (_) { /* not critical */ }
+        const serial = getDiskSerialWindows();
+        if (serial) parts.push(serial);
     }
+
     const hash = crypto.createHash("sha256").update(parts.join("|")).digest("hex");
     const raw  = hash.substring(0, 12).toUpperCase();
     return { raw, display: (raw.match(/.{4}/g) ?? [raw]).join("-") };
+}
+
+function getDiskSerialWindows() {
+    const { execSync } = require("child_process");
+    const isBadSerial = (v) => !v || v.toLowerCase() === "none" || v === "0";
+
+    // wmic: works on Windows 8 through Windows 10 20H2 and most Windows 11 builds.
+    // Deprecated in Windows 10 21H1 but still ships on most machines.
+    try {
+        const out = execSync("wmic diskdrive get serialnumber /value", { timeout: 3000, windowsHide: true }).toString();
+        const m   = out.match(/SerialNumber=(.+)/);
+        const val = m ? m[1].trim() : null;
+        if (!isBadSerial(val)) return val;
+    } catch (_) { /* wmic unavailable — try PowerShell */ }
+
+    // PowerShell fallback: works on Windows 10 21H1+ and any Windows 11 build.
+    try {
+        const out = execSync(
+            'powershell -NoProfile -NonInteractive -Command "(Get-CimInstance Win32_DiskDrive | Select-Object -First 1).SerialNumber"',
+            { timeout: 5000, windowsHide: true },
+        ).toString().trim();
+        if (!isBadSerial(out)) return out;
+    } catch (_) { /* PowerShell also unavailable */ }
+
+    return null;
 }
 
 function isActivationRecordIntact(stored) {
