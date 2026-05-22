@@ -226,10 +226,13 @@ function getDiskSerialWindows() {
     const { execSync } = require("child_process");
     const isBadSerial = (v) => !v || v.toLowerCase() === "none" || v === "0";
 
-    // wmic: works on Windows 8 through Windows 10 20H2 and most Windows 11 builds.
+    // wmic: works on Windows 7 through Windows 10 20H2 and most Windows 11 builds.
     // Deprecated in Windows 10 21H1 but still ships on most machines.
+    // Windows 7 wmic outputs UTF-16 LE — strip null bytes before parsing so the
+    // regex matches regardless of whether the output is UTF-16 LE or ASCII.
     try {
-        const out = execSync("wmic diskdrive get serialnumber /value", { timeout: 3000, windowsHide: true }).toString();
+        const raw = execSync("wmic diskdrive get serialnumber /value", { timeout: 3000, windowsHide: true });
+        const out = raw.toString().replace(/\x00/g, "");
         const m   = out.match(/SerialNumber=(.+)/);
         const val = m ? m[1].trim() : null;
         if (!isBadSerial(val)) return val;
