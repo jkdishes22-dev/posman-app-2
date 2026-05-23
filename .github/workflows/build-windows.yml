@@ -105,6 +105,7 @@ jobs:
           NODE_ENV: "production"
           BUILD_VERSION: ${{ github.ref_name }}
           GH_TOKEN: ""
+          ACTIVATION_PASSPHRASE: ${{ secrets.ACTIVATION_PASSPHRASE }}
           CSC_LINK: ${{ env.CERT_PATH }}
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
