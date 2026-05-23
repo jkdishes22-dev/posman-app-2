@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
 import { Modal, Button } from "react-bootstrap";
 import ProductionIssueForm from "../../shared/production/ProductionIssueForm";
@@ -8,15 +7,17 @@ interface IssueProductionModalProps {
   show: boolean;
   onHide: () => void;
   onSuccess: () => void;
+  productionId?: number;
+  productionName?: string;
 }
 
-export default function IssueProductionModal({ show, onHide, onSuccess }: IssueProductionModalProps) {
+export default function IssueProductionModal({
+  show, onHide, onSuccess, productionId, productionName,
+}: IssueProductionModalProps) {
   const [formKey, setFormKey] = useState(0);
 
   useEffect(() => {
-    if (show) {
-      setFormKey((k) => k + 1);
-    }
+    if (show) setFormKey((k) => k + 1);
   }, [show]);
 
   return (
@@ -32,6 +33,8 @@ export default function IssueProductionModal({ show, onHide, onSuccess }: IssueP
           <ProductionIssueForm
             key={formKey}
             submitLabel="Issue Production"
+            productionId={productionId}
+            productionName={productionName}
             onIssued={() => {
               onSuccess();
               setTimeout(() => onHide(), 1500);
@@ -40,9 +43,7 @@ export default function IssueProductionModal({ show, onHide, onSuccess }: IssueP
         )}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Close
-        </Button>
+        <Button variant="secondary" onClick={onHide}>Close</Button>
       </Modal.Footer>
     </Modal>
   );

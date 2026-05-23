@@ -5,6 +5,7 @@ const TEST_DB_PATH = path.join(process.cwd(), '.test-db', 'posman-test.db');
 
 export default defineConfig({
   testDir: 'tests/playwright',
+  testMatch: '**/*.spec.ts',
   timeout: 30000,
   use: {
     baseURL: 'http://localhost:3000',

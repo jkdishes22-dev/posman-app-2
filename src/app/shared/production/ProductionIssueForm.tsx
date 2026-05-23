@@ -3,7 +3,7 @@ import { todayEAT } from "../eatDate";
 import FilterDatePicker from "../FilterDatePicker";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Form, Button, Spinner, Alert } from "react-bootstrap";
+import { Form, Button, Spinner, Alert, InputGroup } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import HelpPopover from "../../components/HelpPopover";
@@ -12,20 +12,37 @@ import {
   loadIssueProductionItemOptions,
   type IssueProductionItemOption,
 } from "./loadIssueProductionOptions";
+import NewProductionModal from "./NewProductionModal";
+
+type ProductionOption = { id: number; name: string; status: string };
 
 type ProductionIssueFormProps = {
   onIssued?: () => void;
   submitLabel?: string;
   className?: string;
+  /** Pre-select a production (when issuing directly from a production detail view) */
+  productionId?: number;
+  productionName?: string;
 };
 
 export default function ProductionIssueForm({
   onIssued,
   submitLabel = "Issue Production",
   className,
+  productionId: fixedProductionId,
+  productionName: fixedProductionName,
 }: ProductionIssueFormProps) {
   const apiCall = useApiCall();
 
+  // Production selection state
+  const [productions, setProductions] = useState<ProductionOption[]>([]);
+  const [loadingProductions, setLoadingProductions] = useState(false);
+  const [selectedProductionId, setSelectedProductionId] = useState<string>(
+    fixedProductionId ? String(fixedProductionId) : ""
+  );
+  const [showNewProductionModal, setShowNewProductionModal] = useState(false);
+
+  // Item state
   const [options, setOptions] = useState<IssueProductionItemOption[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -43,14 +60,30 @@ export default function ProductionIssueForm({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const selected = options.find((o) => String(o.id) === selectedId) ?? null;
+  const effectiveProductionId = fixedProductionId ?? (selectedProductionId ? Number(selectedProductionId) : null);
+
+  const loadProductions = useCallback(async () => {
+    if (fixedProductionId) return;
+    setLoadingProductions(true);
+    try {
+      const result = await apiCall<{ productions: ProductionOption[] }>(
+        "/api/production/runs?status=open&limit=50"
+      );
+      if (result.status === 200) {
+        setProductions(result.data?.productions ?? []);
+      }
+    } catch {
+      // silently fail — user can create a new production
+    } finally {
+      setLoadingProductions(false);
+    }
+  }, [apiCall, fixedProductionId]);
 
   const loadItems = useCallback(async () => {
     setLoadingItems(true);
     setListError(null);
     setListErrorDetails(null);
-    const { options: next, error: err, errorDetails: det } = await loadIssueProductionItemOptions(
-      apiCall,
-    );
+    const { options: next, error: err, errorDetails: det } = await loadIssueProductionItemOptions(apiCall);
     if (err) {
       setOptions([]);
       setListError(err);
@@ -62,8 +95,14 @@ export default function ProductionIssueForm({
   }, [apiCall]);
 
   useEffect(() => {
+    void loadProductions();
     void loadItems();
-  }, [loadItems]);
+  }, [loadProductions, loadItems]);
+
+  const handleProductionCreated = (production: ProductionOption) => {
+    setProductions((prev) => [production, ...prev]);
+    setSelectedProductionId(String(production.id));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,6 +111,10 @@ export default function ProductionIssueForm({
     setErrorDetails(null);
     setSuccessMessage(null);
 
+    if (!effectiveProductionId) {
+      setFormError("Please select or create a production first.");
+      return;
+    }
     if (!selected) {
       setFormError("Please select an item to issue.");
       return;
@@ -89,12 +132,12 @@ export default function ProductionIssueForm({
     try {
       const payload = {
         item_id: selected.id,
-        quantity_prepared: Number(quantity),
+        quantity_produced: Number(quantity),
         notes: notes.trim() || null,
         issue_date: issueDate,
       };
 
-      const result = await apiCall("/api/production/preparations/issue-directly", {
+      const result = await apiCall(`/api/production/runs/${effectiveProductionId}/items`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
@@ -110,11 +153,11 @@ export default function ProductionIssueForm({
         void loadItems();
         onIssued?.();
       } else if (result.status === 403) {
-        setError(result.error || "Access denied: Missing permissions");
-        setErrorDetails(result.errorDetails ?? null);
+        setError((result as any).error || "Access denied: Missing permissions");
+        setErrorDetails((result as any).errorDetails ?? null);
       } else {
-        setFormError(result.error || "Failed to issue production.");
-        setErrorDetails(result.errorDetails ?? null);
+        setFormError((result as any).error || "Failed to issue production.");
+        setErrorDetails((result as any).errorDetails ?? null);
       }
     } catch {
       setFormError("Network error occurred.");
@@ -129,19 +172,12 @@ export default function ProductionIssueForm({
       <ErrorDisplay
         error={listError}
         errorDetails={listErrorDetails}
-        onDismiss={() => {
-          setListError(null);
-          setListErrorDetails(null);
-        }}
+        onDismiss={() => { setListError(null); setListErrorDetails(null); }}
       />
       <ErrorDisplay
         error={error || formError}
         errorDetails={errorDetails}
-        onDismiss={() => {
-          setError(null);
-          setErrorDetails(null);
-          setFormError(null);
-        }}
+        onDismiss={() => { setError(null); setErrorDetails(null); setFormError(null); }}
       />
 
       {successMessage && (
@@ -151,6 +187,54 @@ export default function ProductionIssueForm({
       )}
 
       <Form onSubmit={handleSubmit}>
+        {/* Production selector — hidden when a production is pre-selected */}
+        {!fixedProductionId && (
+          <Form.Group controlId="issue-form-production" className="mb-3">
+            <div className="d-flex align-items-center gap-1 mb-1">
+              <Form.Label className="mb-0">
+                Production <span className="text-danger">*</span>
+              </Form.Label>
+              <HelpPopover id="issue-form-production-help" title="Production">
+                Select an open production run or create a new one. Items issued here are grouped under the selected production.
+              </HelpPopover>
+            </div>
+            {loadingProductions ? (
+              <div className="text-muted small py-1">
+                <Spinner animation="border" size="sm" className="me-1" />Loading productions…
+              </div>
+            ) : (
+              <InputGroup>
+                <Form.Select
+                  value={selectedProductionId}
+                  onChange={(e) => setSelectedProductionId(e.target.value)}
+                  required={!fixedProductionId}
+                >
+                  <option value="">
+                    {productions.length === 0 ? "No open productions — create one" : "Select a production run"}
+                  </option>
+                  {productions.map((p) => (
+                    <option key={p.id} value={String(p.id)}>{p.name}</option>
+                  ))}
+                </Form.Select>
+                <Button
+                  variant="outline-primary"
+                  onClick={() => setShowNewProductionModal(true)}
+                  title="Create new production"
+                >
+                  <i className="bi bi-plus" /> New
+                </Button>
+              </InputGroup>
+            )}
+          </Form.Group>
+        )}
+
+        {fixedProductionId && fixedProductionName && (
+          <div className="alert alert-info py-2 mb-3 d-flex align-items-center gap-2">
+            <i className="bi bi-layers" />
+            <span>Issuing into: <strong>{fixedProductionName}</strong></span>
+          </div>
+        )}
+
         <Form.Group controlId="issue-form-item" className="mb-3">
           <div className="d-flex align-items-center gap-1 mb-1">
             <Form.Label className="mb-0">
@@ -235,7 +319,7 @@ export default function ProductionIssueForm({
         <Button
           variant="primary"
           type="submit"
-          disabled={isSubmitting || !selectedId || !quantity || !issueDate || loadingItems}
+          disabled={isSubmitting || !selectedId || !quantity || !issueDate || loadingItems || !effectiveProductionId}
         >
           {isSubmitting ? (
             <>
@@ -250,6 +334,12 @@ export default function ProductionIssueForm({
           )}
         </Button>
       </Form>
+
+      <NewProductionModal
+        show={showNewProductionModal}
+        onHide={() => setShowNewProductionModal(false)}
+        onCreated={handleProductionCreated}
+      />
     </div>
   );
 }

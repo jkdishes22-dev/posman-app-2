@@ -30,8 +30,8 @@ import { PurchaseOrder } from "@backend/entities/PurchaseOrder";
 import { InventoryTransaction } from "@backend/entities/InventoryTransaction";
 import { SupplierPayment } from "@backend/entities/SupplierPayment";
 import { SupplierTransaction } from "@backend/entities/SupplierTransaction";
-import { ProductionIssue } from "@backend/entities/ProductionIssue";
-import { ProductionPreparation } from "@backend/entities/ProductionPreparation";
+import { Production } from "@backend/entities/Production";
+import { ProductionItem } from "@backend/entities/ProductionItem";
 import { PricelistItemAudit } from "@backend/entities/PricelistItemAudit";
 import { ItemAudit } from "@backend/entities/ItemAudit";
 import { Expense } from "@backend/entities/Expense";
@@ -71,8 +71,8 @@ const entities = [
   InventoryTransaction,
   SupplierPayment,
   SupplierTransaction,
-  ProductionIssue,
-  ProductionPreparation,
+  Production,
+  ProductionItem,
   PricelistItemAudit,
   ItemAudit,
   Expense,

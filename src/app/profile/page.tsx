@@ -6,6 +6,7 @@ import { withSecureRoute } from "../components/withSecureRoute";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import ErrorDisplay from "../components/ErrorDisplay";
+import { useStation } from "../contexts/StationContext";
 
 const ProfilePage = () => {
     const [user, setUser] = useState(null);
@@ -17,8 +18,12 @@ const ProfilePage = () => {
     const [pwError, setPwError] = useState("");
     const [pwSuccess, setPwSuccess] = useState("");
     const [pwLoading, setPwLoading] = useState(false);
+    const [settingDefaultId, setSettingDefaultId] = useState<number | null>(null);
+    const [stationDefaultError, setStationDefaultError] = useState("");
+    const [stationDefaultSuccess, setStationDefaultSuccess] = useState("");
 
     const apiCall = useApiCall();
+    const { refreshStations } = useStation();
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -78,6 +83,30 @@ const ProfilePage = () => {
             setPwError("Network error occurred");
         } finally {
             setPwLoading(false);
+        }
+    };
+
+    const handleSetDefaultStation = async (stationId: number) => {
+        setStationDefaultError("");
+        setStationDefaultSuccess("");
+        setSettingDefaultId(stationId);
+        try {
+            const result = await apiCall("/api/users/me/default-station", {
+                method: "POST",
+                body: JSON.stringify({ stationId }),
+            });
+            if (result.status === 200) {
+                setStationDefaultSuccess("Default station updated");
+                const refreshed = await apiCall("/api/users/me");
+                if (refreshed.status === 200) setUser(refreshed.data);
+                await refreshStations();
+            } else {
+                setStationDefaultError(result.error || "Failed to set default station");
+            }
+        } catch {
+            setStationDefaultError("Network error occurred");
+        } finally {
+            setSettingDefaultId(null);
         }
     };
 
@@ -147,6 +176,8 @@ const ProfilePage = () => {
                                     </h5>
                                 </div>
                                 <div className="card-body">
+                                    {stationDefaultSuccess && <div className="alert alert-success py-2">{stationDefaultSuccess}</div>}
+                                    {stationDefaultError && <div className="alert alert-danger py-2">{stationDefaultError}</div>}
                                     {user.stations && user.stations.length > 0 ? (
                                         <div className="list-group list-group-flush">
                                             {user.stations.map((station) => (
@@ -159,12 +190,25 @@ const ProfilePage = () => {
                                                             </h6>
                                                         </div>
                                                         <div className="d-flex flex-column align-items-end gap-2">
-                                                            <div className="d-flex gap-2">
-                                                                {station.isDefault && (
+                                                            <div className="d-flex align-items-center gap-2">
+                                                                {station.isDefault ? (
                                                                     <span className="badge bg-primary">
                                                                         <i className="bi bi-star-fill me-1"></i>
                                                                         Default Station
                                                                     </span>
+                                                                ) : (
+                                                                    <button
+                                                                        className="btn btn-sm btn-outline-primary"
+                                                                        onClick={() => handleSetDefaultStation(station.id)}
+                                                                        disabled={settingDefaultId !== null}
+                                                                        title="Set as your default station"
+                                                                    >
+                                                                        {settingDefaultId === station.id ? (
+                                                                            <><span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Setting…</>
+                                                                        ) : (
+                                                                            <><i className="bi bi-star me-1"></i>Set Default</>
+                                                                        )}
+                                                                    </button>
                                                                 )}
                                                                 <span className={`badge ${station.status === "active" ? "bg-success" : "bg-secondary"}`}>
                                                                     <i className={`bi ${station.status === "active" ? "bi-check-circle" : "bi-pause-circle"} me-1`}></i>

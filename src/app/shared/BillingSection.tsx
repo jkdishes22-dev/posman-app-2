@@ -25,7 +25,6 @@ import { usePricelist } from "../contexts/PricelistContext";
 import { useAuth } from "../contexts/AuthContext";
 import ErrorDisplay from "../components/ErrorDisplay";
 import StationSelector from "../components/StationSelector";
-import PricelistSwitcher from "../components/PricelistSwitcher";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import { hasPermission } from "../../backend/config/role-permissions";
@@ -77,7 +76,6 @@ const BillingSection = () => {
   const [itemInventory, setItemInventory] = useState<Record<number, number>>({});
   const [missingConstituents, setMissingConstituents] = useState<Record<number, Array<{ itemId: number; itemName: string; available: number; required: number }>>>({});
   const [hasExpandedItems, setHasExpandedItems] = useState<boolean>(false);
-  const [showAvailableItemsHeader, setShowAvailableItemsHeader] = useState<boolean>(false);
   const inventoryRefreshInFlightRef = useRef<string | null>(null);
   const inventorySnapshotRef = useRef<Record<number, number>>({});
   const inventoryFetchedAtRef = useRef<Record<number, number>>({});
@@ -471,6 +469,17 @@ const BillingSection = () => {
     setItems([]);
     setShowingTopItems(false);
   }, [currentPricelist?.id]);
+
+  // Reset categories and items when the station changes so they reload for the new station
+  useEffect(() => {
+    if (!currentStation) return;
+    setCategoriesFetched(false);
+    setCategories([]);
+    setSelectedCategory(null);
+    setItems([]);
+    setItemsPreloaded(false);
+    setAllPricelistItems([]);
+  }, [currentStation?.id]);
 
   const handlePickItem = useCallback((item: Item) => {
     if (!item.price) {
@@ -945,7 +954,7 @@ const BillingSection = () => {
         <Alert variant="warning">
           <Alert.Heading>No Station Selected</Alert.Heading>
           <p>Please select a station to start billing.</p>
-          <StationSelector />
+          <StationSelector allowAllUsers />
         </Alert>
       </div>
     );
@@ -997,66 +1006,40 @@ const BillingSection = () => {
         {/* Available Items Section */}
         <div className="col-lg-6">
           <div className="card border-0 shadow-sm h-100 items-section">
-            {showAvailableItemsHeader ? (
-              <div className="card-header bg-primary text-white py-2">
-                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div className="card-header bg-light border-bottom py-2 px-3">
+              <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div className="d-flex align-items-center gap-2">
                   <h6 className="mb-0 fw-bold">
-                    <i className="bi bi-box-seam me-2"></i>
+                    <i className="bi bi-box-seam me-2 text-primary"></i>
                     Available Items
                   </h6>
-                  <div className="d-flex align-items-center gap-2 flex-wrap">
-                    <small className="text-white-50">
-                      {items.length} items
-                    </small>
-                    <span className="badge bg-light text-dark px-2 py-1">
-                      <i className="bi bi-building me-1"></i>
-                      Station: {currentStation?.name || "Station"}
+                  <small className="text-muted">{items.length} items</small>
+                </div>
+                <div className="d-flex align-items-center gap-2 flex-wrap">
+                  <span className="badge bg-primary-subtle text-primary px-2 py-1">
+                    <i className="bi bi-building me-1"></i>
+                    {currentStation?.name || "—"}
+                  </span>
+                  {currentPricelist && (
+                    <span className="badge bg-success-subtle text-success px-2 py-1">
+                      <i className="bi bi-tag me-1"></i>
+                      {currentPricelist.name}
                     </span>
-                    <PricelistSwitcher
-                      size="sm"
-                      showLabel={false}
-                      onPricelistChange={() => {
-                        // Refetch items when pricelist changes
-                        if (selectedCategory) {
-                          fetchItems(selectedCategory.id);
-                        }
-                      }}
-                    />
-                    {createdBill && (
-                      <button
-                        className="btn btn-sm btn-warning text-dark fw-bold"
-                        type="button"
-                        onClick={handleNewBill}
-                        title="Start a new bill"
-                      >
-                        <i className="bi bi-plus-circle me-1"></i>
-                        New Bill
-                      </button>
-                    )}
+                  )}
+                  {createdBill && (
                     <button
-                      className="btn btn-sm btn-outline-light"
+                      className="btn btn-sm btn-warning text-dark fw-bold"
                       type="button"
-                      onClick={() => setShowAvailableItemsHeader(false)}
-                      title="Hide header"
+                      onClick={handleNewBill}
+                      title="Start a new bill"
                     >
-                      <i className="bi bi-chevron-up"></i>
+                      <i className="bi bi-plus-circle me-1"></i>
+                      New Bill
                     </button>
-                  </div>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="card-header bg-light border-bottom py-1 px-2">
-                <button
-                  className="btn btn-sm btn-link text-primary p-0"
-                  type="button"
-                  onClick={() => setShowAvailableItemsHeader(true)}
-                  title="Show header"
-                >
-                  <i className="bi bi-chevron-down me-1"></i>
-                  <small>Show Station & Pricelist</small>
-                </button>
-              </div>
-            )}
+            </div>
             <div className="card-body p-0">
               <ErrorDisplay
                 error={itemError}

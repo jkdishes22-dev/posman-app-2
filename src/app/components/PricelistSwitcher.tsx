@@ -10,6 +10,8 @@ interface PricelistSwitcherProps {
     showLabel?: boolean;
     size?: "sm" | "md" | "lg";
     disabled?: boolean;
+    /** Bootstrap button variant for the trigger button, e.g. "outline-light" on dark backgrounds */
+    buttonVariant?: string;
 }
 
 const PricelistSwitcher: React.FC<PricelistSwitcherProps> = ({
@@ -17,7 +19,8 @@ const PricelistSwitcher: React.FC<PricelistSwitcherProps> = ({
     onPricelistChange,
     showLabel = true,
     size = "md",
-    disabled = false
+    disabled = false,
+    buttonVariant,
 }) => {
     const { currentPricelist, availablePricelists, setCurrentPricelist, isLoading, error } = usePricelist();
     const { user } = useAuth();
@@ -106,7 +109,7 @@ const PricelistSwitcher: React.FC<PricelistSwitcherProps> = ({
 
             {/* Pricelist Switcher Button */}
             <button
-                className={`btn ${buttonSizeClass} ${currentPricelist ? "btn-success text-white" : "btn-outline-primary"} position-relative px-3 py-2`}
+                className={`btn ${buttonSizeClass} ${buttonVariant ? `btn-${buttonVariant}` : currentPricelist ? "btn-success text-white" : "btn-outline-primary"} position-relative px-3 py-2 page-header-strip-profile-btn`}
                 type="button"
                 onClick={() => setShowDropdown(!showDropdown)}
                 disabled={isLoading || disabled}

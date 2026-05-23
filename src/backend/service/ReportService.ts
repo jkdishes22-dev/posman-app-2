@@ -8,7 +8,7 @@ import { Payment, PaymentType } from "@backend/entities/Payment";
 import { Item } from "@backend/entities/Item";
 import { User } from "@backend/entities/User";
 import { Supplier } from "@backend/entities/Supplier";
-import { ProductionPreparation, ProductionPreparationStatus } from "@backend/entities/ProductionPreparation";
+import { ProductionItem, ProductionItemStatus } from "@backend/entities/ProductionItem";
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { getAppTimezone } from "../config/timezone";
@@ -205,7 +205,7 @@ export class ReportService {
   private itemRepository: Repository<Item>;
   private userRepository: Repository<User>;
   private supplierRepository: Repository<Supplier>;
-  private productionPreparationRepository: Repository<ProductionPreparation>;
+  private productionItemRepository: Repository<ProductionItem>;
 
   constructor(dataSource: DataSource) {
     this.billRepository = dataSource.getRepository(Bill);
@@ -216,7 +216,7 @@ export class ReportService {
     this.itemRepository = dataSource.getRepository(Item);
     this.userRepository = dataSource.getRepository(User);
     this.supplierRepository = dataSource.getRepository(Supplier);
-    this.productionPreparationRepository = dataSource.getRepository(ProductionPreparation);
+    this.productionItemRepository = dataSource.getRepository(ProductionItem);
   }
 
   private getDateRange(startDate: Date, endDate: Date, period?: "day" | "week" | "month" | "year"): { start: Date; end: Date } {
@@ -1129,11 +1129,11 @@ export class ReportService {
 
     const { start, end } = this.getDateRange(startDate, endDate, period);
 
-    // Get all production issues/preparations (issued items)
-    let productionQuery = this.productionPreparationRepository
+    // Get all production items (issued)
+    let productionQuery = this.productionItemRepository
       .createQueryBuilder("prep")
       .leftJoinAndSelect("prep.item", "item")
-      .where("prep.status = :status", { status: ProductionPreparationStatus.ISSUED })
+      .where("prep.status = :status", { status: ProductionItemStatus.ISSUED })
       .andWhere("prep.issued_at >= :start", { start })
       .andWhere("prep.issued_at <= :end", { end });
 
@@ -1206,12 +1206,12 @@ export class ReportService {
       }
 
       const item = itemMap.get(itemId)!;
-      item.quantityIssued += prep.quantity_prepared || 0;
+      item.quantityIssued += prep.quantity_produced || 0;
       item.details!.issued.push({
         date: prep.issued_at
           ? new Date(prep.issued_at).toISOString().split("T")[0]
           : new Date(prep.created_at).toISOString().split("T")[0],
-        quantity: prep.quantity_prepared || 0,
+        quantity: prep.quantity_produced || 0,
         referenceId: prep.id,
         referenceType: "preparation",
       });

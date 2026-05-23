@@ -206,6 +206,7 @@ export class ItemService {
       category: {
         id: pi.item.category?.id,
         name: pi.item.category?.name,
+        code: pi.item.category?.code ?? null,
       },
       price: pi.price,
       pricelistItemId: pi.id,

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { testApiHandler } from "next-test-api-route-handler";
 import purchaseOrdersHandler from "../../pages/api/purchase-orders/index.js";
+import purchaseItemsHandler from "../../pages/api/purchase-items/index.js";
 import suppliersHandler from "../../pages/api/suppliers/index.js";
 import categoriesHandler from "../../pages/api/menu/categories/index.js";
 import pricelistsHandler from "../../pages/api/menu/pricelists/index.js";
@@ -75,6 +76,25 @@ beforeAll(async () => {
       if (res.ok) itemId = (await res.json()).id;
     },
   });
+
+  // --- Purchase item config (required before adding item to a PO) ---
+  if (itemId) {
+    await testApiHandler({
+      pagesHandler: purchaseItemsHandler,
+      test: async ({ fetch }) => {
+        await fetch({
+          method: "POST",
+          headers: { ...bearer(adminToken), "Content-Type": "application/json" },
+          body: JSON.stringify({
+            item_id: itemId,
+            purchase_unit_label: "Box",
+            purchase_unit_qty: 1,
+            is_active: true,
+          }),
+        });
+      },
+    });
+  }
 });
 
 describe("POST /api/purchase-orders", () => {

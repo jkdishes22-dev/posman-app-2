@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JK PosMan — Activation</title>
+  <style>
+    * { margin: 0; box-sizing: border-box; }
+    body {
+      background: #0f172a;
+      color: #94a3b8;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 2rem;
+      width: 90%;
+      max-width: 420px;
+      border: 1px solid #334155;
+    }
+    .icon { font-size: 2rem; margin-bottom: 1rem; text-align: center; }
+    h2 { color: #e2e8f0; font-size: 1.3rem; margin-bottom: .4rem; text-align: center; }
+    .subtitle { font-size: .85rem; text-align: center; margin-bottom: 1.5rem; line-height: 1.5; }
+
+    .id-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 1rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    .id-label { font-size: .7rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: .4rem; }
+    .id-value {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #38bdf8;
+      letter-spacing: 4px;
+    }
+
+    label { display: block; font-size: .8rem; margin-bottom: .4rem; color: #64748b; }
+    input {
+      width: 100%;
+      padding: .75rem 1rem;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-size: 1.3rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      letter-spacing: 4px;
+      text-align: center;
+      outline: none;
+      margin-bottom: 1rem;
+    }
+    input:focus { border-color: #3b82f6; }
+
+    button {
+      width: 100%;
+      padding: .75rem;
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    button:hover:not(:disabled) { background: #2563eb; }
+
+    .error {
+      color: #f87171;
+      font-size: .8rem;
+      margin-bottom: .75rem;
+      display: none;
+    }
+
+    .hard-section { display: none; }
+    .hard-section h2 { color: #f87171; }
+
+    .contact { margin-top: 1.25rem; font-size: .75rem; text-align: center; color: #475569; }
+    .contact strong { color: #94a3b8; }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <!-- Normal activation -->
+  <div id="normal-section">
+    <div class="icon">🔐</div>
+    <h2>Activate JK PosMan</h2>
+    <p class="subtitle">Contact your provider with the Installation ID below to receive your activation code.</p>
+
+    <div class="id-box">
+      <div class="id-label">Installation ID</div>
+      <div class="id-value" id="install-id">Loading…</div>
+    </div>
+
+    <label for="code-input">Activation Code</label>
+    <input type="text" id="code-input" placeholder="0000-0000" maxlength="9"
+           autocomplete="off" autocorrect="off" spellcheck="false"
+           oninput="formatCode(this)" onkeydown="if(event.key==='Enter') activate()">
+    <div class="error" id="normal-error"></div>
+    <button id="normal-btn" onclick="activate()">Activate</button>
+  </div>
+
+  <!-- Hard lock (tamper detected) -->
+  <div class="hard-section" id="hard-section">
+    <div class="icon">⛔</div>
+    <h2>Unauthorized Installation</h2>
+    <p class="subtitle">This installation record has been modified. Contact your provider with the Installation ID below to reactivate.</p>
+
+    <div class="id-box">
+      <div class="id-label">Installation ID</div>
+      <div class="id-value" id="hard-install-id">Loading…</div>
+    </div>
+
+    <label for="hard-code-input">Reactivation Code</label>
+    <input type="text" id="hard-code-input" placeholder="0000-0000" maxlength="9"
+           autocomplete="off" autocorrect="off" spellcheck="false"
+           oninput="formatCode(this)" onkeydown="if(event.key==='Enter') activate()">
+    <div class="error" id="hard-error"></div>
+    <button id="hard-btn" onclick="activate()">Reactivate</button>
+  </div>
+
+  <div class="contact">Need help? Contact your <strong>Posman provider</strong>.</div>
+</div>
+
+<script>
+  const isHard = new URLSearchParams(location.search).get('hard') === '1';
+
+  if (isHard) {
+    document.getElementById('normal-section').style.display = 'none';
+    document.getElementById('hard-section').style.display  = 'block';
+  }
+
+  window.electron.getInstallationId().then(id => {
+    document.getElementById('install-id').textContent      = id;
+    document.getElementById('hard-install-id').textContent = id;
+  });
+
+  function formatCode(input) {
+    let v = input.value.replace(/\D/g, '').substring(0, 8);
+    if (v.length > 4) v = v.slice(0, 4) + '-' + v.slice(4);
+    input.value = v;
+  }
+
+  async function activate() {
+    const inputEl = document.getElementById(isHard ? 'hard-code-input' : 'code-input');
+    const errorEl = document.getElementById(isHard ? 'hard-error'      : 'normal-error');
+    const btn     = document.getElementById(isHard ? 'hard-btn'        : 'normal-btn');
+
+    errorEl.style.display = 'none';
+
+    const code = inputEl.value.replace(/-/g, '');
+    if (!/^\d{8}$/.test(code)) {
+      errorEl.textContent    = 'Please enter the full 8-digit activation code.';
+      errorEl.style.display  = 'block';
+      return;
+    }
+
+    btn.disabled    = true;
+    btn.textContent = isHard ? 'Reactivating…' : 'Activating…';
+
+    try {
+      const result = await window.electron.completeActivation(code);
+      if (result.ok) {
+        btn.textContent = '✓ Activated! Starting…';
+      } else {
+        errorEl.textContent   = result.error || 'Activation failed. Please try again.';
+        errorEl.style.display = 'block';
+        btn.disabled          = false;
+        btn.textContent       = isHard ? 'Reactivate' : 'Activate';
+      }
+    } catch {
+      errorEl.textContent   = 'An error occurred. Please try again.';
+      errorEl.style.display = 'block';
+      btn.disabled          = false;
+      btn.textContent       = isHard ? 'Reactivate' : 'Activate';
+    }
+  }
+</script>
+</body>
+</html>
