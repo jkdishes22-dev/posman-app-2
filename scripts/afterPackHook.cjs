@@ -336,6 +336,23 @@ module.exports = async function (context) {
         { label: "extraFiles",     path: path.join(appOutDir, ".next", "standalone") },
     ];
 
+    // macOS: electron-builder places resources inside AppName.app/Contents/Resources/
+    // (not in appOutDir/resources/ which is a staging directory, not the final bundle)
+    if (context.electronPlatformName === "darwin") {
+        try {
+            const appBundle = fs.readdirSync(appOutDir).find(n => n.endsWith(".app"));
+            if (appBundle) {
+                const macResources = path.join(appOutDir, appBundle, "Contents", "Resources");
+                candidates.unshift(
+                    { label: "macOS-extraResources", path: path.join(macResources, ".next", "standalone") },
+                    { label: "macOS-asarUnpack",     path: path.join(macResources, "app.asar.unpacked", ".next", "standalone") },
+                );
+            }
+        } catch (e) {
+            err(`   ⚠️ Could not scan for .app bundle: ${e.message}`);
+        }
+    }
+
     let handledAny = false;
 
     for (const candidate of candidates) {
@@ -404,6 +421,28 @@ module.exports = async function (context) {
         const counts = copyDir(sourceStandalone, targetExtraResources);
         log(`   ✅ Full copy: ${counts.files} files, ${counts.dirs} dirs`);
         handledAny = true;
+    }
+
+    // Verify the activation passphrase landed in the correct platform-specific resources directory.
+    // It is placed there by extraResources (from build/activation/passphrase) — this block just
+    // confirms it arrived and emits a clear error if it didn't (e.g. source file missing at build time).
+    {
+        // Resolve the actual resources directory: on macOS it is inside the .app bundle;
+        // on Windows/Linux it is directly under appOutDir/resources/.
+        let resourcesDir = path.join(appOutDir, "resources");
+        if (context.electronPlatformName === "darwin") {
+            try {
+                const appBundle = fs.readdirSync(appOutDir).find(n => n.endsWith(".app"));
+                if (appBundle) resourcesDir = path.join(appOutDir, appBundle, "Contents", "Resources");
+            } catch { /* keep fallback */ }
+        }
+        const keyInPkg = path.join(resourcesDir, "activation", "activation.key");
+        if (fs.existsSync(keyInPkg)) {
+            log(`\n   ✅ Activation key present at ${keyInPkg}`);
+        } else {
+            err(`\n   ❌ Activation key NOT found at ${keyInPkg}`);
+            err(`      Create build/activation/passphrase (gitignored) or set ACTIVATION_PASSPHRASE env var before building.`);
+        }
     }
 
     // For Windows builds: replace native .node binaries for the *packager* CPU arch.

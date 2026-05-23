@@ -9,6 +9,7 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 const crypto = require("crypto");
+const { verifyWithDerivedKey, deriveActivationHmacKey } = require("./activation-code.cjs");
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const isProduction = !isDev;
@@ -187,6 +188,71 @@ function resolveLicensePublicKeyForRuntime() {
 
 // ── Trusted Distribution / Activation ──────────────────────────────────────
 const ACTIVATION_HMAC_KEY = "jkpm-act-integrity-v1";
+
+/**
+ * Resolve the activation HMAC key (64-byte Buffer).
+ *
+ * Priority:
+ *  1. Packaged resources — activation/activation.key (hex, written at build time from passphrase).
+ *     The plain passphrase is NEVER bundled; only the derived key ships in the installer.
+ *  2. ACTIVATION_PASSPHRASE env var — derives key at runtime (dev/CI convenience).
+ *  3. User-profile passphrase file — allows owner to override on their own machine.
+ *
+ * Returns null if no key source is found.
+ */
+function resolveActivationKey() {
+    // 1. Packaged derived key (production path — passphrase never stored in installer)
+    const keyCandidates = [];
+    if (process.resourcesPath) {
+        keyCandidates.push(path.join(process.resourcesPath, "activation", "activation.key"));
+    }
+    if (app.isPackaged) {
+        keyCandidates.push(path.join(path.dirname(process.execPath), "resources", "activation", "activation.key"));
+    } else {
+        // Dev: look for a pre-derived key beside the source passphrase
+        keyCandidates.push(path.join(process.cwd(), "build", "activation", ".derived-key"));
+    }
+    for (const candidate of keyCandidates) {
+        try {
+            if (!fs.existsSync(candidate)) continue;
+            const hex = fs.readFileSync(candidate, "utf8").trim();
+            if (hex.length === 128) { // 64 bytes × 2 hex chars
+                logToFile(`Using derived activation key from: ${candidate}`);
+                return Buffer.from(hex, "hex");
+            }
+        } catch (e) {
+            logToFile(`Failed to read activation key from ${candidate}: ${e.message}`, "ERROR");
+        }
+    }
+
+    // 2. Env var passphrase — derive key on the fly (dev / CI)
+    const envPass = String(process.env.ACTIVATION_PASSPHRASE || "").trim();
+    if (envPass) {
+        logToFile("Deriving activation key from ACTIVATION_PASSPHRASE env var.");
+        return deriveActivationHmacKey(envPass);
+    }
+
+    // 3. User-profile passphrase file (owner override on their own machine)
+    const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+    const userPassPath = process.platform === "darwin"
+        ? path.join(os.homedir(), "Library", "Application Support", "JK PosMan", "activation", "passphrase")
+        : process.platform === "win32"
+            ? path.join(appData, "JK PosMan", "activation", "passphrase")
+            : path.join(app.getPath("userData"), "activation", "passphrase");
+    try {
+        if (fs.existsSync(userPassPath)) {
+            const pp = fs.readFileSync(userPassPath, "utf8").trim();
+            if (pp) {
+                logToFile(`Deriving activation key from user-profile passphrase: ${userPassPath}`);
+                return deriveActivationHmacKey(pp);
+            }
+        }
+    } catch (e) {
+        logToFile(`Failed to read user-profile passphrase: ${e.message}`, "ERROR");
+    }
+
+    return null;
+}
 
 function getActivationPath() {
     return path.join(app.getPath("userData"), "activation.dat");
@@ -1128,10 +1194,29 @@ ipcMain.handle("get-installation-id", () => {
 // IPC: called by the activation screen when the user submits a code
 ipcMain.handle("complete-activation", async (_event, code) => {
     try {
-        if (!/^\d{8}$/.test(String(code))) {
+        const normalized = String(code).replace(/\D/g, "");
+        if (!/^\d{8}$/.test(normalized)) {
             return { ok: false, error: "Invalid code format." };
         }
+
+        const hmacKey = resolveActivationKey();
+        if (!hmacKey) {
+            logToFile("Activation key not found (build/activation/.derived-key missing or ACTIVATION_PASSPHRASE not set)", "ERROR");
+            return {
+                ok: false,
+                error: "Activation is not configured on this build. Contact your provider.",
+            };
+        }
+
         const { raw } = computeFingerprint();
+        if (!verifyWithDerivedKey(raw, normalized, hmacKey)) {
+            logToFile("Activation rejected — code does not match installation ID", "ERROR");
+            return {
+                ok: false,
+                error: "Invalid activation code. Check the code from your provider and try again.",
+            };
+        }
+
         writeActivationRecord(raw);
         // Start the app after a short delay so the renderer can show "Activated!"
         setTimeout(() => startApp(), 800);
