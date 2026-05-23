@@ -16,9 +16,5 @@ contextBridge.exposeInMainWorld('electron', {
   getPrinters: () => ipcRenderer.invoke('get-printers'),
   /** Append one line to the desktop app log file (same folder as other JK PosMan logs). */
   logClient: (message, level) => ipcRenderer.invoke('log-client', String(message ?? ''), level ?? 'INFO'),
-  /** Return the machine fingerprint display code shown on the activation screen. */
-  getInstallationId: () => ipcRenderer.invoke('get-installation-id'),
-  /** Submit an activation code; resolves { ok, error? }. On ok the main process starts the app. */
-  completeActivation: (code) => ipcRenderer.invoke('complete-activation', String(code ?? '')),
 });
 

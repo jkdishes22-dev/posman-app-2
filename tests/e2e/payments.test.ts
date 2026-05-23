@@ -133,14 +133,14 @@ describe("POST /api/bills/[billId]/payments", () => {
 });
 
 describe("POST /api/payments/check-reference", () => {
-  it("returns 400 when reference is missing", async () => {
+  it("returns 400 when billId is missing", async () => {
     await testApiHandler({
       pagesHandler: checkReferenceHandler,
       test: async ({ fetch }) => {
         const res = await fetch({
           method: "POST",
           headers: { ...bearer(supervisorToken), "Content-Type": "application/json" },
-          body: JSON.stringify({ billId: 1 }),
+          body: JSON.stringify({ reference: "MPESA-E2E-REF-001" }),
         });
         expect(res.status).toBe(400);
       },

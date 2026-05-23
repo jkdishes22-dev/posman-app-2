@@ -192,11 +192,7 @@ describe("PurchaseOrderService", () => {
     });
 
     it("throws when PO is not in DRAFT status", async () => {
-      const txn = createMockTransactionalEntityManager();
-      const mockTxnPORepo = createMockRepository();
-      mockTxnPORepo.findOne.mockResolvedValue({ id: 1, status: PurchaseOrderStatus.RECEIVED, items: [] });
-      txn.getRepository.mockReturnValue(mockTxnPORepo);
-      mockPORepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
+      mockPORepo.findOne.mockResolvedValue({ id: 1, status: PurchaseOrderStatus.RECEIVED });
 
       await expect(service.updatePurchaseOrder(1, {}, 1)).rejects.toThrow(
         "Cannot update purchase order"
