@@ -20,7 +20,6 @@ export function createMockQueryBuilder() {
     offset: vi.fn().mockReturnThis(),
     skip: vi.fn().mockReturnThis(),
     take: vi.fn().mockReturnThis(),
-    delete: vi.fn().mockReturnThis(),
     set: vi.fn().mockReturnThis(),
     update: vi.fn().mockReturnThis(),
     from: vi.fn().mockReturnThis(),

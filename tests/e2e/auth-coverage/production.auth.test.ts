@@ -27,6 +27,7 @@ const productionCases = [
   { name: "POST /api/production/[id]/sub-items", method: "POST", handler: productionSubItemsHandler, params: { id: "99999" }, body: { itemId: 1, quantity: 1 }, wrong: () => salesToken, ok: () => storekeeperToken },
   { name: "DELETE /api/production/[id]/sub-items/[subItemId]", method: "DELETE", handler: productionSubItemHandler, params: { id: "99999", subItemId: "99999" }, wrong: () => salesToken, ok: () => storekeeperToken },
   { name: "GET /api/production/issues", method: "GET", handler: productionIssuesHandler, wrong: () => salesToken, ok: () => storekeeperToken },
+  { name: "POST /api/production/issues", method: "POST", handler: productionIssuesHandler, body: { item_id: 1, quantity: 1 }, wrong: () => salesToken, ok: () => storekeeperToken },
   { name: "GET /api/production/issues/[id]", method: "GET", handler: productionIssueHandler, params: { id: "99999" }, wrong: () => salesToken, ok: () => storekeeperToken },
   { name: "GET /api/production/preparations", method: "GET", handler: preparationsHandler, wrong: () => salesToken, ok: () => storekeeperToken },
   { name: "POST /api/production/preparations", method: "POST", handler: preparationsHandler, body: { item_id: 1, quantity_prepared: 1 }, wrong: () => salesToken, ok: () => storekeeperToken },
