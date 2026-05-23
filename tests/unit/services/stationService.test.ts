@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createMockDataSource, createMockRepository } from "../mocks/createMockDataSource";
+import { createMockDataSource, createMockRepository, createMockQueryBuilder } from "../mocks/createMockDataSource";
 
 const mockAppDataSourceQuery = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 
@@ -9,7 +9,7 @@ vi.mock("@backend/config/data-source", () => ({
 
 import { StationService } from "@backend/service/StationService";
 import { cache } from "@backend/utils/cache";
-import { UserStationStatus } from "@backend/entities/UserStation";
+import { UserStation, UserStationStatus } from "@backend/entities/UserStation";
 import { StationStatus } from "@backend/entities/Station";
 
 describe("StationService", () => {
@@ -102,19 +102,21 @@ describe("StationService", () => {
 
   describe("setUserDefaultStation", () => {
     it("unsets existing default then sets new default", async () => {
+      const txnQb = createMockQueryBuilder();
+      mockUserStationRepo.manager.transaction.mockImplementationOnce(async (cb: any) =>
+        cb({ createQueryBuilder: vi.fn().mockReturnValue(txnQb) })
+      );
+
       await service.setUserDefaultStation(1, 3);
 
-      expect(mockUserStationRepo.update).toHaveBeenCalledTimes(2);
-      expect(mockUserStationRepo.update).toHaveBeenNthCalledWith(
-        1,
-        { user: { id: 1 } },
-        { isDefault: false }
-      );
-      expect(mockUserStationRepo.update).toHaveBeenNthCalledWith(
-        2,
-        { user: { id: 1 }, station: { id: 3 } },
-        { isDefault: true }
-      );
+      expect(txnQb.update).toHaveBeenNthCalledWith(1, UserStation);
+      expect(txnQb.set).toHaveBeenNthCalledWith(1, { isDefault: false });
+      expect(txnQb.where).toHaveBeenNthCalledWith(1, "user_id = :userId", { userId: 1 });
+
+      expect(txnQb.update).toHaveBeenNthCalledWith(2, UserStation);
+      expect(txnQb.set).toHaveBeenNthCalledWith(2, { isDefault: true });
+      expect(txnQb.where).toHaveBeenNthCalledWith(2, "user_id = :userId", { userId: 1 });
+      expect(txnQb.andWhere).toHaveBeenCalledWith("station_id = :stationId", { stationId: 3 });
     });
 
     it("invalidates user default station cache", async () => {
