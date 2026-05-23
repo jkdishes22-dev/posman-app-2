@@ -8,6 +8,9 @@ on:
     branches:
       - main          # required check before merging to main
 
+permissions:
+  contents: read
+
 jobs:
   e2e-api:
     name: E2E API Tests
