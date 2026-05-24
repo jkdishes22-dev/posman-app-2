@@ -37,11 +37,20 @@ interface JourneyState {
   cashierUser: unknown;
 }
 
+function tokenIsValid(token: string): boolean {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
+    return !payload.exp || payload.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+}
+
 function loadState(): JourneyState | null {
   try {
     if (fs.existsSync(STATE_FILE)) {
       const s = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
-      if (s.salesToken && s.cashierToken) return s as JourneyState;
+      if (s.salesToken && s.cashierToken && tokenIsValid(s.salesToken)) return s as JourneyState;
     }
   } catch {}
   return null;
@@ -143,9 +152,9 @@ test.describe("Admin → Sales → Cashier journey", () => {
     });
     expect(itemRes.status()).toBe(201);
 
-    // Sales user — use the seeded e2e_sales account
+    // Sales user — use the seeded e2e_sales2 account (dedicated to this journey spec)
     const salesLoginRes = await ctx.post("/api/auth/login", {
-      data: { username: "e2e_sales", password: "sales123" },
+      data: { username: "e2e_sales2", password: "sales123" },
     });
     expect(salesLoginRes.status()).toBe(200);
     const salesToken: string = (await salesLoginRes.json()).token;
@@ -172,9 +181,9 @@ test.describe("Admin → Sales → Cashier journey", () => {
       // Endpoint may not exist; page will still work if there is only one station.
     });
 
-    // Cashier user — use the seeded e2e_cashier account
+    // Cashier user — use the seeded e2e_cashier2 account (dedicated to this journey spec)
     const cashierLoginRes = await ctx.post("/api/auth/login", {
-      data: { username: "e2e_cashier", password: "cashier123" },
+      data: { username: "e2e_cashier2", password: "cashier123" },
     });
     expect(cashierLoginRes.status()).toBe(200);
     const cashierToken: string = (await cashierLoginRes.json()).token;
@@ -231,7 +240,7 @@ test.describe("Admin → Sales → Cashier journey", () => {
     await page.goto("/admin/users/view");
     await page.waitForLoadState("networkidle");
     await expect(
-      page.getByText("Sales", { exact: true }),
+      page.getByText("Sales", { exact: true }).first(),
     ).toBeVisible({ timeout: 10000 });
 
     await logout(page);
@@ -241,16 +250,16 @@ test.describe("Admin → Sales → Cashier journey", () => {
     //  Phase 2: Sales user logs in and creates a cash-settled bill
     // ════════════════════════════════════════════════════════════════════════
 
-    await loginViaUI(page, "e2e_sales", "sales123");
+    await loginViaUI(page, "e2e_sales2", "sales123");
     await expect(page).toHaveURL("/home/billing", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
 
     // Wait for the Demo Station badge and Demo Beverages category to appear
     await expect(
-      page.getByText(STATION_NAME, { exact: false }),
+      page.getByText(STATION_NAME, { exact: false }).first(),
     ).toBeVisible({ timeout: 15000 });
     await expect(
-      page.getByText(CATEGORY_NAME, { exact: false }),
+      page.getByText(CATEGORY_NAME, { exact: false }).first(),
     ).toBeVisible({ timeout: 15000 });
 
     // Pick one Demo Flat White
@@ -328,7 +337,7 @@ test.describe("Admin → Sales → Cashier journey", () => {
     //  Phase 3: Cashier logs in and closes the submitted bill
     // ════════════════════════════════════════════════════════════════════════
 
-    await loginViaUI(page, "e2e_cashier", "cashier123");
+    await loginViaUI(page, "e2e_cashier2", "cashier123");
     await expect(page).toHaveURL("/home/cashier", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
 

@@ -53,6 +53,12 @@ export async function setup() {
   if (fs.existsSync(TEST_DB_PATH)) {
     fs.unlinkSync(TEST_DB_PATH);
   }
+  // Clear any Playwright spec state files — they cache JWTs that expire or
+  // belong to a previous seed's user IDs, causing stale-token redirects.
+  const dbDir = path.dirname(TEST_DB_PATH);
+  for (const f of fs.readdirSync(dbDir)) {
+    if (f.endsWith("-state.json")) fs.unlinkSync(path.join(dbDir, f));
+  }
 
   // Dynamic import AFTER env vars are set — this ensures AppDataSource is
   // created with the SQLite config (not MySQL).
@@ -173,6 +179,63 @@ export async function setup() {
       await AppDataSource.query(
         `INSERT INTO "user_roles" (user_id, role_id, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, NULL)`,
         [cashierUserId, cashierRoleRows[0].id],
+      );
+    }
+  }
+
+  // Seed a second sales user dedicated to journey-admin-sales-cashier.spec.ts
+  // so it doesn't share station assignments with e2e_sales used by billing.spec.ts.
+  const sales2HashedPw = await bcrypt.hash("sales123", 10);
+  const sales2Rows = await AppDataSource.query(
+    `SELECT id FROM "user" WHERE username = ?`,
+    ["e2e_sales2"],
+  );
+  if (sales2Rows.length === 0) {
+    const insertResult = await AppDataSource.query(
+      `INSERT INTO "user" (username, firstName, lastName, password, status, is_locked, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'ACTIVE', 0, CURRENT_TIMESTAMP, NULL)`,
+      ["e2e_sales2", "E2E", "Sales", sales2HashedPw],
+    );
+    const sales2UserId: number =
+      typeof insertResult === "object" && insertResult !== null && "insertId" in insertResult
+        ? (insertResult as any).insertId
+        : Number(insertResult);
+    const sales2RoleRows = await AppDataSource.query(
+      `SELECT id FROM "roles" WHERE name = ?`,
+      ["sales"],
+    );
+    if (sales2RoleRows.length > 0 && sales2UserId) {
+      await AppDataSource.query(
+        `INSERT INTO "user_roles" (user_id, role_id, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, NULL)`,
+        [sales2UserId, sales2RoleRows[0].id],
+      );
+    }
+  }
+
+  // Seed a second cashier user dedicated to journey-admin-sales-cashier.spec.ts.
+  const cashier2HashedPw = await bcrypt.hash("cashier123", 10);
+  const cashier2Rows = await AppDataSource.query(
+    `SELECT id FROM "user" WHERE username = ?`,
+    ["e2e_cashier2"],
+  );
+  if (cashier2Rows.length === 0) {
+    const insertResult = await AppDataSource.query(
+      `INSERT INTO "user" (username, firstName, lastName, password, status, is_locked, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'ACTIVE', 0, CURRENT_TIMESTAMP, NULL)`,
+      ["e2e_cashier2", "E2E", "Cashier", cashier2HashedPw],
+    );
+    const cashier2UserId: number =
+      typeof insertResult === "object" && insertResult !== null && "insertId" in insertResult
+        ? (insertResult as any).insertId
+        : Number(insertResult);
+    const cashier2RoleRows = await AppDataSource.query(
+      `SELECT id FROM "roles" WHERE name = ?`,
+      ["cashier"],
+    );
+    if (cashier2RoleRows.length > 0 && cashier2UserId) {
+      await AppDataSource.query(
+        `INSERT INTO "user_roles" (user_id, role_id, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, NULL)`,
+        [cashier2UserId, cashier2RoleRows[0].id],
       );
     }
   }
