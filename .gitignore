@@ -74,3 +74,7 @@ dist-electron/
 
 # Local tool caches - (e.g. better-sqlite3 prebuilds)
 .cache/
+
+# Activation build artifacts (never commit passphrase or derived key)
+build/activation/passphrase
+build/activation/.derived-key
