@@ -102,19 +102,19 @@ describe("StationService", () => {
 
   describe("setUserDefaultStation", () => {
     it("unsets existing default then sets new default", async () => {
+      const txQb = (await import("../mocks/createMockDataSource")).createMockQueryBuilder();
+      mockUserStationRepo.manager.transaction.mockImplementationOnce(async (cb: any) =>
+        cb({ createQueryBuilder: vi.fn().mockReturnValue(txQb) })
+      );
+
       await service.setUserDefaultStation(1, 3);
 
-      expect(mockUserStationRepo.update).toHaveBeenCalledTimes(2);
-      expect(mockUserStationRepo.update).toHaveBeenNthCalledWith(
-        1,
-        { user: { id: 1 } },
-        { isDefault: false }
-      );
-      expect(mockUserStationRepo.update).toHaveBeenNthCalledWith(
-        2,
-        { user: { id: 1 }, station: { id: 3 } },
-        { isDefault: true }
-      );
+      expect(txQb.update).toHaveBeenCalledTimes(2);
+      expect(txQb.set).toHaveBeenNthCalledWith(1, { isDefault: false });
+      expect(txQb.where).toHaveBeenNthCalledWith(1, "user_id = :userId", { userId: 1 });
+      expect(txQb.set).toHaveBeenNthCalledWith(2, { isDefault: true });
+      expect(txQb.where).toHaveBeenNthCalledWith(2, "user_id = :userId", { userId: 1 });
+      expect(txQb.andWhere).toHaveBeenCalledWith("station_id = :stationId", { stationId: 3 });
     });
 
     it("invalidates user default station cache", async () => {
