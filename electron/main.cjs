@@ -10,6 +10,8 @@ const fs = require("fs");
 const os = require("os");
 const crypto = require("crypto");
 
+const { verifyWithDerivedKey, deriveActivationHmacKey } = require("./activation-code.cjs");
+
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const isProduction = !isDev;
 /** Set JK_POSMAN_DEBUG_STARTUP=1 for verbose path probes, resources listing, and per-tick readiness logs. */
@@ -184,6 +186,164 @@ function resolveLicensePublicKeyForRuntime() {
     }
     return null;
 }
+
+// ── Trusted Distribution / Activation ──────────────────────────────────────
+const ACTIVATION_HMAC_KEY = "jkpm-act-integrity-v1";
+
+/**
+ * Resolve the activation HMAC key (64-byte Buffer).
+ * Priority:
+ *  1. Packaged resources — activation/activation.key (hex, written at build time).
+ *     The plain passphrase is NEVER bundled; only the derived key ships in the installer.
+ *  2. ACTIVATION_PASSPHRASE env var — derives key at runtime (dev/CI convenience).
+ *  3. User-profile passphrase file — allows owner to override on their own machine.
+ */
+function resolveActivationKey() {
+    const keyCandidates = [];
+    if (process.resourcesPath) {
+        keyCandidates.push(path.join(process.resourcesPath, "activation", "activation.key"));
+    }
+    if (app.isPackaged) {
+        keyCandidates.push(path.join(path.dirname(process.execPath), "resources", "activation", "activation.key"));
+    } else {
+        keyCandidates.push(path.join(process.cwd(), "build", "activation", ".derived-key"));
+    }
+    for (const candidate of keyCandidates) {
+        try {
+            if (!fs.existsSync(candidate)) continue;
+            const hex = fs.readFileSync(candidate, "utf8").trim();
+            if (hex.length === 128) {
+                logToFile(`Using derived activation key from: ${candidate}`);
+                return Buffer.from(hex, "hex");
+            }
+        } catch (e) {
+            logToFile(`Failed to read activation key from ${candidate}: ${e.message}`, "ERROR");
+        }
+    }
+
+    const envPass = String(process.env.ACTIVATION_PASSPHRASE || "").trim();
+    if (envPass) {
+        logToFile("Deriving activation key from ACTIVATION_PASSPHRASE env var.");
+        return deriveActivationHmacKey(envPass);
+    }
+
+    const appData = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
+    const userPassPath = process.platform === "darwin"
+        ? path.join(os.homedir(), "Library", "Application Support", "JK PosMan", "activation", "passphrase")
+        : process.platform === "win32"
+            ? path.join(appData, "JK PosMan", "activation", "passphrase")
+            : path.join(app.getPath("userData"), "activation", "passphrase");
+    try {
+        if (fs.existsSync(userPassPath)) {
+            const pp = fs.readFileSync(userPassPath, "utf8").trim();
+            if (pp) {
+                logToFile(`Deriving activation key from user-profile passphrase: ${userPassPath}`);
+                return deriveActivationHmacKey(pp);
+            }
+        }
+    } catch (e) {
+        logToFile(`Failed to read user-profile passphrase: ${e.message}`, "ERROR");
+    }
+
+    return null;
+}
+
+function getActivationPath() {
+    return path.join(app.getPath("userData"), "activation.dat");
+}
+
+function getDiskSerialWindows() {
+    const { execSync } = require("child_process");
+    const isBadSerial = (v) => !v || v.toLowerCase() === "none" || v === "0";
+    try {
+        const raw = execSync("wmic diskdrive get serialnumber /value", { timeout: 3000, windowsHide: true });
+        const out = raw.toString().replace(/\x00/g, "");
+        const m   = out.match(/SerialNumber=(.+)/);
+        const val = m ? m[1].trim() : null;
+        if (!isBadSerial(val)) return val;
+    } catch (_) { /* wmic unavailable — try PowerShell */ }
+    try {
+        const out = execSync(
+            'powershell -NoProfile -NonInteractive -Command "(Get-CimInstance Win32_DiskDrive | Select-Object -First 1).SerialNumber"',
+            { timeout: 5000, windowsHide: true },
+        ).toString().trim();
+        if (!isBadSerial(out)) return out;
+    } catch (_) { /* PowerShell also unavailable */ }
+    return null;
+}
+
+function computeFingerprint() {
+    const parts = [];
+
+    // Prefer universally-administered MACs (bit 1 of first octet = 0).
+    // Locally-administered MACs (0x02 bit set) are typical of virtual adapters.
+    const nets      = Object.values(os.networkInterfaces()).flat();
+    const isUniversal = (mac) => (parseInt(mac.split(":")[0], 16) & 0x02) === 0;
+    const pickMac   = (strict) => nets.find(n =>
+        !n.internal && n.mac && n.mac !== "00:00:00:00:00:00" &&
+        (!strict || isUniversal(n.mac))
+    );
+    const phys = pickMac(true) ?? pickMac(false);
+    if (phys) parts.push(phys.mac.replace(/:/g, "").toUpperCase());
+
+    const cpus = os.cpus();
+    if (cpus.length) parts.push(cpus[0].model.trim());
+    parts.push(os.hostname());
+
+    if (process.platform === "win32") {
+        const serial = getDiskSerialWindows();
+        if (serial) parts.push(serial);
+    }
+
+    const hash = crypto.createHash("sha256").update(parts.join("|")).digest("hex");
+    const raw  = hash.substring(0, 12).toUpperCase();
+    return { raw, display: (raw.match(/.{4}/g) ?? [raw]).join("-") };
+}
+
+function isActivationRecordIntact(stored) {
+    if (!stored || !stored.tag) return false;
+    const { tag, ...data } = stored;
+    const expected = crypto.createHmac("sha256", ACTIVATION_HMAC_KEY)
+        .update(JSON.stringify(data)).digest("hex");
+    return tag === expected;
+}
+
+function writeActivationRecord(fpRaw) {
+    const data = {
+        v: 1,
+        fp: crypto.createHash("sha256").update(fpRaw).digest("hex"),
+        at: new Date().toISOString(),
+        host: os.hostname(),
+    };
+    const tag = crypto.createHmac("sha256", ACTIVATION_HMAC_KEY)
+        .update(JSON.stringify(data)).digest("hex");
+    fs.writeFileSync(getActivationPath(), JSON.stringify({ ...data, tag }), "utf8");
+    logToFile("Activation record written");
+}
+
+function checkActivationState() {
+    let stored = null;
+    try {
+        const p = getActivationPath();
+        if (!fs.existsSync(p)) return { ok: false, reason: "not_activated", hard: false };
+        stored = JSON.parse(fs.readFileSync(p, "utf8"));
+    } catch {
+        return { ok: false, reason: "tampered", hard: true };
+    }
+    if (!isActivationRecordIntact(stored)) {
+        logToFile("Activation tamper detected — HMAC mismatch", "ERROR");
+        return { ok: false, reason: "tampered", hard: true };
+    }
+    const { raw } = computeFingerprint();
+    const fpHash  = crypto.createHash("sha256").update(raw).digest("hex");
+    if (fpHash !== stored.fp) {
+        logToFile("Activation fingerprint mismatch — different machine or hardware changed");
+        return { ok: false, reason: "hardware_changed", hard: false };
+    }
+    logToFile(`Activation OK (activated ${stored.at})`);
+    return { ok: true };
+}
+// ── End Activation ──────────────────────────────────────────────────────────
 
 function ensureLogDir() {
     if (logDirEnsured) return;
@@ -1005,28 +1165,57 @@ ipcMain.handle("backup-database", async () => {
     }
 });
 
-/**
- * App lifecycle handlers
- */
-app.whenReady().then(async () => {
-    // Enforce single instance — if another JK PosMan is already open, focus it and quit this one.
-    if (!app.requestSingleInstanceLock()) {
-        logToFile("Another instance is already running — quitting duplicate");
-        app.quit();
-        return;
+// IPC: return the machine fingerprint display code to the activation screen
+ipcMain.handle("get-installation-id", () => {
+    try {
+        return computeFingerprint().display;
+    } catch (err) {
+        logToFile(`get-installation-id error: ${err.message}`, "ERROR");
+        return "UNKNOWN";
     }
-    // When a second instance tries to open, bring the existing window to the front.
-    app.on("second-instance", () => {
-        if (mainWindow) {
-            if (mainWindow.isMinimized()) mainWindow.restore();
-            mainWindow.focus();
+});
+
+// IPC: called by the activation screen when the user submits a code
+ipcMain.handle("complete-activation", async (_event, code) => {
+    try {
+        const normalized = String(code).replace(/\D/g, "");
+        if (!/^\d{8}$/.test(normalized)) {
+            return { ok: false, error: "Invalid code format." };
         }
-    });
 
-    logToFile("App is ready, creating window with loading screen...");
-    createWindow();
+        const hmacKey = resolveActivationKey();
+        if (!hmacKey) {
+            logToFile("Activation key not found (build/activation/.derived-key missing or ACTIVATION_PASSPHRASE not set)", "ERROR");
+            return {
+                ok: false,
+                error: "Activation is not configured on this build. Contact your provider.",
+            };
+        }
 
-    // Show a loading page immediately so the user sees something while the server starts.
+        const { raw } = computeFingerprint();
+        if (!verifyWithDerivedKey(raw, normalized, hmacKey)) {
+            logToFile("Activation rejected — code does not match installation ID", "ERROR");
+            return {
+                ok: false,
+                error: "Invalid activation code. Check the code from your provider and try again.",
+            };
+        }
+
+        writeActivationRecord(raw);
+        // Start the app after a short delay so the renderer can show "Activated!"
+        setTimeout(() => startApp(), 800);
+        return { ok: true };
+    } catch (err) {
+        logToFile(`complete-activation error: ${err.message}`, "ERROR");
+        return { ok: false, error: "Activation failed. Please try again." };
+    }
+});
+
+/**
+ * Start the Next.js server and load the app URL.
+ * Called on normal launch (already activated) and after the activation screen succeeds.
+ */
+async function startApp() {
     const loadingPage = "data:text/html;charset=utf-8," + encodeURIComponent(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>JK PosMan</title>
 <style>*{margin:0;box-sizing:border-box}
@@ -1077,8 +1266,6 @@ border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
         logToFile(`Failed to start application: ${error.message}`, "ERROR");
         logToFile(`Error stack: ${error.stack}`, "ERROR");
 
-        // Show error inside the window instead of a blocking dialog so the user can still
-        // read the message without the app becoming unresponsive.
         const errorPage = "data:text/html;charset=utf-8," + encodeURIComponent(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>JK PosMan — Startup Error</title>
 <style>*{margin:0;box-sizing:border-box}
@@ -1103,6 +1290,40 @@ button:hover{background:#2563eb}</style></head>
             });
         }
     }
+}
+
+/**
+ * App lifecycle handlers
+ */
+app.whenReady().then(async () => {
+    // Enforce single instance — if another JK PosMan is already open, focus it and quit this one.
+    if (!app.requestSingleInstanceLock()) {
+        logToFile("Another instance is already running — quitting duplicate");
+        app.quit();
+        return;
+    }
+    // When a second instance tries to open, bring the existing window to the front.
+    app.on("second-instance", () => {
+        if (mainWindow) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+        }
+    });
+
+    logToFile("App is ready, creating window...");
+    createWindow();
+
+    const activationState = checkActivationState();
+    if (!activationState.ok) {
+        logToFile(`Activation required (${activationState.reason})`);
+        mainWindow.loadFile(
+            path.join(__dirname, "activation.html"),
+            activationState.hard ? { query: { hard: "1" } } : {},
+        );
+        return; // startApp() is called from the complete-activation IPC handler
+    }
+
+    await startApp();
 }).catch((err) => {
     // Safety net: if something throws outside the inner try/catch, log it here.
     logToFile(`Unhandled error in app.whenReady startup: ${err?.message || err}`, "ERROR");

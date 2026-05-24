@@ -10,6 +10,7 @@ import CashierPageLayout from "./CashierPageLayout";
 import StoreKeeperPageLayout from "./StoreKeeperPageLayout";
 import { useAuth } from "../contexts/AuthContext";
 import { decodeJwt } from "../utils/tokenUtils";
+import LicenseStatusMonitor from "../components/LicenseStatusMonitor";
 
 interface RoleAwareLayoutProps {
     children: React.ReactNode;
@@ -139,21 +140,21 @@ export default function RoleAwareLayout({ children }: RoleAwareLayoutProps) {
     const normalizedRole = role?.toLowerCase();
 
     if (normalizedRole === "admin") {
-        return <AdminLayout authError={null}>{children}</AdminLayout>;
+        return <><LicenseStatusMonitor /><AdminLayout authError={null}>{children}</AdminLayout></>;
     }
     if (normalizedRole === "supervisor") {
-        return <SupervisorLayout authError={null}>{children}</SupervisorLayout>;
+        return <><LicenseStatusMonitor /><SupervisorLayout authError={null}>{children}</SupervisorLayout></>;
     }
     if (normalizedRole === "sales") {
-        return <SalesLayout authError={null}>{children}</SalesLayout>;
+        return <><LicenseStatusMonitor /><SalesLayout authError={null}>{children}</SalesLayout></>;
     }
     if (normalizedRole === "cashier") {
-        return <CashierLayout authError={null}>{children}</CashierLayout>;
+        return <><LicenseStatusMonitor /><CashierLayout authError={null}>{children}</CashierLayout></>;
     }
     if (normalizedRole === "storekeeper") {
-        return <StoreKeeperPageLayout authError={null}>{children}</StoreKeeperPageLayout>;
+        return <><LicenseStatusMonitor /><StoreKeeperPageLayout authError={null}>{children}</StoreKeeperPageLayout></>;
     }
 
     // Default fallback for users without a recognized role
-    return <HomePageLayout>{children}</HomePageLayout>;
+    return <><LicenseStatusMonitor /><HomePageLayout>{children}</HomePageLayout></>;
 } 
