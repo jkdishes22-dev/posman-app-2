@@ -24,12 +24,24 @@ const STATE_FILE = path.join(
 let salesToken = "";
 let salesUserData: unknown = null;
 
+function tokenIsValid(token: string): boolean {
+  try {
+    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
+    return !payload.exp || payload.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+}
+
 function loadState() {
   try {
     if (fs.existsSync(STATE_FILE)) {
       const s = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
-      salesToken = s.token ?? "";
-      salesUserData = s.user ?? null;
+      const token = s.token ?? "";
+      if (token && tokenIsValid(token)) {
+        salesToken = token;
+        salesUserData = s.user ?? null;
+      }
     }
   } catch {
     // ignore — will re-run setup
