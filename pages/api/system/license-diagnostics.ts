@@ -1,8 +1,15 @@
+import crypto from "crypto";
+import os from "os";
 import { NextApiRequest, NextApiResponse } from "next";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { authMiddleware } from "@backend/middleware/auth";
 import { licenseService } from "@backend/licensing/LicenseService";
+
+function getMachineFingerprintHash(): string {
+  const raw = [os.platform(), os.arch(), os.hostname(), os.release(), os.userInfo().username].join("|");
+  return crypto.createHash("sha256").update(raw).digest("hex");
+}
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== "GET") {
@@ -24,6 +31,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     planType: status.planType,
     expiresAt: status.expiresAt,
     checkedAt: new Date().toISOString(),
+    machineId: getMachineFingerprintHash(),
   });
 };
 

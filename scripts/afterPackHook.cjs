@@ -406,6 +406,25 @@ module.exports = async function (context) {
         handledAny = true;
     }
 
+    // Verify the activation key landed in the correct platform-specific resources directory.
+    // Placed there by extraResources (from build/activation/.derived-key).
+    {
+        let resourcesDir = path.join(appOutDir, "resources");
+        if (context.electronPlatformName === "darwin") {
+            try {
+                const appBundle = fs.readdirSync(appOutDir).find(n => n.endsWith(".app"));
+                if (appBundle) resourcesDir = path.join(appOutDir, appBundle, "Contents", "Resources");
+            } catch { /* keep fallback */ }
+        }
+        const keyInPkg = path.join(resourcesDir, "activation", "activation.key");
+        if (fs.existsSync(keyInPkg)) {
+            log(`\n   ✅ Activation key present at ${keyInPkg}`);
+        } else {
+            err(`\n   ❌ Activation key NOT found at ${keyInPkg}`);
+            err(`      Create build/activation/passphrase (gitignored) or set ACTIVATION_PASSPHRASE env var before building.`);
+        }
+    }
+
     // For Windows builds: replace native .node binaries for the *packager* CPU arch.
     // Must run after the node_modules copy so the replacement always wins.
     if (context.electronPlatformName === "win32") {

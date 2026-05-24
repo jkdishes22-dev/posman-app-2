@@ -5,6 +5,8 @@ export interface LicensePayload {
   planType: LicensePlanType;
   expiresAt: string | null;
   machineBindingRequired: boolean;
+  /** SHA-256 fingerprint of the machine this license is bound to at issuance time. */
+  machineId?: string;
   issuedAt: string;
   customerRef?: string;
   notes?: string;

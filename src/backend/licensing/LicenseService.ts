@@ -312,9 +312,19 @@ class LicenseService {
   }
 
   private async enforceMachineBinding(payload: LicensePayload): Promise<void> {
+    const currentHash = this.getMachineFingerprintHash();
+
+    // Certificate-level binding: if the license was issued for a specific machine,
+    // reject it on any other machine regardless of machineBindingRequired.
+    if (payload.machineId && payload.machineId !== currentHash) {
+      throw new LicenseValidationError(
+        "LICENSE_INVALID",
+        "This license was issued for a different machine and cannot be activated here.",
+      );
+    }
+
     if (!payload.machineBindingRequired) return;
 
-    const currentHash = this.getMachineFingerprintHash();
     const storedHash = await this.getStoredMachineBinding();
     if (!storedHash) {
       await this.setMachineBinding(currentHash);
@@ -435,8 +445,14 @@ async getStatus(forceRefresh = false): Promise<LicenseValidationResult> {
     if (!forceRefresh) {
       const diskCache = this.readDiskCache();
       if (diskCache && new Date(diskCache.cacheExpiresAt).getTime() > Date.now()) {
-        // Cheap expiry re-check using the cached payload — no file I/O or crypto needed
-        if (diskCache.payload?.expiresAt) {
+        // If the license file itself is gone, the disk cache is stale — the user deliberately
+        // removed the file and expects to be re-prompted. Invalidate both caches.
+        if (!fs.existsSync(this.getLicenseFilePath())) {
+          this.clearDiskCache();
+          this.cache = null;
+          // Fall through to full re-validation; readEncryptedCertificate will return null.
+        } else if (diskCache.payload?.expiresAt) {
+          // Cheap expiry re-check using the cached payload — no file I/O or crypto needed
           const licenseExpiry = new Date(diskCache.payload.expiresAt).getTime();
           if (Date.now() > licenseExpiry) {
             // License expired since we last cached — force full re-validation

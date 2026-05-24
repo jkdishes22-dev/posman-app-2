@@ -208,6 +208,23 @@ const LoginForm = () => {
           return;
         }
 
+        if (result.status === 402 || result.status === 403) {
+          // License check failed at login time (e.g. license.dat deleted while app was running).
+          // Update setupStatus directly so the license entry form becomes visible.
+          const errorCode = result.errorDetails?.errorCode as string | undefined;
+          let state: SetupState;
+          if (errorCode === "LICENSE_EXPIRED") state = "license_expired";
+          else if (errorCode === "LICENSE_INVALID" || result.status === 403) state = "license_invalid";
+          else state = "license_required";
+          setSetupStatus({
+            state,
+            message: result.error || "A valid license is required to use this application.",
+            code: (errorCode || "LICENSE_REQUIRED") as SetupStatus["code"],
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
         // Show specific error message for invalid credentials
         if (result.status === 401) {
           setError("Invalid username or password");
