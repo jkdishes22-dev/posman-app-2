@@ -5,6 +5,7 @@ import suppliersHandler from "../../pages/api/suppliers/index.js";
 import categoriesHandler from "../../pages/api/menu/categories/index.js";
 import pricelistsHandler from "../../pages/api/menu/pricelists/index.js";
 import itemsHandler from "../../pages/api/menu/items/index.js";
+import purchaseItemsHandler from "../../pages/api/purchase-items/index.js";
 import { getAdminToken, bearer } from "./setup/helpers.js";
 
 let adminToken: string;
@@ -73,6 +74,22 @@ beforeAll(async () => {
         }),
       });
       if (res.ok) itemId = (await res.json()).id;
+    },
+  });
+
+  // --- Purchase unit config (required before a PO can reference this item) ---
+  await testApiHandler({
+    pagesHandler: purchaseItemsHandler,
+    test: async ({ fetch }) => {
+      await fetch({
+        method: "POST",
+        headers: { ...bearer(adminToken), "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item_id: itemId,
+          purchase_unit_label: "Box",
+          purchase_unit_qty: 10,
+        }),
+      });
     },
   });
 });
