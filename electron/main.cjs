@@ -295,8 +295,10 @@ async function getDiskSerialWindows() {
         if (!isBadSerial(val)) return val;
     } catch (_) { /* wmic unavailable — try PowerShell */ }
     try {
+        // Get-WmiObject ships with PowerShell 2.0 (Windows 7 default).
+        // Get-CimInstance requires PS 3.0+ and is absent on bare Win 7.
         const out = (await runCmd(
-            'powershell -NoProfile -NonInteractive -Command "(Get-CimInstance Win32_DiskDrive | Select-Object -First 1).SerialNumber"',
+            'powershell -NoProfile -NonInteractive -Command "(Get-WmiObject Win32_DiskDrive | Select-Object -First 1).SerialNumber"',
             5000,
         )).trim();
         if (!isBadSerial(out)) return out;
