@@ -22,6 +22,32 @@ const verboseStartup =
 let mainWindow = null;
 let nextServer = null;
 let resolvedStandaloneDir = null;
+/** Cached machine fingerprint — computed once per process, reused by all IPC callers. */
+let _cachedFingerprint = null;
+
+/**
+ * Loading/splash page shown while the Next.js server boots.
+ * Defined at module level so it can be loaded in app.whenReady() BEFORE the
+ * activation check, giving users instant visual feedback even on slow machines.
+ */
+const LOADING_PAGE_URL = "data:text/html;charset=utf-8," + encodeURIComponent(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>JK PosMan</title>
+<style>*{margin:0;box-sizing:border-box}
+body{background:#0f172a;color:#94a3b8;font-family:system-ui,sans-serif;
+display:flex;justify-content:center;align-items:center;height:100vh}
+.card{text-align:center;padding:2rem}
+h2{color:#e2e8f0;font-size:1.5rem;margin-bottom:.5rem}
+.sub{font-size:.9rem;margin-bottom:1.5rem}
+.hint{font-size:.75rem;opacity:.5;margin-top:1rem}
+.spinner{width:36px;height:36px;border:3px solid #1e3a5f;border-top-color:#3b82f6;
+border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
+@keyframes spin{to{transform:rotate(360deg)}}</style></head>
+<body><div class="card">
+<div class="spinner"></div>
+<h2>JK PosMan</h2>
+<p class="sub">Starting application, please wait…</p>
+<p class="hint">First launch initialises the database and may take up to a minute.</p>
+</div></body></html>`);
 // Use custom port 8817 to avoid conflicts with other services (like Metabase on 3000, Next.js dev on 3000, etc.)
 const PORT = process.env.PORT || 2026;
 const HOST = "localhost";
@@ -252,27 +278,38 @@ function getActivationPath() {
     return path.join(app.getPath("userData"), "activation.dat");
 }
 
-function getDiskSerialWindows() {
-    const { execSync } = require("child_process");
+async function getDiskSerialWindows() {
+    const { exec } = require("child_process");
     const isBadSerial = (v) => !v || v.toLowerCase() === "none" || v === "0";
+    /** Run a shell command non-blockingly, resolving to stdout or "" on error/timeout. */
+    const runCmd = (cmd, timeoutMs) =>
+        new Promise((resolve) => {
+            exec(cmd, { timeout: timeoutMs, windowsHide: true }, (err, stdout) =>
+                resolve(err ? "" : stdout));
+        });
     try {
-        const raw = execSync("wmic diskdrive get serialnumber /value", { timeout: 3000, windowsHide: true });
-        const out = raw.toString().replace(/\x00/g, "");
+        const raw = await runCmd("wmic diskdrive get serialnumber /value", 3000);
+        const out = raw.replace(/\x00/g, "");
         const m   = out.match(/SerialNumber=(.+)/);
         const val = m ? m[1].trim() : null;
         if (!isBadSerial(val)) return val;
     } catch (_) { /* wmic unavailable — try PowerShell */ }
     try {
-        const out = execSync(
-            'powershell -NoProfile -NonInteractive -Command "(Get-CimInstance Win32_DiskDrive | Select-Object -First 1).SerialNumber"',
-            { timeout: 5000, windowsHide: true },
-        ).toString().trim();
+        // Get-WmiObject ships with PowerShell 2.0 (Windows 7 default).
+        // Get-CimInstance requires PS 3.0+ and is absent on bare Win 7.
+        const out = (await runCmd(
+            'powershell -NoProfile -NonInteractive -Command "(Get-WmiObject Win32_DiskDrive | Select-Object -First 1).SerialNumber"',
+            5000,
+        )).trim();
         if (!isBadSerial(out)) return out;
     } catch (_) { /* PowerShell also unavailable */ }
     return null;
 }
 
-function computeFingerprint() {
+async function computeFingerprint() {
+    // Return the cached result — fingerprint never changes within a single process lifetime.
+    if (_cachedFingerprint) return _cachedFingerprint;
+
     const parts = [];
 
     // Prefer universally-administered MACs (bit 1 of first octet = 0).
@@ -291,13 +328,16 @@ function computeFingerprint() {
     parts.push(os.hostname());
 
     if (process.platform === "win32") {
-        const serial = getDiskSerialWindows();
+        // getDiskSerialWindows is async — awaiting it is now safe because computeFingerprint
+        // is only called from async contexts (checkActivationState, IPC handlers).
+        const serial = await getDiskSerialWindows();
         if (serial) parts.push(serial);
     }
 
     const hash = crypto.createHash("sha256").update(parts.join("|")).digest("hex");
     const raw  = hash.substring(0, 12).toUpperCase();
-    return { raw, display: (raw.match(/.{4}/g) ?? [raw]).join("-") };
+    _cachedFingerprint = { raw, display: (raw.match(/.{4}/g) ?? [raw]).join("-") };
+    return _cachedFingerprint;
 }
 
 function isActivationRecordIntact(stored) {
@@ -321,7 +361,7 @@ function writeActivationRecord(fpRaw) {
     logToFile("Activation record written");
 }
 
-function checkActivationState() {
+async function checkActivationState() {
     let stored = null;
     try {
         const p = getActivationPath();
@@ -334,7 +374,7 @@ function checkActivationState() {
         logToFile("Activation tamper detected — HMAC mismatch", "ERROR");
         return { ok: false, reason: "tampered", hard: true };
     }
-    const { raw } = computeFingerprint();
+    const { raw } = await computeFingerprint();
     const fpHash  = crypto.createHash("sha256").update(raw).digest("hex");
     if (fpHash !== stored.fp) {
         logToFile("Activation fingerprint mismatch — different machine or hardware changed");
@@ -1166,9 +1206,9 @@ ipcMain.handle("backup-database", async () => {
 });
 
 // IPC: return the machine fingerprint display code to the activation screen
-ipcMain.handle("get-installation-id", () => {
+ipcMain.handle("get-installation-id", async () => {
     try {
-        return computeFingerprint().display;
+        return (await computeFingerprint()).display;
     } catch (err) {
         logToFile(`get-installation-id error: ${err.message}`, "ERROR");
         return "UNKNOWN";
@@ -1192,7 +1232,7 @@ ipcMain.handle("complete-activation", async (_event, code) => {
             };
         }
 
-        const { raw } = computeFingerprint();
+        const { raw } = await computeFingerprint();
         if (!verifyWithDerivedKey(raw, normalized, hmacKey)) {
             logToFile("Activation rejected — code does not match installation ID", "ERROR");
             return {
@@ -1216,25 +1256,10 @@ ipcMain.handle("complete-activation", async (_event, code) => {
  * Called on normal launch (already activated) and after the activation screen succeeds.
  */
 async function startApp() {
-    const loadingPage = "data:text/html;charset=utf-8," + encodeURIComponent(`<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>JK PosMan</title>
-<style>*{margin:0;box-sizing:border-box}
-body{background:#0f172a;color:#94a3b8;font-family:system-ui,sans-serif;
-display:flex;justify-content:center;align-items:center;height:100vh}
-.card{text-align:center;padding:2rem}
-h2{color:#e2e8f0;font-size:1.5rem;margin-bottom:.5rem}
-.sub{font-size:.9rem;margin-bottom:1.5rem}
-.hint{font-size:.75rem;opacity:.5;margin-top:1rem}
-.spinner{width:36px;height:36px;border:3px solid #1e3a5f;border-top-color:#3b82f6;
-border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem}
-@keyframes spin{to{transform:rotate(360deg)}}</style></head>
-<body><div class="card">
-<div class="spinner"></div>
-<h2>JK PosMan</h2>
-<p class="sub">Starting application, please wait…</p>
-<p class="hint">First launch initialises the database and may take up to a minute.</p>
-</div></body></html>`);
-    mainWindow.loadURL(loadingPage).catch((err) => {
+    // LOADING_PAGE_URL is the module-level constant — already shown by app.whenReady()
+    // on first launch, but we re-load it here in case startApp() is called after the
+    // activation screen so the user sees the spinner while the server boots.
+    mainWindow.loadURL(LOADING_PAGE_URL).catch((err) => {
         logToFile(`Failed to load loading page: ${err?.message || err}`, "ERROR");
     });
 
@@ -1313,7 +1338,14 @@ app.whenReady().then(async () => {
     logToFile("App is ready, creating window...");
     createWindow();
 
-    const activationState = checkActivationState();
+    // Show the loading spinner immediately so the user sees visual feedback while
+    // checkActivationState() runs (on Windows, fingerprint computation was previously
+    // a synchronous 3-5 s block before any UI appeared).
+    mainWindow.loadURL(LOADING_PAGE_URL).catch((err) => {
+        logToFile(`Failed to load initial loading page: ${err?.message || err}`, "ERROR");
+    });
+
+    const activationState = await checkActivationState();
     if (!activationState.ok) {
         logToFile(`Activation required (${activationState.reason})`);
         mainWindow.loadFile(
