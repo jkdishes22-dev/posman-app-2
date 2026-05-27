@@ -28,8 +28,12 @@ const STATE_FILE = path.join(
 
 function stateExists(): boolean {
   try {
-    return fs.existsSync(STATE_FILE) &&
-      !!JSON.parse(fs.readFileSync(STATE_FILE, "utf8")).token;
+    if (!fs.existsSync(STATE_FILE)) return false;
+    const s = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
+    const token: string = s.token ?? "";
+    if (!token) return false;
+    const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
+    return !payload.exp || payload.exp * 1000 > Date.now();
   } catch {
     return false;
   }

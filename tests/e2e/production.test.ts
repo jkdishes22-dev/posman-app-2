@@ -111,7 +111,7 @@ describe("GET /api/production/preparations", () => {
         });
         expect(res.status).toBe(200);
         const data = await res.json();
-        const list = Array.isArray(data) ? data : data.preparations ?? data.data ?? [];
+        const list = Array.isArray(data) ? data : data.items ?? data.preparations ?? data.data ?? [];
         expect(list.length).toBeGreaterThan(0);
       },
     });
