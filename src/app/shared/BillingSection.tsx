@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from "react";
+import styles from "./BillingSection.module.css";
 import { usePathname } from "next/navigation";
 import { Item } from "../types/types";
 import QuantityModal from "./QuantityModal";
@@ -1000,12 +1001,12 @@ const BillingSection = () => {
   }
 
   return (
-    <div className="container-fluid p-0 billing-screen">
-      {/* Main Content - Improved Layout */}
-      <div className="row g-1">
+    <div className={`billing-screen ${styles.billingViewport}`}>
+      {/* Side-by-side panels: items (left) + current bill (right) */}
+      <div className={styles.panelsRow}>
         {/* Available Items Section */}
-        <div className="col-lg-6">
-          <div className="card border-0 shadow-sm h-100 items-section">
+        <div className={styles.panel}>
+          <div className={`card border-0 shadow-sm ${styles.panelCard}`}>
             <div className="card-header bg-light border-bottom py-2 px-3">
               <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div className="d-flex align-items-center gap-2">
@@ -1040,7 +1041,7 @@ const BillingSection = () => {
                 </div>
               </div>
             </div>
-            <div className="card-body p-0">
+            <div className={`card-body p-0 ${styles.panelCardBody}`}>
               <ErrorDisplay
                 error={itemError}
                 onDismiss={() => setItemError("")}
@@ -1091,9 +1092,9 @@ const BillingSection = () => {
           </div>
         </div>
 
-        {/* Billing Section - Improved */}
-        <div className="col-lg-6">
-          <div className="card border-0 shadow-sm h-100 bill-section">
+        {/* Current Bill Section */}
+        <div className={styles.panel}>
+          <div className={`card border-0 shadow-sm ${styles.panelCard}`}>
             <div className="card-header bg-light border-bottom py-2">
               <div className="d-flex align-items-center justify-content-between">
                 <h6 className="mb-0 fw-bold text-dark">
@@ -1112,7 +1113,7 @@ const BillingSection = () => {
                 </div>
               </div>
             </div>
-            <div className="card-body p-3 billing-current-bill-body">
+            <div className={`card-body p-3 ${styles.billCardBody}`}>
               <div className="table-responsive">
                 <table className="table table-hover mb-0">
                   <thead className="table-light sticky-top">
@@ -1250,36 +1251,35 @@ const BillingSection = () => {
         </div>
       </div>
 
-      {/* Categories Section - Compact */}
-      <div className={`row mt-1 categories-section ${hasExpandedItems ? "categories-section-expanded" : ""}`}>
-        <div className="col-12">
-          <div className={`card border-0 shadow-sm categories-card ${hasExpandedItems ? "categories-card-expanded" : ""}`}>
-            <div className="card-body py-2 px-3">
-              <Suspense fallback={
-                <div className="text-center p-2">
-                  <Spinner animation="border" size="sm" className="me-2" />
-                  <span>Loading categories...</span>
-                </div>
-              }>
-                <Categories
-                  categories={categories}
-                  onCategoryClick={(category) => {
-                    // Treat category switch as "start new bill" when no active bill is available.
-                    if (createdBill) {
-                      resetForNewBill();
-                    }
-                    setShowingTopItems(false);
-                    setSelectedCategory(category);
-                    const noInFlightSelections = selectedItems.length === 0;
-                    fetchItems(category.id, { preferCache: noInFlightSelections });
-                  }}
-                  onDeleteCategory={undefined}
-                  fetchError={fetchCategoryError}
-                  showHeader={false}
-                  billingMode={true}
-                />
-              </Suspense>
-            </div>
+      {/* Categories horizontal scroll strip */}
+      <div className={styles.categoriesStrip}>
+        <div className="card border-0 shadow-sm">
+          <div className="card-body py-2 px-3">
+            <Suspense fallback={
+              <div className="text-center p-2">
+                <Spinner animation="border" size="sm" className="me-2" />
+                <span>Loading categories...</span>
+              </div>
+            }>
+              <Categories
+                categories={categories}
+                selectedCategoryId={(selectedCategory as { id: string } | null)?.id ?? null}
+                onCategoryClick={(category) => {
+                  // Treat category switch as "start new bill" when no active bill is available.
+                  if (createdBill) {
+                    resetForNewBill();
+                  }
+                  setShowingTopItems(false);
+                  setSelectedCategory(category);
+                  const noInFlightSelections = selectedItems.length === 0;
+                  fetchItems(category.id, { preferCache: noInFlightSelections });
+                }}
+                onDeleteCategory={undefined}
+                fetchError={fetchCategoryError}
+                showHeader={false}
+                billingMode={true}
+              />
+            </Suspense>
           </div>
         </div>
       </div>

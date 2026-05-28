@@ -68,6 +68,10 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
   const [searchInputValue, setSearchInputValue] = useState<string>("");
   const [selectedSearchItem, setSelectedSearchItem] = useState<Item | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  /** Ref for the scrollable table container (billing mode only). */
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const [atTop, setAtTop] = useState(true);
+  const [atBottom, setAtBottom] = useState(false);
 
   const apiCall = useApiCall();
 
@@ -144,6 +148,31 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
       return true;
     });
   }, [uniqueItems, selectedSearchItem, searchTerm, activeTab]);
+
+  /** Re-evaluate scroll arrow visibility whenever the item list changes (billing only). */
+  const handleTableScroll = useCallback(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    setAtTop(el.scrollTop <= 1);
+    setAtBottom(el.scrollTop + el.clientHeight >= el.scrollHeight - 2);
+  }, []);
+
+  useEffect(() => {
+    if (isBillingSection) {
+      // Small delay so the DOM has painted before measuring scroll dimensions
+      const t = setTimeout(handleTableScroll, 50);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredItems, isBillingSection, handleTableScroll]);
+
+  const scrollItemsUp = () => {
+    tableScrollRef.current?.scrollBy({ top: -220, behavior: "smooth" });
+  };
+
+  const scrollItemsDown = () => {
+    tableScrollRef.current?.scrollBy({ top: 220, behavior: "smooth" });
+  };
 
   // Filter items for search dropdown - memoized
   const searchableItems = useMemo(() => {
@@ -232,8 +261,8 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
   };
 
   return (
-    <div className="col mt-2">
-      <div className="p-2 border bg-light">
+    <div className={isBillingSection ? styles.billingRoot : "col mt-2"}>
+      <div className={`p-2 border bg-light${isBillingSection ? ` ${styles.billingContentRoot}` : ""}`}>
         <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-3">
           <div className="flex-shrink-0">
             <div className="d-flex align-items-center">
@@ -401,7 +430,24 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
           </div>
         )}
 
-        <div className={`table-responsive ${isBillingSection ? styles.tableContainerBilling : styles.tableContainer}`}>
+        {/* Scroll-aware wrapper: in billing mode adds up/down arrows; falls back to plain div otherwise */}
+        <div className={isBillingSection ? styles.scrollWrapper : undefined}>
+          {isBillingSection && (
+            <button
+              type="button"
+              className={styles.scrollArrowBtn}
+              onClick={scrollItemsUp}
+              disabled={atTop}
+              aria-label="Scroll items up"
+            >
+              <i className="bi bi-chevron-up"></i>
+            </button>
+          )}
+          <div
+            ref={isBillingSection ? tableScrollRef : null}
+            className={`table-responsive ${isBillingSection ? styles.tableContainerBilling : styles.tableContainer}`}
+            onScroll={isBillingSection ? handleTableScroll : undefined}
+          >
           <table className={`table table-sm mt-3 table-striped ${styles.itemsTable}`}>
             <thead>
               <tr>
@@ -678,7 +724,19 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
               )}
             </tbody>
           </table>
-        </div>
+          </div>{/* end table-responsive */}
+          {isBillingSection && (
+            <button
+              type="button"
+              className={styles.scrollArrowBtn}
+              onClick={scrollItemsDown}
+              disabled={atBottom}
+              aria-label="Scroll items down"
+            >
+              <i className="bi bi-chevron-down"></i>
+            </button>
+          )}
+        </div>{/* end scrollWrapper / plain wrapper */}
 
         {/* Modals */}
         {showEditModal && selectedItem && (

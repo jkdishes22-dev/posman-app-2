@@ -10,7 +10,11 @@ import PricelistSwitcher from "../../components/PricelistSwitcher";
 const SalesBillingPage = () => {
     return (
         <RoleAwareLayout>
-            <div className="container-fluid p-0">
+            {/*
+             * d-flex flex-column h-100: makes this container fill the flex-grow-1 main element
+             * so BillingSection can use height:100% and lock to the viewport.
+             */}
+            <div className="container-fluid p-0 d-flex flex-column h-100">
                 <PageHeaderStrip
                     actions={
                         <>
@@ -24,7 +28,10 @@ const SalesBillingPage = () => {
                         Billing
                     </h1>
                 </PageHeaderStrip>
-                <BillingSection />
+                {/* flex-grow-1 + minHeight:0 lets BillingSection fill remaining space */}
+                <div className="flex-grow-1 overflow-hidden" style={{ minHeight: 0 }}>
+                    <BillingSection />
+                </div>
             </div>
         </RoleAwareLayout>
     );

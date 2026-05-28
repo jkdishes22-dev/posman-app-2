@@ -147,6 +147,33 @@ module.exports = {
     }
     console.log(`\n🔧 beforePack: .next/standalone verified at ${standalonePath}`);
 
+    // ── Copy public/ into standalone ────────────────────────────────────────────
+    // The Next.js standalone server resolves static assets relative to its cwd
+    // (.next/standalone), so public/images/*, public/icons/*, etc. must exist at
+    // .next/standalone/public/.  The local `build-electron.js` script does this
+    // copy, but CI workflows call `npm run build` then `electron-builder` directly
+    // and skip that script.  Doing it here in beforePack covers both paths.
+    const publicSrc = path.join(projectDir, "public");
+    const publicDest = path.join(standalonePath, "public");
+    if (fs.existsSync(publicSrc)) {
+      fs.cpSync(publicSrc, publicDest, { recursive: true, force: true });
+      console.log(`🔧 beforePack: public/ copied → ${publicDest}`);
+    } else {
+      console.warn("⚠️  beforePack: public/ not found — static assets may not load in the packaged app.");
+    }
+
+    // ── Copy .next/static into standalone ───────────────────────────────────────
+    // Next.js serves /_next/static/ chunks from .next/standalone/.next/static/.
+    // Without this copy the browser receives 404s for CSS/JS assets.
+    const nextStaticSrc = path.join(projectDir, ".next", "static");
+    const nextStaticDest = path.join(standalonePath, ".next", "static");
+    if (fs.existsSync(nextStaticSrc)) {
+      fs.cpSync(nextStaticSrc, nextStaticDest, { recursive: true, force: true });
+      console.log(`🔧 beforePack: .next/static copied → ${nextStaticDest}`);
+    } else {
+      console.warn("⚠️  beforePack: .next/static not found — JS/CSS chunks may be missing.");
+    }
+
     // Derive the HMAC key from the owner passphrase and write it as hex to build/activation/.derived-key.
     // The plain passphrase is NEVER bundled — only the derived key lands in the installer.
     const passphrasePath = path.join(projectDir, "build", "activation", "passphrase");

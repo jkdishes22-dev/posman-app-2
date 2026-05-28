@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { useTooltips } from "../../../../../hooks/useTooltips";
 
 interface Category {
@@ -19,6 +19,8 @@ interface CategoriesProps {
   error?: string;
   onErrorDismiss?: () => void;
   billingMode?: boolean;
+  /** The currently selected category id — used to highlight the active pill in billing mode. */
+  selectedCategoryId?: string | null;
 }
 
 const CategoriesComponent = ({
@@ -32,11 +34,15 @@ const CategoriesComponent = ({
   error,
   onErrorDismiss,
   billingMode = false,
+  selectedCategoryId = null,
 }: CategoriesProps) => {
   useTooltips();
   const [showAll, setShowAll] = useState(false);
   const [visibleCount, setVisibleCount] = useState(8);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  /** Ref for the horizontally-scrollable strip (billing mode only). */
+  const stripRef = useRef<HTMLDivElement>(null);
 
   const toggleShowMore = () => {
     if (showAll) {
@@ -58,6 +64,90 @@ const CategoriesComponent = ({
     });
   }, [safeCategories, statusFilter]);
 
+  /** Scroll the categories strip 220px to the left. */
+  const scrollStripLeft = () => {
+    stripRef.current?.scrollBy({ left: -220, behavior: "smooth" });
+  };
+
+  /** Scroll the categories strip 220px to the right. */
+  const scrollStripRight = () => {
+    stripRef.current?.scrollBy({ left: 220, behavior: "smooth" });
+  };
+
+  /* ── Billing mode: horizontal scroll strip ─────────────────────────── */
+  if (billingMode) {
+    return (
+      <div>
+        {fetchError && <p style={{ color: "red", margin: 0 }}>{fetchError}</p>}
+        <div className="d-flex align-items-center gap-1">
+          {/* Left arrow */}
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary flex-shrink-0 px-2"
+            style={{ height: 36, width: 32 }}
+            onClick={scrollStripLeft}
+            aria-label="Scroll categories left"
+            title="Scroll left"
+          >
+            <i className="bi bi-chevron-left"></i>
+          </button>
+
+          {/* Scrollable pill strip */}
+          <div
+            ref={stripRef}
+            className="d-flex gap-2"
+            style={{ flex: 1, overflowX: "hidden", scrollBehavior: "smooth" }}
+          >
+            {filteredCategories.length === 0 ? (
+              <span className="text-muted small fst-italic py-1">No categories</span>
+            ) : (
+              filteredCategories.map((category) => (
+                <button
+                  key={category.id}
+                  type="button"
+                  className={`btn btn-sm flex-shrink-0 ${
+                    selectedCategoryId === category.id
+                      ? "btn-primary"
+                      : "btn-outline-secondary"
+                  }`}
+                  style={{ whiteSpace: "nowrap" }}
+                  onClick={() => onCategoryClick?.(category)}
+                >
+                  {category.name}
+                  {category.code && (
+                    <span
+                      className={`ms-1 badge ${
+                        selectedCategoryId === category.id
+                          ? "bg-primary-subtle text-primary"
+                          : "bg-secondary-subtle text-secondary"
+                      }`}
+                      style={{ fontSize: "0.65rem" }}
+                    >
+                      {category.code}
+                    </span>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Right arrow */}
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary flex-shrink-0 px-2"
+            style={{ height: 36, width: 32 }}
+            onClick={scrollStripRight}
+            aria-label="Scroll categories right"
+            title="Scroll right"
+          >
+            <i className="bi bi-chevron-right"></i>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Default mode: original grid layout ────────────────────────────── */
   return (
     <div>
       <div className="p-2 border bg-light">
