@@ -1,1 +1,68 @@
-/* Remove all styles from this file since the print and bill-specific styles are no longer needed. Leave the file empty or delete it if not used elsewhere. */
+/*
+ * Viewport-locked billing screen layout.
+ *
+ * The billing page wraps BillingSection in a flex-grow-1 overflow-hidden div
+ * so `height: 100%` here resolves to "all remaining height under the header strip".
+ * No vh-based max-heights or fixed px values are needed.
+ */
+
+/* ── Root ──────────────────────────────────────────────────── */
+.billingViewport {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 4px;
+}
+
+/* ── Side-by-side panels row ───────────────────────────────── */
+.panelsRow {
+    flex: 1;
+    min-height: 0; /* critical: allows flex item to shrink below content size */
+    display: flex;
+    gap: 4px;
+    overflow: hidden;
+}
+
+/* Each panel (items OR bill) */
+.panel {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Bootstrap card inside a panel — must be flex column to stretch */
+.panelCard {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ── Items panel card-body ─────────────────────────────────── */
+/*
+ * Delegates scrolling to the items-view component (which owns the scroll arrows).
+ * Acts as a flex column so ViewItems can use flex:1 to fill remaining space.
+ */
+.panelCardBody {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    min-height: 0 !important;
+}
+
+/* ── Bill panel card-body ──────────────────────────────────── */
+/* The bill table scrolls directly within this body. */
+.billCardBody {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+}
+
+/* ── Categories strip (bottom) ─────────────────────────────── */
+.categoriesStrip {
+    flex-shrink: 0;
+}
