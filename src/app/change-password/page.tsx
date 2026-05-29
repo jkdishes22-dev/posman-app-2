@@ -118,7 +118,7 @@ const ChangePasswordPage = () => {
               {/* Header */}
               <div
                 className="card-header border-0 text-white text-center py-4"
-                style={{ background: "linear-gradient(135deg, #e63946 0%, #c1121f 100%)" }}
+                style={{ background: "linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%)" }}
               >
                 <div
                   className="d-inline-flex align-items-center justify-content-center rounded-circle bg-white bg-opacity-25 mb-3"
@@ -150,7 +150,7 @@ const ChangePasswordPage = () => {
                 ) : (
                   <form onSubmit={handleSubmit} noValidate>
                     {error && (
-                      <div className="alert alert-danger d-flex align-items-center py-2 mb-3" role="alert">
+                      <div className="alert alert-primary d-flex align-items-center py-2 mb-3" role="alert">
                         <i className="bi bi-exclamation-triangle-fill me-2 flex-shrink-0"></i>
                         <span className="small">{error}</span>
                       </div>
@@ -216,7 +216,7 @@ const ChangePasswordPage = () => {
                         </button>
                       </div>
                       {newPassword.length > 0 && newPassword.length < 8 && (
-                        <div className="form-text text-warning small">
+                        <div className="form-text text-primary small">
                           <i className="bi bi-info-circle me-1"></i>
                           Must be at least 8 characters
                         </div>
@@ -252,7 +252,7 @@ const ChangePasswordPage = () => {
                         </button>
                       </div>
                       {confirmPassword.length > 0 && newPassword !== confirmPassword && (
-                        <div className="form-text text-danger small">
+                        <div className="form-text text-primary small">
                           <i className="bi bi-x-circle me-1"></i>
                           Passwords do not match
                         </div>
@@ -267,7 +267,7 @@ const ChangePasswordPage = () => {
 
                     <button
                       type="submit"
-                      className="btn btn-danger w-100 fw-semibold py-2"
+                      className="btn btn-primary w-100 fw-semibold py-2"
                       disabled={isSubmitting}
                       style={{ borderRadius: "0.5rem" }}
                     >
