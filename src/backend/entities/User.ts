@@ -39,6 +39,9 @@ export class User extends BaseEntity {
   @Column({ type: "boolean", default: false })
   is_locked!: boolean;
 
+  @Column({ type: "boolean", default: false })
+  must_change_password!: boolean;
+
   @ManyToMany(() => Role, (role) => role.users)
   @JoinTable({
     name: "user_roles",
