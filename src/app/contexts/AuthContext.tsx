@@ -68,6 +68,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             localStorage.removeItem("token");
             localStorage.removeItem("user");
             localStorage.removeItem("token_set_time");
+            localStorage.removeItem("must_change_password");
             
             // Clear state
             setIsAuthenticated(false);

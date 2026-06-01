@@ -173,6 +173,7 @@ export class UserService {
            u.password,
            u.status,
            u.refreshToken,
+           u.must_change_password,
            u.created_at,
            u.updated_at
          FROM user u
@@ -202,6 +203,7 @@ export class UserService {
         password: userRow.password,
         status: userRow.status,
         refreshToken: userRow.refreshToken,
+        must_change_password: Boolean(userRow.must_change_password),
         created_at: userRow.created_at,
         updated_at: userRow.updated_at,
         roles: roleRows.map((role) => ({

@@ -69,6 +69,12 @@ export async function setup() {
   await AppDataSource.initialize();
   await AppDataSource.runMigrations();
 
+  // The must_change_password migration sets the flag for the seeded "admin" user.
+  // Clear it in the test DB so E2E tests that log in as admin land on /admin as expected.
+  await AppDataSource.query(
+    `UPDATE "user" SET "must_change_password" = 0 WHERE "username" = 'admin'`,
+  );
+
   // Seed a supervisor user for bill lifecycle tests.
   // admin/cashier/sales each lack some bill permission; supervisor has full billing access
   // (can_add_bill + can_close_bill + can_view_bill + can_add_bill_item).
@@ -208,6 +214,34 @@ export async function setup() {
       await AppDataSource.query(
         `INSERT INTO "user_roles" (user_id, role_id, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, NULL)`,
         [sales2UserId, sales2RoleRows[0].id],
+      );
+    }
+  }
+
+  // Seed a third sales user dedicated to journey-sales-create-bill.spec.ts.
+  const sales3HashedPw = await bcrypt.hash("sales123", 10);
+  const sales3Rows = await AppDataSource.query(
+    `SELECT id FROM "user" WHERE username = ?`,
+    ["e2e_sales3"],
+  );
+  if (sales3Rows.length === 0) {
+    const insertResult = await AppDataSource.query(
+      `INSERT INTO "user" (username, firstName, lastName, password, status, is_locked, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'ACTIVE', 0, CURRENT_TIMESTAMP, NULL)`,
+      ["e2e_sales3", "E2E", "Sales", sales3HashedPw],
+    );
+    const sales3UserId: number =
+      typeof insertResult === "object" && insertResult !== null && "insertId" in insertResult
+        ? (insertResult as any).insertId
+        : Number(insertResult);
+    const sales3RoleRows = await AppDataSource.query(
+      `SELECT id FROM "roles" WHERE name = ?`,
+      ["sales"],
+    );
+    if (sales3RoleRows.length > 0 && sales3UserId) {
+      await AppDataSource.query(
+        `INSERT INTO "user_roles" (user_id, role_id, created_at, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP, NULL)`,
+        [sales3UserId, sales3RoleRows[0].id],
       );
     }
   }
