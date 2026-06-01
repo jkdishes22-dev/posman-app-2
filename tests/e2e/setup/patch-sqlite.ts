@@ -19,12 +19,16 @@ async function patch() {
   const Driver = (mod.AbstractSqliteDriver ?? mod.default) as any;
   if (!Driver) return;
 
+  // @ts-ignore — union type from dynamic import; .prototype exists at runtime
   const orig = Driver.prototype.normalizeType;
+  // @ts-ignore
   Driver.prototype.normalizeType = function (column: any) {
     if (column.type === "enum") return "varchar";
     return orig.call(this, column);
   };
 }
+
+export {}; // make this a module so top-level await is valid
 
 // Run synchronously-ish: export a promise Vitest can await via setupFiles
 await patch();

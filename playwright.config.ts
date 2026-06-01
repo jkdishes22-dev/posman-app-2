@@ -8,6 +8,7 @@ export default defineConfig({
   testMatch: '**/*.spec.ts',
   timeout: 30000,
   workers: 1,
+  globalSetup: './tests/playwright/global-setup.ts',
   use: {
     baseURL: 'http://localhost:3000',
     headless: true,

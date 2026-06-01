@@ -7,7 +7,8 @@ import path from "path";
 export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
-    include: ["tests/playwright/db-seed.test.ts"],
+    include: [],
+    passWithNoTests: true,
     environment: "node",
     globalSetup: ["tests/playwright/seed-db.ts"],
     setupFiles: ["tests/e2e/setup/patch-sqlite.ts"],

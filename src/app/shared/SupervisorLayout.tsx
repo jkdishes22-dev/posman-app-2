@@ -11,6 +11,7 @@ import { AuthError } from "../types/types";
 import { useTooltips } from "../hooks/useTooltips";
 import { useNavigation } from "../hooks/useNavigation";
 import { supervisorRoutes, SUPERVISOR_DEFAULT_BREADCRUMB } from "./routeConfigs";
+import { useApiCall } from "../utils/apiUtils";
 
 interface SupervisorLayoutProps {
     children: React.ReactNode;
@@ -32,6 +33,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
     const { activeItem, setActiveItem, breadcrumbs, expandedMenus, setExpandedMenus } = useNavigation(supervisorRoutes, SUPERVISOR_DEFAULT_BREADCRUMB);
     const { user } = useAuth();
     const router = useRouter();
+    const apiCall = useApiCall();
 
     useEffect(() => {
         const update = () => setSidebarWidth(getExpandedSidebarWidth());
@@ -321,17 +323,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
     };
 
     useEffect(() => {
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-        if (!token) return;
-        fetch("/api/system/module-visibility?role=supervisor", {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((r) => (r.ok ? r.json() : null))
-            .then((data) => {
-                if (data?.visibility && typeof data.visibility === "object") {
+        apiCall("/api/system/module-visibility?role=supervisor")
+            .then((result) => {
+                if (result.status === 200 && result.data?.visibility && typeof result.data.visibility === "object") {
                     setHiddenMenuIds(
                         new Set(
-                            Object.entries(data.visibility as Record<string, boolean>)
+                            Object.entries(result.data.visibility as Record<string, boolean>)
                                 .filter(([, v]) => v === false)
                                 .map(([id]) => id)
                         )
@@ -339,7 +336,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 }
             })
             .catch(() => {});
-    }, []);
+    }, [apiCall]);
 
     const visibleMenuItems = menuItems
         .filter((item) => !hiddenMenuIds.has(item.id))

@@ -576,7 +576,7 @@ const LoginForm = () => {
           <div className="p-3 border bg-light mb-3">
             <div className="p-3 border bg-light h-100 d-flex flex-column justify-content-center align-items-center">
               <img
-                src="/images/jk-big.png"
+                src="/icons/JK-icon.svg"
                 width={300}
                 height={300}
                 className="m-2"
