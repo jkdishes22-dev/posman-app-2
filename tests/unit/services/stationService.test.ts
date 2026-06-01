@@ -126,15 +126,14 @@ describe("StationService", () => {
 
   describe("setDefaultPricelist", () => {
     it("runs default switch in a transaction", async () => {
+      const firstQb = createMockQueryBuilder();
+      const secondQb = createMockQueryBuilder();
+      secondQb.execute.mockResolvedValue({ affected: 1 });
       const txn = {
         createQueryBuilder: vi.fn()
-          .mockReturnValueOnce(createMockQueryBuilder())
-          .mockReturnValueOnce(createMockQueryBuilder()),
+          .mockReturnValueOnce(firstQb)
+          .mockReturnValueOnce(secondQb),
       };
-      const secondQb = txn.createQueryBuilder.mock.results[1]?.value;
-      if (secondQb) {
-        secondQb.execute.mockResolvedValue({ affected: 1 });
-      }
       mockStationPricelistRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
 
       await service.setDefaultPricelist(3, 9);
