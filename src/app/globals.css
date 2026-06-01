@@ -3,6 +3,12 @@
 
 @import 'react-datepicker/dist/react-datepicker.css';
 
+/* Prevent horizontal page scroll — this app never scrolls horizontally */
+html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
 /* Material Design Theme - Clean & Consistent */
 
 /* Hamburger Menu Icon Styles */
