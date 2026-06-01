@@ -21,7 +21,9 @@ async function patchSqliteEnumSupport() {
 
   if (!AbstractSqliteDriver) return;
 
+  // @ts-ignore — union type from dynamic import; .prototype exists at runtime
   const orig = AbstractSqliteDriver.prototype.normalizeType;
+  // @ts-ignore
   AbstractSqliteDriver.prototype.normalizeType = function (column: any) {
     // Treat enum the same as varchar — SQLite stores it as text anyway
     if (column.type === "enum") return "varchar";
