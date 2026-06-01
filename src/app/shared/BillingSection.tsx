@@ -1008,28 +1008,19 @@ const BillingSection = () => {
         {/* Available Items Section */}
         <div className={styles.panel}>
           <div className={`card border-0 shadow-sm ${styles.panelCard}`}>
-            <div className="card-header bg-light border-bottom py-1 px-3">
-              <div className="d-flex align-items-center justify-content-between gap-2">
-                <div className="d-flex align-items-center gap-2">
-                  <span className="fw-bold small">
-                    <i className="bi bi-box-seam me-1 text-primary"></i>
-                    Available Items
-                  </span>
-                  <small className="text-muted">{items.length} items</small>
-                </div>
-                {createdBill && (
-                  <button
-                    className="btn btn-sm btn-warning text-dark fw-bold"
-                    type="button"
-                    onClick={handleNewBill}
-                    title="Start a new bill"
-                  >
-                    <i className="bi bi-plus-circle me-1"></i>
-                    New Bill
-                  </button>
-                )}
+            {createdBill && (
+              <div className="card-header border-bottom py-1 px-3 d-flex justify-content-end" style={{ background: "var(--md-warning, #fff3cd)" }}>
+                <button
+                  className="btn btn-sm btn-warning text-dark fw-bold"
+                  type="button"
+                  onClick={handleNewBill}
+                  title="Start a new bill"
+                >
+                  <i className="bi bi-plus-circle me-1"></i>
+                  New Bill
+                </button>
               </div>
-            </div>
+            )}
             {/* Category selector — top of items panel */}
             <div className={styles.categorySection}>
               <Suspense fallback={

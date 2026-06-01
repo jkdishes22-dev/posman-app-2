@@ -19,7 +19,7 @@ const SalesBillingPage = () => {
                     className="py-2 mb-1"
                     actions={
                         <>
-                            <StationSwitcher size="sm" showLabel={true} allowAllUsers buttonVariant="outline-light" />
+                            <StationSwitcher size="sm" showLabel={false} allowAllUsers buttonVariant="outline-light" />
                             <PricelistSwitcher size="sm" showLabel={false} buttonVariant="outline-light" />
                         </>
                     }
