@@ -126,9 +126,10 @@ export class PricelistService {
       // .andWhere("pi.is_enabled = :enabled", { enabled: 1 });
 
       // First, let's check if there are any pricelist items at all for this pricelist
-      const basicCount = await this.pricelistItemRepository.count({
-        where: { pricelist: { id: Number(pricelistId) } }
-      });
+      const basicCount = await this.pricelistItemRepository
+        .createQueryBuilder("pi")
+        .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) })
+        .getCount();
 
 
       const rawItems = await query.getRawMany();
@@ -412,10 +413,13 @@ export class PricelistService {
   }
 
   async removeItemFromPricelist(pricelistId: number, itemId: number): Promise<void> {
-    const result = await this.pricelistItemRepository.delete({
-      pricelist: { id: pricelistId },
-      item: { id: itemId }
-    });
+    const result = await this.pricelistItemRepository
+      .createQueryBuilder()
+      .delete()
+      .from(PricelistItem)
+      .where("pricelist_id = :pricelistId", { pricelistId })
+      .andWhere("item_id = :itemId", { itemId })
+      .execute();
 
     if (result.affected === 0) {
       throw new Error("Item not found in this pricelist");

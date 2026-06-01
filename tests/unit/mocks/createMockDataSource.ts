@@ -23,6 +23,7 @@ export function createMockQueryBuilder() {
     delete: vi.fn().mockReturnThis(),
     set: vi.fn().mockReturnThis(),
     update: vi.fn().mockReturnThis(),
+    delete: vi.fn().mockReturnThis(),
     from: vi.fn().mockReturnThis(),
     clone: vi.fn().mockReturnThis(),
     getMany: vi.fn().mockResolvedValue([]),

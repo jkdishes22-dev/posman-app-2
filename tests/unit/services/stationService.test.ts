@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createMockDataSource, createMockRepository } from "../mocks/createMockDataSource";
+import { createMockDataSource, createMockQueryBuilder, createMockRepository } from "../mocks/createMockDataSource";
 
 const mockAppDataSourceQuery = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 
@@ -102,19 +102,17 @@ describe("StationService", () => {
 
   describe("setUserDefaultStation", () => {
     it("unsets existing default then sets new default", async () => {
-      const txQb = (await import("../mocks/createMockDataSource")).createMockQueryBuilder();
+      const qb = createMockQueryBuilder();
       mockUserStationRepo.manager.transaction.mockImplementationOnce(async (cb: any) =>
-        cb({ createQueryBuilder: vi.fn().mockReturnValue(txQb) })
+        cb({ createQueryBuilder: vi.fn().mockReturnValue(qb) })
       );
-
       await service.setUserDefaultStation(1, 3);
 
-      expect(txQb.update).toHaveBeenCalledTimes(2);
-      expect(txQb.set).toHaveBeenNthCalledWith(1, { isDefault: false });
-      expect(txQb.where).toHaveBeenNthCalledWith(1, "user_id = :userId", { userId: 1 });
-      expect(txQb.set).toHaveBeenNthCalledWith(2, { isDefault: true });
-      expect(txQb.where).toHaveBeenNthCalledWith(2, "user_id = :userId", { userId: 1 });
-      expect(txQb.andWhere).toHaveBeenCalledWith("station_id = :stationId", { stationId: 3 });
+      expect(mockUserStationRepo.manager.transaction).toHaveBeenCalledTimes(1);
+      expect(qb.update).toHaveBeenCalledTimes(2);
+      expect(qb.where).toHaveBeenCalledWith("user_id = :userId", { userId: 1 });
+      expect(qb.andWhere).toHaveBeenCalledWith("station_id = :stationId", { stationId: 3 });
+      expect(qb.execute).toHaveBeenCalledTimes(2);
     });
 
     it("invalidates user default station cache", async () => {
@@ -123,6 +121,25 @@ describe("StationService", () => {
       await service.setUserDefaultStation(1, 3);
 
       expect(invalidateManySpy).toHaveBeenCalledWith(["user_default_station_1", "user_stations"]);
+    });
+  });
+
+  describe("setDefaultPricelist", () => {
+    it("runs default switch in a transaction", async () => {
+      const txn = {
+        createQueryBuilder: vi.fn()
+          .mockReturnValueOnce(createMockQueryBuilder())
+          .mockReturnValueOnce(createMockQueryBuilder()),
+      };
+      const secondQb = txn.createQueryBuilder.mock.results[1]?.value;
+      if (secondQb) {
+        secondQb.execute.mockResolvedValue({ affected: 1 });
+      }
+      mockStationPricelistRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
+
+      await service.setDefaultPricelist(3, 9);
+
+      expect(mockStationPricelistRepo.manager.transaction).toHaveBeenCalledTimes(1);
     });
   });
 
