@@ -181,27 +181,6 @@ const CategoriesComponent = ({
             className="row row-cols-2 row-cols-sm-3 row-cols-md-4 g-2 mt-1"
             style={{ maxHeight: 220, overflowY: "auto" }}
           >
-            {/* "All" card */}
-            <div className="col">
-              <div
-                className={`card h-100 text-center border-2 ${allActive ? "border-primary" : "border-light"}`}
-                style={{
-                  cursor: "pointer",
-                  backgroundColor: allActive ? "var(--md-primary)" : undefined,
-                  color: allActive ? "#fff" : undefined,
-                  transition: "box-shadow 0.15s",
-                }}
-                onClick={() => { onAllClick?.(); onToggleExpand?.(); }}
-                onMouseEnter={e => { if (!allActive) (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 8px rgba(0,0,0,0.15)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = ""; }}
-              >
-                <div className="card-body py-2 px-1">
-                  <i className="bi bi-grid-3x3-gap d-block mb-1" style={{ fontSize: "1.4rem" }}></i>
-                  <div className="fw-semibold small">All</div>
-                </div>
-              </div>
-            </div>
-
             {filteredCategories.map((category) => {
               const isActive = selectedCategoryId === category.id;
               return (

@@ -16,14 +16,15 @@ const SalesBillingPage = () => {
              */}
             <div className="container-fluid p-0 d-flex flex-column h-100">
                 <PageHeaderStrip
+                    className="py-2 mb-1"
                     actions={
                         <>
-                            <StationSwitcher size="sm" showLabel={false} allowAllUsers buttonVariant="outline-light" />
+                            <StationSwitcher size="sm" showLabel={true} allowAllUsers buttonVariant="outline-light" />
                             <PricelistSwitcher size="sm" showLabel={false} buttonVariant="outline-light" />
                         </>
                     }
                 >
-                    <h1 className="h4 mb-0 fw-bold">
+                    <h1 className="h6 mb-0 fw-bold">
                         <i className="bi bi-cart me-2" aria-hidden></i>
                         Billing
                     </h1>

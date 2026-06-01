@@ -1008,38 +1008,26 @@ const BillingSection = () => {
         {/* Available Items Section */}
         <div className={styles.panel}>
           <div className={`card border-0 shadow-sm ${styles.panelCard}`}>
-            <div className="card-header bg-light border-bottom py-2 px-3">
-              <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div className="card-header bg-light border-bottom py-1 px-3">
+              <div className="d-flex align-items-center justify-content-between gap-2">
                 <div className="d-flex align-items-center gap-2">
-                  <h6 className="mb-0 fw-bold">
-                    <i className="bi bi-box-seam me-2 text-primary"></i>
+                  <span className="fw-bold small">
+                    <i className="bi bi-box-seam me-1 text-primary"></i>
                     Available Items
-                  </h6>
+                  </span>
                   <small className="text-muted">{items.length} items</small>
                 </div>
-                <div className="d-flex align-items-center gap-2 flex-wrap">
-                  <span className="badge bg-primary-subtle text-primary px-2 py-1">
-                    <i className="bi bi-building me-1"></i>
-                    {currentStation?.name || "—"}
-                  </span>
-                  {currentPricelist && (
-                    <span className="badge bg-success-subtle text-success px-2 py-1">
-                      <i className="bi bi-tag me-1"></i>
-                      {currentPricelist.name}
-                    </span>
-                  )}
-                  {createdBill && (
-                    <button
-                      className="btn btn-sm btn-warning text-dark fw-bold"
-                      type="button"
-                      onClick={handleNewBill}
-                      title="Start a new bill"
-                    >
-                      <i className="bi bi-plus-circle me-1"></i>
-                      New Bill
-                    </button>
-                  )}
-                </div>
+                {createdBill && (
+                  <button
+                    className="btn btn-sm btn-warning text-dark fw-bold"
+                    type="button"
+                    onClick={handleNewBill}
+                    title="Start a new bill"
+                  >
+                    <i className="bi bi-plus-circle me-1"></i>
+                    New Bill
+                  </button>
+                )}
               </div>
             </div>
             {/* Category selector — top of items panel */}
@@ -1152,7 +1140,7 @@ const BillingSection = () => {
             <div className={`card-body p-3 ${styles.billCardBody}`}>
               <div className="table-responsive">
                 <table className="table table-hover mb-0">
-                  <thead className="table-light sticky-top">
+                  <thead className="table-light">
                     <tr>
                       <th className="fw-bold">Item</th>
                       <th className="text-center fw-bold">Qty</th>
