@@ -58,7 +58,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
           setErrorDetails(pricelistsResult.errorDetails);
         }
         if (categoriesResult.status === 200) {
-          setCategories(categoriesResult.data);
+          setCategories(Array.isArray(categoriesResult.data) ? categoriesResult.data : []);
         }
       } catch (error: any) {
         setAddItemError("Network error occurred");
@@ -153,7 +153,7 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
           id: editedItem.id,
           name: editedItem.name,
           code: editedItem.code,
-          category: { id: categoryId },
+          categoryId: categoryId ? parseInt(categoryId) : undefined,
           price: editedItem.price,
           isGroup: editedItem.isGroup ?? false,
           isStock: (editedItem as any).isStock ?? false,
