@@ -67,4 +67,5 @@
     flex-shrink: 0;
     border-bottom: 1px solid var(--md-divider);
     padding: 6px 12px;
+    overflow-x: hidden;
 }

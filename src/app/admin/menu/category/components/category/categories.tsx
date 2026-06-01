@@ -178,8 +178,8 @@ const CategoriesComponent = ({
         {/* Expandable category grid */}
         {expanded && (
           <div
-            className="row row-cols-2 row-cols-sm-3 row-cols-md-4 g-2 mt-1"
-            style={{ maxHeight: 220, overflowY: "auto" }}
+            className="row row-cols-2 row-cols-sm-3 row-cols-md-4 g-2 mt-1 mx-0"
+            style={{ maxHeight: 220, overflowY: "auto", overflowX: "hidden" }}
           >
             {filteredCategories.map((category) => {
               const isActive = selectedCategoryId === category.id;
