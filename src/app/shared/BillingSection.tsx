@@ -72,6 +72,7 @@ const BillingSection = () => {
   const [billError, setBillError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categoriesFetched, setCategoriesFetched] = useState(false);
+  const [categoryGridExpanded, setCategoryGridExpanded] = useState(false);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const receiptRef = useRef<HTMLDivElement>(null);
   const [itemInventory, setItemInventory] = useState<Record<number, number>>({});
@@ -1041,6 +1042,41 @@ const BillingSection = () => {
                 </div>
               </div>
             </div>
+            {/* Category selector — top of items panel */}
+            <div className={styles.categorySection}>
+              <Suspense fallback={
+                <div className="text-center py-1">
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  <span className="small">Loading categories...</span>
+                </div>
+              }>
+                <Categories
+                  categories={categories}
+                  selectedCategoryId={(selectedCategory as { id: string } | null)?.id ?? null}
+                  billingMode={true}
+                  expanded={categoryGridExpanded}
+                  onToggleExpand={() => setCategoryGridExpanded(v => !v)}
+                  fetchError={fetchCategoryError}
+                  showHeader={false}
+                  onAllClick={() => {
+                    setCategoryGridExpanded(false);
+                    setSelectedCategory(null);
+                    setShowingTopItems(true);
+                    fetchTopItems();
+                  }}
+                  onCategoryClick={(category) => {
+                    setCategoryGridExpanded(false);
+                    if (createdBill) resetForNewBill();
+                    setShowingTopItems(false);
+                    setSelectedCategory(category);
+                    const noInFlightSelections = selectedItems.length === 0;
+                    fetchItems(category.id, { preferCache: noInFlightSelections });
+                  }}
+                  onDeleteCategory={undefined}
+                />
+              </Suspense>
+            </div>
+
             <div className={`card-body p-0 ${styles.panelCardBody}`}>
               <ErrorDisplay
                 error={itemError}
@@ -1247,39 +1283,6 @@ const BillingSection = () => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Categories horizontal scroll strip */}
-      <div className={styles.categoriesStrip}>
-        <div className="card border-0 shadow-sm">
-          <div className="card-body py-2 px-3">
-            <Suspense fallback={
-              <div className="text-center p-2">
-                <Spinner animation="border" size="sm" className="me-2" />
-                <span>Loading categories...</span>
-              </div>
-            }>
-              <Categories
-                categories={categories}
-                selectedCategoryId={(selectedCategory as { id: string } | null)?.id ?? null}
-                onCategoryClick={(category) => {
-                  // Treat category switch as "start new bill" when no active bill is available.
-                  if (createdBill) {
-                    resetForNewBill();
-                  }
-                  setShowingTopItems(false);
-                  setSelectedCategory(category);
-                  const noInFlightSelections = selectedItems.length === 0;
-                  fetchItems(category.id, { preferCache: noInFlightSelections });
-                }}
-                onDeleteCategory={undefined}
-                fetchError={fetchCategoryError}
-                showHeader={false}
-                billingMode={true}
-              />
-            </Suspense>
           </div>
         </div>
       </div>

@@ -62,7 +62,9 @@
     min-height: 0 !important;
 }
 
-/* ── Categories strip (bottom) ─────────────────────────────── */
-.categoriesStrip {
+/* ── Category section (top of items panel) ─────────────────── */
+.categorySection {
     flex-shrink: 0;
+    border-bottom: 1px solid var(--md-divider);
+    padding: 6px 12px;
 }
