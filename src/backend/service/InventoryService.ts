@@ -4,7 +4,7 @@ import { Item } from "@backend/entities/Item";
 import { Bill, BillStatus } from "@backend/entities/Bill";
 import { BillItem, BillItemStatus } from "@backend/entities/BillItem";
 import { ItemGroup } from "@backend/entities/ItemGroup";
-import { DataSource, Repository } from "typeorm";
+import { DataSource, EntityManager, Repository } from "typeorm";
 import { cache } from "@backend/utils/cache";
 import { mapItemRowWithPrefix } from "@backend/utils/sqlEntityMappers";
 
@@ -39,6 +39,16 @@ export class InventoryService {
         this.inventoryTransactionRepository = dataSource.getRepository(InventoryTransaction);
         this.billRepository = dataSource.getRepository(Bill);
         this.itemGroupRepository = dataSource.getRepository(ItemGroup);
+    }
+
+    private async executeWriteInTransaction<T>(
+        operation: (manager: EntityManager) => Promise<T>,
+        manager?: EntityManager
+    ): Promise<T> {
+        if (manager) {
+            return operation(manager);
+        }
+        return this.inventoryRepository.manager.transaction(operation);
     }
 
     /**
@@ -1228,38 +1238,47 @@ WHERE inv.reorder_point IS NOT NULL
         reason: string,
         userId: number
     ): Promise<Inventory> {
-        const inventory = await this.inventoryRepository.findOne({
-            where: { item: { id: itemId } },
-        });
+        try {
+            const inventory = await this.executeWriteInTransaction(async (manager) => {
+                const inventoryRepo = manager.getRepository(Inventory);
+                const transactionRepo = manager.getRepository(InventoryTransaction);
+                const inventoryRecord = await inventoryRepo.findOne({
+                    where: { item: { id: itemId } },
+                });
 
-        if (!inventory) {
-            throw new Error(`Inventory not found for item ${itemId}`);
+                if (!inventoryRecord) {
+                    throw new Error(`Inventory not found for item ${itemId}`);
+                }
+
+                const quantityDifference = newQuantity - inventoryRecord.quantity;
+                await inventoryRepo
+                    .createQueryBuilder()
+                    .update(Inventory)
+                    .set({ quantity: newQuantity, updated_by: userId })
+                    .where("item_id = :itemId", { itemId })
+                    .execute();
+                inventoryRecord.quantity = newQuantity;
+
+                await transactionRepo.insert({
+                    item_id: itemId,
+                    transaction_type: InventoryTransactionType.ADJUSTMENT,
+                    quantity: quantityDifference,
+                    reference_type: InventoryReferenceType.MANUAL_ADJUSTMENT,
+                    reference_id: null,
+                    notes: reason,
+                    created_by: userId,
+                });
+
+                return inventoryRecord;
+            });
+
+            // Invalidate cache after inventory adjustment
+            InventoryService.invalidateInventoryCache();
+            return inventory;
+        } catch (error: any) {
+            console.error(`Failed to adjust inventory for item ${itemId}:`, error);
+            throw new Error(error?.message || "Failed to adjust inventory");
         }
-
-        const quantityDifference = newQuantity - inventory.quantity;
-
-        // Use update() to bypass TypeORM topological sorter (cyclic dependency with minified class names)
-        await this.inventoryRepository.update(
-            { item: { id: itemId } },
-            { quantity: newQuantity, updated_by: userId }
-        );
-        inventory.quantity = newQuantity;
-
-        // Use insert() to bypass topological sorter for new transaction records
-        await this.inventoryTransactionRepository.insert({
-            item_id: itemId,
-            transaction_type: InventoryTransactionType.ADJUSTMENT,
-            quantity: quantityDifference,
-            reference_type: InventoryReferenceType.MANUAL_ADJUSTMENT,
-            reference_id: null,
-            notes: reason,
-            created_by: userId,
-        });
-
-        // Invalidate cache after inventory adjustment
-        InventoryService.invalidateInventoryCache();
-
-        return inventory;
     }
 
     /**
@@ -1271,47 +1290,57 @@ WHERE inv.reorder_point IS NOT NULL
         reason: string,
         userId: number
     ): Promise<Inventory> {
-        const inventory = await this.inventoryRepository.findOne({
-            where: { item: { id: itemId } },
-        });
+        try {
+            const inventory = await this.executeWriteInTransaction(async (manager) => {
+                const inventoryRepo = manager.getRepository(Inventory);
+                const transactionRepo = manager.getRepository(InventoryTransaction);
+                const inventoryRecord = await inventoryRepo.findOne({
+                    where: { item: { id: itemId } },
+                });
 
-        if (!inventory) {
-            throw new Error(`Inventory not found for item ${itemId}`);
+                if (!inventoryRecord) {
+                    throw new Error(`Inventory not found for item ${itemId}`);
+                }
+
+                const availableQuantity = inventoryRecord.quantity;
+                if (quantity <= 0) {
+                    throw new Error("Disposal quantity must be greater than 0");
+                }
+                if (quantity > availableQuantity) {
+                    throw new Error(
+                        `Cannot dispose ${quantity} units. Only ${availableQuantity} units available`
+                    );
+                }
+
+                const newQuantity = inventoryRecord.quantity - quantity;
+                await inventoryRepo
+                    .createQueryBuilder()
+                    .update(Inventory)
+                    .set({ quantity: newQuantity, updated_by: userId })
+                    .where("item_id = :itemId", { itemId })
+                    .execute();
+                inventoryRecord.quantity = newQuantity;
+
+                await transactionRepo.insert({
+                    item_id: itemId,
+                    transaction_type: InventoryTransactionType.DISPOSAL,
+                    quantity: -quantity,
+                    reference_type: InventoryReferenceType.MANUAL_ADJUSTMENT,
+                    reference_id: null,
+                    notes: reason,
+                    created_by: userId,
+                });
+
+                return inventoryRecord;
+            });
+
+            // Invalidate cache after inventory disposal
+            InventoryService.invalidateInventoryCache();
+            return inventory;
+        } catch (error: any) {
+            console.error(`Failed to dispose inventory for item ${itemId}:`, error);
+            throw new Error(error?.message || "Failed to dispose inventory");
         }
-
-        const availableQuantity = inventory.quantity;
-
-        if (quantity <= 0) {
-            throw new Error("Disposal quantity must be greater than 0");
-        }
-
-        if (quantity > availableQuantity) {
-            throw new Error(
-                `Cannot dispose ${quantity} units. Only ${availableQuantity} units available`
-            );
-        }
-
-        const newQuantity = inventory.quantity - quantity;
-        await this.inventoryRepository.update(
-            { item: { id: itemId } },
-            { quantity: newQuantity, updated_by: userId }
-        );
-        inventory.quantity = newQuantity;
-
-        await this.inventoryTransactionRepository.insert({
-            item_id: itemId,
-            transaction_type: InventoryTransactionType.DISPOSAL,
-            quantity: -quantity,
-            reference_type: InventoryReferenceType.MANUAL_ADJUSTMENT,
-            reference_id: null,
-            notes: reason,
-            created_by: userId,
-        });
-
-        // Invalidate cache after inventory disposal
-        InventoryService.invalidateInventoryCache();
-
-        return inventory;
     }
 
     /**
@@ -1321,41 +1350,53 @@ WHERE inv.reorder_point IS NOT NULL
         itemId: number,
         quantity: number,
         purchaseOrderId: number,
-        userId: number
+        userId: number,
+        manager?: EntityManager
     ): Promise<Inventory> {
-        // Get or create inventory
-        let inventory = await this.inventoryRepository.findOne({
-            where: { item: { id: itemId } },
-        });
+        try {
+            return await this.executeWriteInTransaction(async (txManager) => {
+                const inventoryRepo = txManager.getRepository(Inventory);
+                const transactionRepo = txManager.getRepository(InventoryTransaction);
+                // Get or create inventory
+                let inventory = await inventoryRepo.findOne({
+                    where: { item: { id: itemId } },
+                });
 
-        if (!inventory) {
-            const result = await this.inventoryRepository.insert({
-                item: { id: itemId } as Item,
-                quantity: quantity,
-                last_restocked_at: new Date(),
-                created_by: userId,
-            });
-            inventory = await this.inventoryRepository.findOne({ where: { id: result.identifiers[0].id } });
-        } else {
-            const newQuantity = inventory.quantity + quantity;
-            await this.inventoryRepository.update(
-                { item: { id: itemId } },
-                { quantity: newQuantity, last_restocked_at: new Date(), updated_by: userId }
-            );
-            inventory.quantity = newQuantity;
+                if (!inventory) {
+                    const result = await inventoryRepo.insert({
+                        item: { id: itemId } as Item,
+                        quantity: quantity,
+                        last_restocked_at: new Date(),
+                        created_by: userId,
+                    });
+                    inventory = await inventoryRepo.findOne({ where: { id: result.identifiers[0].id } });
+                } else {
+                    const newQuantity = inventory.quantity + quantity;
+                    await inventoryRepo
+                        .createQueryBuilder()
+                        .update(Inventory)
+                        .set({ quantity: newQuantity, last_restocked_at: new Date(), updated_by: userId })
+                        .where("item_id = :itemId", { itemId })
+                        .execute();
+                    inventory.quantity = newQuantity;
+                }
+
+                await transactionRepo.insert({
+                    item_id: itemId,
+                    transaction_type: InventoryTransactionType.PURCHASE,
+                    quantity: quantity,
+                    reference_type: InventoryReferenceType.PURCHASE_ORDER,
+                    reference_id: purchaseOrderId,
+                    notes: `Received from purchase order ${purchaseOrderId}`,
+                    created_by: userId,
+                });
+
+                return inventory!;
+            }, manager);
+        } catch (error: any) {
+            console.error(`Failed to add purchase inventory for item ${itemId}:`, error);
+            throw new Error(error?.message || "Failed to add purchase inventory");
         }
-
-        await this.inventoryTransactionRepository.insert({
-            item_id: itemId,
-            transaction_type: InventoryTransactionType.PURCHASE,
-            quantity: quantity,
-            reference_type: InventoryReferenceType.PURCHASE_ORDER,
-            reference_id: purchaseOrderId,
-            notes: `Received from purchase order ${purchaseOrderId}`,
-            created_by: userId,
-        });
-
-        return inventory;
     }
 
     /**
@@ -1366,41 +1407,53 @@ WHERE inv.reorder_point IS NOT NULL
         itemId: number,
         quantity: number,
         productionIssueId: number,
-        userId: number
+        userId: number,
+        manager?: EntityManager
     ): Promise<Inventory> {
-        // Get or create inventory (works for both isStock: true and isStock: false items)
-        let inventory = await this.inventoryRepository.findOne({
-            where: { item: { id: itemId } },
-        });
+        try {
+            return await this.executeWriteInTransaction(async (txManager) => {
+                const inventoryRepo = txManager.getRepository(Inventory);
+                const transactionRepo = txManager.getRepository(InventoryTransaction);
+                // Get or create inventory (works for both isStock: true and isStock: false items)
+                let inventory = await inventoryRepo.findOne({
+                    where: { item: { id: itemId } },
+                });
 
-        if (!inventory) {
-            const result = await this.inventoryRepository.insert({
-                item: { id: itemId } as Item,
-                quantity: quantity,
-                last_restocked_at: new Date(),
-                created_by: userId,
-            });
-            inventory = await this.inventoryRepository.findOne({ where: { id: result.identifiers[0].id } });
-        } else {
-            const newQuantity = inventory.quantity + quantity;
-            await this.inventoryRepository.update(
-                { item: { id: itemId } },
-                { quantity: newQuantity, last_restocked_at: new Date(), updated_by: userId }
-            );
-            inventory.quantity = newQuantity;
+                if (!inventory) {
+                    const result = await inventoryRepo.insert({
+                        item: { id: itemId } as Item,
+                        quantity: quantity,
+                        last_restocked_at: new Date(),
+                        created_by: userId,
+                    });
+                    inventory = await inventoryRepo.findOne({ where: { id: result.identifiers[0].id } });
+                } else {
+                    const newQuantity = inventory.quantity + quantity;
+                    await inventoryRepo
+                        .createQueryBuilder()
+                        .update(Inventory)
+                        .set({ quantity: newQuantity, last_restocked_at: new Date(), updated_by: userId })
+                        .where("item_id = :itemId", { itemId })
+                        .execute();
+                    inventory.quantity = newQuantity;
+                }
+
+                await transactionRepo.insert({
+                    item_id: itemId,
+                    transaction_type: InventoryTransactionType.PRODUCTION,
+                    quantity: quantity,
+                    reference_type: InventoryReferenceType.PRODUCTION_ISSUE,
+                    reference_id: productionIssueId,
+                    notes: `Added from production issue ${productionIssueId}`,
+                    created_by: userId,
+                });
+
+                return inventory!;
+            }, manager);
+        } catch (error: any) {
+            console.error(`Failed to add production inventory for item ${itemId}:`, error);
+            throw new Error(error?.message || "Failed to add production inventory");
         }
-
-        await this.inventoryTransactionRepository.insert({
-            item_id: itemId,
-            transaction_type: InventoryTransactionType.PRODUCTION,
-            quantity: quantity,
-            reference_type: InventoryReferenceType.PRODUCTION_ISSUE,
-            reference_id: productionIssueId,
-            notes: `Added from production issue ${productionIssueId}`,
-            created_by: userId,
-        });
-
-        return inventory;
     }
 }
 

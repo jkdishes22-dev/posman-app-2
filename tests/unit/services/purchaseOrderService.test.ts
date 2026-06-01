@@ -184,6 +184,14 @@ describe("PurchaseOrderService", () => {
 
   describe("updatePurchaseOrder", () => {
     it("throws when PO not found", async () => {
+      const txn = createMockTransactionalEntityManager();
+      txn.getRepository = vi.fn().mockImplementation((entity: any) => {
+        const name = typeof entity === "string" ? entity : entity?.name;
+        if (name === "PurchaseOrder") return mockPORepo;
+        if (name === "PurchaseOrderItem") return mockPOItemRepo;
+        return createMockRepository();
+      });
+      mockPORepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
       mockPORepo.findOne.mockResolvedValue(null);
 
       await expect(service.updatePurchaseOrder(99, {}, 1)).rejects.toThrow(

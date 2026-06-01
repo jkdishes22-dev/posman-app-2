@@ -94,44 +94,52 @@ export class ProductionPreparationService {
         preparationId: number,
         userId: number
     ): Promise<ProductionPreparation> {
-        const preparation = await this.preparationRepository.findOne({
-            where: { id: preparationId },
-        });
+        try {
+            return await this.preparationRepository.manager.transaction(async (manager) => {
+                const preparation = await manager.findOne(ProductionPreparation, {
+                    where: { id: preparationId },
+                });
 
-        if (!preparation) {
-            throw new Error(`Preparation ${preparationId} not found`);
+                if (!preparation) {
+                    throw new Error(`Preparation ${preparationId} not found`);
+                }
+
+                if (preparation.status !== ProductionPreparationStatus.PENDING) {
+                    throw new Error(`Cannot approve preparation with status ${preparation.status}. Only pending preparations can be approved.`);
+                }
+
+                // Validate user exists
+                const user = await manager.findOne(User, {
+                    where: { id: userId },
+                });
+
+                if (!user) {
+                    throw new Error(`User ${userId} not found`);
+                }
+
+                // Update preparation status to ISSUED
+                preparation.status = ProductionPreparationStatus.ISSUED;
+                preparation.issued_by_user = user;
+                preparation.issued_at = new Date();
+                preparation.updated_by = userId;
+
+                const savedPreparation = await manager.save(ProductionPreparation, preparation);
+
+                // Add produced items to inventory in the same transaction
+                await this.inventoryService.addInventoryFromProduction(
+                    preparation.item_id,
+                    preparation.quantity_prepared,
+                    preparationId,
+                    userId,
+                    manager
+                );
+
+                return savedPreparation;
+            });
+        } catch (error: any) {
+            console.error(`Error approving preparation ${preparationId}:`, error);
+            throw new Error(error?.message || "Failed to approve preparation");
         }
-
-        if (preparation.status !== ProductionPreparationStatus.PENDING) {
-            throw new Error(`Cannot approve preparation with status ${preparation.status}. Only pending preparations can be approved.`);
-        }
-
-        // Validate user exists
-        const user = await this.userRepository.findOne({
-            where: { id: userId },
-        });
-
-        if (!user) {
-            throw new Error(`User ${userId} not found`);
-        }
-
-        // Update preparation status to ISSUED
-        preparation.status = ProductionPreparationStatus.ISSUED;
-        preparation.issued_by_user = user;
-        preparation.issued_at = new Date();
-        preparation.updated_by = userId;
-
-        const savedPreparation = await this.preparationRepository.save(preparation);
-
-        // Add produced items to inventory
-        await this.inventoryService.addInventoryFromProduction(
-            preparation.item_id,
-            preparation.quantity_prepared,
-            preparationId, // Use preparation ID as reference
-            userId
-        );
-
-        return savedPreparation;
     }
 
     /**
@@ -178,62 +186,70 @@ export class ProductionPreparationService {
         input: CreatePreparationInput,
         userId: number
     ): Promise<ProductionPreparation> {
-        // Validate item exists
-        const item = await this.itemRepository.findOne({
-            where: { id: input.item_id },
-        });
+        try {
+            return await this.preparationRepository.manager.transaction(async (manager) => {
+                // Validate item exists
+                const item = await manager.findOne(Item, {
+                    where: { id: input.item_id },
+                });
 
-        if (!item) {
-            throw new Error(`Item ${input.item_id} not found`);
+                if (!item) {
+                    throw new Error(`Item ${input.item_id} not found`);
+                }
+
+                if (item.isGroup) {
+                    throw new Error("Grouped/composite items cannot be issued directly. Please issue recipe components instead.");
+                }
+
+                // Validate quantity
+                if (input.quantity_prepared <= 0) {
+                    throw new Error("Quantity prepared must be greater than 0");
+                }
+
+                // Validate user exists
+                const user = await manager.findOne(User, {
+                    where: { id: userId },
+                });
+
+                if (!user) {
+                    throw new Error(`User ${userId} not found`);
+                }
+
+                // Use provided prepared_at date or default to current date
+                // issued_at always uses current timestamp (when the issue actually happens)
+                const preparedAt = input.prepared_at ? new Date(input.prepared_at) : new Date();
+                const issuedAt = new Date(); // Always use current timestamp for issued_at
+
+                // Create preparation with ISSUED status (directly issued)
+                const preparation = manager.create(ProductionPreparation, {
+                    item: { id: input.item_id } as Item,
+                    quantity_prepared: input.quantity_prepared,
+                    status: ProductionPreparationStatus.ISSUED,
+                    prepared_by_user: { id: userId } as User,
+                    prepared_at: preparedAt,
+                    issued_by_user: { id: userId } as User,
+                    issued_at: issuedAt,
+                    notes: input.notes || null,
+                    created_by: userId,
+                });
+
+                const savedPreparation = await manager.save(ProductionPreparation, preparation);
+
+                // Add produced items to inventory in the same transaction
+                await this.inventoryService.addInventoryFromProduction(
+                    input.item_id,
+                    input.quantity_prepared,
+                    savedPreparation.id,
+                    userId,
+                    manager
+                );
+
+                return savedPreparation;
+            });
+        } catch (error: any) {
+            console.error(`Error issuing production directly for item ${input.item_id}:`, error);
+            throw new Error(error?.message || "Failed to issue production directly");
         }
-
-        if (item.isGroup) {
-            throw new Error("Grouped/composite items cannot be issued directly. Please issue recipe components instead.");
-        }
-
-        // Validate quantity
-        if (input.quantity_prepared <= 0) {
-            throw new Error("Quantity prepared must be greater than 0");
-        }
-
-        // Validate user exists
-        const user = await this.userRepository.findOne({
-            where: { id: userId },
-        });
-
-        if (!user) {
-            throw new Error(`User ${userId} not found`);
-        }
-
-        // Use provided prepared_at date or default to current date
-        // issued_at always uses current timestamp (when the issue actually happens)
-        const preparedAt = input.prepared_at ? new Date(input.prepared_at) : new Date();
-        const issuedAt = new Date(); // Always use current timestamp for issued_at
-
-        // Create preparation with ISSUED status (directly issued)
-        const preparation = this.preparationRepository.create({
-            item: { id: input.item_id } as Item,
-            quantity_prepared: input.quantity_prepared,
-            status: ProductionPreparationStatus.ISSUED,
-            prepared_by_user: { id: userId } as User,
-            prepared_at: preparedAt,
-            issued_by_user: { id: userId } as User,
-            issued_at: issuedAt,
-            notes: input.notes || null,
-            created_by: userId,
-        });
-
-        const savedPreparation = await this.preparationRepository.save(preparation);
-
-        // Add produced items to inventory
-        await this.inventoryService.addInventoryFromProduction(
-            input.item_id,
-            input.quantity_prepared,
-            savedPreparation.id,
-            userId
-        );
-
-        return savedPreparation;
     }
 
     /**

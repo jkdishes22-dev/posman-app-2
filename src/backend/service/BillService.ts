@@ -740,56 +740,67 @@ export class BillService {
   }
 
   async closeBill(billId: number) {
-    const bill = await AppDataSource.createQueryBuilder("bill", "bill")
-      .leftJoinAndSelect("bill.bill_payments", "billPayment")
-      .leftJoinAndSelect("billPayment.payment", "payment")
-      .where("bill.id = :id", { id: billId })
-      .getOne();
+    try {
+      return await AppDataSource.transaction(async (manager) => {
+        const bill = await manager
+          .createQueryBuilder(Bill, "bill")
+          .leftJoinAndSelect("bill.bill_payments", "billPayment")
+          .leftJoinAndSelect("billPayment.payment", "payment")
+          .where("bill.id = :id", { id: billId })
+          .getOne();
 
-    if (!bill) {
-      throw new EntityNotFoundError(
-        Bill,
-        "Cannot close bill. Please confirm payments",
-      );
+        if (!bill) {
+          throw new EntityNotFoundError(
+            Bill,
+            "Cannot close bill. Please confirm payments",
+          );
+        }
+
+        const billAmount = bill.total || 0;
+        const paidAmount = bill.bill_payments?.reduce(
+          (sum, billPayment) => sum + billPayment.payment.creditAmount,
+          0,
+        ) || 0;
+
+        // Use floating point comparison with tolerance (0.01) to account for precision issues
+        const amountDifference = Math.abs(paidAmount - billAmount);
+        if (amountDifference > 0.01) {
+          throw new Error(`Cannot close bill. Payment discrepancy: $${amountDifference.toFixed(2)}. Bill total: $${billAmount.toFixed(2)}, Paid: $${paidAmount.toFixed(2)}`);
+        }
+
+        await manager
+          .createQueryBuilder()
+          .update(Bill)
+          .set({ status: BillStatus.CLOSED })
+          .where("id = :id", { id: bill.id })
+          .execute();
+
+        // Update all bill items to CLOSED status
+        await manager
+          .createQueryBuilder()
+          .update(BillItem)
+          .set({ status: BillItemStatus.CLOSED })
+          .where("bill_id = :billId", { billId: bill.id })
+          .execute();
+
+        // Fetch and return the updated bill
+        const updatedBill = await manager
+          .createQueryBuilder(Bill, "bill")
+          .leftJoinAndSelect("bill.bill_items", "billItem")
+          .leftJoinAndSelect("billItem.item", "item")
+          .leftJoinAndSelect("bill.bill_payments", "billPayment")
+          .leftJoinAndSelect("billPayment.payment", "payment")
+          .leftJoinAndSelect("bill.user", "user")
+          .leftJoinAndSelect("bill.station", "station")
+          .where("bill.id = :id", { id: billId })
+          .getOne();
+
+        return updatedBill || bill;
+      });
+    } catch (error: any) {
+      console.error(`Error closing bill ${billId}:`, error);
+      throw new Error(error?.message || "Failed to close bill");
     }
-
-    const billAmount = bill.total || 0;
-    const paidAmount = bill.bill_payments?.reduce(
-      (sum, billPayment) => sum + billPayment.payment.creditAmount,
-      0,
-    ) || 0;
-
-    // Use floating point comparison with tolerance (0.01) to account for precision issues
-    const amountDifference = Math.abs(paidAmount - billAmount);
-    if (amountDifference > 0.01) {
-      throw new Error(`Cannot close bill. Payment discrepancy: $${amountDifference.toFixed(2)}. Bill total: $${billAmount.toFixed(2)}, Paid: $${paidAmount.toFixed(2)}`);
-    }
-
-    await AppDataSource.createQueryBuilder()
-      .update(Bill)
-      .set({ status: BillStatus.CLOSED })
-      .where("id = :id", { id: bill.id })
-      .execute();
-
-    // Update all bill items to CLOSED status
-    await AppDataSource.createQueryBuilder()
-      .update(BillItem)
-      .set({ status: BillItemStatus.CLOSED })
-      .where("bill_id = :billId", { billId: bill.id })
-      .execute();
-
-    // Fetch and return the updated bill
-    const updatedBill = await AppDataSource.createQueryBuilder("bill", "bill")
-      .leftJoinAndSelect("bill.bill_items", "billItem")
-      .leftJoinAndSelect("billItem.item", "item")
-      .leftJoinAndSelect("bill.bill_payments", "billPayment")
-      .leftJoinAndSelect("billPayment.payment", "payment")
-      .leftJoinAndSelect("bill.user", "user")
-      .leftJoinAndSelect("bill.station", "station")
-      .where("bill.id = :id", { id: billId })
-      .getOne();
-
-    return updatedBill || bill;
   }
 
   async closeBillsBulk(billIds: number[]) {
