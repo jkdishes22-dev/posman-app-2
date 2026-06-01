@@ -10,6 +10,7 @@ import StationSwitcher from "../components/StationSwitcher";
 import { AuthError } from "../types/types";
 import { useNavigation } from "../hooks/useNavigation";
 import { salesRoutes, SALES_DEFAULT_BREADCRUMB } from "./routeConfigs";
+import { useApiCall } from "../utils/apiUtils";
 
 interface SalesLayoutProps {
     children: React.ReactNode;
@@ -23,6 +24,7 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
     const { user, logout } = useAuth();
     const { currentStation } = useStation();
     const router = useRouter();
+    const apiCall = useApiCall();
 
 
     const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement>) => {
@@ -62,17 +64,12 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
     ];
 
     useEffect(() => {
-        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-        if (!token) return;
-        fetch("/api/system/module-visibility?role=sales", {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((r) => (r.ok ? r.json() : null))
-            .then((data) => {
-                if (data?.visibility && typeof data.visibility === "object") {
+        apiCall("/api/system/module-visibility?role=sales")
+            .then((result) => {
+                if (result.status === 200 && result.data?.visibility && typeof result.data.visibility === "object") {
                     setHiddenMenuIds(
                         new Set(
-                            Object.entries(data.visibility as Record<string, boolean>)
+                            Object.entries(result.data.visibility as Record<string, boolean>)
                                 .filter(([, v]) => v === false)
                                 .map(([id]) => id)
                         )
@@ -80,7 +77,7 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
                 }
             })
             .catch(() => {});
-    }, []);
+    }, [apiCall]);
 
     const visibleMenuItems = menuItems.filter((item) => !hiddenMenuIds.has(item.id));
 
