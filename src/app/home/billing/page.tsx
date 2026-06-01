@@ -16,7 +16,7 @@ const SalesBillingPage = () => {
              */}
             <div className="container-fluid p-0 d-flex flex-column h-100">
                 <PageHeaderStrip
-                    className="py-2 mb-1"
+                    className="py-2 mb-0"
                     actions={
                         <>
                             <StationSwitcher size="sm" showLabel={false} allowAllUsers buttonVariant="outline-light" />
