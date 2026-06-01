@@ -31,14 +31,23 @@ const SecureRoute = ({ children, roleRequired, rolesRequired, allowAnyAuthentica
       const decodedToken = decodeJwt(token);
       if (!decodedToken) {
         router.push("/");
-      } else if (!allowAnyAuthenticated) {
-        // Support both single role and array of roles
-        const allowedRoles = rolesRequired || (roleRequired ? [roleRequired] : []);
-        if (allowedRoles.length > 0) {
-          const hasRequiredRole = Array.isArray(decodedToken.roles) &&
-            allowedRoles.some(role => decodedToken.roles.includes(role));
-          if (!hasRequiredRole) {
-            router.push("/not-authorized");
+      } else {
+        // If the user must change their password, force them to the change-password page
+        const mustChangePassword = localStorage.getItem("must_change_password");
+        if (mustChangePassword === "1") {
+          router.push("/change-password");
+          return;
+        }
+
+        if (!allowAnyAuthenticated) {
+          // Support both single role and array of roles
+          const allowedRoles = rolesRequired || (roleRequired ? [roleRequired] : []);
+          if (allowedRoles.length > 0) {
+            const hasRequiredRole = Array.isArray(decodedToken.roles) &&
+              allowedRoles.some(role => decodedToken.roles.includes(role));
+            if (!hasRequiredRole) {
+              router.push("/not-authorized");
+            }
           }
         }
       }

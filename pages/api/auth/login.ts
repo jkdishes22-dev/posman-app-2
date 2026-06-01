@@ -89,7 +89,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     res.setHeader("Set-Cookie", `refreshToken=${refreshToken}; HttpOnly; Path=/; Max-Age=14400; Secure; SameSite=Strict`); // 4 hours
 
-    res.status(200).json({ token, role: user.roles[0]?.name || "user" });
+    res.status(200).json({
+      token,
+      role: user.roles[0]?.name || "user",
+      mustChangePassword: Boolean(user.must_change_password),
+    });
   } catch (error: any) {
     console.error("[login] Unhandled error:", error?.stack || error?.message || error);
     const setupError = formatSetupErrorResponse(error);
