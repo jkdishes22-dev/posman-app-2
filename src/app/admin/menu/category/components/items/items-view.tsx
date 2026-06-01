@@ -450,7 +450,7 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
             className={`table-responsive ${isBillingSection ? styles.tableContainerBilling : styles.tableContainer}`}
             onScroll={isBillingSection ? handleTableScroll : undefined}
           >
-          <table className={`table table-sm mt-3 table-striped ${styles.itemsTable}`}>
+          <table className={`table table-sm ${isBillingSection ? "mt-0" : "mt-3"} table-striped ${styles.itemsTable}`}>
             <thead>
               <tr>
                 <th scope="col">Item name</th>
