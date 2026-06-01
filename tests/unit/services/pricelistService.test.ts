@@ -137,14 +137,12 @@ describe("PricelistService", () => {
 
     it("invalidates pricelist items cache after removal", async () => {
       const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
-      mockPricelistItemRepo.delete.mockResolvedValue({ affected: 1 });
+      const qb = mockPricelistItemRepo.createQueryBuilder();
+      qb.execute.mockResolvedValue({ affected: 1 });
 
       await service.removeItemFromPricelist(5, 2);
 
-      expect(mockPricelistItemRepo.delete).toHaveBeenCalledWith({
-        pricelist: { id: 5 },
-        item: { id: 2 },
-      });
+      expect(qb.execute).toHaveBeenCalled();
       expect(invalidateManySpy).toHaveBeenCalledWith(["pricelist_items_5", "items"]);
     });
   });
