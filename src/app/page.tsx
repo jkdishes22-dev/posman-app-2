@@ -166,7 +166,7 @@ const LoginForm = () => {
       });
 
       if (result.status === 200) {
-        const { token, role } = result.data;
+        const { token, role, mustChangePassword } = result.data;
         const decodedToken = decodeJwt(token);
         // Include id from token root level, not just user object
         const userData = decodedToken ? {
@@ -178,8 +178,21 @@ const LoginForm = () => {
         // Use the auth context to handle login
         login(token, userData);
 
+        // Persist the mustChangePassword flag so SecureRoute can enforce the redirect
+        if (mustChangePassword) {
+          localStorage.setItem("must_change_password", "1");
+        } else {
+          localStorage.removeItem("must_change_password");
+        }
+
         // Set redirecting flag to prevent useEffect from also redirecting
         setIsRedirecting(true);
+
+        // If the user must change their password, redirect to the change-password page
+        if (mustChangePassword) {
+          router.push("/change-password");
+          return;
+        }
 
         // Use the decoded token roles for consistent redirect logic
         if (decodedToken && decodedToken.roles && decodedToken.roles.length > 0) {

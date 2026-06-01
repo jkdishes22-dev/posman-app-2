@@ -517,9 +517,11 @@ export class PricelistUploadService {
           });
 
           // Update or create PricelistItem
-          const existingPricelistItem = await queryRunner.manager.findOne(PricelistItem, {
-            where: { item: { id: matchedItemId }, pricelist: { id: pricelist.id } },
-          });
+          const existingPricelistItem = await queryRunner.manager
+            .createQueryBuilder(PricelistItem, "pi")
+            .where("pi.item_id = :itemId", { itemId: matchedItemId })
+            .andWhere("pi.pricelist_id = :pricelistId", { pricelistId: pricelist.id })
+            .getOne();
 
           if (existingPricelistItem) {
             existingPricelistItem.price = row.price;

@@ -51,13 +51,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 return res.status(400).json({ error: "Current password is incorrect" });
             }
             user.password = await bcrypt.hash(newPassword, 10);
+            user.must_change_password = false;
             user.updated_by = Number(userId);
             await req.db.getRepository("User").save(user);
-            
+
             // Invalidate user cache after password update
             const cacheKey = `api_user_me_${userId}`;
             cache.delete(cacheKey);
-            
+
             res.status(200).json({ message: "Password updated successfully" });
         } else {
             res.setHeader("Allow", ["GET", "PATCH"]);
