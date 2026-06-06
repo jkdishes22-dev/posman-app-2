@@ -263,6 +263,7 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
   return (
     <div className={isBillingSection ? styles.billingRoot : "col mt-2"}>
       <div className={`p-2 border bg-light${isBillingSection ? ` ${styles.billingContentRoot}` : ""}`}>
+        {!isBillingSection && (
         <div className="d-flex flex-column flex-md-row justify-content-between align-items-stretch align-items-md-center gap-3 mb-3">
           <div className="flex-shrink-0">
             <div className="d-flex align-items-center">
@@ -383,6 +384,7 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
                 )}
               </div>
         </div>
+        )}
 
         {/* Add Item Button - Only for category sections, not pricelist */}
         {!isBillingSection && selectedCategory && !isPricelistSection && (
@@ -448,7 +450,7 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
             className={`table-responsive ${isBillingSection ? styles.tableContainerBilling : styles.tableContainer}`}
             onScroll={isBillingSection ? handleTableScroll : undefined}
           >
-          <table className={`table table-sm mt-3 table-striped ${styles.itemsTable}`}>
+          <table className={`table table-sm ${isBillingSection ? "mt-0" : "mt-3"} table-striped ${styles.itemsTable}`}>
             <thead>
               <tr>
                 <th scope="col">Item name</th>

@@ -21,6 +21,12 @@ interface CategoriesProps {
   billingMode?: boolean;
   /** The currently selected category id — used to highlight the active pill in billing mode. */
   selectedCategoryId?: string | null;
+  /** Whether the category grid is expanded (billing mode only). */
+  expanded?: boolean;
+  /** Called when the expand/collapse grid button is clicked. */
+  onToggleExpand?: () => void;
+  /** Called when the "All" pill is clicked (billing mode only). */
+  onAllClick?: () => void;
 }
 
 const CategoriesComponent = ({
@@ -35,6 +41,9 @@ const CategoriesComponent = ({
   onErrorDismiss,
   billingMode = false,
   selectedCategoryId = null,
+  expanded = false,
+  onToggleExpand,
+  onAllClick,
 }: CategoriesProps) => {
   useTooltips();
   const [showAll, setShowAll] = useState(false);
@@ -74,17 +83,21 @@ const CategoriesComponent = ({
     stripRef.current?.scrollBy({ left: 220, behavior: "smooth" });
   };
 
-  /* ── Billing mode: horizontal scroll strip ─────────────────────────── */
+  /* ── Billing mode: prominent strip + expandable grid ───────────────── */
   if (billingMode) {
+    const allActive = selectedCategoryId === null;
+
     return (
       <div>
         {fetchError && <p style={{ color: "red", margin: 0 }}>{fetchError}</p>}
+
+        {/* Strip row */}
         <div className="d-flex align-items-center gap-1">
           {/* Left arrow */}
           <button
             type="button"
-            className="btn btn-sm btn-outline-secondary flex-shrink-0 px-2"
-            style={{ height: 36, width: 32 }}
+            className="btn btn-outline-secondary flex-shrink-0 px-2"
+            style={{ height: 44, width: 36 }}
             onClick={scrollStripLeft}
             aria-label="Scroll categories left"
             title="Scroll left"
@@ -98,51 +111,110 @@ const CategoriesComponent = ({
             className="d-flex gap-2"
             style={{ flex: 1, overflowX: "hidden", scrollBehavior: "smooth" }}
           >
+            {/* "All" pill — always first */}
+            <button
+              type="button"
+              className={`btn flex-shrink-0 fw-semibold ${allActive ? "btn-primary" : "btn-outline-secondary"}`}
+              style={{ whiteSpace: "nowrap", minHeight: 44 }}
+              onClick={() => onAllClick?.()}
+            >
+              <i className="bi bi-grid-3x3-gap me-1"></i>
+              All
+            </button>
+
             {filteredCategories.length === 0 ? (
-              <span className="text-muted small fst-italic py-1">No categories</span>
+              <span className="text-muted fst-italic py-2 align-self-center">No categories</span>
             ) : (
-              filteredCategories.map((category) => (
-                <button
-                  key={category.id}
-                  type="button"
-                  className={`btn btn-sm flex-shrink-0 ${
-                    selectedCategoryId === category.id
-                      ? "btn-primary"
-                      : "btn-outline-secondary"
-                  }`}
-                  style={{ whiteSpace: "nowrap" }}
-                  onClick={() => onCategoryClick?.(category)}
-                >
-                  {category.name}
-                  {category.code && (
-                    <span
-                      className={`ms-1 badge ${
-                        selectedCategoryId === category.id
-                          ? "bg-primary-subtle text-primary"
-                          : "bg-secondary-subtle text-secondary"
-                      }`}
-                      style={{ fontSize: "0.65rem" }}
-                    >
-                      {category.code}
-                    </span>
-                  )}
-                </button>
-              ))
+              filteredCategories.map((category) => {
+                const isActive = selectedCategoryId === category.id;
+                return (
+                  <button
+                    key={category.id}
+                    type="button"
+                    className={`btn flex-shrink-0 fw-semibold ${isActive ? "btn-primary" : "btn-outline-secondary"}`}
+                    style={{ whiteSpace: "nowrap", minHeight: 44 }}
+                    onClick={() => onCategoryClick?.(category)}
+                  >
+                    {category.name}
+                    {category.code && (
+                      <span
+                        className={`ms-2 badge ${isActive ? "bg-white text-primary" : "bg-secondary-subtle text-secondary"}`}
+                        style={{ fontSize: "0.7rem" }}
+                      >
+                        {category.code}
+                      </span>
+                    )}
+                  </button>
+                );
+              })
             )}
           </div>
 
           {/* Right arrow */}
           <button
             type="button"
-            className="btn btn-sm btn-outline-secondary flex-shrink-0 px-2"
-            style={{ height: 36, width: 32 }}
+            className="btn btn-outline-secondary flex-shrink-0 px-2"
+            style={{ height: 44, width: 36 }}
             onClick={scrollStripRight}
             aria-label="Scroll categories right"
             title="Scroll right"
           >
             <i className="bi bi-chevron-right"></i>
           </button>
+
+          {/* Expand/collapse grid toggle */}
+          <button
+            type="button"
+            className={`btn flex-shrink-0 px-2 ${expanded ? "btn-primary" : "btn-outline-secondary"}`}
+            style={{ height: 44, width: 44 }}
+            onClick={() => onToggleExpand?.()}
+            aria-label={expanded ? "Collapse category grid" : "Expand category grid"}
+            title={expanded ? "Collapse grid" : "Show all categories"}
+          >
+            <i className={`bi ${expanded ? "bi-grid-fill" : "bi-grid"}`}></i>
+          </button>
         </div>
+
+        {/* Expandable category grid */}
+        {expanded && (
+          <div
+            className="row row-cols-2 row-cols-sm-3 row-cols-md-4 g-2 mt-1 mx-0"
+            style={{ maxHeight: 220, overflowY: "auto", overflowX: "hidden" }}
+          >
+            {filteredCategories.map((category) => {
+              const isActive = selectedCategoryId === category.id;
+              return (
+                <div key={category.id} className="col">
+                  <div
+                    className={`card h-100 text-center border-2 ${isActive ? "border-primary" : "border-light"}`}
+                    style={{
+                      cursor: "pointer",
+                      backgroundColor: isActive ? "var(--md-primary)" : undefined,
+                      color: isActive ? "#fff" : undefined,
+                      transition: "box-shadow 0.15s",
+                    }}
+                    onClick={() => { onCategoryClick?.(category); onToggleExpand?.(); }}
+                    onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 8px rgba(0,0,0,0.15)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = ""; }}
+                  >
+                    <div className="card-body py-2 px-1">
+                      <i className="bi bi-tag d-block mb-1" style={{ fontSize: "1.4rem" }}></i>
+                      <div className="fw-semibold small">{category.name}</div>
+                      {category.code && (
+                        <span
+                          className={`badge mt-1 ${isActive ? "bg-white text-primary" : "bg-secondary-subtle text-secondary"}`}
+                          style={{ fontSize: "0.65rem" }}
+                        >
+                          {category.code}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   }

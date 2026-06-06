@@ -82,7 +82,7 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
     const visibleMenuItems = menuItems.filter((item) => !hiddenMenuIds.has(item.id));
 
     return (
-        <div className="d-flex vh-100">
+        <div className="d-flex vh-100 overflow-hidden">
             {/* Sidebar */}
             <div className={`bg-dark text-white d-flex flex-column ${isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"}`}
                 style={{
