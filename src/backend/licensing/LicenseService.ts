@@ -226,7 +226,32 @@ class LicenseService {
     }
   }
 
+  private getPrimaryMacAddress(): string {
+    const interfaces = os.networkInterfaces();
+    for (const iface of Object.values(interfaces)) {
+      if (!iface) continue;
+      for (const addr of iface) {
+        if (!addr.internal && addr.mac && addr.mac !== "00:00:00:00:00:00") {
+          return addr.mac;
+        }
+      }
+    }
+    return "no-mac";
+  }
+
   private getMachineFingerprintHash(): string {
+    const raw = [
+      os.platform(),
+      os.arch(),
+      os.hostname(),
+      os.userInfo().username,
+      this.getPrimaryMacAddress(),
+    ].join("|");
+    return crypto.createHash("sha256").update(raw).digest("hex");
+  }
+
+  // Legacy fingerprint used os.release() instead of MAC. Used only for migration.
+  private getLegacyFingerprintHash(): string {
     const raw = [
       os.platform(),
       os.arch(),
@@ -316,11 +341,14 @@ class LicenseService {
 
     // Certificate-level binding: if the license was issued for a specific machine,
     // reject it on any other machine regardless of machineBindingRequired.
+    // Accept the legacy hash (pre-MAC algorithm) so existing issued certs still work.
     if (payload.machineId && payload.machineId !== currentHash) {
-      throw new LicenseValidationError(
-        "LICENSE_INVALID",
-        "This license was issued for a different machine and cannot be activated here.",
-      );
+      if (payload.machineId !== this.getLegacyFingerprintHash()) {
+        throw new LicenseValidationError(
+          "LICENSE_INVALID",
+          "This license was issued for a different machine and cannot be activated here.",
+        );
+      }
     }
 
     if (!payload.machineBindingRequired) return;
@@ -330,12 +358,19 @@ class LicenseService {
       await this.setMachineBinding(currentHash);
       return;
     }
-    if (storedHash !== currentHash) {
-      throw new LicenseValidationError(
-        "LICENSE_INVALID",
-        "License is bound to a different machine.",
-      );
+    if (storedHash === currentHash) return;
+
+    // Migration: stored binding used the old algorithm (no MAC). Accept it and
+    // silently re-bind to the new fingerprint so future checks use the stable hash.
+    if (storedHash === this.getLegacyFingerprintHash()) {
+      await this.setMachineBinding(currentHash);
+      return;
     }
+
+    throw new LicenseValidationError(
+      "LICENSE_INVALID",
+      "License is bound to a different machine.",
+    );
   }
 
   private decodeCertificate(rawCode: string): SignedLicenseCertificate {

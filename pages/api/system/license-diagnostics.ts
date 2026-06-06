@@ -6,8 +6,21 @@ import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { authMiddleware } from "@backend/middleware/auth";
 import { licenseService } from "@backend/licensing/LicenseService";
 
+function getPrimaryMacAddress(): string {
+  const interfaces = os.networkInterfaces();
+  for (const iface of Object.values(interfaces)) {
+    if (!iface) continue;
+    for (const addr of iface) {
+      if (!addr.internal && addr.mac && addr.mac !== "00:00:00:00:00:00") {
+        return addr.mac;
+      }
+    }
+  }
+  return "no-mac";
+}
+
 function getMachineFingerprintHash(): string {
-  const raw = [os.platform(), os.arch(), os.hostname(), os.release(), os.userInfo().username].join("|");
+  const raw = [os.platform(), os.arch(), os.hostname(), os.userInfo().username, getPrimaryMacAddress()].join("|");
   return crypto.createHash("sha256").update(raw).digest("hex");
 }
 

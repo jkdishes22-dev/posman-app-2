@@ -137,6 +137,36 @@ describe("LicenseService", () => {
     expect(status.code).toBe("LICENSE_INVALID");
   });
 
+  it("migrates legacy fingerprint binding to new MAC-based hash on next validation", async () => {
+    const payload = {
+      licenseId: crypto.randomUUID(),
+      planType: "trial1m",
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      machineBindingRequired: true,
+      issuedAt: new Date().toISOString(),
+    };
+    const code = makeSignedCode(payload, privateKey);
+
+    // Simulate legacy: stored binding used the old fingerprint algorithm
+    const legacyHash = "legacy-fingerprint-hash";
+    vi.spyOn(licenseService as any, "getLegacyFingerprintHash").mockReturnValue(legacyHash);
+    vi.spyOn(licenseService as any, "getMachineFingerprintHash").mockReturnValue(legacyHash);
+
+    await licenseService.activateFromCode(code);
+
+    // Now simulate the new algorithm producing a different hash (MAC added)
+    const newHash = "new-mac-fingerprint-hash";
+    vi.spyOn(licenseService as any, "getMachineFingerprintHash").mockReturnValue(newHash);
+    vi.spyOn(licenseService as any, "getLegacyFingerprintHash").mockReturnValue(legacyHash);
+
+    const status = await licenseService.getStatus(true);
+    expect(status.state).toBe("ready");
+
+    // Stored binding should now be updated to the new hash
+    const stored = await keytarStore.get("jk-posman-license:license-machine-binding");
+    expect(stored).toBe(newHash);
+  });
+
   it("returns license_invalid when secure key storage access fails", async () => {
     fs.mkdirSync(path.dirname(licensePath), { recursive: true });
     fs.writeFileSync(
