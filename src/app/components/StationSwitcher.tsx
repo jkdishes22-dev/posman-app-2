@@ -66,15 +66,22 @@ const StationSwitcher: React.FC<StationSwitcherProps> = ({
         return null;
     }
 
-    if (!currentStation || availableStations.length <= 1) {
-        return null;
-    }
-
     const sizeClasses = {
         sm: "btn-sm",
         md: "",
         lg: "btn-lg"
     };
+
+    if (!currentStation) return null;
+
+    if (availableStations.length <= 1) {
+        return (
+            <span className={`badge bg-secondary ${sizeClasses[size]} ${className}`}>
+                <i className="bi bi-geo-alt me-1"></i>
+                {currentStation.name}
+            </span>
+        );
+    }
 
     return (
         <div className={`dropdown ${className}`} ref={dropdownRef}>
