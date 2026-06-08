@@ -164,9 +164,9 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
             </div>
 
             {/* Main Content */}
-            <div className="flex-grow-1 d-flex flex-column">
+            <div className="flex-grow-1 d-flex flex-column min-w-0 overflow-hidden">
                 {/* Page Content */}
-                <main className="flex-grow-1 p-4">
+                <main className="flex-grow-1 p-4 min-w-0 overflow-hidden">
                     {authError && (
                         <div className="alert alert-danger" role="alert">
                             <i className="bi bi-exclamation-triangle me-2"></i>
