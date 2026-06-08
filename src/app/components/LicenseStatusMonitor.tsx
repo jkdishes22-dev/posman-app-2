@@ -8,6 +8,7 @@ interface LicenseStatus {
   message: string;
   expiresAt: string | null;
   planType: string | null;
+  machineId: string | null;
 }
 
 interface WarningSettings {
@@ -154,9 +155,33 @@ export default function LicenseStatusMonitor() {
               Go to License Settings
             </a>
           ) : (
-            <p style={{ fontSize: "0.8rem", color: "#64748b", margin: 0 }}>
-              Please contact your <strong style={{ color: "#94a3b8" }}>administrator</strong> to resolve this.
-            </p>
+            <>
+              <p style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: "1rem" }}>
+                Please contact your <strong style={{ color: "#94a3b8" }}>administrator</strong> to resolve this.
+              </p>
+              {status.machineId && (
+                <div style={{ textAlign: "left" }}>
+                  <p style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.4rem" }}>
+                    Share this <strong style={{ color: "#94a3b8" }}>Installation Code</strong> with your administrator:
+                  </p>
+                  <div
+                    style={{
+                      background: "#0f172a",
+                      border: "1px solid #334155",
+                      borderRadius: 6,
+                      padding: "0.5rem 0.75rem",
+                      fontFamily: "monospace",
+                      fontSize: "0.7rem",
+                      color: "#7dd3fc",
+                      wordBreak: "break-all",
+                      userSelect: "all",
+                    }}
+                  >
+                    {status.machineId}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -565,6 +565,10 @@ async getStatus(forceRefresh = false): Promise<LicenseValidationResult> {
     }
   }
 
+  getMachineId(): string {
+    return this.getMachineFingerprintHash();
+  }
+
   async ensureValidForRequest(): Promise<void> {
     const status = await this.getStatus();
     if (status.state === "ready") return;

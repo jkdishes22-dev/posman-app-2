@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ? 402
           : 403;
 
-    return res.status(httpStatus).json(status);
+    return res.status(httpStatus).json({ ...status, machineId: licenseService.getMachineId() });
   } catch (error: any) {
     return res.status(500).json({
       state: "license_invalid",

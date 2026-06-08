@@ -1,28 +1,9 @@
-import crypto from "crypto";
-import os from "os";
 import { NextApiRequest, NextApiResponse } from "next";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { authMiddleware } from "@backend/middleware/auth";
 import { licenseService } from "@backend/licensing/LicenseService";
 
-function getPrimaryMacAddress(): string {
-  const interfaces = os.networkInterfaces();
-  for (const iface of Object.values(interfaces)) {
-    if (!iface) continue;
-    for (const addr of iface) {
-      if (!addr.internal && addr.mac && addr.mac !== "00:00:00:00:00:00") {
-        return addr.mac;
-      }
-    }
-  }
-  return "no-mac";
-}
-
-function getMachineFingerprintHash(): string {
-  const raw = [os.platform(), os.arch(), os.hostname(), os.userInfo().username, getPrimaryMacAddress()].join("|");
-  return crypto.createHash("sha256").update(raw).digest("hex");
-}
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== "GET") {
@@ -44,7 +25,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     planType: status.planType,
     expiresAt: status.expiresAt,
     checkedAt: new Date().toISOString(),
-    machineId: getMachineFingerprintHash(),
+    machineId: licenseService.getMachineId(),
   });
 };
 
