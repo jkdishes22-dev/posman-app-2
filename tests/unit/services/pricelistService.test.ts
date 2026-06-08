@@ -20,6 +20,7 @@ describe("PricelistService", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    cache.clear();
     mockPricelistRepo = createMockRepository();
     mockPricelistItemRepo = createMockRepository();
     mockStationRepo = createMockRepository();
