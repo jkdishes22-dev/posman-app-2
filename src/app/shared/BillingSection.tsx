@@ -1176,8 +1176,8 @@ const BillingSection = () => {
               </div>
             </div>
             <div className="card-footer bg-light border-top py-3" style={{ boxShadow: "0 -2px 4px rgba(0,0,0,0.05)" }}>
-              <div className="row align-items-center g-3">
-                <div className="col-md-6">
+              <div className="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div>
                   <div className="d-flex flex-column">
                     <div className="h4 mb-1 fw-bold text-success">
                       Total: ${createdBill && !isNaN(Number(createdBill.total))
@@ -1193,8 +1193,8 @@ const BillingSection = () => {
                     )}
                   </div>
                 </div>
-                <div className="col-md-6">
-                  <div className="d-flex flex-wrap gap-2 justify-content-md-end">
+                <div>
+                  <div className="d-flex flex-wrap gap-2 justify-content-end">
                     {!createdBill ? (
                       <>
                         <Button
