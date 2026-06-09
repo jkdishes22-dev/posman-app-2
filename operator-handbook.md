@@ -44,9 +44,15 @@ node scripts/generate-license-keypair.js ~/posman-license-keys
 - `license-private.pem` stays with operator only.
 - Never send private key to clients.
 
-3. Public key distribution:
+3. Bundle the public key in the app (required before every first build with a new keypair):
 
-- `license-public.pem` can be shipped to clients or embedded in deployment process.
+```bash
+cp ~/posman-license-keys/license-public.pem public/license/public-key.pem
+```
+
+Commit this file. The Electron installer reads `public/license/public-key.pem` at startup to verify license signatures. If the file in the repo does not match the private key used to sign licenses, every activation attempt will fail with "License signature verification failed".
+
+> **What changed in v3.1.6**: a key mismatch in the bundled `public/license/public-key.pem` was corrected. Installers built from v3.1.6 onward bundle the correct key and do not require the `LICENSE_PUBLIC_KEY` env-var workaround on client machines.
 
 ---
 
@@ -60,34 +66,54 @@ node scripts/generate-license-keypair.js ~/posman-license-keys
 
 ## Generate license batches
 
-Example used in operations:
+Key arguments:
+
+| Argument | Default | Description |
+|---|---|---|
+| `--privateKey` | _(required)_ | Absolute path to `license-private.pem` |
+| `--version` | `unknown-version` | App version label (informational only) |
+| `--count` | `5` | Number of trial licenses to generate |
+| `--months` | `1` | Trial duration in months |
+| `--planType` | `trial<months>m` | Plan label on the trial licenses (e.g. `trial3m`, `trial6m`) |
+| `--includeLifetime` | `1` | Set to `0` to suppress the lifetime license |
+| `--customerRef` | `unassigned` | Reference tag for your records |
+| `--out` | `build/licenses/` | Output directory |
+| `--name` | _(timestamp)_ | Output filename (without `.json`) |
+
+Example — 1-month trial batch:
 
 ```powershell
-node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-license-keys\license-private.pem" --version=0.1.28 --count=1 --months=1 --includeLifetime=0 --customerRef=debug-match
+node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-license-keys\license-private.pem" --version=3.1.6 --count=10 --months=1 --planType=trial1m --includeLifetime=0 --customerRef=batch-1m-2026-06
 ```
 
-For larger batches, adjust only `--count` and `--months`:
+3-month batch:
 
 ```powershell
-node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-license-keys\license-private.pem" --version=0.1.28 --count=50 --months=3 --includeLifetime=0 --customerRef=batch-3m-2026-05
+node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-license-keys\license-private.pem" --version=3.1.6 --count=10 --months=3 --planType=trial3m --includeLifetime=0 --customerRef=batch-3m-2026-06
 ```
 
-To generate a lifetime code:
+Lifetime-only (no trial codes):
 
 ```powershell
-node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-license-keys\license-private.pem" --version=0.1.28 --count=0 --includeLifetime=1 --customerRef=lifetime-batch-2026-05
+node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-license-keys\license-private.pem" --version=3.1.6 --count=0 --includeLifetime=1 --customerRef=lifetime-2026-06
 ```
+
+> The `--planType` flag only affects the label on trial licenses. Lifetime licenses always get `planType: "lifetime"` and `expiresAt: null` regardless of this argument — they never expire.
 
 ---
 
-## Client public key setup (if env-based)
+## Client public key setup (legacy fallback — not needed for v3.1.6+)
+
+Installers built from v3.1.6 onward bundle the correct public key inside the app. Customers do not need to set any environment variable.
+
+If you are supporting a client running a pre-3.1.6 installer and cannot immediately upgrade, use this workaround to inject the correct key at runtime:
 
 ```powershell
 $pub = Get-Content "C:\Users\Administrator\posman-license-keys\license-public.pem" -Raw
 [Environment]::SetEnvironmentVariable("LICENSE_PUBLIC_KEY", $pub, "User")
 ```
 
-After setting, client should sign out/in (or reboot), then launch app and activate a code.
+After setting, the client must sign out/in (or reboot) and relaunch the app before activating a code. **Upgrade to v3.1.6+ as soon as possible** so the env-var dependency is no longer needed.
 
 ---
 
@@ -106,9 +132,12 @@ Dates are shown in `YYYY-MM-DD` format.
 
 ## Troubleshooting
 
-- **License signature verification failed**: public/private key mismatch or stale environment.
-- **License expired**: issue renewal/lifetime code.
-- **Different machine binding**: issue a new code for replacement machine.
+- **License signature verification failed**: the public key used to verify the license does not match the private key used to sign it. Most likely causes:
+  - The installer was built before the correct `public/license/public-key.pem` was committed (pre-v3.1.6 issue). Fix: upgrade the client to v3.1.6+.
+  - The license code was generated with a different private key than the one paired with the bundled public key. Re-generate codes using the matching private key.
+  - Stale `LICENSE_PUBLIC_KEY` env-var from a previous workaround. Clear the variable and relaunch.
+- **License expired**: issue a renewal or lifetime code.
+- **License is bound to a different machine**: issue a new code for the replacement machine.
 
 ---
 
@@ -169,6 +198,17 @@ Dates are shown in `YYYY-MM-DD` format.
 
 ### GitHub release checklist (short)
 
-1. Tag and push (or run the release workflow your repo uses).
-2. Confirm the Windows workflow completed and the artifact/installer matches the intended version.
-3. Smoke-test activate + login + one bill on a clean VM or staging machine before announcing to customers.
+1. Verify `public/license/public-key.pem` in the repo matches the private key you use to generate licenses. Run a quick sanity check:
+   ```bash
+   node -e "
+   const c=require('crypto'),fs=require('fs');
+   const priv=fs.readFileSync('/path/to/license-private.pem','utf8');
+   const pub=fs.readFileSync('public/license/public-key.pem','utf8');
+   const msg=Buffer.from('test');
+   const sig=c.sign(null,msg,priv);
+   console.log(c.verify(null,msg,pub,sig)?'KEYS MATCH':'MISMATCH - do not build');
+   "
+   ```
+2. Tag and push (or run the release workflow your repo uses).
+3. Confirm the Windows workflow completed and the artifact/installer matches the intended version.
+4. Smoke-test activate + login + one bill on a clean VM or staging machine before announcing to customers.
