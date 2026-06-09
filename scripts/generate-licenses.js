@@ -37,6 +37,8 @@ const outputDir = readArg("out", path.join(process.cwd(), "build", "licenses"));
 const includeLifetime = readArg("includeLifetime", "1") !== "0";
 /** Optional basename (no path). Writes `<name>.json` under --out instead of licenses-<version>-<stamp>.json */
 const outputName = readArg("name", "").trim();
+/** Optional plan type label for trial licenses (e.g. trial3m, trial6m, trial12m). Defaults to trial<months>m */
+const planTypeArg = readArg("planType", `trial${months}m`).trim();
 const privateKeyPath = readArg("privateKey", "");
 
 if (!privateKeyPath) {
@@ -96,7 +98,7 @@ function generatePayload(planType, expiresAt) {
 const trialLicenses = [];
 for (let i = 0; i < count; i += 1) {
   const expiresAt = addMonths(issuedAt, months).toISOString();
-  const payload = generatePayload("trial1m", expiresAt);
+  const payload = generatePayload(planTypeArg, expiresAt);
   trialLicenses.push({
     payload,
     code: encodeCertificate(payload),
