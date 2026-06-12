@@ -73,6 +73,7 @@ export default function AdminLicenseDiagnosticsPage() {
   const [licenseCode, setLicenseCode] = useState("");
   const [activating, setActivating] = useState(false);
   const [activationResult, setActivationResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [clearingCache, setClearingCache] = useState(false);
 
   const expiryWarning = getLicenseExpiryWarning(data?.expiresAt ?? null, licenseWarning);
 
@@ -100,6 +101,24 @@ export default function AdminLicenseDiagnosticsPage() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleClearCache = async () => {
+    setClearingCache(true);
+    setActivationResult(null);
+    try {
+      const result = await apiCall("/api/system/license-reset-cache", { method: "POST" });
+      if (result.status === 200 && result.data) {
+        setData(result.data as LicenseDiagnostics);
+        setActivationResult({ success: true, message: "License cache cleared. Status re-checked from disk." });
+      } else {
+        setActivationResult({ success: false, message: result.error || "Failed to clear license cache." });
+      }
+    } catch {
+      setActivationResult({ success: false, message: "Network error while clearing cache." });
+    } finally {
+      setClearingCache(false);
     }
   };
 
@@ -163,6 +182,14 @@ export default function AdminLicenseDiagnosticsPage() {
                 }}
               >
                 {showActivationForm ? "Cancel" : "Add activation code"}
+              </button>
+              <button
+                className="btn btn-outline-warning btn-sm"
+                onClick={handleClearCache}
+                disabled={clearingCache || loading}
+                title="Delete the on-disk license cache and re-validate from scratch"
+              >
+                {clearingCache ? "Clearing..." : "Clear Cache"}
               </button>
               <button className="btn btn-outline-secondary btn-sm" onClick={() => fetchDiagnostics(true)} disabled={loading}>
                 {loading ? "Refreshing..." : "Refresh"}

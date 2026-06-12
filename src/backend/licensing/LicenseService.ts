@@ -228,9 +228,10 @@ class LicenseService {
 
   private getPrimaryMacAddress(): string {
     const interfaces = os.networkInterfaces();
-    for (const iface of Object.values(interfaces)) {
-      if (!iface) continue;
-      for (const addr of iface) {
+    const sorted = Object.entries(interfaces).sort(([a], [b]) => a.localeCompare(b));
+    for (const [, addrs] of sorted) {
+      if (!addrs) continue;
+      for (const addr of addrs) {
         if (!addr.internal && addr.mac && addr.mac !== "00:00:00:00:00:00") {
           return addr.mac;
         }
@@ -567,6 +568,11 @@ async getStatus(forceRefresh = false): Promise<LicenseValidationResult> {
 
   getMachineId(): string {
     return this.getMachineFingerprintHash();
+  }
+
+  clearCache(): void {
+    this.cache = null;
+    this.clearDiskCache();
   }
 
   async ensureValidForRequest(): Promise<void> {
