@@ -1,6 +1,10 @@
 !macro customInstall
   SetShellVarContext current
 
+  ; Clear the license disk cache on every install/upgrade so a fresh fingerprint
+  ; check runs on first launch rather than serving a potentially stale cached result.
+  Delete "$APPDATA\JK PosMan\license.cache.json"
+
   StrCpy $0 "$INSTDIR\resources\public\license\public-key.pem"
   StrCpy $1 "$APPDATA\JK PosMan\license"
   StrCpy $2 "$1\public-key.pem"

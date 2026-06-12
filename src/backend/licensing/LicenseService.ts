@@ -570,6 +570,11 @@ async getStatus(forceRefresh = false): Promise<LicenseValidationResult> {
     return this.getMachineFingerprintHash();
   }
 
+  clearCache(): void {
+    this.cache = null;
+    this.clearDiskCache();
+  }
+
   async ensureValidForRequest(): Promise<void> {
     const status = await this.getStatus();
     if (status.state === "ready") return;
