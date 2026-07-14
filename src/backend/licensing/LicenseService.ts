@@ -226,21 +226,72 @@ class LicenseService {
     }
   }
 
+  // Known virtual/software interface name patterns — excluded from MAC selection.
+  private static readonly VIRTUAL_IFACE_PATTERNS: RegExp[] = [
+    /vmware/i, /vmnet/i,
+    /virtualbox/i, /vboxnet/i,
+    /hyper-v/i, /vethernet/i,
+    /docker/i,
+    /\btap\b/i, /\btun\b/i,
+    /\bvpn\b/i,
+    /virbr/i, /bridge/i,
+    /utun/i, /awdl/i, /llw/i,
+  ];
+
+  // Known virtual/software MAC OUI prefixes — excluded from MAC selection.
+  private static readonly VIRTUAL_MAC_PREFIXES: string[] = [
+    "00:0c:29",  // VMware
+    "00:50:56",  // VMware
+    "00:05:69",  // VMware
+    "08:00:27",  // VirtualBox
+    "00:15:5d",  // Hyper-V
+    "02:42:",    // Docker
+  ];
+
+  private isPhysicalInterface(name: string, mac: string): boolean {
+    const m = mac.toLowerCase();
+    if (LicenseService.VIRTUAL_MAC_PREFIXES.some((p) => m.startsWith(p))) return false;
+    if (LicenseService.VIRTUAL_IFACE_PATTERNS.some((p) => p.test(name))) return false;
+    return true;
+  }
+
   private getPrimaryMacAddress(): string {
     const interfaces = os.networkInterfaces();
     const sorted = Object.entries(interfaces).sort(([a], [b]) => a.localeCompare(b));
-    for (const [, addrs] of sorted) {
-      if (!addrs) continue;
-      for (const addr of addrs) {
-        if (!addr.internal && addr.mac && addr.mac !== "00:00:00:00:00:00") {
-          return addr.mac;
+    // Prefer physical LAN/WiFi interfaces; fall back to any non-internal interface.
+    for (const pass of [true, false]) {
+      for (const [name, addrs] of sorted) {
+        if (!addrs) continue;
+        for (const addr of addrs) {
+          if (
+            !addr.internal &&
+            addr.mac &&
+            addr.mac !== "00:00:00:00:00:00" &&
+            (!pass || this.isPhysicalInterface(name, addr.mac))
+          ) {
+            return addr.mac;
+          }
         }
       }
     }
     return "no-mac";
   }
 
+  // Current fingerprint (v3): platform + arch + physical MAC only.
+  // Dropping hostname and username makes it resilient to machine renames,
+  // domain joins, and user account renames.
   private getMachineFingerprintHash(): string {
+    const raw = [
+      os.platform(),
+      os.arch(),
+      this.getPrimaryMacAddress(),
+    ].join("|");
+    return crypto.createHash("sha256").update(raw).digest("hex");
+  }
+
+  // v2 fingerprint (platform|arch|hostname|username|MAC) — used only for migration
+  // of bindings stored before the hostname/username components were removed.
+  private getV2FingerprintHash(): string {
     const raw = [
       os.platform(),
       os.arch(),
@@ -251,7 +302,7 @@ class LicenseService {
     return crypto.createHash("sha256").update(raw).digest("hex");
   }
 
-  // Legacy fingerprint used os.release() instead of MAC. Used only for migration.
+  // v1 fingerprint used os.release() instead of MAC — kept only for migration.
   private getLegacyFingerprintHash(): string {
     const raw = [
       os.platform(),
@@ -342,9 +393,13 @@ class LicenseService {
 
     // Certificate-level binding: if the license was issued for a specific machine,
     // reject it on any other machine regardless of machineBindingRequired.
-    // Accept the legacy hash (pre-MAC algorithm) so existing issued certs still work.
+    // Accept v2 (hostname+username+MAC) and v1 (os.release()) hashes so certs
+    // issued before this fingerprint revision continue to work.
     if (payload.machineId && payload.machineId !== currentHash) {
-      if (payload.machineId !== this.getLegacyFingerprintHash()) {
+      if (
+        payload.machineId !== this.getV2FingerprintHash() &&
+        payload.machineId !== this.getLegacyFingerprintHash()
+      ) {
         throw new LicenseValidationError(
           "LICENSE_INVALID",
           "This license was issued for a different machine and cannot be activated here.",
@@ -361,9 +416,12 @@ class LicenseService {
     }
     if (storedHash === currentHash) return;
 
-    // Migration: stored binding used the old algorithm (no MAC). Accept it and
-    // silently re-bind to the new fingerprint so future checks use the stable hash.
-    if (storedHash === this.getLegacyFingerprintHash()) {
+    // Migration: stored binding used v2 (hostname+username+MAC) or v1 (os.release()).
+    // Accept either and silently re-bind to the current v3 hash.
+    if (
+      storedHash === this.getV2FingerprintHash() ||
+      storedHash === this.getLegacyFingerprintHash()
+    ) {
       await this.setMachineBinding(currentHash);
       return;
     }
