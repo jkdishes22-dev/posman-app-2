@@ -49,6 +49,16 @@ jobs:
         # Both are pinned to legacy-compatible versions and rebuilt explicitly in later steps.
         run: npm ci --legacy-peer-deps --ignore-scripts
 
+      - name: Remove tree-sitter-json (electron-builder path resolution workaround)
+        shell: pwsh
+        run: |
+          # tree-sitter-json is a native dep of @swagger-api dev tooling. With --ignore-scripts
+          # its install script doesn't run, leaving its npm tree entry without a `path` field,
+          # which crashes electron-builder 26's module collector. Root node_modules are excluded
+          # from the packaged app anyway (!node_modules/**/*), so removal is safe here.
+          Remove-Item -Recurse -Force "node_modules/tree-sitter-json" -ErrorAction SilentlyContinue
+          Write-Host "tree-sitter-json removed"
+
       - name: Pin legacy desktop runtime dependencies
         shell: pwsh
         run: |
