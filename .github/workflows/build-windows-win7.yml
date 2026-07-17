@@ -49,15 +49,18 @@ jobs:
         # Both are pinned to legacy-compatible versions and rebuilt explicitly in later steps.
         run: npm ci --legacy-peer-deps --ignore-scripts
 
-      - name: Remove tree-sitter-json (electron-builder path resolution workaround)
+      - name: Patch electron-builder module collector (undefined path workaround)
         shell: pwsh
         run: |
-          # tree-sitter-json is a native dep of @swagger-api dev tooling. With --ignore-scripts
-          # its install script doesn't run, leaving its npm tree entry without a `path` field,
-          # which crashes electron-builder 26's module collector. Root node_modules are excluded
-          # from the packaged app anyway (!node_modules/**/*), so removal is safe here.
-          Remove-Item -Recurse -Force "node_modules/tree-sitter-json" -ErrorAction SilentlyContinue
-          Write-Host "tree-sitter-json removed"
+          # electron-builder 26.x throws when a package's path is undefined in the npm tree
+          # (happens for native deps like tree-sitter-json whose install script was skipped by
+          # --ignore-scripts). The fix: replace the throw with `return acc` so the package is
+          # silently skipped. Root node_modules are excluded from the app anyway (!node_modules/**/*).
+          $file = "node_modules/app-builder-lib/out/node-module-collector/nodeModulesCollector.js"
+          $content = Get-Content $file -Raw
+          $patched = $content -replace 'throw new Error\("unable to parse `path` during `tree\.dependencies` reduce"\)', 'return acc'
+          Set-Content $file $patched -NoNewline
+          Write-Host "Patched nodeModulesCollector.js — undefined paths will be skipped"
 
       - name: Pin legacy desktop runtime dependencies
         shell: pwsh
