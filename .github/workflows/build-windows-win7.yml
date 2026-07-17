@@ -45,7 +45,9 @@ jobs:
             ${{ runner.os }}-nextjs-cache-win7-${{ hashFiles('package-lock.json') }}-
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        # --ignore-scripts skips native module compilation (better-sqlite3, keytar).
+        # Both are pinned to legacy-compatible versions and rebuilt explicitly in later steps.
+        run: npm ci --legacy-peer-deps --ignore-scripts
 
       - name: Pin legacy desktop runtime dependencies
         shell: pwsh

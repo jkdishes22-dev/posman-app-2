@@ -52,6 +52,8 @@ cp ~/posman-license-keys/license-public.pem public/license/public-key.pem
 
 Commit this file. The Electron installer reads `public/license/public-key.pem` at startup to verify license signatures. If the file in the repo does not match the private key used to sign licenses, every activation attempt will fail with "License signature verification failed".
 
+> **What changed in v3.1.7**: the machine fingerprint algorithm now sorts network interfaces alphabetically before selecting the primary MAC address. This prevents the Installation Code from changing between restarts on machines with multiple network interfaces (WiFi + Ethernet + VPN etc.), which was causing repeated re-activation prompts and showing two different Installation Codes. The installer also now automatically deletes the license disk cache (`license.cache.json`) on every install/upgrade so the first launch always runs a fresh check. Admins can also trigger a manual cache clear from **Admin → License → Clear Cache** without reinstalling.
+>
 > **What changed in v3.1.6**: a key mismatch in the bundled `public/license/public-key.pem` was corrected. Installers built from v3.1.6 onward bundle the correct key and do not require the `LICENSE_PUBLIC_KEY` env-var workaround on client machines.
 
 ---
@@ -83,19 +85,19 @@ Key arguments:
 Example — 1-month trial batch:
 
 ```powershell
-node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-license-keys\license-private.pem" --version=3.1.6 --count=10 --months=1 --planType=trial1m --includeLifetime=0 --customerRef=batch-1m-2026-06
+node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-license-keys\license-private.pem" --version=3.1.7 --count=10 --months=1 --planType=trial1m --includeLifetime=0 --customerRef=batch-1m-2026-06
 ```
 
 3-month batch:
 
 ```powershell
-node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-license-keys\license-private.pem" --version=3.1.6 --count=10 --months=3 --planType=trial3m --includeLifetime=0 --customerRef=batch-3m-2026-06
+node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-license-keys\license-private.pem" --version=3.1.7 --count=10 --months=3 --planType=trial3m --includeLifetime=0 --customerRef=batch-3m-2026-06
 ```
 
 Lifetime-only (no trial codes):
 
 ```powershell
-node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-license-keys\license-private.pem" --version=3.1.6 --count=0 --includeLifetime=1 --customerRef=lifetime-2026-06
+node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-license-keys\license-private.pem" --version=3.1.7 --count=0 --includeLifetime=1 --customerRef=lifetime-2026-06
 ```
 
 > The `--planType` flag only affects the label on trial licenses. Lifetime licenses always get `planType: "lifetime"` and `expiresAt: null` regardless of this argument — they never expire.
@@ -104,7 +106,7 @@ node scripts/generate-licenses.js --privateKey="C:\Users\Administrator\posman-li
 
 ## Client public key setup (legacy fallback — not needed for v3.1.6+)
 
-Installers built from v3.1.6 onward bundle the correct public key inside the app. Customers do not need to set any environment variable.
+Installers built from v3.1.6 onward bundle the correct public key inside the app. Customers do not need to set any environment variable. Upgrade to v3.1.7+ to also get the stable machine fingerprint and automatic cache clearing on upgrade.
 
 If you are supporting a client running a pre-3.1.6 installer and cannot immediately upgrade, use this workaround to inject the correct key at runtime:
 
@@ -138,6 +140,8 @@ Dates are shown in `YYYY-MM-DD` format.
   - Stale `LICENSE_PUBLIC_KEY` env-var from a previous workaround. Clear the variable and relaunch.
 - **License expired**: issue a renewal or lifetime code.
 - **License is bound to a different machine**: issue a new code for the replacement machine.
+- **App repeatedly asks for activation / two different Installation Codes shown** (pre-v3.1.7 installers): the machine fingerprint was picking a different network interface on each restart. Upgrade to v3.1.7+. After upgrading, activate once — the new stable fingerprint will be stored and future restarts will not re-prompt.
+- **License status stale after upgrade** (valid license still shows as invalid after reinstall): the on-disk license cache may be serving an old result. From v3.1.7 onward the installer clears this automatically. On older installs, an admin can go to **Admin → License → Clear Cache** to force a fresh check, or delete `%APPDATA%\JK PosMan\license.cache.json` manually while the app is closed.
 
 ---
 
