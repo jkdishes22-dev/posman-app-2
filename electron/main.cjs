@@ -698,6 +698,19 @@ function startNextServer() {
                 `  if(typeof globalThis.FormData==='undefined'){`,
                 `    try{var _ud=require(p.join(_sd,'node_modules','undici'));if(_ud.FormData)globalThis.FormData=_ud.FormData;process.stdout.write('[ESM-LOADER] FormData polyfill OK\\n');}catch(e){process.stdout.write('[ESM-LOADER] FormData polyfill skip: '+e.message+'\\n');}`,
                 `  }`,
+                // AsyncLocalStorage.snapshot() is a static method added in Node.js 18.2.
+                // Electron 22 ships Node 16 which doesn't have it. Next.js 15 calls it on
+                // every request to capture the current async context — without it every
+                // request throws TypeError and the server never becomes ready.
+                // The polyfill returns a pass-through runner: no context captured, but the
+                // server starts and serves pages correctly on this legacy build.
+                `  (function(){`,
+                `    var _ah=require('async_hooks');`,
+                `    if(_ah.AsyncLocalStorage&&!_ah.AsyncLocalStorage.snapshot){`,
+                `      _ah.AsyncLocalStorage.snapshot=function(){return function(fn){return fn();};};`,
+                `      process.stdout.write('[ESM-LOADER] AsyncLocalStorage.snapshot polyfill applied\\n');`,
+                `    }`,
+                `  })();`,
                 `})();`,
                 `import(_url).catch(function(e){var m='[ESM-LOADER] import failed: '+(e&&e.stack?e.stack:String(e))+'\\n';process.stdout.write(m);process.stderr.write(m);process.exit(1);});`,
             ].join("\n"));
