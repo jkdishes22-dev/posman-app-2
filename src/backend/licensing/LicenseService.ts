@@ -228,6 +228,7 @@ class LicenseService {
 
   // Known virtual/software interface name patterns — excluded from MAC selection.
   private static readonly VIRTUAL_IFACE_PATTERNS: RegExp[] = [
+    // Cross-platform virtual/software adapters
     /vmware/i, /vmnet/i,
     /virtualbox/i, /vboxnet/i,
     /hyper-v/i, /vethernet/i,
@@ -236,6 +237,16 @@ class LicenseService {
     /\bvpn\b/i,
     /virbr/i, /bridge/i,
     /utun/i, /awdl/i, /llw/i,
+    // Windows 7 adapters that sort before physical NICs alphabetically and are
+    // unstable (appear/disappear with BT toggle, driver changes, Windows updates).
+    /bluetooth/i,
+    /teredo/i,
+    /isatap/i,
+    /6to4/i,
+    /pseudo/i,
+    /tunnel/i,
+    /miniport/i,
+    /loopback/i,
   ];
 
   // Known virtual/software MAC OUI prefixes — excluded from MAC selection.
@@ -258,16 +269,21 @@ class LicenseService {
   private getPrimaryMacAddress(): string {
     const interfaces = os.networkInterfaces();
     const sorted = Object.entries(interfaces).sort(([a], [b]) => a.localeCompare(b));
-    // Prefer physical LAN/WiFi interfaces; fall back to any non-internal interface.
-    for (const pass of [true, false]) {
+    // Three-pass selection for maximum stability:
+    //   pass 0 — physical interface with an IPv4 address (most stable)
+    //   pass 1 — any physical interface (catches IPv6-only physical NICs)
+    //   pass 2 — any non-internal interface (last resort)
+    for (const pass of [0, 1, 2]) {
       for (const [name, addrs] of sorted) {
         if (!addrs) continue;
+        const hasIPv4 = addrs.some((a) => a.family === "IPv4" && !a.internal);
         for (const addr of addrs) {
           if (
             !addr.internal &&
             addr.mac &&
             addr.mac !== "00:00:00:00:00:00" &&
-            (!pass || this.isPhysicalInterface(name, addr.mac))
+            (pass === 2 || this.isPhysicalInterface(name, addr.mac)) &&
+            (pass !== 0 || hasIPv4)
           ) {
             return addr.mac;
           }
