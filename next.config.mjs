@@ -36,11 +36,14 @@ const nextConfig = {
         // Prevent server bundle class-name mangling that breaks TypeORM targetName lookups.
         serverMinification: false,
     },
-    // Include migration files in the standalone server bundle (API + instrumentation startup).
+    // Include migration files and native modules in the standalone server bundle.
+    // keytar uses eval("require") which the static file tracer cannot detect, so it
+    // must be listed explicitly to land in .next/standalone/node_modules/keytar.
     outputFileTracingIncludes: {
         "/**": [
             "./src/backend/config/migrations-sqlite/**/*.cjs",
             "./src/backend/config/migrations/**/*.cjs",
+            "./node_modules/keytar/**/*",
         ],
     },
     webpack: (config, { dev, isServer, nextRuntime }) => {
