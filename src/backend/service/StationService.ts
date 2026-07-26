@@ -44,8 +44,10 @@ export class StationService {
 
     const queryBuilder = this.stationRepository.createQueryBuilder("station");
 
+    queryBuilder.where("station.status != :deleted", { deleted: StationStatus.DELETED });
+
     if (options.status) {
-      queryBuilder.where("station.status = :status", { status: options.status });
+      queryBuilder.andWhere("station.status = :status", { status: options.status });
     }
 
     const result = await queryBuilder
@@ -285,7 +287,7 @@ export class StationService {
         SELECT s.id, s.name, s.status, s.description, s.created_at, s.updated_at, s.created_by, s.updated_by
         FROM user_station us
         INNER JOIN station s ON s.id = us.station_id
-        WHERE us.user_id = ? AND us.status = ?
+        WHERE us.user_id = ? AND us.status = ? AND s.status != 'deleted'
         ORDER BY s.name ASC
       `,
         [userId, UserStationStatus.ACTIVE],
@@ -705,7 +707,11 @@ export class StationService {
       }
     });
 
-    // Cache the result
+    // Cache the result (soft-deleted stations return null)
+    if (result?.status === StationStatus.DELETED) {
+      cache.set(cacheKey, null);
+      return null;
+    }
     cache.set(cacheKey, result);
     return result;
   }
@@ -718,20 +724,12 @@ export class StationService {
   }
 
   async deleteStation(id: number): Promise<void> {
-    const rows = (await this.stationRepository.manager.query(
-      "SELECT COUNT(*) as count FROM bill WHERE station_id = ?",
-      [id],
-    )) as Array<{ count: number }>;
-
-    const count = Number(rows?.[0]?.count ?? 0);
-    if (count > 0) {
-      throw new Error("Cannot delete station with existing bills");
-    }
-
-    const result = await this.stationRepository.delete(id);
-    if (!result.affected || result.affected === 0) {
+    const station = await this.getStationById(id);
+    if (!station) {
       throw new Error("Station not found");
     }
+
+    await this.stationRepository.update(id, { status: StationStatus.DELETED });
 
     cache.invalidateMany([
       "stations",

@@ -1105,9 +1105,9 @@ export default function StationPage() {
                 <p>
                   Are you sure you want to permanently delete station <strong>"{deleteTarget.name}"</strong>?
                 </p>
-                <div className="alert alert-danger" role="alert">
+                <div className="alert alert-warning" role="alert">
                   <i className="bi bi-exclamation-triangle-fill me-2"></i>
-                  <strong>Warning:</strong> This is permanent and cannot be undone. All linked users and pricelists will also be removed. Stations with existing bills cannot be deleted.
+                  This station will be removed from the system. Linked users, pricelists, and existing bills will not be affected.
                 </div>
               </div>
               <div className="modal-footer">

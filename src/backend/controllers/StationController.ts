@@ -96,9 +96,6 @@ export const deleteStationHandler = async (
     if (error?.message === "Station not found") {
       return res.status(404).json({ error: "Station not found" });
     }
-    if (error?.message?.includes("existing bills")) {
-      return res.status(400).json({ error: error.message });
-    }
     const { userMessage, errorCode } = handleApiError(error, {
       operation: "deleting",
       resource: "station",

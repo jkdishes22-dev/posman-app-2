@@ -67,13 +67,22 @@ describe("StationService", () => {
       expect(qb.getMany).toHaveBeenCalledTimes(1);
     });
 
-    it("applies status filter when provided", async () => {
+    it("always excludes deleted stations", async () => {
+      const qb = mockStationRepo.createQueryBuilder();
+      qb.getMany.mockResolvedValue([]);
+
+      await service.fetchStations({});
+
+      expect(qb.where).toHaveBeenCalledWith("station.status != :deleted", { deleted: StationStatus.DELETED });
+    });
+
+    it("applies status filter as andWhere when provided", async () => {
       const qb = mockStationRepo.createQueryBuilder();
       qb.getMany.mockResolvedValue([]);
 
       await service.fetchStations({ status: "active" });
 
-      expect(qb.where).toHaveBeenCalledWith("station.status = :status", { status: "active" });
+      expect(qb.andWhere).toHaveBeenCalledWith("station.status = :status", { status: "active" });
     });
   });
 
@@ -287,32 +296,27 @@ describe("StationService", () => {
   });
 
   describe("deleteStation", () => {
-    it("throws when bills exist for the station", async () => {
-      mockStationRepo.manager.query.mockResolvedValue([{ count: 3 }]);
-
-      await expect(service.deleteStation(1)).rejects.toThrow("existing bills");
-    });
-
-    it("calls stationRepository.delete when no bills exist", async () => {
-      mockStationRepo.manager.query.mockResolvedValue([{ count: 0 }]);
-      mockStationRepo.delete.mockResolvedValue({ affected: 1 });
-
-      await service.deleteStation(5);
-
-      expect(mockStationRepo.delete).toHaveBeenCalledWith(5);
-    });
-
-    it("throws 'Station not found' when delete affects 0 rows", async () => {
-      mockStationRepo.manager.query.mockResolvedValue([{ count: 0 }]);
-      mockStationRepo.delete.mockResolvedValue({ affected: 0 });
+    it("throws 'Station not found' when station does not exist", async () => {
+      mockStationRepo.findOne.mockResolvedValue(null);
 
       await expect(service.deleteStation(99)).rejects.toThrow("Station not found");
     });
 
-    it("invalidates station-related cache keys after delete", async () => {
+    it("sets status to DELETED instead of hard deleting the row", async () => {
+      mockStationRepo.findOne.mockResolvedValue({ id: 5, name: "Bar", status: StationStatus.ACTIVE });
+
+      await service.deleteStation(5);
+
+      expect(mockStationRepo.update).toHaveBeenCalledWith(
+        5,
+        expect.objectContaining({ status: StationStatus.DELETED }),
+      );
+      expect(mockStationRepo.delete).not.toHaveBeenCalled();
+    });
+
+    it("invalidates station-related cache keys after soft delete", async () => {
       const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
-      mockStationRepo.manager.query.mockResolvedValue([{ count: 0 }]);
-      mockStationRepo.delete.mockResolvedValue({ affected: 1 });
+      mockStationRepo.findOne.mockResolvedValue({ id: 7, name: "Test", status: StationStatus.ACTIVE });
 
       await service.deleteStation(7);
 
