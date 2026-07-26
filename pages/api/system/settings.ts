@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { authMiddleware, authorize } from "@backend/middleware/auth";
+import { authMiddleware, authorize, invalidateAuthUserDetailsCache } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import permissions from "@backend/config/permissions";
@@ -97,6 +97,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                         sysSettingsUpsertSql(request.db),
                         [key, JSON.stringify(merged)]
                     );
+                    if (key === "bill_settings") invalidateAuthUserDetailsCache();
                     return response.status(200).json({ key, sub: subKey, value: body });
                 }
 
@@ -104,6 +105,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     sysSettingsUpsertSql(request.db),
                     [key, JSON.stringify(body)]
                 );
+                if (key === "bill_settings") invalidateAuthUserDetailsCache();
                 return response.status(200).json({ key, value: body });
             } catch (error: any) {
                 console.error("[settings PUT] Failed:", error.message);

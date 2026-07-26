@@ -347,7 +347,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         .filter((item) => !item.submenu || item.submenu.length > 0);
 
     return (
-        <div className="d-flex vh-100">
+        <div className="d-flex vh-100 overflow-hidden">
             {/* Sidebar */}
             <div
                 className={`bg-dark text-white d-flex flex-column ${isCollapsed ? "sidebar-collapsed" : "sidebar-expanded"
@@ -387,16 +387,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     </div>
                 </div>
 
-
-                {/* Separator and Navigation Label */}
-                {!isCollapsed && (
-                    <div className="px-3 pb-1">
-                        <div className="text-muted small fw-semibold text-uppercase">
-                            <i className="bi bi-list-ul me-1"></i>
-                            Navigation
-                        </div>
-                    </div>
-                )}
 
                 {/* Navigation */}
                 <nav className="flex-grow-1 px-3 pt-1 pb-3" style={{ overflowY: "auto" }}>
@@ -484,9 +474,9 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             </div>
 
             {/* Main Content */}
-            <div className="flex-grow-1 d-flex flex-column">
+            <div className="flex-grow-1 d-flex flex-column min-w-0 overflow-hidden">
                 {/* Page Content */}
-                <main className="flex-grow-1 p-4">
+                <main className="flex-grow-1 p-4 min-w-0 overflow-hidden">
                     {authError && (
                         <div className="alert alert-danger" role="alert">
                             <i className="bi bi-exclamation-triangle me-2"></i>

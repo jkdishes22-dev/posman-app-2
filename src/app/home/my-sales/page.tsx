@@ -872,7 +872,23 @@ const MySales = () => {
                                   onChange={() => handleCheckboxChange(bill.id)}
                                 />
                               </td>
-                              <td><strong>#{bill.id}</strong></td>
+                              <td>
+                                <strong>#{bill.id}</strong>
+                                {bill.tags && (() => {
+                                  try {
+                                    const tags: string[] = JSON.parse(bill.tags);
+                                    return tags.length > 0 ? (
+                                      <div className="mt-1">
+                                        {tags.map((t, i) => (
+                                          <span key={i} className="badge bg-primary me-1" style={{ fontSize: "0.65rem" }}>
+                                            <i className="bi bi-person me-1"></i>{t}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : null;
+                                  } catch { return null; }
+                                })()}
+                              </td>
                               <td>
                                 {(() => {
                                   const hasPendingVoids = bill.bill_items?.some((item: BillItem) => item.status === "void_pending");

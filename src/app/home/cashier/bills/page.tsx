@@ -1065,22 +1065,11 @@ const CashierBillsPage = () => {
                         onClick={handleBulkSubmit}
                         disabled={selectedBills.filter((id) => {
                           const bill = bills.find((b) => b.id === id);
-                          return bill &&
-                            bill.status === "pending" &&
-                            currentUserId &&
-                            bill.user?.id === currentUserId;
+                          if (!bill || bill.status !== "pending") return false;
+                          if (userRole === "supervisor" || userRole === "admin" || userRole === "cashier") return true;
+                          return currentUserId && bill.user?.id === currentUserId;
                         }).length === 0}
-                        title={
-                          selectedBills.filter((id) => {
-                            const bill = bills.find((b) => b.id === id);
-                            return bill &&
-                              bill.status === "pending" &&
-                              currentUserId &&
-                              bill.user?.id === currentUserId;
-                          }).length === 0
-                            ? "You can only submit bills that you created"
-                            : "Submit selected bills"
-                        }
+                        title="Submit selected pending bills"
                       >
                         <i className="bi bi-send me-1"></i>
                         Bulk Submit
@@ -1099,7 +1088,7 @@ const CashierBillsPage = () => {
                     <table className="table table-striped table-sm">
                       <thead>
                         <tr>
-                          <th>
+                          <th style={{ width: "1%" }}>
                             <input
                               type="checkbox"
                               checked={
@@ -1112,9 +1101,8 @@ const CashierBillsPage = () => {
                           <th>ID</th>
                           <th>Status</th>
                           <th>Total</th>
-                          <th>Created By</th>
-                          <th>Created Date</th>
-                          <th>Actions</th>
+                          <th>Date</th>
+                          <th style={{ width: "1%" }}>Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1138,7 +1126,23 @@ const CashierBillsPage = () => {
                                 title={bill.status === "voided" ? "Voided bills cannot be selected" : undefined}
                               />
                             </td>
-                            <td>{bill.id}</td>
+                            <td>
+                              <div>{bill.id}</div>
+                              {bill.tags && (() => {
+                                try {
+                                  const tags: string[] = JSON.parse(bill.tags);
+                                  return tags.length > 0 ? (
+                                    <div className="mt-1">
+                                      {tags.map((t: string, i: number) => (
+                                        <span key={i} className="badge bg-primary me-1" style={{ fontSize: "0.65rem" }}>
+                                          <i className="bi bi-person me-1"></i>{t}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : null;
+                                } catch { return null; }
+                              })()}
+                            </td>
                             <td>
                               <span className={`badge ${bill.status === "submitted" ? "bg-warning" :
                                 bill.status === "closed" ? "bg-success" :
@@ -1172,11 +1176,8 @@ const CashierBillsPage = () => {
                                 })()}
                               </div>
                             </td>
-                            <td>
-                              {bill.user.firstName} {bill.user.lastName}
-                            </td>
-                            <td>
-                              {bill.created_at ? new Date(bill.created_at).toLocaleString() : "N/A"}
+                            <td style={{ whiteSpace: "nowrap", fontSize: "0.82rem" }}>
+                              {formatInTimeZone(new Date(bill.created_at), EAT_TIMEZONE, "dd/MM HH:mm")}
                             </td>
                             <td>
                               {/* Role-based actions */}
@@ -1187,6 +1188,17 @@ const CashierBillsPage = () => {
                                     onClick={() => handleProcessClick(bill)}
                                   >
                                     Process
+                                  </button>
+                                ) : bill.status === "pending" ? (
+                                  <button
+                                    className="btn btn-sm btn-success"
+                                    onClick={() => {
+                                      setSelectedBill(bill);
+                                      setSelectedBills([bill.id]);
+                                      setShowSubmitModal(true);
+                                    }}
+                                  >
+                                    Submit
                                   </button>
                                 ) : (
                                   <button
@@ -1500,10 +1512,15 @@ const CashierBillsPage = () => {
                         <i className="bi bi-clock me-1"></i>
                         <strong>Bill is pending</strong>
                         <div className="small mt-1">
-                          This bill is waiting to be submitted by the sales person.
+                          {userRole === "supervisor" || userRole === "admin" || userRole === "cashier"
+                            ? "This bill is pending payment. Submit it to record payment."
+                            : currentUserId && selectedBill.user?.id === currentUserId
+                            ? "This bill is pending payment. Submit it to record payment."
+                            : "This bill is waiting to be submitted."}
                         </div>
-                        {/* Show submit button for supervisors and sales users if this is their own bill */}
-                        {(userRole === "supervisor" || userRole === "sales" || userRole === "user" || userRole === "waitress") && currentUserId && selectedBill.user?.id === currentUserId && (
+                        {/* Supervisors/admins/cashiers can submit any pending bill; sales submit their own */}
+                        {(userRole === "supervisor" || userRole === "admin" || userRole === "cashier" ||
+                          ((userRole === "sales" || userRole === "user" || userRole === "waitress") && currentUserId && selectedBill.user?.id === currentUserId)) && (
                           <div className="mt-2">
                             <Button
                               variant="success"

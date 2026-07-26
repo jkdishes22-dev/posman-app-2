@@ -137,6 +137,52 @@ describe("BillService", () => {
 
       expect(result).toEqual(existingBill);
     });
+
+    it("persists tags as JSON string when provided", async () => {
+      mockGetAvailableInventoryForItems.mockResolvedValue(new Map([[1, 999999]]));
+
+      const txn = createMockTransactionalEntityManager();
+      txn.findOne.mockResolvedValue(null);
+      txn.insert
+        .mockResolvedValueOnce({ identifiers: [{ id: 20 }], generatedMaps: [] })
+        .mockResolvedValueOnce({ identifiers: [{ id: 200 }], generatedMaps: [] });
+      txn.find = vi.fn().mockResolvedValue([]);
+      mockBillRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
+
+      await service.createBill({
+        items: [{ item_id: 1, quantity: 1, subtotal: 100 }],
+        total: 100,
+        user_id: 1,
+        station_id: null,
+        tags: ["Alice (Sales)"],
+      });
+
+      const billInsertCall = txn.insert.mock.calls[0];
+      expect(billInsertCall[1]).toMatchObject({ tags: '["Alice (Sales)"]' });
+    });
+
+    it("persists notes when provided and sets tags/notes to null when omitted", async () => {
+      mockGetAvailableInventoryForItems.mockResolvedValue(new Map([[1, 999999]]));
+
+      const txn = createMockTransactionalEntityManager();
+      txn.findOne.mockResolvedValue(null);
+      txn.insert
+        .mockResolvedValueOnce({ identifiers: [{ id: 21 }], generatedMaps: [] })
+        .mockResolvedValueOnce({ identifiers: [{ id: 201 }], generatedMaps: [] });
+      txn.find = vi.fn().mockResolvedValue([]);
+      mockBillRepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
+
+      await service.createBill({
+        items: [{ item_id: 1, quantity: 1, subtotal: 100 }],
+        total: 100,
+        user_id: 1,
+        station_id: null,
+        notes: "For table 5",
+      });
+
+      const billInsertCall = txn.insert.mock.calls[0];
+      expect(billInsertCall[1]).toMatchObject({ notes: "For table 5", tags: null });
+    });
   });
 
   describe("submitBill", () => {

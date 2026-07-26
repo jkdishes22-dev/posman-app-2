@@ -14,6 +14,8 @@ export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
     user_id?: number;
     station_id?: number;
     request_id?: string;
+    tags?: string[];
+    notes?: string;
   };
   try {
     logger.info(
@@ -25,6 +27,7 @@ export const createBill = async (req: NextApiRequest, res: NextApiResponse) => {
         itemCount: Array.isArray(body?.items) ? body.items.length : 0,
         total: body?.total,
         requestId: body?.request_id,
+        tagCount: Array.isArray(body?.tags) ? body.tags.length : 0,
       },
       "create-bill: attempting",
     );
@@ -267,6 +270,8 @@ export const submitBill = async (req: NextApiRequest, res: NextApiResponse) => {
     const billPayment = req.body;
     const userId = req.user?.id;
     billPayment.userId = userId;
+    const userRoles: string[] = (req.user?.roles ?? []).map((r: any) => r?.name ?? r).filter(Boolean);
+    billPayment.isPrivileged = userRoles.some((r) => r === "supervisor" || r === "admin" || r === "cashier");
 
     const submittedBill = await billService.submitBill(billPayment);
     res.status(200).json(submittedBill);
@@ -324,7 +329,9 @@ export const bulkSubmitBills = async (req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: "billPayments must be a non-empty array" });
   }
   try {
-    const results = await billService.submitBillsBulk(billPayments, parseInt(req.user?.id as string));
+    const userRoles: string[] = (req.user?.roles ?? []).map((r: any) => r?.name ?? r).filter(Boolean);
+    const isPrivileged = userRoles.some((r) => r === "supervisor" || r === "admin" || r === "cashier");
+    const results = await billService.submitBillsBulk(billPayments, parseInt(req.user?.id as string), isPrivileged);
     res.status(200).json({ results });
   } catch (error: any) {
     const isValidationError = error?.message && (
