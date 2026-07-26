@@ -232,6 +232,11 @@ export default function AdminSettingsPage() {
     const [logRetentionLoading, setLogRetentionLoading] = useState(false);
     const [logRetentionResult, setLogRetentionResult] = useState<{ success: boolean; message?: string } | null>(null);
 
+    // Session settings
+    const [sessionTimeout, setSessionTimeout] = useState("8h");
+    const [sessionTimeoutSaving, setSessionTimeoutSaving] = useState(false);
+    const [sessionTimeoutResult, setSessionTimeoutResult] = useState<{ success: boolean; message?: string } | null>(null);
+
     const [organisation, setOrganisation] = useState<OrganisationSettingsValue>(() => emptyOrganisation());
     const [organisationSaving, setOrganisationSaving] = useState(false);
     const [organisationResult, setOrganisationResult] = useState<{ success: boolean; error?: string } | null>(null);
@@ -259,6 +264,11 @@ export default function AdminSettingsPage() {
             if (res.status === 200 && res.data?.value) {
                 const days = res.data.value.retention_days;
                 if (days) { setLogRetentionDays(Number(days)); setLogRetentionInput(String(days)); }
+            }
+        });
+        apiCall("/api/system/settings?key=system_settings&sub=session_config").then((res) => {
+            if (res.status === 200 && res.data?.value?.session_timeout) {
+                setSessionTimeout(res.data.value.session_timeout);
             }
         });
         // bill_settings is its own top-level key (product settings)
@@ -567,6 +577,21 @@ export default function AdminSettingsPage() {
             setLogRetentionResult({ success: true, message: `Log files will be kept for ${days} day${days !== 1 ? "s" : ""}. Older files are removed automatically.` });
         } else {
             setLogRetentionResult({ success: false, message: result.error || "Failed to save setting." });
+        }
+    };
+
+    const handleSessionTimeoutSave = async () => {
+        setSessionTimeoutSaving(true);
+        setSessionTimeoutResult(null);
+        const result = await apiCall("/api/system/settings?key=system_settings&sub=session_config", {
+            method: "PUT",
+            body: JSON.stringify({ session_timeout: sessionTimeout }),
+        });
+        setSessionTimeoutSaving(false);
+        if (result.status === 200) {
+            setSessionTimeoutResult({ success: true, message: "Session timeout saved. Changes take effect on next login." });
+        } else {
+            setSessionTimeoutResult({ success: false, message: result.error || "Failed to save setting." });
         }
     };
 
@@ -1376,6 +1401,58 @@ export default function AdminSettingsPage() {
                             )}
                         </div>
 
+                    </Card.Body>
+                </Card>
+
+                {/* Security */}
+                <Card className="shadow-sm mb-4">
+                    <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1">
+                        Security
+                    </Card.Header>
+                    <Card.Body>
+                        <div className="p-2">
+                            <div className="d-flex align-items-center gap-1 mb-3">
+                                <h6 className="fw-bold mb-0">Session Timeout</h6>
+                                <HelpPopover id="session-timeout" title="Session timeout">
+                                    Controls how long a user stays logged in after signing in. Longer sessions are more
+                                    convenient but less secure. Changes take effect on the next login.
+                                </HelpPopover>
+                            </div>
+                            <Row className="g-2 align-items-end" style={{ maxWidth: 340 }}>
+                                <Col>
+                                    <Form.Label className="small mb-1">Timeout duration</Form.Label>
+                                    <Form.Select
+                                        value={sessionTimeout}
+                                        onChange={(e) => setSessionTimeout(e.target.value)}
+                                    >
+                                        <option value="1h">1 hour</option>
+                                        <option value="4h">4 hours</option>
+                                        <option value="8h">8 hours (default)</option>
+                                        <option value="12h">12 hours</option>
+                                        <option value="24h">24 hours</option>
+                                    </Form.Select>
+                                </Col>
+                                <Col xs="auto">
+                                    <Button
+                                        variant="primary"
+                                        onClick={handleSessionTimeoutSave}
+                                        disabled={sessionTimeoutSaving}
+                                    >
+                                        {sessionTimeoutSaving ? <Spinner animation="border" size="sm" /> : "Save"}
+                                    </Button>
+                                </Col>
+                            </Row>
+                            {sessionTimeoutResult && (
+                                <Alert
+                                    variant={sessionTimeoutResult.success ? "success" : "danger"}
+                                    dismissible
+                                    onClose={() => setSessionTimeoutResult(null)}
+                                    className="mt-3 mb-0"
+                                >
+                                    {sessionTimeoutResult.message}
+                                </Alert>
+                            )}
+                        </div>
                     </Card.Body>
                 </Card>
 

@@ -44,8 +44,10 @@ export class StationService {
 
     const queryBuilder = this.stationRepository.createQueryBuilder("station");
 
+    queryBuilder.where("station.status != :deleted", { deleted: StationStatus.DELETED });
+
     if (options.status) {
-      queryBuilder.where("station.status = :status", { status: options.status });
+      queryBuilder.andWhere("station.status = :status", { status: options.status });
     }
 
     const result = await queryBuilder
@@ -285,7 +287,7 @@ export class StationService {
         SELECT s.id, s.name, s.status, s.description, s.created_at, s.updated_at, s.created_by, s.updated_by
         FROM user_station us
         INNER JOIN station s ON s.id = us.station_id
-        WHERE us.user_id = ? AND us.status = ?
+        WHERE us.user_id = ? AND us.status = ? AND s.status != 'deleted'
         ORDER BY s.name ASC
       `,
         [userId, UserStationStatus.ACTIVE],
@@ -705,7 +707,11 @@ export class StationService {
       }
     });
 
-    // Cache the result
+    // Cache the result (soft-deleted stations return null)
+    if (result?.status === StationStatus.DELETED) {
+      cache.set(cacheKey, null);
+      return null;
+    }
     cache.set(cacheKey, result);
     return result;
   }
@@ -714,6 +720,39 @@ export class StationService {
     await this.stationRepository.update(id, { status: status as StationStatus });
 
     // Invalidate cache
+    cache.invalidateMany(["stations", `station_${id}`]);
+  }
+
+  async deleteStation(id: number): Promise<void> {
+    const station = await this.getStationById(id);
+    if (!station) {
+      throw new Error("Station not found");
+    }
+
+    await this.stationRepository.update(id, { status: StationStatus.DELETED });
+
+    cache.invalidateMany([
+      "stations",
+      `station_${id}`,
+      `station_pricelist_${id}`,
+      `station_pricelists_${id}`,
+      `station_default_pricelist_${id}`,
+      `station_users_${id}`,
+      `available_users_station_${id}`,
+    ]);
+  }
+
+  async updateStation(id: number, data: { name: string; description?: string }): Promise<void> {
+    const station = await this.getStationById(id);
+    if (!station) {
+      throw new Error("Station not found");
+    }
+
+    await this.stationRepository.update(id, {
+      name: data.name,
+      ...(data.description !== undefined ? { description: data.description } : {}),
+    });
+
     cache.invalidateMany(["stations", `station_${id}`]);
   }
 }

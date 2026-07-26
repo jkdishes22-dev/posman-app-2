@@ -6,6 +6,7 @@ import { enumColType } from "./column-types";
 export enum StationStatus {
   ACTIVE = "active",
   INACTIVE = "inactive",
+  DELETED = "deleted",
 }
 
 @Entity("station")

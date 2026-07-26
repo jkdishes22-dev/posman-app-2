@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import { User } from "@entities/User";
 import { DataSource } from "typeorm";
 import { handleApiError } from "@backend/utils/errorHandler";
+import { sysSettingsSelectSql } from "@backend/utils/settingsQuery";
 
 /**
  * @swagger
@@ -90,9 +91,20 @@ export const loginUserHandler = async (
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    // Issue JWT (short-lived)
+    // Issue JWT — duration from DB setting, fallback to env var, then 8h default
+    let sessionTimeout = process.env.JWT_EXPIRES_IN || "8h";
+    try {
+      const rows = await req.db.query(sysSettingsSelectSql(req.db), ["system_settings"]);
+      if (rows?.[0]?.value) {
+        const parsed = JSON.parse(rows[0].value);
+        if (parsed?.session_config?.session_timeout) {
+          sessionTimeout = parsed.session_config.session_timeout;
+        }
+      }
+    } catch { /* use default */ }
+
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "15m",
+      expiresIn: sessionTimeout,
     });
 
     // Issue refresh token (long-lived)

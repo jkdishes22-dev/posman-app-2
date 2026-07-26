@@ -90,17 +90,20 @@ export class PricelistService {
     }
   }
 
-  async fetchPricelistItems(pricelistId: string): Promise<any[]> {
+  async fetchPricelistItems(pricelistId: string, search?: string): Promise<any[]> {
+    const normalizedSearch = search?.trim() ?? "";
+    const isSearching = normalizedSearch.length > 0;
     const cacheKey = `pricelist_items_${pricelistId}`;
 
-    // Try cache first (prices can change, but cache for performance with 30s TTL)
-    const cached = cache.get<any[]>(cacheKey);
-    if (cached !== null) {
-      return cached;
+    // Only use cache for unfiltered requests; search queries bypass cache
+    if (!isSearching) {
+      const cached = cache.get<any[]>(cacheKey);
+      if (cached !== null) {
+        return cached;
+      }
     }
 
     try {
-
       const query = this.pricelistItemRepository
         .createQueryBuilder("pi")
         .innerJoin("pi.item", "item")
@@ -123,14 +126,16 @@ export class PricelistService {
           "pricelist.name AS pricelist_name",
         ])
         .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) });
-      // .andWhere("pi.is_enabled = :enabled", { enabled: 1 });
+
+      if (isSearching) {
+        query.andWhere("(item.name LIKE :q OR item.code LIKE :q)", { q: `%${normalizedSearch}%` });
+      }
 
       // First, let's check if there are any pricelist items at all for this pricelist
       const basicCount = await this.pricelistItemRepository
         .createQueryBuilder("pi")
         .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) })
         .getCount();
-
 
       const rawItems = await query.getRawMany();
 
@@ -155,6 +160,10 @@ export class PricelistService {
             "pricelist.name AS pricelist_name",
           ])
           .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) });
+
+        if (isSearching) {
+          simpleQuery.andWhere("(item.name LIKE :q OR item.code LIKE :q)", { q: `%${normalizedSearch}%` });
+        }
 
         const simpleItems = await simpleQuery.getRawMany();
         // Items found but not processed (fallback query)
@@ -190,8 +199,10 @@ export class PricelistService {
         pricelistName: item.pricelist_name,
       }));
 
-      // Cache the result
-      cache.set(cacheKey, mappedItems);
+      // Only cache unfiltered results
+      if (!isSearching) {
+        cache.set(cacheKey, mappedItems);
+      }
       return mappedItems;
     } catch (error: any) {
       console.error(`Error fetching pricelist items for ${pricelistId}:`, error);

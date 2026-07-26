@@ -67,13 +67,22 @@ describe("StationService", () => {
       expect(qb.getMany).toHaveBeenCalledTimes(1);
     });
 
-    it("applies status filter when provided", async () => {
+    it("always excludes deleted stations", async () => {
+      const qb = mockStationRepo.createQueryBuilder();
+      qb.getMany.mockResolvedValue([]);
+
+      await service.fetchStations({});
+
+      expect(qb.where).toHaveBeenCalledWith("station.status != :deleted", { deleted: StationStatus.DELETED });
+    });
+
+    it("applies status filter as andWhere when provided", async () => {
       const qb = mockStationRepo.createQueryBuilder();
       qb.getMany.mockResolvedValue([]);
 
       await service.fetchStations({ status: "active" });
 
-      expect(qb.where).toHaveBeenCalledWith("station.status = :status", { status: "active" });
+      expect(qb.andWhere).toHaveBeenCalledWith("station.status = :status", { status: "active" });
     });
   });
 
@@ -283,6 +292,62 @@ describe("StationService", () => {
       await service.getAvailableUsers(3);
 
       expect(mockAppDataSourceQuery).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("deleteStation", () => {
+    it("throws 'Station not found' when station does not exist", async () => {
+      mockStationRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.deleteStation(99)).rejects.toThrow("Station not found");
+    });
+
+    it("sets status to DELETED instead of hard deleting the row", async () => {
+      mockStationRepo.findOne.mockResolvedValue({ id: 5, name: "Bar", status: StationStatus.ACTIVE });
+
+      await service.deleteStation(5);
+
+      expect(mockStationRepo.update).toHaveBeenCalledWith(
+        5,
+        expect.objectContaining({ status: StationStatus.DELETED }),
+      );
+      expect(mockStationRepo.delete).not.toHaveBeenCalled();
+    });
+
+    it("invalidates station-related cache keys after soft delete", async () => {
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
+      mockStationRepo.findOne.mockResolvedValue({ id: 7, name: "Test", status: StationStatus.ACTIVE });
+
+      await service.deleteStation(7);
+
+      expect(invalidateManySpy).toHaveBeenCalledWith(
+        expect.arrayContaining(["stations", "station_7", "station_users_7"]),
+      );
+    });
+  });
+
+  describe("updateStation", () => {
+    it("throws 'Station not found' when station does not exist", async () => {
+      mockStationRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.updateStation(99, { name: "New Name" })).rejects.toThrow("Station not found");
+    });
+
+    it("calls stationRepository.update with trimmed name", async () => {
+      mockStationRepo.findOne.mockResolvedValue({ id: 2, name: "Old" });
+
+      await service.updateStation(2, { name: "New Name", description: "Desc" });
+
+      expect(mockStationRepo.update).toHaveBeenCalledWith(2, expect.objectContaining({ name: "New Name" }));
+    });
+
+    it("invalidates stations and station_id cache keys", async () => {
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
+      mockStationRepo.findOne.mockResolvedValue({ id: 3, name: "Old" });
+
+      await service.updateStation(3, { name: "Updated" });
+
+      expect(invalidateManySpy).toHaveBeenCalledWith(["stations", "station_3"]);
     });
   });
 
