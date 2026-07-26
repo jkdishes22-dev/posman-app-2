@@ -156,6 +156,15 @@ jobs:
             Write-Host "Produced: $($exe.Name) ($([math]::Round($exe.Length / 1MB, 2)) MB)"
           }
 
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-${{ inputs.version }}
+          path: |
+            dist-electron/*.exe
+            dist-electron/*.exe.blockmap
+          retention-days: 90
+
       - name: Create GitHub Release and attach installer
         uses: softprops/action-gh-release@v2
         with:
