@@ -22,6 +22,12 @@ export default function StationPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: "activate" | "deactivate", stationId: number, stationName: string } | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTarget, setEditTarget] = useState<{ id: number; name: string; description: string } | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<AuthError>(null);
   const [fetchStationsError, setFetchStationsError] = useState(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
@@ -375,6 +381,70 @@ export default function StationPage() {
     }
   };
 
+  const handleDeleteStation = (stationId: number, stationName: string) => {
+    setDeleteTarget({ id: stationId, name: stationName });
+    setDeleteError(null);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteStation = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      const result = await apiCall(`/api/stations/${deleteTarget.id}`, { method: "DELETE" });
+
+      if (result.status === 200) {
+        if (selectedStationId === deleteTarget.id) {
+          setSelectedStationId(null);
+          setPricelists([]);
+          setUsers([]);
+        }
+        const refreshResult = await apiCall("/api/stations");
+        if (refreshResult.status >= 200 && refreshResult.status < 300) {
+          setStations(refreshResult.data || []);
+        }
+        setShowDeleteModal(false);
+        setDeleteTarget(null);
+        setDeleteError(null);
+      } else {
+        setDeleteError(result.error || "Failed to delete station");
+      }
+    } catch {
+      setDeleteError("Network error occurred while deleting station");
+    }
+  };
+
+  const handleEditStation = (stationId: number, stationName: string, stationDescription: string) => {
+    setEditTarget({ id: stationId, name: stationName, description: stationDescription || "" });
+    setEditError(null);
+    setShowEditModal(true);
+  };
+
+  const confirmEditStation = async () => {
+    if (!editTarget) return;
+
+    try {
+      const result = await apiCall(`/api/stations/${editTarget.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: editTarget.name, description: editTarget.description }),
+      });
+
+      if (result.status === 200) {
+        const refreshResult = await apiCall("/api/stations");
+        if (refreshResult.status >= 200 && refreshResult.status < 300) {
+          setStations(refreshResult.data || []);
+        }
+        setShowEditModal(false);
+        setEditTarget(null);
+        setEditError(null);
+      } else {
+        setEditError(result.error || "Failed to update station");
+      }
+    } catch {
+      setEditError("Network error occurred while updating station");
+    }
+  };
+
   const handleToggleStationStatus = (stationId: number, currentStatus: string, stationName: string) => {
     const action = currentStatus === "active" ? "deactivate" : "activate";
     setConfirmAction({ type: action, stationId, stationName });
@@ -543,33 +613,56 @@ export default function StationPage() {
                             </span>
                           </td>
                           <td className="text-center">
-                            {station.status !== "active" && (
+                            <div className="d-flex gap-1 justify-content-center flex-wrap">
+                              {station.status !== "active" && (
+                                <Button
+                                  variant="outline-success"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleStationStatus(station.id, station.status || "inactive", station.name);
+                                  }}
+                                >
+                                  <i className="bi bi-play-circle me-1"></i>
+                                  Activate
+                                </Button>
+                              )}
+                              {station.status === "active" && (
+                                <Button
+                                  variant="outline-warning"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleStationStatus(station.id, station.status, station.name);
+                                  }}
+                                >
+                                  <i className="bi bi-pause-circle me-1"></i>
+                                  Deactivate
+                                </Button>
+                              )}
                               <Button
-                                variant="outline-success"
+                                variant="outline-secondary"
                                 size="sm"
-                                className="me-1"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleToggleStationStatus(station.id, station.status || "inactive", station.name);
+                                  handleEditStation(station.id, station.name, station.description || "");
                                 }}
                               >
-                                <i className="bi bi-play-circle me-1"></i>
-                                Activate
+                                <i className="bi bi-pencil me-1"></i>
+                                Edit
                               </Button>
-                            )}
-                            {station.status === "active" && (
                               <Button
                                 variant="outline-danger"
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleToggleStationStatus(station.id, station.status, station.name);
+                                  handleDeleteStation(station.id, station.name);
                                 }}
                               >
-                                <i className="bi bi-pause-circle me-1"></i>
-                                Deactivate
+                                <i className="bi bi-trash me-1"></i>
+                                Delete
                               </Button>
-                            )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -980,6 +1073,128 @@ export default function StationPage() {
                 >
                   Close
                 </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Station Modal */}
+      {showDeleteModal && deleteTarget && (
+        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="bi bi-trash text-danger me-2"></i>
+                  Delete Station
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => { setShowDeleteModal(false); setDeleteTarget(null); setDeleteError(null); }}
+                ></button>
+              </div>
+              <div className="modal-body">
+                {deleteError && (
+                  <div className="alert alert-danger" role="alert">
+                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                    {deleteError}
+                  </div>
+                )}
+                <p>
+                  Are you sure you want to permanently delete station <strong>"{deleteTarget.name}"</strong>?
+                </p>
+                <div className="alert alert-danger" role="alert">
+                  <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                  <strong>Warning:</strong> This is permanent and cannot be undone. All linked users and pricelists will also be removed. Stations with existing bills cannot be deleted.
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => { setShowDeleteModal(false); setDeleteTarget(null); setDeleteError(null); }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={confirmDeleteStation}
+                >
+                  <i className="bi bi-trash me-1"></i>
+                  Delete Station
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Station Modal */}
+      {showEditModal && editTarget && (
+        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="bi bi-pencil me-2"></i>
+                  Edit Station
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => { setShowEditModal(false); setEditTarget(null); setEditError(null); }}
+                ></button>
+              </div>
+              <div className="modal-body">
+                {editError && (
+                  <div className="alert alert-danger" role="alert">
+                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                    {editError}
+                  </div>
+                )}
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">
+                    Station Name <span className="text-danger">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={editTarget.name}
+                    onChange={(e) => setEditTarget({ ...editTarget, name: e.target.value })}
+                    placeholder="Enter station name"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Description</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={editTarget.description}
+                    onChange={(e) => setEditTarget({ ...editTarget, description: e.target.value })}
+                    placeholder="Enter description (optional)"
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => { setShowEditModal(false); setEditTarget(null); setEditError(null); }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={confirmEditStation}
+                  disabled={!editTarget.name.trim()}
+                >
+                  <i className="bi bi-check-circle me-1"></i>
+                  Save Changes
+                </button>
               </div>
             </div>
           </div>

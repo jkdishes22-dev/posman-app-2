@@ -286,6 +286,67 @@ describe("StationService", () => {
     });
   });
 
+  describe("deleteStation", () => {
+    it("throws when bills exist for the station", async () => {
+      mockStationRepo.manager.query.mockResolvedValue([{ count: 3 }]);
+
+      await expect(service.deleteStation(1)).rejects.toThrow("existing bills");
+    });
+
+    it("calls stationRepository.delete when no bills exist", async () => {
+      mockStationRepo.manager.query.mockResolvedValue([{ count: 0 }]);
+      mockStationRepo.delete.mockResolvedValue({ affected: 1 });
+
+      await service.deleteStation(5);
+
+      expect(mockStationRepo.delete).toHaveBeenCalledWith(5);
+    });
+
+    it("throws 'Station not found' when delete affects 0 rows", async () => {
+      mockStationRepo.manager.query.mockResolvedValue([{ count: 0 }]);
+      mockStationRepo.delete.mockResolvedValue({ affected: 0 });
+
+      await expect(service.deleteStation(99)).rejects.toThrow("Station not found");
+    });
+
+    it("invalidates station-related cache keys after delete", async () => {
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
+      mockStationRepo.manager.query.mockResolvedValue([{ count: 0 }]);
+      mockStationRepo.delete.mockResolvedValue({ affected: 1 });
+
+      await service.deleteStation(7);
+
+      expect(invalidateManySpy).toHaveBeenCalledWith(
+        expect.arrayContaining(["stations", "station_7", "station_users_7"]),
+      );
+    });
+  });
+
+  describe("updateStation", () => {
+    it("throws 'Station not found' when station does not exist", async () => {
+      mockStationRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.updateStation(99, { name: "New Name" })).rejects.toThrow("Station not found");
+    });
+
+    it("calls stationRepository.update with trimmed name", async () => {
+      mockStationRepo.findOne.mockResolvedValue({ id: 2, name: "Old" });
+
+      await service.updateStation(2, { name: "New Name", description: "Desc" });
+
+      expect(mockStationRepo.update).toHaveBeenCalledWith(2, expect.objectContaining({ name: "New Name" }));
+    });
+
+    it("invalidates stations and station_id cache keys", async () => {
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
+      mockStationRepo.findOne.mockResolvedValue({ id: 3, name: "Old" });
+
+      await service.updateStation(3, { name: "Updated" });
+
+      expect(invalidateManySpy).toHaveBeenCalledWith(["stations", "station_3"]);
+    });
+  });
+
   describe("getUserDefaultStation", () => {
     it("returns null when no default row", async () => {
       mockUserStationRepo.manager.query.mockResolvedValue([]);

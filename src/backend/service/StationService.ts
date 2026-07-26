@@ -716,4 +716,45 @@ export class StationService {
     // Invalidate cache
     cache.invalidateMany(["stations", `station_${id}`]);
   }
+
+  async deleteStation(id: number): Promise<void> {
+    const rows = (await this.stationRepository.manager.query(
+      "SELECT COUNT(*) as count FROM bill WHERE station_id = ?",
+      [id],
+    )) as Array<{ count: number }>;
+
+    const count = Number(rows?.[0]?.count ?? 0);
+    if (count > 0) {
+      throw new Error("Cannot delete station with existing bills");
+    }
+
+    const result = await this.stationRepository.delete(id);
+    if (!result.affected || result.affected === 0) {
+      throw new Error("Station not found");
+    }
+
+    cache.invalidateMany([
+      "stations",
+      `station_${id}`,
+      `station_pricelist_${id}`,
+      `station_pricelists_${id}`,
+      `station_default_pricelist_${id}`,
+      `station_users_${id}`,
+      `available_users_station_${id}`,
+    ]);
+  }
+
+  async updateStation(id: number, data: { name: string; description?: string }): Promise<void> {
+    const station = await this.getStationById(id);
+    if (!station) {
+      throw new Error("Station not found");
+    }
+
+    await this.stationRepository.update(id, {
+      name: data.name,
+      ...(data.description !== undefined ? { description: data.description } : {}),
+    });
+
+    cache.invalidateMany(["stations", `station_${id}`]);
+  }
 }
