@@ -90,12 +90,18 @@ jobs:
           npx --yes @electron/rebuild --module-dir "." --only keytar --arch x64 --version $env:ELECTRON_VERSION --force
           Pop-Location
 
-      - name: Swap better-sqlite3 binary for legacy Electron ABI
+      - name: Rebuild better-sqlite3 for legacy Electron ABI
         shell: pwsh
         run: |
-          Push-Location ".next/standalone/node_modules/better-sqlite3"
-          Remove-Item -Recurse -Force "build" -ErrorAction SilentlyContinue
-          npx --yes prebuild-install --runtime electron --target $env:ELECTRON_VERSION --arch x64 --platform win32 --tag-prefix v
+          Push-Location ".next/standalone"
+          Remove-Item -Recurse -Force "node_modules/better-sqlite3/build" -ErrorAction SilentlyContinue
+          npx --yes @electron/rebuild --module-dir "." --only better-sqlite3 --arch x64 --version $env:ELECTRON_VERSION --force
+          $binaryPath = "node_modules/better-sqlite3/build/Release/better_sqlite3.node"
+          if (-not (Test-Path $binaryPath)) {
+            Write-Error "better-sqlite3 rebuild failed — binary not found at $binaryPath"
+            exit 1
+          }
+          Write-Host "better-sqlite3 rebuilt successfully: $binaryPath"
           Pop-Location
 
       - name: Install undici v5 into standalone (Node 16 fetch polyfill)
