@@ -17,6 +17,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ? 402
           : 403;
 
+    // Cache for 5 minutes — matches the client poll interval so stale data is never served longer than one cycle
+    res.setHeader("Cache-Control", "private, max-age=300, stale-while-revalidate=60");
     return res.status(httpStatus).json({ ...status, machineId: licenseService.getMachineId() });
   } catch (error: any) {
     return res.status(500).json({
