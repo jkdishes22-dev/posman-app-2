@@ -158,8 +158,6 @@ function UsersPage() {
     } catch (err: any) {
       setError("Network error occurred while creating user");
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
-    } finally {
-      await fetchUsers();
     }
   }
 

@@ -252,20 +252,11 @@ export default function PricelistPage() {
       });
 
       if (result.status >= 200 && result.status < 300) {
-        // Success - apiCall handles all 2XX codes (200, 201, etc.)
-        // Refresh pricelist items if a pricelist is selected
-        if (selectedPricelistId) {
-          // Delay to ensure database transaction is committed
-          setTimeout(async () => {
-            try {
-              await fetchPricelistItems(selectedPricelistId, true); // Force refresh
-            } catch (error) {
-              console.error("Error refreshing pricelist items:", error);
-            }
-          }, 500); // Increased delay
-        }
         handleCloseItemModal();
         setItemError("");
+        if (selectedPricelistId) {
+          fetchPricelistItems(selectedPricelistId, true);
+        }
       } else {
         // Error - apiCall already standardizes all non-2XX errors
         setItemError(result.error || "Failed to add item");
@@ -290,9 +281,8 @@ export default function PricelistPage() {
       });
 
       if (result.status >= 200 && result.status < 300) {
-        // Success - refresh pricelist items
-        await fetchPricelistItems(selectedPricelistId, true);
         setItemError("");
+        fetchPricelistItems(selectedPricelistId, true);
       } else {
         // Error - apiCall already standardizes all non-2XX errors
         setItemError(result.error || "Failed to delete item from pricelist");

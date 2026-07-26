@@ -116,8 +116,8 @@ function RecipesPage() {
       });
 
       if (result.status === 200) {
-        await fetchSubItemsFromBackend(selectedItem);
         closeModal();
+        fetchSubItemsFromBackend(selectedItem);
       } else if (result.status === 403) {
         // Handle permission errors with detailed information
         const errorData = result.errorDetails || {};
@@ -193,7 +193,7 @@ function RecipesPage() {
         method: "DELETE",
       });
       if (result.status === 200) {
-        await fetchSubItemsFromBackend(selectedItem);
+        fetchSubItemsFromBackend(selectedItem);
       } else {
         console.error("Failed to remove ingredient:", result.error);
         setErrorDetails(result.errorDetails);
@@ -238,10 +238,10 @@ function RecipesPage() {
       });
 
       if (result.status === 200) {
-        await fetchSubItemsFromBackend(selectedItem);
         setEditingPortionSize(null);
         setEditingValue("");
         setErrorDetails(null);
+        fetchSubItemsFromBackend(selectedItem);
       } else {
         setErrorDetails(result.errorDetails || { message: result.error || "Failed to update portion size", status: result.status || 500 });
       }
