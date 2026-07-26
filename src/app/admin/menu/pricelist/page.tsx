@@ -53,6 +53,8 @@ export default function PricelistPage() {
   const [selectedPricelistId, setSelectedPricelistId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [itemSearchTerm, setItemSearchTerm] = useState("");
+  const [debouncedItemSearch, setDebouncedItemSearch] = useState("");
   const [authError, setAuthError] = useState<AuthError>(null);
   const [pricelistError, setFetchPricelistError] = useState<string | null>(null);
   const [addPricelistError, setAddPricelistError] = useState<string | null>(null);
@@ -125,10 +127,24 @@ export default function PricelistPage() {
 
   useEffect(() => {
     if (selectedPricelistId) {
+      setItemSearchTerm("");
+      setDebouncedItemSearch("");
       fetchPricelistItems(selectedPricelistId);
-      setCurrentPage(1); // Reset to first page when selecting new pricelist
+      setCurrentPage(1);
     }
   }, [selectedPricelistId]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedItemSearch(itemSearchTerm), 400);
+    return () => clearTimeout(t);
+  }, [itemSearchTerm]);
+
+  useEffect(() => {
+    if (selectedPricelistId) {
+      fetchPricelistItems(selectedPricelistId, false, debouncedItemSearch);
+      setCurrentPage(1);
+    }
+  }, [debouncedItemSearch]);
 
   // Refresh station-scoped dataset when station filter changes
   useEffect(() => {
@@ -163,11 +179,13 @@ export default function PricelistPage() {
     setFilteredPricelists(filtered);
   }, [pricelists, stationScopedPricelists, selectedStationId, statusFilter, searchTerm]);
 
-  const fetchPricelistItems = async (pricelistId: number, forceRefresh = false) => {
+  const fetchPricelistItems = async (pricelistId: number, forceRefresh = false, search = "") => {
     try {
-      const url = forceRefresh
-        ? `/api/menu/pricelists/${pricelistId}/items?t=${Date.now()}`
-        : `/api/menu/pricelists/${pricelistId}/items`;
+      const params = new URLSearchParams();
+      if (forceRefresh) params.set("t", Date.now().toString());
+      if (search.trim()) params.set("q", search.trim());
+      const qs = params.toString();
+      const url = `/api/menu/pricelists/${pricelistId}/items${qs ? `?${qs}` : ""}`;
       const result = await apiCall(url);
       if (result.status >= 200 && result.status < 300) {
         setPricelistItems(result.data || []);
@@ -659,6 +677,35 @@ export default function PricelistPage() {
                   <div className="alert alert-warning alert-sm mb-3" role="alert">
                     <i className="bi bi-exclamation-triangle me-1"></i>
                     <strong>Pricelist Inactive:</strong> Cannot add or manage items on inactive pricelists.
+                  </div>
+                )}
+                {selectedPricelistId && (
+                  <div className="mb-3">
+                    <div className="input-group input-group-sm">
+                      <span className="input-group-text">
+                        <i className="bi bi-search"></i>
+                      </span>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Search items by name or code..."
+                        value={itemSearchTerm}
+                        onChange={(e) => {
+                          setItemSearchTerm(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                      />
+                      {itemSearchTerm && (
+                        <button
+                          className="btn btn-outline-secondary"
+                          type="button"
+                          onClick={() => setItemSearchTerm("")}
+                          title="Clear search"
+                        >
+                          <i className="bi bi-x"></i>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
                 <ViewItems

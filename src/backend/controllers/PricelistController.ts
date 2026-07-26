@@ -48,8 +48,8 @@ export const fetchPricelistItems = async (
   const pricelistService = new PricelistService(req.db);
   try {
     const pricelistId = req.query.pricelistId as string;
-    const pricelistItems =
-      await pricelistService.fetchPricelistItems(pricelistId);
+    const search = req.query.q as string | undefined;
+    const pricelistItems = await pricelistService.fetchPricelistItems(pricelistId, search);
     res.status(200).json(pricelistItems);
   } catch (error: any) {
     const { userMessage, errorCode } = handleApiError(error, {

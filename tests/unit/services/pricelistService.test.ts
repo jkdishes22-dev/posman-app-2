@@ -147,4 +147,58 @@ describe("PricelistService", () => {
       expect(invalidateManySpy).toHaveBeenCalledWith(["pricelist_items_5", "items"]);
     });
   });
+
+  describe("fetchPricelistItems", () => {
+    it("adds LIKE filter for both name and code when search term is provided", async () => {
+      const qb = mockPricelistItemRepo.createQueryBuilder();
+      qb.getRawMany.mockResolvedValue([]);
+      qb.getCount.mockResolvedValue(0);
+
+      await service.fetchPricelistItems("1", "coffee");
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        "(item.name LIKE :q OR item.code LIKE :q)",
+        { q: "%coffee%" },
+      );
+    });
+
+    it("trims whitespace from search term before building LIKE pattern", async () => {
+      const qb = mockPricelistItemRepo.createQueryBuilder();
+      qb.getRawMany.mockResolvedValue([]);
+      qb.getCount.mockResolvedValue(0);
+
+      await service.fetchPricelistItems("1", "  burger  ");
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        "(item.name LIKE :q OR item.code LIKE :q)",
+        { q: "%burger%" },
+      );
+    });
+
+    it("does not add LIKE filter when search is an empty string", async () => {
+      const qb = mockPricelistItemRepo.createQueryBuilder();
+      qb.getRawMany.mockResolvedValue([]);
+      qb.getCount.mockResolvedValue(0);
+
+      await service.fetchPricelistItems("1", "");
+
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        expect.stringContaining("LIKE"),
+        expect.anything(),
+      );
+    });
+
+    it("does not add LIKE filter when search is undefined (fetch all)", async () => {
+      const qb = mockPricelistItemRepo.createQueryBuilder();
+      qb.getRawMany.mockResolvedValue([]);
+      qb.getCount.mockResolvedValue(0);
+
+      await service.fetchPricelistItems("2");
+
+      expect(qb.andWhere).not.toHaveBeenCalledWith(
+        expect.stringContaining("LIKE"),
+        expect.anything(),
+      );
+    });
+  });
 });
