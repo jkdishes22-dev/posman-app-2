@@ -22,9 +22,12 @@ jobs:
 
     env:
       ELECTRON_VERSION: "22.3.27"
-      LEGACY_TAG: win7-v${{ inputs.version }}
 
     steps:
+      - name: Set build tags
+        run: echo "LEGACY_TAG=win7-v${{ inputs.version }}" >> $env:GITHUB_ENV
+        shell: pwsh
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:

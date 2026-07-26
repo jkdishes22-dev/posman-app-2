@@ -22,9 +22,12 @@ jobs:
 
     env:
       ELECTRON_VERSION: "39.2.7"
-      WIN11_TAG: win11-v${{ inputs.version }}
 
     steps:
+      - name: Set build tags
+        run: echo "WIN11_TAG=win11-v${{ inputs.version }}" >> $env:GITHUB_ENV
+        shell: pwsh
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
