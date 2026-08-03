@@ -646,7 +646,7 @@ export class StationService {
 
   /**
    * Get available users (not yet linked to this station)
-   * Only returns users with 'sales', 'admin', or 'supervisor' roles who are not locked
+   * Returns users with any known role who are not locked
    */
   async getAvailableUsers(stationId: number): Promise<any[]> {
     const cacheKey = `available_users_station_${stationId}`;
@@ -673,7 +673,7 @@ export class StationService {
         FROM user_station us
         WHERE us.station_id = ?
       )
-      AND r.name IN ('sales', 'admin', 'supervisor')
+      AND r.name IN ('sales', 'admin', 'supervisor', 'cashier', 'storekeeper')
       AND (u.is_locked IS NULL OR u.is_locked = 0)
       ORDER BY u.firstName, u.lastName
     `;
