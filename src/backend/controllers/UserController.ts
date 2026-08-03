@@ -293,6 +293,34 @@ export const reactivateUserHandler = async (
   }
 };
 
+export const resetUserPasswordHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const userService = new UserService(req.db);
+  try {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ error: "Missing userId" });
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 4) {
+      return res.status(400).json({ error: "New password must be at least 4 characters" });
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const updatedBy = req.user?.id ? Number(req.user.id) : undefined;
+    const user = await userService.resetUserPassword(Number(userId), hashedPassword, updatedBy);
+    res.status(200).json({ message: "Password reset. User must change password on next login.", user });
+  } catch (error: any) {
+    if (error.message === "User not found") {
+      return res.status(404).json({ error: error.message });
+    }
+    const { userMessage, errorCode } = handleApiError(error, {
+      operation: "resetting",
+      resource: "user password"
+    });
+    res.status(500).json({ error: userMessage, code: errorCode });
+  }
+};
+
 export const updateOrLockUserHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
