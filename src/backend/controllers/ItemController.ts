@@ -250,6 +250,9 @@ export const getSubItemsForPlatterHandler = async (
     const result = await itemService.getSubItemsForPlatter(parseInt(groupIdValue));
     res.status(200).json(result);
   } catch (error: any) {
+    if (error?.message === "Platter not found" || error?.message === "Item is not a platter/group") {
+      return res.status(404).json({ error: error.message });
+    }
     const { userMessage, errorCode } = handleApiError(error, {
       operation: "fetching",
       resource: "sub-items for platter"

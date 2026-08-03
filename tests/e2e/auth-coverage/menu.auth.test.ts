@@ -29,26 +29,32 @@ beforeAll(async () => {
   cashierToken = await getCashierToken();
 });
 
-const menuCases = [
-  { name: "GET /api/menu/categories", method: "GET", handler: categoriesHandler, wrong: () => cashierToken, ok: () => adminToken },
+// Cashiers have can_view_item / can_view_category / can_view_pricelist for billing,
+// so GET-only view endpoints have no "wrong role" in this test setup.
+const menuCases: Array<{
+  name: string; method: string; handler: any;
+  params?: Record<string, string>; body?: unknown;
+  wrong?: () => string; ok: () => string;
+}> = [
+  { name: "GET /api/menu/categories", method: "GET", handler: categoriesHandler, ok: () => adminToken },
   { name: "POST /api/menu/categories", method: "POST", handler: categoriesHandler, body: { name: "Auth Category", code: "AUTH_CAT", status: "active" }, wrong: () => cashierToken, ok: () => adminToken },
   { name: "DELETE /api/menu/categories/[id]", method: "DELETE", handler: categoryHandler, params: { id: "99999" }, wrong: () => cashierToken, ok: () => adminToken },
-  { name: "GET /api/menu/items", method: "GET", handler: itemsHandler, wrong: () => cashierToken, ok: () => adminToken },
+  { name: "GET /api/menu/items", method: "GET", handler: itemsHandler, ok: () => adminToken },
   { name: "POST /api/menu/items", method: "POST", handler: itemsHandler, body: { name: "Auth Item", code: "AUTH_ITEM" }, wrong: () => cashierToken, ok: () => adminToken },
   { name: "PATCH /api/menu/items/[id]", method: "PATCH", handler: itemHandler, params: { id: "99999" }, body: { name: "Updated Auth Item" }, wrong: () => cashierToken, ok: () => adminToken },
   { name: "GET /api/menu/items/[id]/audit", method: "GET", handler: itemAuditHandler, params: { id: "99999" }, wrong: () => cashierToken, ok: () => adminToken },
-  { name: "GET /api/menu/items/station", method: "GET", handler: itemStationHandler, wrong: () => cashierToken, ok: () => adminToken },
-  { name: "GET /api/menu/items/pricelist", method: "GET", handler: itemPricelistHandler, wrong: () => cashierToken, ok: () => adminToken },
-  { name: "GET /api/menu/items/groups", method: "GET", handler: itemGroupsHandler, wrong: () => cashierToken, ok: () => adminToken },
+  { name: "GET /api/menu/items/station", method: "GET", handler: itemStationHandler, ok: () => adminToken },
+  { name: "GET /api/menu/items/pricelist", method: "GET", handler: itemPricelistHandler, ok: () => adminToken },
+  { name: "GET /api/menu/items/groups", method: "GET", handler: itemGroupsHandler, ok: () => adminToken },
   { name: "POST /api/menu/items/groups", method: "POST", handler: itemGroupsHandler, body: { name: "Auth Group", code: "AUTH_GROUP" }, wrong: () => cashierToken, ok: () => adminToken },
   { name: "POST /api/menu/items/groups/[groupId]", method: "POST", handler: itemGroupHandler, params: { groupId: "99999" }, body: { name: "Auth Group Item" }, wrong: () => cashierToken, ok: () => adminToken },
-  { name: "GET /api/menu/items/groups/[groupId]/subitems", method: "GET", handler: itemGroupSubItemsHandler, params: { groupId: "99999" }, wrong: () => cashierToken, ok: () => adminToken },
+  { name: "GET /api/menu/items/groups/[groupId]/subitems", method: "GET", handler: itemGroupSubItemsHandler, params: { groupId: "99999" }, ok: () => adminToken },
   { name: "DELETE /api/menu/items/groups/[groupId]/items/[itemId]", method: "DELETE", handler: itemGroupItemHandler, params: { groupId: "99999", itemId: "99999" }, wrong: () => cashierToken, ok: () => adminToken },
-  { name: "GET /api/menu/pricelists", method: "GET", handler: pricelistsHandler, wrong: () => cashierToken, ok: () => adminToken },
+  { name: "GET /api/menu/pricelists", method: "GET", handler: pricelistsHandler, ok: () => adminToken },
   { name: "POST /api/menu/pricelists", method: "POST", handler: pricelistsHandler, body: { name: "Auth Pricelist", code: "AUTH_PL" }, wrong: () => cashierToken, ok: () => adminToken },
   { name: "PATCH /api/menu/pricelists/[pricelistId]/status", method: "PATCH", handler: pricelistStatusHandler, params: { pricelistId: "99999" }, body: { status: "active" }, wrong: () => cashierToken, ok: () => adminToken },
   { name: "GET /api/menu/pricelists/[pricelistId]/audit", method: "GET", handler: pricelistAuditHandler, params: { pricelistId: "99999" }, wrong: () => cashierToken, ok: () => adminToken },
-  { name: "GET /api/menu/pricelists/[pricelistId]/items", method: "GET", handler: pricelistItemsHandler, params: { pricelistId: "99999" }, wrong: () => cashierToken, ok: () => adminToken },
+  { name: "GET /api/menu/pricelists/[pricelistId]/items", method: "GET", handler: pricelistItemsHandler, params: { pricelistId: "99999" }, ok: () => adminToken },
   { name: "DELETE /api/menu/pricelists/[pricelistId]/items/[itemId]", method: "DELETE", handler: pricelistItemHandler, params: { pricelistId: "99999", itemId: "99999" }, wrong: () => cashierToken, ok: () => adminToken },
   { name: "GET /api/menu/pricelists/[pricelistId]/items/[itemId]/audit", method: "GET", handler: pricelistItemAuditHandler, params: { pricelistId: "99999", itemId: "99999" }, wrong: () => cashierToken, ok: () => adminToken },
   { name: "POST /api/menu/pricelists/[pricelistId]/upload", method: "POST", handler: pricelistUploadHandler, params: { pricelistId: "99999" }, body: { rows: [] }, wrong: () => cashierToken, ok: () => adminToken },
@@ -59,7 +65,9 @@ describe("Menu API auth coverage", () => {
   for (const c of menuCases) {
     describe(c.name, () => {
       it("returns 401 without token", async () => assert401(c));
-      it("returns 403 with wrong role token", async () => assert403(c, c.wrong()));
+      if (c.wrong) {
+        it("returns 403 with wrong role token", async () => assert403(c, c.wrong!()));
+      }
       it("allows role with permission", async () => assertAllowed(c, c.ok()));
     });
   }
