@@ -71,6 +71,7 @@ export interface ItemsSoldCountReportItem {
   itemId: number;
   itemName: string;
   quantity: number;
+  subtotal: number;
   userId?: number;
   userName?: string;
 }
@@ -594,6 +595,7 @@ export class ReportService {
           itemId: billItem.item.id,
           itemName: billItem.item.name,
           quantity: 0,
+          subtotal: 0,
           userId: uid ?? undefined,
           userName: displayName,
         });
@@ -601,6 +603,7 @@ export class ReportService {
 
       const report = reportMap.get(key)!;
       report.quantity += billItem.quantity || 0;
+      report.subtotal += Number(billItem.subtotal) || 0;
     });
 
     return Array.from(reportMap.values()).sort((a, b) => {
