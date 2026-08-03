@@ -11,12 +11,15 @@ import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterS
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
+import { printReceiptWithTimestamp } from "../../../shared/printUtils";
+import ItemsSoldCountThermalPrint from "./ItemsSoldCountThermalPrint";
 
 interface ItemsSoldCountReportItem {
   date: string;
   itemId: number;
   itemName: string;
   quantity: number;
+  subtotal: number;
   userId?: number;
   userName?: string;
 }
@@ -60,6 +63,9 @@ export default function ItemsSoldCountReportPage() {
   const [filterErrorDetails, setFilterErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [businessShifts, setBusinessShifts] = useState<BusinessShift[]>([]);
   const [selectedShiftId, setSelectedShiftId] = useState<string>("");
+  const [printerName, setPrinterName] = useState<string | undefined>(undefined);
+  const [orgTitle, setOrgTitle] = useState<string>("POS System");
+  const [printLoading, setPrintLoading] = useState(false);
   const apiCall = useApiCall();
 
   useEffect(() => {
@@ -107,6 +113,43 @@ export default function ItemsSoldCountReportPage() {
     fetchBusinessShifts();
   }, [apiCall]);
 
+  useEffect(() => {
+    apiCall("/api/system/receipt-printer-prefs")
+      .then((res) => {
+        if (res.status === 200) {
+          if (res.data?.value?.printer_name) setPrinterName(res.data.value.printer_name);
+          if (res.data?.receipt_display?.title) setOrgTitle(res.data.receipt_display.title);
+        }
+      })
+      .catch(() => {});
+  }, [apiCall]);
+
+  const handlePrint = async () => {
+    if (reports.length === 0) return;
+    setPrintLoading(true);
+    try {
+      const map = new Map<number, { itemName: string; quantity: number; subtotal: number }>();
+      for (const r of reports) {
+        const existing = map.get(r.itemId) ?? { itemName: r.itemName, quantity: 0, subtotal: 0 };
+        existing.quantity += r.quantity || 0;
+        existing.subtotal += r.subtotal || 0;
+        map.set(r.itemId, existing);
+      }
+      const rows = Array.from(map.values()).sort((a, b) => a.itemName.localeCompare(b.itemName));
+      const totalQuantity = rows.reduce((s, r) => s + r.quantity, 0);
+      const totalAmount = rows.reduce((s, r) => s + r.subtotal, 0);
+      await printReceiptWithTimestamp(
+        ItemsSoldCountThermalPrint,
+        { orgTitle, startDate: dateRange.startDate, endDate: dateRange.endDate, rows, totalQuantity, totalAmount },
+        "Items Sold Count Report",
+        "receipt",
+        printerName,
+      );
+    } finally {
+      setPrintLoading(false);
+    }
+  };
+
   const fetchReport = async () => {
     try {
       setLoading(true);
@@ -143,7 +186,10 @@ export default function ItemsSoldCountReportPage() {
 
   useEffect(() => { fetchReport(); }, []);
 
-  const totals = reports.reduce((acc, r) => ({ quantity: acc.quantity + (r.quantity || 0), count: acc.count + 1 }), { quantity: 0, count: 0 });
+  const totals = reports.reduce(
+    (acc, r) => ({ quantity: acc.quantity + (r.quantity || 0), count: acc.count + 1, subtotal: acc.subtotal + (r.subtotal || 0) }),
+    { quantity: 0, count: 0, subtotal: 0 }
+  );
 
   return (
     <RoleAwareLayout>
@@ -192,15 +238,19 @@ export default function ItemsSoldCountReportPage() {
                       </Form.Select>
                     </div>
                   )}
-                  <div className="col-md-2"><Button type="button" variant="primary" onClick={fetchReport} disabled={loading || loadingFilters} className="w-100"><i className="bi bi-search me-1"></i>{loading ? "Loading..." : "Generate Report"}</Button></div>
+                  <div className="col-md-2 d-flex gap-2">
+                    <Button type="button" variant="primary" onClick={fetchReport} disabled={loading || loadingFilters} className="flex-grow-1"><i className="bi bi-search me-1"></i>{loading ? "Loading..." : "Generate Report"}</Button>
+                    <Button type="button" variant="outline-secondary" onClick={handlePrint} disabled={reports.length === 0 || printLoading} title="Print thermal report"><i className="bi bi-printer"></i></Button>
+                  </div>
                 </div>
                 </Form>
             </CollapsibleFilterSectionCard>
           </div>
         </div>
         <div className="row mb-4">
-          <div className="col-md-6"><div className="card bg-primary text-white"><div className="card-body"><h6>Total Items Sold</h6><h3>{totals.count}</h3></div></div></div>
-          <div className="col-md-6"><div className="card bg-success text-white"><div className="card-body"><h6>Total Quantity</h6><h3>{totals.quantity}</h3></div></div></div>
+          <div className="col-md-4"><div className="card bg-primary text-white"><div className="card-body"><h6>Total Items Sold</h6><h3>{totals.count}</h3></div></div></div>
+          <div className="col-md-4"><div className="card bg-success text-white"><div className="card-body"><h6>Total Quantity</h6><h3>{totals.quantity}</h3></div></div></div>
+          <div className="col-md-4"><div className="card bg-info text-white"><div className="card-body"><h6>Total Sales Amount</h6><h3>KES {totals.subtotal.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3></div></div></div>
         </div>
         <div className="row">
           <div className="col-12">
@@ -210,9 +260,9 @@ export default function ItemsSoldCountReportPage() {
                 {loading ? <div className="text-center"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div> : (
                   <div className="table-responsive">
                     <table className="table table-striped">
-                      <thead><tr><th>Date</th><th>Item</th><th>Quantity</th><th>Sales User</th></tr></thead>
+                      <thead><tr><th>Date</th><th>Item</th><th>Quantity</th><th>Sales Amount (KES)</th><th>Sales User</th></tr></thead>
                       <tbody>
-                        {reports.map((r, i) => <tr key={i}><td>{formatReportPeriodLabel(r.date)}</td><td>{r.itemName}</td><td>{r.quantity}</td><td>{r.userName || "N/A"}</td></tr>)}
+                        {reports.map((r, i) => <tr key={i}><td>{formatReportPeriodLabel(r.date)}</td><td>{r.itemName}</td><td>{r.quantity}</td><td>{(r.subtotal || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>{r.userName || "N/A"}</td></tr>)}
                       </tbody>
                     </table>
                     {reports.length === 0 && <div className="text-center text-muted py-4"><i className="bi bi-box fs-1"></i><p className="mt-2">No data found</p></div>}
