@@ -6,6 +6,7 @@ import {
   deleteUserHandler,
   reactivateUserHandler,
   updateOrLockUserHandler,
+  resetUserPasswordHandler,
 } from "@controllers/UserController";
 import permissions from "@backend/config/permissions";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
@@ -54,6 +55,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       return authorize([permissions.CAN_EDIT_USER])(reactivateUserHandler)(req, res);
     } else if (["update", "lock", "unlock"].includes(req.body.action)) {
       return authorize([permissions.CAN_EDIT_USER])(updateOrLockUserHandler)(req, res);
+    } else if (req.body.action === "reset-password") {
+      return authorize([permissions.CAN_EDIT_USER])(resetUserPasswordHandler)(req, res);
     } else {
       res.status(400).json({ error: "Invalid action" });
     }

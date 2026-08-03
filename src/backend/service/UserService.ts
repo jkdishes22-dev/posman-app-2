@@ -663,4 +663,69 @@ export class UserService {
 
     return saved;
   }
+
+  async resetUserPassword(userId: number, hashedPassword: string, updatedBy?: number) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new Error("User not found");
+    user.password = hashedPassword;
+    user.must_change_password = true;
+    if (updatedBy !== undefined) user.updated_by = updatedBy;
+    const saved = await this.userRepository.save(user);
+
+    cache.invalidateMany(["users", `user_${userId}`, `user_username_${user.username}`]);
+    return saved;
+  }
+
+  async getUserSecurityDataByUsername(username: string) {
+    const rows: any[] = await this.userRepository.manager.query(
+      `SELECT id, security_question, security_answer_hash, recovery_code_hash, recovery_code_generated_at
+       FROM user WHERE username = ? LIMIT 1`,
+      [username],
+    ) ?? [];
+    return rows[0] ?? null;
+  }
+
+  async setupSecurity(userId: number, question: string, answerHash: string) {
+    await this.userRepository.manager.query(
+      "UPDATE user SET security_question = ?, security_answer_hash = ? WHERE id = ?",
+      [question, answerHash, userId],
+    );
+    cache.invalidateMany([`user_${userId}`, `api_user_me_${userId}`]);
+  }
+
+  async generateRecoveryCode(userId: number, codeHash: string) {
+    await this.userRepository.manager.query(
+      "UPDATE user SET recovery_code_hash = ?, recovery_code_generated_at = ? WHERE id = ?",
+      [codeHash, new Date().toISOString(), userId],
+    );
+    cache.invalidateMany([`user_${userId}`, `api_user_me_${userId}`]);
+  }
+
+  async clearRecoveryCode(userId: number) {
+    await this.userRepository.manager.query(
+      "UPDATE user SET recovery_code_hash = NULL, recovery_code_generated_at = NULL WHERE id = ?",
+      [userId],
+    );
+    cache.invalidateMany([`user_${userId}`, `api_user_me_${userId}`]);
+  }
+
+  async resetPasswordByToken(userId: number, hashedPassword: string) {
+    await this.userRepository.manager.query(
+      "UPDATE user SET password = ?, must_change_password = 0 WHERE id = ?",
+      [hashedPassword, userId],
+    );
+    cache.invalidateMany([`user_${userId}`]);
+  }
+
+  async getSecuritySetupStatus(userId: number): Promise<{ hasSecurityQuestion: boolean; recoveryCodeGeneratedAt: Date | null }> {
+    const rows: any[] = await this.userRepository.manager.query(
+      "SELECT security_question, recovery_code_generated_at FROM user WHERE id = ? LIMIT 1",
+      [userId],
+    ) ?? [];
+    const row = rows[0];
+    return {
+      hasSecurityQuestion: !!row?.security_question,
+      recoveryCodeGeneratedAt: row?.recovery_code_generated_at ?? null,
+    };
+  }
 }

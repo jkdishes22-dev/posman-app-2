@@ -51,6 +51,10 @@ function UsersPage() {
   const [stationError, setStationError] = useState("");
   const [loadingStations, setLoadingStations] = useState(false);
   const [lockError, setLockError] = useState("");
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetPasswordForm, setResetPasswordForm] = useState({ newPassword: "", confirmPassword: "" });
+  const [resetPasswordError, setResetPasswordError] = useState("");
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
 
   const handleClose = () => {
     setShowModal(false);
@@ -327,6 +331,36 @@ function UsersPage() {
       setShowLockModal(false);
     } finally {
       setLockLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUser) return;
+    if (resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword) {
+      setResetPasswordError("Passwords do not match.");
+      return;
+    }
+    if (resetPasswordForm.newPassword.length < 4) {
+      setResetPasswordError("Password must be at least 4 characters.");
+      return;
+    }
+    setResetPasswordLoading(true);
+    setResetPasswordError("");
+    try {
+      const result = await apiCall(`/api/users?userId=${selectedUser.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ action: "reset-password", newPassword: resetPasswordForm.newPassword }),
+      });
+      if (result.status === 200) {
+        setShowResetPasswordModal(false);
+        setResetPasswordForm({ newPassword: "", confirmPassword: "" });
+      } else {
+        setResetPasswordError(result.error || "Failed to reset password.");
+      }
+    } catch {
+      setResetPasswordError("Network error occurred.");
+    } finally {
+      setResetPasswordLoading(false);
     }
   };
 
@@ -830,6 +864,18 @@ function UsersPage() {
                             Assign Role
                           </button>
                         </div>
+                        <div className="col-6 col-md-3">
+                          <button
+                            className="btn btn-outline-warning btn-sm w-100"
+                            onClick={() => { setResetPasswordForm({ newPassword: "", confirmPassword: "" }); setResetPasswordError(""); setShowResetPasswordModal(true); }}
+                            data-bs-toggle="tooltip"
+                            data-bs-placement="top"
+                            title="Set a temporary password for this user"
+                          >
+                            <i className="bi bi-key me-1"></i>
+                            Reset Password
+                          </button>
+                        </div>
                       </div>
                       {selectedUser.status === "DELETED" && (
                         <div className="mt-2">
@@ -1171,6 +1217,50 @@ function UsersPage() {
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={handleAssignRoleConfirm}>
                   Assign Role
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showResetPasswordModal && (
+        <div className="modal fade show d-block" tabIndex={-1} role="dialog" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered" role="document">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Reset Password — {selectedUser?.firstName} {selectedUser?.lastName}</h5>
+                <button type="button" className="btn-close" onClick={() => setShowResetPasswordModal(false)} />
+              </div>
+              <div className="modal-body">
+                {resetPasswordError && <div className="alert alert-danger py-2">{resetPasswordError}</div>}
+                <p className="text-muted small mb-3">Set a temporary password. The user will be required to change it on next login.</p>
+                <div className="mb-3">
+                  <label className="form-label">New temporary password</label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    value={resetPasswordForm.newPassword}
+                    onChange={(e) => setResetPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
+                    autoFocus
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Confirm password</label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    value={resetPasswordForm.confirmPassword}
+                    onChange={(e) => setResetPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowResetPasswordModal(false)} disabled={resetPasswordLoading}>
+                  Cancel
+                </button>
+                <button type="button" className="btn btn-warning" onClick={handleResetPassword} disabled={resetPasswordLoading || !resetPasswordForm.newPassword}>
+                  {resetPasswordLoading ? "Resetting…" : "Reset Password"}
                 </button>
               </div>
             </div>

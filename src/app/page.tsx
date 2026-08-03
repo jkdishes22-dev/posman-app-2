@@ -10,6 +10,7 @@ import ErrorDisplay from "./components/ErrorDisplay";
 import SubmitBillVirtualKeyboard, {
   SubmitBillKeyboardMode,
 } from "./components/SubmitBillVirtualKeyboard";
+import ForgotPasswordModal from "./components/ForgotPasswordModal";
 
 type SetupState =
   | "ready"
@@ -49,6 +50,7 @@ const LoginForm = () => {
   const passwordInputRef = useRef<HTMLInputElement | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [licenseCode, setLicenseCode] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isActivatingLicense, setIsActivatingLicense] = useState(false);
   const router = useRouter();
   const { login, isAuthenticated, isLoading } = useAuth();
@@ -542,7 +544,17 @@ const LoginForm = () => {
                   "Sign in"
                 )}
               </button>
+              <div className="mt-2 text-end">
+                <button
+                  type="button"
+                  className="btn btn-link btn-sm p-0 text-decoration-none text-muted"
+                  onClick={() => setShowForgotPassword(true)}
+                >
+                  Forgot password?
+                </button>
+              </div>
             </form>
+            <ForgotPasswordModal show={showForgotPassword} onHide={() => setShowForgotPassword(false)} />
             <div className="px-4 pb-3 pt-0">
               <div className="btn-group w-100 mb-2" role="group" aria-label="Keyboard layout">
                 <button

@@ -42,6 +42,18 @@ export class User extends BaseEntity {
   @Column({ type: "boolean", default: false })
   must_change_password!: boolean;
 
+  @Column({ type: "text", nullable: true })
+  security_question: string | null;
+
+  @Column({ type: "text", nullable: true })
+  security_answer_hash: string | null;
+
+  @Column({ type: "text", nullable: true })
+  recovery_code_hash: string | null;
+
+  @Column({ type: "datetime", nullable: true })
+  recovery_code_generated_at: Date | null;
+
   @ManyToMany(() => Role, (role) => role.users)
   @JoinTable({
     name: "user_roles",
