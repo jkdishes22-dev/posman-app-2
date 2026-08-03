@@ -11,7 +11,7 @@ test.describe('Login page', () => {
       await expect(page.locator('#username')).toBeVisible();
       await expect(page.locator('#password')).toBeVisible();
       await expect(page.getByText('User name / code')).toBeVisible();
-      await expect(page.getByText('Password')).toBeVisible();
+      await expect(page.getByText('Password', { exact: true })).toBeVisible();
     });
 
     test('password field masks input', async ({ page }) => {
