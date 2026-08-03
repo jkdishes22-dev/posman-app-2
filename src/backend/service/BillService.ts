@@ -56,7 +56,7 @@ export class BillService {
   }
 
   async createBill(payload) {
-    const { items, total, user_id, station_id, request_id } = payload;
+    const { items, total, user_id, station_id, request_id, tags, notes } = payload;
 
     // Validate inventory availability BEFORE creating the bill
     // Use the same logic as the frontend availability check
@@ -103,6 +103,8 @@ export class BillService {
           status: BillStatus.PENDING,
           created_by: user_id,
           request_id: request_id || null,
+          tags: tags?.length ? JSON.stringify(tags) : null,
+          notes: notes?.trim() || null,
         });
         const newBillId = billInsert.identifiers[0].id as number;
 
@@ -596,8 +598,8 @@ export class BillService {
       throw new Error(`Bill with ID ${billPayment.billId} not found`);
     }
 
-    // Validate that the user trying to submit is the bill creator
-    if (bill.user_id && billPayment.userId && bill.user_id !== billPayment.userId) {
+    // Supervisors and admins can submit any pending bill; others can only submit their own
+    if (!billPayment.isPrivileged && bill.user_id && billPayment.userId && bill.user_id !== billPayment.userId) {
       throw new Error("You can only submit bills that you created. This bill was created by a different user.");
     }
 
@@ -816,11 +818,12 @@ export class BillService {
     return results;
   }
 
-  async submitBillsBulk(billPayments: BillPaymentInterface[], userId: number) {
+  async submitBillsBulk(billPayments: BillPaymentInterface[], userId: number, isPrivileged = false) {
     const results = [];
     for (const billPayment of billPayments) {
       try {
         billPayment.userId = userId;
+        billPayment.isPrivileged = isPrivileged;
         await this.submitBill(billPayment);
         results.push({ billId: billPayment.billId, status: "submitted" });
       } catch (error: any) {

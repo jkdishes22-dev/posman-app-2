@@ -158,8 +158,6 @@ function UsersPage() {
     } catch (err: any) {
       setError("Network error occurred while creating user");
       setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
-    } finally {
-      await fetchUsers();
     }
   }
 
@@ -384,7 +382,7 @@ function UsersPage() {
 
     // Check if user has a valid role for station assignment
     const userRole = selectedUser.roles && selectedUser.roles.length > 0 ? selectedUser.roles[0].name : null;
-    const allowedRoles = ["sales", "supervisor", "admin"];
+    const allowedRoles = ["sales", "supervisor", "admin", "cashier"];
 
     if (!userRole || !allowedRoles.includes(userRole)) {
       setStationError(`Only users with ${allowedRoles.join(", ")} roles can be assigned stations. Current role: ${userRole || "none"}`);
@@ -886,12 +884,12 @@ function UsersPage() {
                         <button
                           type="button"
                           className="btn btn-success btn-sm"
-                          disabled={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !["sales", "supervisor", "admin"].includes(selectedUser.roles[0].name)}
+                          disabled={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !["sales", "supervisor", "admin", "cashier"].includes(selectedUser.roles[0].name)}
                           onClick={() => {
                             fetchAvailableStations();
                             setShowAddStationModal(true);
                           }}
-                          title={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !["sales", "supervisor", "admin"].includes(selectedUser.roles[0].name) ? "Only sales, supervisor, and admin roles can be assigned stations" : "Add station to user"}
+                          title={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !["sales", "supervisor", "admin", "cashier"].includes(selectedUser.roles[0].name) ? "Only sales, supervisor, admin, and cashier roles can be assigned stations" : "Add station to user"}
                         >
                           <i className="bi bi-plus me-1"></i>
                           Add Station

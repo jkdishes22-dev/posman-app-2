@@ -184,6 +184,15 @@ const ReceiptContent = ({
     if (b.tagline) {
         headerLines.push(centerTextLine(b.tagline));
     }
+    const tagLine = (() => {
+        if (!bill.tags) return null;
+        try {
+            const tags: string[] = JSON.parse(bill.tags);
+            return tags.length > 0 ? `Sales Rep: ${tags.join(", ")}` : null;
+        } catch { return null; }
+    })();
+    const noteLine = bill.notes?.trim() ? `Note: ${bill.notes.trim()}` : null;
+
     headerLines.push(
         "",
         centerTextLine(label),
@@ -191,6 +200,8 @@ const ReceiptContent = ({
         `Date: ${dateStr}   Time: ${timeStr}`,
         `Bill ID: ${billId}`,
         `Served By: ${serverName}`,
+        ...(tagLine ? [tagLine] : []),
+        ...(noteLine ? [noteLine] : []),
     );
     const headerPre = headerLines.join("\n");
 

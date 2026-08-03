@@ -24,7 +24,7 @@ interface CachedUserDetails {
   permissions: any[];
 }
 
-const userCache = new NodeCache({ stdTTL: 60 * 60 }); // 30 minutes
+export const userCache = new NodeCache({ stdTTL: 60 * 60 }); // 30 minutes
 
 /** Drop cached roles/permissions for one user (e.g. after role assignment). */
 export function invalidateAuthUserDetailsCacheForUser(userId: number): void {
@@ -85,10 +85,25 @@ export const authMiddleware = (handler) => {
           req.user.roles = userDetails.roles;
           req.user.permissions = userDetails.permissions;
 
-          // Store user roles and permissions in cache
+          const isCashier = userDetails.roles?.some(
+            (r: any) => r.name?.toLowerCase() === "cashier"
+          );
+          if (isCashier) {
+            const billingPerms = [
+              "can_add_bill", "can_edit_bill", "can_cancel_bill",
+              "can_add_bill_item", "can_edit_bill_item", "can_delete_bill_item",
+              "can_view_pricelist", "can_view_item", "can_view_category",
+            ];
+            req.user.permissions = [
+              ...userDetails.permissions,
+              ...billingPerms.map((name) => ({ name })),
+            ];
+          }
+
+          // Store augmented roles and permissions in cache
           userCache.set(cacheKey, {
             roles: userDetails.roles,
-            permissions: userDetails.permissions,
+            permissions: req.user.permissions,
           });
         } catch (dbError: any) {
           // Database error loading user details - log but don't fail auth

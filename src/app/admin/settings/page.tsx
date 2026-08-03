@@ -28,11 +28,19 @@ interface PrinterSettings {
     auto_print_copy_mode: "customer" | "business" | "both";
 }
 
+interface BillTag {
+    id: string;
+    name: string;
+    color: string;
+}
+
 interface BillSettings {
     show_tax_on_receipt: boolean;
     show_payment_on_receipt: boolean;
     top_n_billing_items: number;
     top_n_lookback_days: number;
+    cashier_can_bill: boolean;
+    bill_tags: BillTag[];
 }
 
 interface DbBackupSettings {
@@ -158,7 +166,9 @@ export default function AdminSettingsPage() {
     const [printTestBusy, setPrintTestBusy] = useState(false);
 
     // Bill settings
-    const [billSettings, setBillSettings] = useState<BillSettings>({ show_tax_on_receipt: true, show_payment_on_receipt: true, top_n_billing_items: 10, top_n_lookback_days: 30 });
+    const [billSettings, setBillSettings] = useState<BillSettings>({ show_tax_on_receipt: true, show_payment_on_receipt: true, top_n_billing_items: 10, top_n_lookback_days: 30, cashier_can_bill: false, bill_tags: [] });
+    const [newTagName, setNewTagName] = useState("");
+    const [newTagColor, setNewTagColor] = useState("primary");
     const [billSettingsSaving, setBillSettingsSaving] = useState(false);
     const [billSettingsResult, setBillSettingsResult] = useState<{ success: boolean; error?: string } | null>(null);
 
@@ -1120,7 +1130,63 @@ export default function AdminSettingsPage() {
                                     />
                                     <Form.Text className="text-muted">How many past days of sales to consider when ranking items.</Form.Text>
                                 </Form.Group>
-                                <Button variant="primary" onClick={handleSaveBillSettings} disabled={billSettingsSaving}>
+                                <h6 className="fw-bold mb-2 mt-3">Sales Rep Labels</h6>
+                                <p className="text-muted small mb-2">Define unregistered sales reps. Cashiers select a label when creating a bill on their behalf.</p>
+                                <div className="d-flex flex-wrap gap-2 mb-2">
+                                    {(billSettings.bill_tags ?? []).map((tag) => (
+                                        <Badge key={tag.id} bg={tag.color} className="d-flex align-items-center gap-1 fs-6 fw-normal">
+                                            {tag.name}
+                                            <button
+                                                type="button"
+                                                className="btn-close btn-close-white ms-1"
+                                                style={{ fontSize: "0.6rem" }}
+                                                aria-label="Remove"
+                                                onClick={() => setBillSettings((s) => ({ ...s, bill_tags: (s.bill_tags ?? []).filter((t) => t.id !== tag.id) }))}
+                                            />
+                                        </Badge>
+                                    ))}
+                                    {(billSettings.bill_tags ?? []).length === 0 && (
+                                        <span className="text-muted small">No labels yet.</span>
+                                    )}
+                                </div>
+                                <div className="d-flex gap-2 align-items-center flex-wrap">
+                                    <Form.Control
+                                        type="text"
+                                        placeholder="Rep name (e.g. Alice)"
+                                        value={newTagName}
+                                        onChange={(e) => setNewTagName(e.target.value)}
+                                        style={{ maxWidth: "200px" }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter" && newTagName.trim()) {
+                                                e.preventDefault();
+                                                const id = newMpesaMethodId();
+                                                setBillSettings((s) => ({ ...s, bill_tags: [...(s.bill_tags ?? []), { id, name: newTagName.trim(), color: newTagColor }] }));
+                                                setNewTagName("");
+                                            }
+                                        }}
+                                    />
+                                    <Form.Select value={newTagColor} onChange={(e) => setNewTagColor(e.target.value)} style={{ maxWidth: "130px" }}>
+                                        <option value="primary">Blue</option>
+                                        <option value="success">Green</option>
+                                        <option value="warning">Yellow</option>
+                                        <option value="danger">Red</option>
+                                        <option value="info">Teal</option>
+                                        <option value="secondary">Grey</option>
+                                    </Form.Select>
+                                    <Button
+                                        variant="outline-primary"
+                                        size="sm"
+                                        disabled={!newTagName.trim()}
+                                        onClick={() => {
+                                            const id = newMpesaMethodId();
+                                            setBillSettings((s) => ({ ...s, bill_tags: [...(s.bill_tags ?? []), { id, name: newTagName.trim(), color: newTagColor }] }));
+                                            setNewTagName("");
+                                        }}
+                                    >
+                                        Add
+                                    </Button>
+                                </div>
+                                <Button variant="primary" onClick={handleSaveBillSettings} disabled={billSettingsSaving} className="mt-3">
                                     {billSettingsSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save display settings"}
                                 </Button>
                             </Col>

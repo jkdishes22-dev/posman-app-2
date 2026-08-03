@@ -149,12 +149,8 @@ export default function StationPage() {
       if (result.status >= 200 && result.status < 300) {
         setShowModal(false);
         setError(null);
-        // Refresh the full list from server to ensure consistency
-        const refreshResult = await apiCall("/api/stations");
-        if (refreshResult.status >= 200 && refreshResult.status < 300) {
-          setStations(refreshResult.data || []);
-          setFilteredStations(refreshResult.data || []);
-        }
+        setStations((prev) => [...prev, result.data]);
+        setFilteredStations((prev) => [...prev, result.data]);
       } else {
         setError(result.error || "Failed to add station");
         setErrorDetails(result.errorDetails);
@@ -193,12 +189,10 @@ export default function StationPage() {
       });
 
       if (result.status === 200) {
-        // Refresh pricelists for the station
-        await fetchStationPricelist(selectedStationId);
-        // Refresh available pricelists
-        await fetchAvailablePricelists();
         setShowPricelistModal(false);
         setLinkPricelistError(null);
+        fetchStationPricelist(selectedStationId);
+        fetchAvailablePricelists();
       } else if (result.status === 403) {
         setLinkPricelistError({
           message: "Missing permissions to link pricelist",
@@ -259,9 +253,8 @@ export default function StationPage() {
       });
 
       if (result.status === 200) {
-        // Refresh pricelists for the station
-        await fetchStationPricelist(selectedStationId);
         setSetDefaultError(null);
+        fetchStationPricelist(selectedStationId);
       } else {
         setSetDefaultError({
           message: result.error || "Failed to set default pricelist",
@@ -310,12 +303,10 @@ export default function StationPage() {
       });
 
       if (result.status === 200) {
-        // Refresh users for the station
-        await fetchStationUsers(selectedStationId);
-        // Refresh available users
-        await fetchAvailableUsers();
         setShowUserModal(false);
         setAddUserError(null);
+        fetchStationUsers(selectedStationId);
+        fetchAvailableUsers();
       } else {
         setAddUserError({
           message: result.error || "Failed to add user to station",
@@ -343,10 +334,8 @@ export default function StationPage() {
       });
 
       if (result.status === 200) {
-        // Refresh users for the station
-        await fetchStationUsers(selectedStationId);
-        // Refresh available users
-        await fetchAvailableUsers();
+        fetchStationUsers(selectedStationId);
+        fetchAvailableUsers();
       } else {
         setError(result.error || "Failed to remove user from station");
         setErrorDetails(result.errorDetails);
@@ -369,8 +358,7 @@ export default function StationPage() {
       });
 
       if (result.status === 200) {
-        // Refresh users for the station
-        await fetchStationUsers(selectedStationId);
+        fetchStationUsers(selectedStationId);
       } else {
         setError(result.error || `Failed to ${action} user for station`);
         setErrorDetails(result.errorDetails);

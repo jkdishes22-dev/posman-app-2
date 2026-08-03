@@ -6,4 +6,5 @@ export type BillPaymentInterface = {
   pendingAmount?: number;
   billId: number;
   userId?: number;
+  isPrivileged?: boolean;
 };

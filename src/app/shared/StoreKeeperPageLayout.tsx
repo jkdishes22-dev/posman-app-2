@@ -245,16 +245,6 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
           </div>
         </div>
 
-        {/* Separator and Navigation Label */}
-        {!isCollapsed && (
-          <div className="px-3 pb-1">
-            <div className="text-muted small fw-semibold text-uppercase">
-              <i className="bi bi-list-ul me-1"></i>
-              Navigation
-            </div>
-          </div>
-        )}
-
         {/* Navigation */}
         <nav className="flex-grow-1 px-3 pt-1 pb-3" style={{ overflowY: "auto" }}>
           <ul className="nav nav-pills flex-column">

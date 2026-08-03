@@ -97,10 +97,10 @@ export default function LicenseStatusMonitor() {
   useEffect(() => {
     if (!isAuthenticated) return;
     fetchStatus();
-    fetchWarningSettings();
+    if (isAdmin) fetchWarningSettings();
     const interval = setInterval(fetchStatus, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [isAuthenticated, fetchStatus, fetchWarningSettings]);
+  }, [isAuthenticated, isAdmin, fetchStatus, fetchWarningSettings]);
 
   if (!isAuthenticated || !status) return null;
 

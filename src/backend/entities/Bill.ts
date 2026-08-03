@@ -82,6 +82,9 @@ export class Bill extends BaseEntity {
   @Column({ type: "varchar", length: 255, nullable: true })
   notes: string;
 
+  @Column({ type: "text", nullable: true })
+  tags: string; // JSON string: '["Tag A","Tag B"]'
+
   // Business rule validation methods (Rule 4.3, 4.4)
   canReopen(): boolean {
     return this.status === BillStatus.SUBMITTED;

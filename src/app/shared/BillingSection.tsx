@@ -31,6 +31,7 @@ import { ApiErrorResponse } from "../utils/errorUtils";
 import { hasPermission } from "../../backend/config/role-permissions";
 import { fireCashSettle, fireMpesaSettle } from "../utils/billCashSettle";
 import SubmitBillVirtualKeyboard from "../components/SubmitBillVirtualKeyboard";
+import SubmitBillModal from "../home/my-sales/submit-bill";
 
 const INVENTORY_TTL_MS = 15000;
 
@@ -69,6 +70,8 @@ const BillingSection = () => {
   const [mpesaRefValidationError, setMpesaRefValidationError] = useState("");
   const [isValidatingMpesaRef, setIsValidatingMpesaRef] = useState(false);
   const [createdBill, setCreatedBill] = useState(null);
+  const [billAutoSettled, setBillAutoSettled] = useState(false);
+  const [showCollectPaymentModal, setShowCollectPaymentModal] = useState(false);
   const [billError, setBillError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categoriesFetched, setCategoriesFetched] = useState(false);
@@ -107,6 +110,12 @@ const BillingSection = () => {
 
   /** While a pending bill is open, exclude it from pending-demand so totals match server validation. */
   const pendingBillExcludeIdRef = useRef<number | undefined>(undefined);
+
+  // Sales rep label (bill tags) state
+  interface BillTag { id: string; name: string; color: string; }
+  const [billTags, setBillTags] = useState<BillTag[]>([]);
+  const [selectedTag, setSelectedTag] = useState<string>(""); // single-select: tag name
+  const [billNote, setBillNote] = useState("");
 
   const cleanupModalArtifacts = useCallback(() => {
     if (typeof document === "undefined") {
@@ -163,6 +172,7 @@ const BillingSection = () => {
         setShowPaymentMode(res.data.value.show_payment_on_receipt !== false);
         if (res.data.value.top_n_billing_items) setTopNLimit(Number(res.data.value.top_n_billing_items));
         if (res.data.value.top_n_lookback_days) setTopNLookbackDays(Number(res.data.value.top_n_lookback_days));
+        if (Array.isArray(res.data.value.bill_tags)) setBillTags(res.data.value.bill_tags);
       }
     }).catch(() => {});
   }, []);
@@ -611,6 +621,8 @@ const BillingSection = () => {
     setMpesaRef("");
     setMpesaRefValidationError("");
     setIsValidatingMpesaRef(false);
+    setSelectedTag("");
+    setBillNote("");
   }, []);
   const handleMpesaRefCharacter = (ch: string) => {
     setMpesaRef((prev) => (prev + ch).toUpperCase());
@@ -703,6 +715,8 @@ const BillingSection = () => {
         station_id: currentStation.id,
         total,
         request_id: requestId,
+        ...(selectedTag ? { tags: [selectedTag] } : {}),
+        ...(billNote.trim() ? { notes: billNote.trim() } : {}),
       };
       try {
         const result = await apiCall("/api/bills", {
@@ -738,12 +752,15 @@ const BillingSection = () => {
             })),
             user: { firstName: waitress },
             currency: "KES",
+            tags: selectedTag ? JSON.stringify([selectedTag]) : null,
+            notes: billNote.trim() || null,
             ...(cashSettled && !mpesaSettled
               ? { receiptPayment: { method: "cash", cashAmount: total } }
               : mpesaSettled && !cashSettled
               ? { receiptPayment: { method: "mpesa", mpesaAmount: total, mpesaRef: mpesaRef.trim() } }
               : {}),
           };
+          setBillAutoSettled(cashSettled || mpesaSettled);
           setCreatedBill(billForReceipt);
 
           // Auto-print on create (optional) then auto-reset; otherwise reset immediately.
@@ -889,6 +906,10 @@ const BillingSection = () => {
     setCashSettled(false);
     setMpesaSettled(false);
     setMpesaRef("");
+    setSelectedTag("");
+    setBillNote("");
+    setBillAutoSettled(false);
+    setShowCollectPaymentModal(false);
   }, []);
 
   const handleNewBill = useCallback(() => {
@@ -1121,9 +1142,21 @@ const BillingSection = () => {
                     {(createdBill ? createdBill.bill_items : selectedItems).length} items
                   </small>
                   {createdBill && (
-                    <span className="badge bg-success text-white fw-bold">
-                      #{createdBill.id}
-                    </span>
+                    <div className="d-flex align-items-center gap-2">
+                      <span className="badge bg-success text-white fw-bold">
+                        #{createdBill.id}
+                      </span>
+                      {createdBill.tags && (() => {
+                        try {
+                          const tags: string[] = JSON.parse(createdBill.tags);
+                          return tags.length > 0 ? (
+                            <span className="badge bg-primary text-white">
+                              <i className="bi bi-person me-1"></i>{tags[0]}
+                            </span>
+                          ) : null;
+                        } catch { return null; }
+                      })()}
+                    </div>
                   )}
                 </div>
               </div>
@@ -1229,8 +1262,19 @@ const BillingSection = () => {
                       </>
                     ) : (
                       <>
+                        {!billAutoSettled && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => setShowCollectPaymentModal(true)}
+                            className="fw-bold px-3"
+                          >
+                            <i className="bi bi-cash-coin me-1"></i>
+                            Collect Payment
+                          </Button>
+                        )}
                         <Button
-                          variant="success"
+                          variant="outline-success"
                           size="sm"
                           onClick={handleNewBill}
                           className="fw-bold px-3"
@@ -1239,7 +1283,7 @@ const BillingSection = () => {
                           New Bill
                         </Button>
                         <Button
-                          variant="outline-primary"
+                          variant="outline-secondary"
                           size="sm"
                           onClick={handlePrint}
                           className="fw-medium px-3"
@@ -1254,7 +1298,7 @@ const BillingSection = () => {
                           className="fw-medium px-3"
                         >
                           <i className="bi bi-download me-1"></i>
-                          Download
+                          Save
                         </Button>
                       </>
                     )}
@@ -1445,6 +1489,40 @@ const BillingSection = () => {
                     <span className="fw-medium">KES {(Number(totalAmount) || 0).toFixed(2)} M-Pesa — Ref: {mpesaRef.trim()}</span>
                   </div>
                 )}
+
+                {/* Sales Rep Labels */}
+                {billTags.length > 0 && (
+                  <div className="mt-3 pt-3 border-top">
+                    <div className="fw-semibold fs-6 mb-2">Sales Rep</div>
+                    <div className="d-flex flex-wrap gap-2">
+                      {billTags.map((tag) => (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          className={`btn btn-sm ${selectedTag === tag.name ? `btn-${tag.color}` : `btn-outline-${tag.color}`}`}
+                          onClick={() => setSelectedTag(selectedTag === tag.name ? "" : tag.name)}
+                          disabled={isSubmitting}
+                        >
+                          {tag.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Additional Note */}
+                <div className={`${billTags.length > 0 ? "mt-3" : "mt-3 pt-3 border-top"}`}>
+                  <div className="fw-semibold fs-6 mb-1">Additional note <span className="fw-normal text-muted">(optional)</span></div>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="e.g. For table 5, delivery order…"
+                    value={billNote}
+                    onChange={(e) => setBillNote(e.target.value)}
+                    disabled={isSubmitting}
+                    maxLength={255}
+                  />
+                </div>
               </div>
             </Col>
             {mpesaSettled && !cashSettled && (
@@ -1528,6 +1606,16 @@ const BillingSection = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <SubmitBillModal
+        show={showCollectPaymentModal}
+        onHide={() => setShowCollectPaymentModal(false)}
+        selectedBill={createdBill}
+        onBillSubmitted={() => {
+          setShowCollectPaymentModal(false);
+          resetForNewBill();
+        }}
+      />
     </div>
   );
 };

@@ -87,6 +87,8 @@ export type Bill = {
   reopened_by?: number;
   reopened_at?: string;
   bill_items?: BillItem[];
+  tags?: string | null;
+  notes?: string | null;
 };
 
 export type BillItem = {
