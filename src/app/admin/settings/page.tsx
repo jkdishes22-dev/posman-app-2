@@ -15,6 +15,7 @@ import type {
     OrganisationMpesaMethod,
     MpesaMethodType,
 } from "@backend/utils/organisationReceiptBranding";
+import { SECURITY_QUESTIONS } from "@backend/config/securityQuestions";
 
 interface PrinterInfo {
     name: string;
@@ -255,6 +256,17 @@ export default function AdminSettingsPage() {
     const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null);
     const [licenseLoading, setLicenseLoading] = useState(true);
     const [licenseCode, setLicenseCode] = useState("");
+
+    // Account Security
+    const [securityQuestion, setSecurityQuestion] = useState("");
+    const [securityAnswer, setSecurityAnswer] = useState("");
+    const [hasSecurityQuestion, setHasSecurityQuestion] = useState(false);
+    const [recoveryCodeGeneratedAt, setRecoveryCodeGeneratedAt] = useState<string | null>(null);
+    const [securitySaving, setSecuritySaving] = useState(false);
+    const [securityResult, setSecurityResult] = useState<{ success: boolean; error?: string } | null>(null);
+    const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+    const [recoveryCodeLoading, setRecoveryCodeLoading] = useState(false);
+    const [codeCopied, setCodeCopied] = useState(false);
     const [licenseActivating, setLicenseActivating] = useState(false);
     const [licenseResult, setLicenseResult] = useState<{ success: boolean; error?: string } | null>(null);
     const [licenseWarning, setLicenseWarning] = useState<LicenseWarningSettings>({ months: 0, days: 7 });
@@ -341,6 +353,14 @@ export default function AdminSettingsPage() {
         }
 
         void loadBackups();
+
+        // Load account security status
+        apiCall("/api/users/me").then((res) => {
+            if (res.status === 200 && res.data?.securitySetup) {
+                setHasSecurityQuestion(!!res.data.securitySetup.hasSecurityQuestion);
+                setRecoveryCodeGeneratedAt(res.data.securitySetup.recoveryCodeGeneratedAt ?? null);
+            }
+        }).catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps -- initial settings + backup list load
     }, []);
 
@@ -740,6 +760,47 @@ export default function AdminSettingsPage() {
             setUomResult({ success: false, error: "Network error occurred" });
         } finally {
             setUomSaving(false);
+        }
+    };
+
+    const handleSaveSecurityQuestion = async () => {
+        if (!securityQuestion || !securityAnswer.trim()) return;
+        setSecuritySaving(true);
+        setSecurityResult(null);
+        try {
+            const result = await apiCall("/api/users/me", {
+                method: "PATCH",
+                body: JSON.stringify({ action: "setup-security", question: securityQuestion, answer: securityAnswer }),
+            });
+            if (result.status === 200) {
+                setSecurityResult({ success: true });
+                setHasSecurityQuestion(true);
+                setSecurityAnswer("");
+            } else {
+                setSecurityResult({ success: false, error: result.error || "Failed to save" });
+            }
+        } catch {
+            setSecurityResult({ success: false, error: "Network error occurred" });
+        } finally {
+            setSecuritySaving(false);
+        }
+    };
+
+    const handleGenerateRecoveryCode = async () => {
+        setRecoveryCodeLoading(true);
+        setGeneratedCode(null);
+        setCodeCopied(false);
+        try {
+            const result = await apiCall("/api/users/me", {
+                method: "PATCH",
+                body: JSON.stringify({ action: "generate-recovery-code" }),
+            });
+            if (result.status === 200) {
+                setGeneratedCode(result.data.code);
+                setRecoveryCodeGeneratedAt(new Date().toISOString());
+            }
+        } catch { /* ignore */ } finally {
+            setRecoveryCodeLoading(false);
         }
     };
 
@@ -1585,6 +1646,88 @@ export default function AdminSettingsPage() {
                                 {uomSaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save Units"}
                             </Button>
                         </div>
+                    </Card.Body>
+                </Card>
+
+                {/* Account Security */}
+                <Card className="mb-4">
+                    <Card.Header><strong>Account Security</strong></Card.Header>
+                    <Card.Body>
+                        <h6 className="mb-3">Security Question</h6>
+                        {hasSecurityQuestion && (
+                            <Alert variant="success" className="py-2">Security question is configured.</Alert>
+                        )}
+                        {!hasSecurityQuestion && (
+                            <Alert variant="warning" className="py-2">Not configured — set a security question so you can reset your password if forgotten.</Alert>
+                        )}
+                        {securityResult && (
+                            <Alert variant={securityResult.success ? "success" : "danger"} className="py-2">
+                                {securityResult.success ? "Security question saved." : securityResult.error}
+                            </Alert>
+                        )}
+                        <Form.Group className="mb-2">
+                            <Form.Label>{hasSecurityQuestion ? "Update security question" : "Choose a security question"}</Form.Label>
+                            <Form.Select value={securityQuestion} onChange={(e) => setSecurityQuestion(e.target.value)}>
+                                <option value="">— Select a question —</option>
+                                {SECURITY_QUESTIONS.map((q) => (
+                                    <option key={q} value={q}>{q}</option>
+                                ))}
+                            </Form.Select>
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Your answer</Form.Label>
+                            <Form.Control
+                                type="password"
+                                value={securityAnswer}
+                                onChange={(e) => setSecurityAnswer(e.target.value)}
+                                placeholder="Answer (case-insensitive)"
+                            />
+                        </Form.Group>
+                        <Button
+                            variant="primary"
+                            onClick={handleSaveSecurityQuestion}
+                            disabled={securitySaving || !securityQuestion || !securityAnswer.trim()}
+                        >
+                            {securitySaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save Security Question"}
+                        </Button>
+
+                        <hr />
+
+                        <h6 className="mb-2">Recovery Code</h6>
+                        <p className="text-muted small mb-2">
+                            A one-time 8-character code you can use to reset your password without answering the security question.
+                            Store it somewhere safe — it will only be shown once.
+                        </p>
+                        {recoveryCodeGeneratedAt && !generatedCode && (
+                            <Alert variant="info" className="py-2">
+                                Last generated: {new Date(recoveryCodeGeneratedAt).toLocaleString()}
+                            </Alert>
+                        )}
+                        {generatedCode && (
+                            <Alert variant="warning">
+                                <strong>Your recovery code — save this now:</strong>
+                                <div className="d-flex align-items-center gap-2 mt-2">
+                                    <code className="fs-5 fw-bold letter-spacing-2">{generatedCode}</code>
+                                    <Button
+                                        size="sm"
+                                        variant="outline-secondary"
+                                        onClick={() => { navigator.clipboard.writeText(generatedCode); setCodeCopied(true); }}
+                                    >
+                                        {codeCopied ? "Copied!" : "Copy"}
+                                    </Button>
+                                </div>
+                                <div className="small text-danger mt-1">This code will not be shown again.</div>
+                            </Alert>
+                        )}
+                        <Button
+                            variant={recoveryCodeGeneratedAt ? "outline-warning" : "outline-primary"}
+                            onClick={handleGenerateRecoveryCode}
+                            disabled={recoveryCodeLoading}
+                        >
+                            {recoveryCodeLoading
+                                ? <><Spinner animation="border" size="sm" className="me-1" />Generating…</>
+                                : recoveryCodeGeneratedAt ? "Regenerate Recovery Code" : "Generate Recovery Code"}
+                        </Button>
                     </Card.Body>
                 </Card>
 

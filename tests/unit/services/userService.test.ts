@@ -216,4 +216,61 @@ describe("UserService", () => {
       });
     });
   });
+
+  describe("resetUserPassword", () => {
+    it("sets hashed password and must_change_password = true", async () => {
+      const user = { id: 5, username: "bob", password: "old", must_change_password: false, updated_by: null };
+      mockUserRepo.findOne.mockResolvedValue(user);
+      mockUserRepo.save.mockResolvedValue({ ...user, password: "newhash", must_change_password: true });
+
+      const result = await service.resetUserPassword(5, "newhash", 1);
+
+      expect(mockUserRepo.save).toHaveBeenCalledWith(expect.objectContaining({ password: "newhash", must_change_password: true }));
+      expect(result.must_change_password).toBe(true);
+    });
+
+    it("throws when user not found", async () => {
+      mockUserRepo.findOne.mockResolvedValue(null);
+      await expect(service.resetUserPassword(999, "hash")).rejects.toThrow("User not found");
+    });
+  });
+
+  describe("setupSecurity", () => {
+    it("saves security question and hashed answer", async () => {
+      mockUserRepo.manager.query.mockResolvedValue([]);
+
+      await service.setupSecurity(3, "What city were you born in?", "$2b$10$hashedanswer");
+
+      expect(mockUserRepo.manager.query).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE user SET security_question"),
+        ["What city were you born in?", "$2b$10$hashedanswer", 3],
+      );
+    });
+  });
+
+  describe("generateRecoveryCode", () => {
+    it("saves hashed recovery code and timestamp", async () => {
+      mockUserRepo.manager.query.mockResolvedValue([]);
+
+      await service.generateRecoveryCode(3, "$2b$10$codeHash");
+
+      expect(mockUserRepo.manager.query).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE user SET recovery_code_hash"),
+        expect.arrayContaining(["$2b$10$codeHash", 3]),
+      );
+    });
+  });
+
+  describe("clearRecoveryCode", () => {
+    it("clears recovery_code_hash and recovery_code_generated_at", async () => {
+      mockUserRepo.manager.query.mockResolvedValue([]);
+
+      await service.clearRecoveryCode(3);
+
+      expect(mockUserRepo.manager.query).toHaveBeenCalledWith(
+        expect.stringContaining("UPDATE user SET recovery_code_hash = NULL"),
+        [3],
+      );
+    });
+  });
 });
