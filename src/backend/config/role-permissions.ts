@@ -164,7 +164,17 @@ export const ROLE_PERMISSIONS = {
 
     cashier: [
         "can_print",
-        // Financial operations
+        // Billing — create and manage orders (mirrors sales)
+        "can_view_pricelist",
+        "can_view_category",
+        "can_view_item",
+        "can_add_bill",
+        "can_edit_bill",
+        "can_cancel_bill",
+        "can_add_bill_item",
+        "can_edit_bill_item",
+        "can_delete_bill_item",
+        // Financial operations (cashier-specific)
         "can_view_bill",
         "can_view_bill_item",
         "can_view_bill_payment",
