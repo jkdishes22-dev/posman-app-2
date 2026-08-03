@@ -7,7 +7,7 @@ import { getPricelistAuditHandler } from "@backend/controllers/AuditController";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "GET") {
-    return authorize([permissions.CAN_VIEW_PRICELIST])(getPricelistAuditHandler)(req, res);
+    return authorize([permissions.CAN_EDIT_PRICELIST])(getPricelistAuditHandler)(req, res);
   } else {
     res.setHeader("Allow", ["GET"]);
     res.status(405).json({ error: `Method ${req.method} not allowed` });
