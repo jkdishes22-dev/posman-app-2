@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
 
 interface LicenseStatus {
@@ -52,6 +53,7 @@ function overlayBody(state: LicenseStatus["state"], message: string): string {
 
 export default function LicenseStatusMonitor() {
   const { user, isAuthenticated } = useAuth();
+  const pathname = usePathname();
   const [status, setStatus] = useState<LicenseStatus | null>(null);
   const [warning, setWarning] = useState<WarningSettings>({ months: 0, days: 7 });
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -105,7 +107,12 @@ export default function LicenseStatusMonitor() {
   if (!isAuthenticated || !status) return null;
 
   // ── Hard-lock overlay ────────────────────────────────────────────────────
-  if (status.state !== "ready") {
+  // Never cover the license settings page itself — the admin must be able to
+  // reach "Clear Cache" / "Refresh" / "Activate" even when the overlay would
+  // otherwise fire. The overlay on every other page still guides them there.
+  const isLicensePage = pathname?.startsWith("/admin/license");
+
+  if (status.state !== "ready" && !isLicensePage) {
     return (
       <div
         style={{

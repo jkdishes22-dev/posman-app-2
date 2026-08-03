@@ -416,7 +416,7 @@ function StationUsersPage() {
                           <div>
                             <strong>Role{selectedUser?.roles && selectedUser.roles.length > 1 ? "s" : ""}:</strong>{" "}
                             {selectedUser?.roles && selectedUser.roles.length > 0
-                              ? selectedUser.roles.map((role: any) => role.name).join(", ")
+                              ? selectedUser.roles.filter(Boolean).map((role: any) => role.name).join(", ")
                               : selectedUser?.role?.name || "N/A"}
                           </div>
                         </div>
