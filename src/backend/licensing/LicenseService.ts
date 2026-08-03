@@ -149,7 +149,12 @@ class LicenseService {
   private writeFallbackSecrets(data: Record<string, string>): void {
     const filePath = this.getFallbackSecretsFilePath();
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, JSON.stringify(data), { encoding: "utf8", mode: 0o600 });
+    // Atomic write: write to a temp file then rename so concurrent readers never
+    // see a partial file, which would cause getOrCreateStorageKey to think the key
+    // is missing and generate a new (wrong) key that corrupts the encrypted certificate.
+    const tmpPath = `${filePath}.tmp`;
+    fs.writeFileSync(tmpPath, JSON.stringify(data), { encoding: "utf8", mode: 0o600 });
+    fs.renameSync(tmpPath, filePath);
   }
 
   private createFallbackKeytarClient(): KeytarClient {
@@ -210,6 +215,17 @@ class LicenseService {
       const keytarClient = await this.getKeytarClient();
       let key = await keytarClient.getPassword(KEYTAR_SERVICE, STORAGE_KEY_ACCOUNT);
       if (!key) {
+        // If the encrypted certificate file already exists, a storage key MUST exist
+        // for it. Generating a new random key here would permanently corrupt the
+        // encrypted certificate (decryption would fail with an auth-tag mismatch on
+        // every subsequent call). Throw instead so callers treat this as a transient
+        // read failure and retry rather than overwriting the real key.
+        if (fs.existsSync(this.getLicenseFilePath())) {
+          throw new LicenseValidationError(
+            "LICENSE_INVALID",
+            "License storage key is missing. Please re-activate the license.",
+          );
+        }
         key = crypto.randomBytes(32).toString("base64");
         await keytarClient.setPassword(KEYTAR_SERVICE, STORAGE_KEY_ACCOUNT, key);
       }
@@ -589,7 +605,10 @@ async getStatus(forceRefresh = false): Promise<LicenseValidationResult> {
         expiresAt: null,
         planType: null,
       };
-      this.cache = { at: Date.now(), result: failure };
+      // Do NOT cache read/decrypt failures — they may be transient (concurrent
+      // secrets-file write, keytar hiccup, etc.). Caching a transient failure for
+      // 10 minutes would block all API requests and show the hard-lock overlay even
+      // though the license is valid. The next request will retry fresh.
       return failure;
     }
     if (!rawCode) {

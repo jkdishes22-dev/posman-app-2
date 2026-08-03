@@ -134,10 +134,15 @@ export class UserService {
 
     // Run count and page query in parallel (two DB round-trips → one wall-clock wait)
     query.skip((page - 1) * pageSize).take(pageSize);
-    const [total, users] = await Promise.all([
+    const [total, rawUsers] = await Promise.all([
       countQuery.getCount(),
       query.getMany(),
     ]);
+
+    // TypeORM leftJoinAndSelect can produce [undefined] for users with no roles
+    // via pagination sub-queries. Strip falsy entries defensively.
+    rawUsers.forEach(u => { u.roles = (u.roles ?? []).filter(Boolean); });
+    const users = rawUsers;
 
     const result = { users, total };
 

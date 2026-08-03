@@ -692,7 +692,7 @@ function UsersPage() {
                             </td>
                             <td className="fw-medium">{user.lastName}</td>
                             <td>
-                              {user.roles && user.roles.length > 0 ? (
+                              {user.roles && user.roles.length > 0 && user.roles[0] ? (
                                 <span className="badge bg-primary rounded-pill" title={`Role: ${user.roles[0].name}`}>
                                   <i className="bi bi-shield-check me-1"></i>
                                   {user.roles[0].name}
@@ -884,12 +884,12 @@ function UsersPage() {
                         <button
                           type="button"
                           className="btn btn-success btn-sm"
-                          disabled={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !["sales", "supervisor", "admin", "cashier"].includes(selectedUser.roles[0].name)}
+                          disabled={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !selectedUser.roles[0] || !["sales", "supervisor", "admin", "cashier", "storekeeper"].includes(selectedUser.roles[0].name)}
                           onClick={() => {
                             fetchAvailableStations();
                             setShowAddStationModal(true);
                           }}
-                          title={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !["sales", "supervisor", "admin", "cashier"].includes(selectedUser.roles[0].name) ? "Only sales, supervisor, admin, and cashier roles can be assigned stations" : "Add station to user"}
+                          title={!selectedUser || !selectedUser.roles || !selectedUser.roles.length || !selectedUser.roles[0] || !["sales", "supervisor", "admin", "cashier", "storekeeper"].includes(selectedUser.roles[0].name) ? "Only sales, supervisor, admin, cashier, and storekeeper roles can be assigned stations" : "Add station to user"}
                         >
                           <i className="bi bi-plus me-1"></i>
                           Add Station

@@ -251,13 +251,13 @@ describe("StationService", () => {
   });
 
   describe("getAvailableUsers", () => {
-    it("queries with sales, admin, and supervisor roles", async () => {
+    it("queries with sales, admin, supervisor, cashier, and storekeeper roles", async () => {
       mockAppDataSourceQuery.mockResolvedValue([]);
 
       await service.getAvailableUsers(1);
 
       expect(mockAppDataSourceQuery).toHaveBeenCalledWith(
-        expect.stringMatching(/r\.name IN \('sales', 'admin', 'supervisor'\)/),
+        expect.stringMatching(/r\.name IN \('sales', 'admin', 'supervisor', 'cashier', 'storekeeper'\)/),
         [1]
       );
     });
