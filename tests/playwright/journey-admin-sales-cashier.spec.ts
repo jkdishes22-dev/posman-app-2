@@ -292,8 +292,8 @@ test.describe("Admin → Sales → Cashier journey", () => {
       page.getByText(/Confirm create bill: KES/i),
     ).toBeVisible({ timeout: 5000 });
 
-    // Enable Cash Settled toggle — bill will be auto-submitted with cash payment
-    await page.locator("#cashSettledToggle").click();
+    // Select Cash payment method — bill will be auto-submitted with cash payment
+    await page.getByTestId("payment-method-cash").click();
     await expect(
       submitModal.getByRole("button", { name: /Create & Settle \(Cash\)/i }),
     ).toBeVisible({ timeout: 3000 });
