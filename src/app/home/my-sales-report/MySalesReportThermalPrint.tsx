@@ -55,7 +55,7 @@ export default function MySalesReportThermalPrint({ bill }: { bill?: PrintData }
   const lines: string[] = [];
 
   if (data.orgTitle) lines.push(centerTextLine(data.orgTitle, W));
-  lines.push(centerTextLine("My Sales Report", W));
+  lines.push(centerTextLine("Sales Report", W));
   if (data.userName) lines.push(centerTextLine(data.userName, W));
   lines.push("");
   if (data.startDate) lines.push(padLeft("From: " + data.startDate, W));
