@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, Fragment } from "react";
 import { usePricelist, Pricelist } from "../contexts/PricelistContext";
-import { useAuth } from "../contexts/AuthContext";
 
 interface PricelistSwitcherProps {
     className?: string;
@@ -22,8 +21,7 @@ const PricelistSwitcher: React.FC<PricelistSwitcherProps> = ({
     disabled = false,
     buttonVariant,
 }) => {
-    const { currentPricelist, availablePricelists, setCurrentPricelist, isLoading, error } = usePricelist();
-    const { user } = useAuth();
+    const { currentPricelist, availablePricelists, setCurrentPricelist, isLoading } = usePricelist();
     const [showDropdown, setShowDropdown] = useState(false);
     const [pricelistError, setPricelistError] = useState<string | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);

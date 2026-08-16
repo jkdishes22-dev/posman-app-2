@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import React from "react";
-import { decodeJwt, DecodedToken } from "./utils/tokenUtils";
+import { decodeJwt } from "./utils/tokenUtils";
 import { useAuth } from "./contexts/AuthContext";
 import { useApiCall } from "./utils/apiUtils";
 import { ApiErrorResponse } from "./utils/errorUtils";
@@ -168,7 +168,7 @@ const LoginForm = () => {
       });
 
       if (result.status === 200) {
-        const { token, role, mustChangePassword } = result.data;
+        const { token, mustChangePassword } = result.data;
         const decodedToken = decodeJwt(token);
         // Include id from token root level, not just user object
         const userData = decodedToken ? {

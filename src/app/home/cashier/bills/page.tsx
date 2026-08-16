@@ -682,15 +682,6 @@ const CashierBillsPage = () => {
       return;
     }
 
-    // Check for invalid bills (silently filter them out, no error message)
-    const invalidBills = bills.filter(
-      (bill) =>
-        selectedBills.includes(bill.id) &&
-        bill.status === "pending" &&
-        currentUserId &&
-        bill.user?.id !== currentUserId
-    );
-
     // For demo, assume all selected bills use cash payment and full amount
     const billPayments = userBills.map((bill) => ({
       billId: bill.id,
@@ -745,14 +736,6 @@ const CashierBillsPage = () => {
       setBulkSubmitResults([{ billId: 0, status: "failed", error: "Network error occurred" }]);
       setShowBulkSubmitModal(true);
     }
-  };
-
-  const handleReopenBill = () => {
-    if (!selectedBill) return;
-    setReopenReason("");
-    setReopenDescription("");
-    setReopenNotes("");
-    setShowReopenModal(true);
   };
 
   const handleConfirmReopen = async () => {

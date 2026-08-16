@@ -13,7 +13,6 @@ const ProfilePage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
-    const [success, setSuccess] = useState("");
     const [pwForm, setPwForm] = useState({ current: "", new: "", confirm: "" });
     const [pwError, setPwError] = useState("");
     const [pwSuccess, setPwSuccess] = useState("");

@@ -54,14 +54,12 @@ export class PricelistUploadService {
   private itemRepository: Repository<Item>;
   private categoryRepository: Repository<Category>;
   private pricelistRepository: Repository<Pricelist>;
-  private pricelistItemRepository: Repository<PricelistItem>;
 
   constructor(datasource: DataSource) {
     this.dataSource = datasource;
     this.itemRepository = datasource.getRepository(Item);
     this.categoryRepository = datasource.getRepository(Category);
     this.pricelistRepository = datasource.getRepository(Pricelist);
-    this.pricelistItemRepository = datasource.getRepository(PricelistItem);
   }
 
   /**

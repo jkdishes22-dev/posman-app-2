@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Button, Modal, Form, Alert } from "react-bootstrap";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
-import ErrorDisplay from "./ErrorDisplay";
 import { Bill } from "../types/types";
 import EnhancedResubmitModal from "./EnhancedResubmitModal";
 
@@ -27,16 +26,16 @@ export default function ReopeningInterface({
 }: ReopeningInterfaceProps) {
     const apiCall = useApiCall();
     const [error, setError] = useState<string | null>(null);
-    const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+    const [, setErrorDetails] = useState<ApiErrorResponse | null>(null);
     const [showReopenModal, setShowReopenModal] = useState(false);
     const [showResubmitModal, setShowResubmitModal] = useState(false);
     const [reopenReasons, setReopenReasons] = useState<ReopenReason[]>([]);
     const [selectedReason, setSelectedReason] = useState("");
-    const [resubmitNotes, setResubmitNotes] = useState("");
+    const [, setResubmitNotes] = useState("");
     const [isReopening, setIsReopening] = useState(false);
     const [reopenSuccess, setReopenSuccess] = useState(false);
-    const [isResubmitting, setIsResubmitting] = useState(false);
-    const [resubmitSuccess, setResubmitSuccess] = useState(false);
+    const [, setIsResubmitting] = useState(false);
+    const [, setResubmitSuccess] = useState(false);
     const [reopenReasonsError, setReopenReasonsError] = useState<string | null>(null);
 
 

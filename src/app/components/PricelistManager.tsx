@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Card, Row, Col, Button } from "react-bootstrap";
-import { Item, Pricelist, Station } from "../types/types";
+import { Item, Pricelist } from "../types/types";
 import ViewItems from "../admin/menu/category/components/items/items-view";
 
 interface PricelistWithItems extends Pricelist {

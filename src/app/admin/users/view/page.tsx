@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import NewUser from "../register/new-user";
-import { AuthError, User } from "../../../types/types";
+import { AuthError } from "../../../types/types";
 import Pagination from "../../../components/Pagination";
 import { withSecureRoute } from "../../../components/withSecureRoute"; import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
@@ -21,7 +21,7 @@ function UsersPage() {
   const [filter, setFilter] = useState("");
   const [debouncedFilter, setDebouncedFilter] = useState("");
   const [error, setError] = useState("");
-  const [authError, setAuthError] = useState<AuthError>(null);
+  const [, setAuthError] = useState<AuthError>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const apiCall = useApiCall();
   const [fetchUserError, setFetchUserError] = useState<string>("");
@@ -489,29 +489,6 @@ function UsersPage() {
         await fetchUserStations(selectedUser.id);
       } else {
         setStationError(result.error || "Failed to set default station");
-        setErrorDetails(result.errorDetails);
-      }
-    } catch (error) {
-      setStationError("Network error occurred");
-      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
-    }
-  };
-
-  const handleRemoveStation = async (userStationId: number) => {
-    if (!selectedUser) return;
-
-    setStationError("");
-    try {
-      const result = await apiCall(`/api/users/${selectedUser.id}/stations`, {
-        method: "DELETE",
-        body: JSON.stringify({
-          userStationId: userStationId,
-        }),
-      });
-      if (result.status === 200) {
-        await fetchUserStations(selectedUser.id);
-      } else {
-        setStationError(result.error || "Failed to remove station");
         setErrorDetails(result.errorDetails);
       }
     } catch (error) {

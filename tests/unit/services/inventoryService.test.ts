@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { InventoryService } from "@backend/service/InventoryService";
-import { cache } from "@backend/utils/cache";
 import {
   createMockDataSource,
   createMockRepository,

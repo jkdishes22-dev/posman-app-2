@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn, Index } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, Index } from "typeorm";
 import { User } from "./User";
 import { BaseEntity } from "./BaseEntity";
 import { enumColType, jsonColType } from "./column-types";

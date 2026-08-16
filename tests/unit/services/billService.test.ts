@@ -58,7 +58,6 @@ vi.mock("@backend/config/timezone", () => ({
 import { BillService } from "@backend/service/BillService";
 import { InventoryService } from "@backend/service/InventoryService";
 import { BillStatus } from "@backend/entities/Bill";
-import { BillItemStatus } from "@backend/entities/BillItem";
 import { AppDataSource } from "@backend/config/data-source";
 
 describe("BillService", () => {

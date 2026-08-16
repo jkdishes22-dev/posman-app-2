@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { Modal, Form, Button, Spinner, Alert, Badge, Card } from "react-bootstrap";
+import { Modal, Form, Button, Spinner, Badge, Card } from "react-bootstrap";
 import { useApiCall } from "../utils/apiUtils";
 import ErrorDisplay from "./ErrorDisplay";
 
@@ -102,13 +102,6 @@ export default function ExpressItemSearchModal({
   const handlePricelistClick = (pricelistId: number, pricelistName: string) => {
     if (onPricelistSelect) {
       onPricelistSelect(pricelistId, pricelistName);
-    }
-    onHide();
-  };
-
-  const handleItemSelect = (item: ItemSearchResult) => {
-    if (onItemSelect) {
-      onItemSelect(item);
     }
     onHide();
   };

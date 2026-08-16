@@ -132,7 +132,7 @@ describe("PurchaseOrderService", () => {
       txn.findOne.mockResolvedValue({ id: 5, items: [] });
       mockPORepo.manager.transaction.mockImplementationOnce(async (cb: any) => cb(txn));
 
-      const result = await service.createPurchaseOrder({
+      await service.createPurchaseOrder({
         supplier_id: 1,
         items: [{ item_id: 1, quantity_ordered: 5, unit_price: 100 }],
       }, 1);

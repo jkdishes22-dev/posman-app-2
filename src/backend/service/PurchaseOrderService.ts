@@ -3,7 +3,7 @@ import { PurchaseOrderItem } from "@backend/entities/PurchaseOrderItem";
 import { PurchaseItem } from "@backend/entities/PurchaseItem";
 import { Supplier } from "@backend/entities/Supplier";
 import { Item } from "@backend/entities/Item";
-import { SupplierTransaction, SupplierTransactionType, SupplierReferenceType } from "@backend/entities/SupplierTransaction";
+import { SupplierTransactionType, SupplierReferenceType } from "@backend/entities/SupplierTransaction";
 import { InventoryService } from "./InventoryService";
 import { SupplierService } from "./SupplierService";
 import { DataSource, In, Repository } from "typeorm";
@@ -30,14 +30,12 @@ export interface ReceivePurchaseOrderInput {
 
 export class PurchaseOrderService {
     private purchaseOrderRepository: Repository<PurchaseOrder>;
-    private purchaseOrderItemRepository: Repository<PurchaseOrderItem>;
     private supplierRepository: Repository<Supplier>;
     private inventoryService: InventoryService;
     private supplierService: SupplierService;
 
     constructor(dataSource: DataSource) {
         this.purchaseOrderRepository = dataSource.getRepository(PurchaseOrder);
-        this.purchaseOrderItemRepository = dataSource.getRepository(PurchaseOrderItem);
         this.supplierRepository = dataSource.getRepository(Supplier);
         this.inventoryService = new InventoryService(dataSource);
         this.supplierService = new SupplierService(dataSource);

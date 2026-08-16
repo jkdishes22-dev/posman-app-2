@@ -1,13 +1,10 @@
-import { DataSource, Repository, Between, In, Not } from "typeorm";
+import { DataSource, Repository, In } from "typeorm";
 import { Bill, BillStatus } from "@backend/entities/Bill";
 import { BillItem, BillItemStatus } from "@backend/entities/BillItem";
 import { PurchaseOrder, PurchaseOrderStatus } from "@backend/entities/PurchaseOrder";
-import { PurchaseOrderItem } from "@backend/entities/PurchaseOrderItem";
 import { BillPayment } from "@backend/entities/BillPayment";
 import { Payment, PaymentType } from "@backend/entities/Payment";
-import { Item } from "@backend/entities/Item";
 import { User } from "@backend/entities/User";
-import { Supplier } from "@backend/entities/Supplier";
 import { ProductionItem, ProductionItemStatus } from "@backend/entities/ProductionItem";
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear } from "date-fns";
 import { fromZonedTime, toZonedTime } from "date-fns-tz";
@@ -201,22 +198,16 @@ export class ReportService {
   private billRepository: Repository<Bill>;
   private billItemRepository: Repository<BillItem>;
   private purchaseOrderRepository: Repository<PurchaseOrder>;
-  private purchaseOrderItemRepository: Repository<PurchaseOrderItem>;
   private billPaymentRepository: Repository<BillPayment>;
-  private itemRepository: Repository<Item>;
   private userRepository: Repository<User>;
-  private supplierRepository: Repository<Supplier>;
   private productionItemRepository: Repository<ProductionItem>;
 
   constructor(dataSource: DataSource) {
     this.billRepository = dataSource.getRepository(Bill);
     this.billItemRepository = dataSource.getRepository(BillItem);
     this.purchaseOrderRepository = dataSource.getRepository(PurchaseOrder);
-    this.purchaseOrderItemRepository = dataSource.getRepository(PurchaseOrderItem);
     this.billPaymentRepository = dataSource.getRepository(BillPayment);
-    this.itemRepository = dataSource.getRepository(Item);
     this.userRepository = dataSource.getRepository(User);
-    this.supplierRepository = dataSource.getRepository(Supplier);
     this.productionItemRepository = dataSource.getRepository(ProductionItem);
   }
 

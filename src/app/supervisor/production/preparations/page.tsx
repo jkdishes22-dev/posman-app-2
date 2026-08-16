@@ -21,7 +21,6 @@ import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { AuthError } from "../../../types/types";
 import { format } from "date-fns";
-import { useTooltips } from "../../../hooks/useTooltips";
 
 interface ProductionPreparation {
     id: number;

@@ -6,7 +6,6 @@ import SupervisorLayout from "./SupervisorLayout";
 import SalesLayout from "./SalesLayout";
 import CashierLayout from "./CashierLayout";
 import HomePageLayout from "./HomePageLayout";
-import CashierPageLayout from "./CashierPageLayout";
 import StoreKeeperPageLayout from "./StoreKeeperPageLayout";
 import { useAuth } from "../contexts/AuthContext";
 import { decodeJwt } from "../utils/tokenUtils";

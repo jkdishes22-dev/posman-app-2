@@ -2,18 +2,13 @@ import { Role } from "@entities/Role";
 import { Permission } from "@entities/Permission";
 import { UserRole } from "@entities/UserRole";
 import { DataSource, Repository } from "typeorm";
-import { User } from "@backend/entities/User";
 import { cache } from "@backend/utils/cache";
 
 export class RoleService {
   private roleRepository: Repository<Role>;
-  private permissionRepository: Repository<Permission>;
-  private userRoleRepository: Repository<UserRole>;
 
   constructor(datasource: DataSource) {
     this.roleRepository = datasource.getRepository(Role);
-    this.permissionRepository = datasource.getRepository(Permission);
-    this.userRoleRepository = datasource.getRepository(UserRole);
   }
 
   async fetchRoles() {

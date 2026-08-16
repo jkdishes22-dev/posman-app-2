@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { hasPermission, getRolePermissions } from "../config/role-permissions";
+import { hasPermission } from "../config/role-permissions";
 
 export interface AuthenticatedRequest extends Omit<NextApiRequest, "user"> {
     user: {

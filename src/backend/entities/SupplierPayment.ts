@@ -1,7 +1,7 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn, Index } from "typeorm";
+import { Entity, Column, ManyToOne, JoinColumn, Index } from "typeorm";
 import { BaseEntity } from "./BaseEntity";
 import { Supplier } from "./Supplier";
-import { Payment, PaymentType } from "./Payment";
+import { Payment } from "./Payment";
 
 /**
  * SupplierPayment entity

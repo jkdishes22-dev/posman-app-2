@@ -20,7 +20,6 @@ import {
   logClientFromRenderer
 } from "./printUtils";
 import { normalizePrinterSettings } from "./printerSettings";
-import ReactDOM from "react-dom/client";
 import { useStation } from "../contexts/StationContext";
 import { usePricelist } from "../contexts/PricelistContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -28,7 +27,6 @@ import ErrorDisplay from "../components/ErrorDisplay";
 import StationSelector from "../components/StationSelector";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
-import { hasPermission } from "../../backend/config/role-permissions";
 import { fireCashSettle, fireMpesaSettle } from "../utils/billCashSettle";
 import SubmitBillVirtualKeyboard from "../components/SubmitBillVirtualKeyboard";
 import SubmitBillModal from "../home/my-sales/submit-bill";
@@ -38,13 +36,13 @@ const INVENTORY_TTL_MS = 15000;
 const BillingSection = () => {
   const pathname = usePathname();
   // Auth context
-  const { isAuthenticated, logout, user, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
 
   // Station context
-  const { currentStation, isLoading: stationLoading, error: stationError, loadStationsIfNeeded } = useStation();
+  const { currentStation, isLoading: stationLoading, error: stationError } = useStation();
 
   // Pricelist context
-  const { currentPricelist, isLoading: pricelistLoading, error: pricelistError, loadPricelistsIfNeeded } = usePricelist();
+  const { currentPricelist, isLoading: pricelistLoading } = usePricelist();
 
   // API call hook
   const apiCall = useApiCall();
@@ -80,7 +78,7 @@ const BillingSection = () => {
   const receiptRef = useRef<HTMLDivElement>(null);
   const [itemInventory, setItemInventory] = useState<Record<number, number>>({});
   const [missingConstituents, setMissingConstituents] = useState<Record<number, Array<{ itemId: number; itemName: string; available: number; required: number }>>>({});
-  const [hasExpandedItems, setHasExpandedItems] = useState<boolean>(false);
+  const [, setHasExpandedItems] = useState<boolean>(false);
   const inventoryRefreshInFlightRef = useRef<string | null>(null);
   const inventorySnapshotRef = useRef<Record<number, number>>({});
   const inventoryFetchedAtRef = useRef<Record<number, number>>({});
@@ -90,12 +88,6 @@ const BillingSection = () => {
   const [showCategoryDeleteModal, setShowCategoryDeleteModal] = useState(false);
   const [categoryDeleteError, setCategoryDeleteError] = useState<string | null>(null);
   const [categoryDeleteErrorDetails, setCategoryDeleteErrorDetails] = useState<ApiErrorResponse | null>(null);
-
-  const userRoleNames = useMemo(
-    () => (user?.roles || []).map((r: { name?: string } | string) => (typeof r === "string" ? r : r?.name)).filter(Boolean) as string[],
-    [user?.roles],
-  );
-  const canDeleteCategoryOnBill = hasPermission(userRoleNames, "can_delete_category");
 
   /** When true, print customer + captain (2 jobs) after creating a pending bill from billing. Cashier close bill never prints; My Sales Print is customer copy only. */
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
@@ -500,10 +492,6 @@ const BillingSection = () => {
 
     // Check available inventory before allowing pick
     const available = itemInventory[item.id] ?? 0;
-    const alreadyInBill = selectedItems.find(i => i.id === item.id);
-    const alreadyReserved = alreadyInBill ? alreadyInBill.quantity : 0;
-    const availableAfterReserved = available - alreadyReserved;
-
     // If item has inventory tracking and no stock available, show error with missing constituents
     // Skip this check for items that allow negative inventory
     if (available === 0 && item.id in itemInventory && !item.allowNegativeInventory) {
@@ -576,13 +564,6 @@ const BillingSection = () => {
 
   const handleRemoveItem = useCallback((itemId: string) => {
     setSelectedItems((prev) => prev.filter((item) => item.id !== itemId));
-  }, []);
-
-  const openBillingCategoryDelete = useCallback((category: { id: string; name: string }) => {
-    setCategoryDeleteError(null);
-    setCategoryDeleteErrorDetails(null);
-    setCategoryToDelete(category);
-    setShowCategoryDeleteModal(true);
   }, []);
 
   const handleConfirmBillingCategoryDelete = useCallback(async () => {

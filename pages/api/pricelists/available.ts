@@ -3,7 +3,6 @@ import { authMiddleware } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { PricelistService } from "@backend/service/PricelistService";
-import { UserStation } from "@backend/entities/UserStation";
 import logger from "@backend/utils/logger";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {

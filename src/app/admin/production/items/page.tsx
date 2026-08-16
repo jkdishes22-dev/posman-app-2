@@ -20,7 +20,6 @@ export default function InventoryPage() {
   const [inventoryItems, setInventoryItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [selectedItemId, setSelectedItemId] = useState(null);
-  const [authError, setAuthError] = useState(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [itemFilter, setItemFilter] = useState<ItemFilter>("all");

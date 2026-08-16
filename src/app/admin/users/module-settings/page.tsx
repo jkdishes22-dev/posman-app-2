@@ -169,15 +169,6 @@ const ROLE_LABELS: Record<string, string> = {
 
 type VisibilityMap = Record<string, boolean>;
 
-function collectAllIds(nodes: MenuNode[]): string[] {
-    const ids: string[] = [];
-    for (const node of nodes) {
-        ids.push(node.id);
-        if (node.children) ids.push(...collectAllIds(node.children));
-    }
-    return ids;
-}
-
 function ToggleSwitch({
     id,
     checked,

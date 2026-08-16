@@ -78,3 +78,7 @@ dist-electron/
 # Activation build artifacts (never commit passphrase or derived key)
 build/activation/passphrase
 build/activation/.derived-key
+
+# Claude Code internal files
+.claude/worktrees/
+.claude/plans/

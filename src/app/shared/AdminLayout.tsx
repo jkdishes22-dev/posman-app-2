@@ -3,10 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
-import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import AppVersion from "../components/AppVersion";
-import StationSwitcher from "../components/StationSwitcher";
 import { AuthError } from "../types/types";
 import { useTooltips } from "../hooks/useTooltips";
 import { useNavigation } from "../hooks/useNavigation";
@@ -30,9 +28,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
-  const { activeItem, setActiveItem, breadcrumbs, expandedMenus, setExpandedMenus } = useNavigation(adminRoutes, ADMIN_DEFAULT_BREADCRUMB);
-  const { user, logout } = useAuth();
-  const { currentStation } = useStation();
+  const { activeItem, setActiveItem, expandedMenus, setExpandedMenus } = useNavigation(adminRoutes, ADMIN_DEFAULT_BREADCRUMB);
+  const { user } = useAuth();
   const router = useRouter();
   const apiCall = useApiCall();
 
@@ -297,37 +294,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       ],
     },
   ];
-
-  const getMenuTooltip = (label: string): string => {
-    const tooltips: { [key: string]: string } = {
-      "Dashboard": "View admin dashboard and system overview",
-      "Users": "Manage user accounts and access",
-      "View Users": "View and manage system users",
-      "Roles & Permissions": "Manage role-based permissions for users",
-      "Stations": "Manage POS stations and their configurations",
-      "Overview": "View and manage all POS stations",
-      "Station Users": "Assign users to stations and manage access",
-      "Menu & Pricing": "Manage menu items and pricing",
-      "Categories": "Manage menu categories and organize items",
-      "Recipes": "Manage composite items and their ingredients",
-      "Pricelists": "Configure pricing for different stations or customer groups",
-      "Production": "Manage production and inventory",
-      "Issue Production": "Create a new production issue record",
-      "Bill": "View and manage bills",
-      "Suppliers": "Manage suppliers and purchase orders",
-      "Purchase Config": "Configure pack sizes and default prices for suppliable items",
-      "Purchase Orders": "Create and manage purchase orders",
-      "Supplier payments": "Full ledger of supplier payments and balance transactions",
-      "Supplier": "Manage supplier information",
-      "Inventory": "Manage inventory levels and transactions",
-      "Inventory List": "View all inventory items and their current levels",
-      "Transactions": "View all inventory movement transactions",
-      "Reports": "View reports and system analytics",
-      "System Settings": "Configure system preferences, printers, backups, and licensing",
-      "License Diagnostics": "View license health status and expiry details",
-    };
-    return tooltips[label] || `Navigate to ${label}`;
-  };
 
   const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement>) => {
     setActiveItem(itemId);

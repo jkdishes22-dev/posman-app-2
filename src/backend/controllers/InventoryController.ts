@@ -73,15 +73,11 @@ export const updateInventoryHandler = async (
     req: NextApiRequest,
     res: NextApiResponse,
 ) => {
-    const inventoryService = new InventoryService(req.db);
     try {
-        const { itemId } = req.query;
         const userId = (req as any).user?.id;
         if (!userId) {
             return res.status(401).json({ message: "Unauthorized" });
         }
-
-        const { min_stock_level, max_stock_level, reorder_point } = req.body;
 
         // This would need to be implemented in InventoryService
         // For now, return not implemented

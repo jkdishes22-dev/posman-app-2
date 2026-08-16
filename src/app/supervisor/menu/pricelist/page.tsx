@@ -33,7 +33,7 @@ interface PricelistItem {
 export default function SupervisorPricelistPage() {
   const apiCall = useApiCall();
   const [pricelists, setPricelists] = useState<Pricelist[]>([]);
-  const [pricelistItems, setPricelistItems] = useState<PricelistItem[]>([]);
+  const [, setPricelistItems] = useState<PricelistItem[]>([]);
   const [transformedItems, setTransformedItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
