@@ -155,6 +155,7 @@ const DC: BreadcrumbItem = CASHIER_DEFAULT_BREADCRUMB;
 
 export const cashierRoutes: RouteEntry[] = sortRoutes([
   { pattern: "/home/cashier/bills", activeItem: "bills", expandedMenuIds: ["bills"], breadcrumbs: [DC, { label: "Bills", path: "/home/cashier/bills" }] },
+  { pattern: "/home/my-sales-report", activeItem: "my-sales-report", expandedMenuIds: [], breadcrumbs: [DC, { label: "My Sales", path: "/home/my-sales-report" }] },
   { pattern: "/home/cashier", activeItem: "dashboard", expandedMenuIds: [], breadcrumbs: [DC] },
 ]);
 
@@ -167,6 +168,7 @@ const DH: BreadcrumbItem = SALES_DEFAULT_BREADCRUMB;
 export const salesRoutes: RouteEntry[] = sortRoutes([
   { pattern: "/home/pricelist-catalog", activeItem: "pricelist-catalog", expandedMenuIds: [], breadcrumbs: [DH, { label: "Pricelist Catalog", path: "/home/pricelist-catalog" }] },
   { pattern: "/home/billing", activeItem: "bill", expandedMenuIds: [], breadcrumbs: [DH, { label: "Bill", path: "/home/billing" }] },
+  { pattern: "/home/my-sales-report", activeItem: "my-sales-report", expandedMenuIds: [], breadcrumbs: [DH, { label: "My Sales Report", path: "/home/my-sales-report" }] },
   { pattern: "/home/my-sales", activeItem: "my-sales", expandedMenuIds: [], breadcrumbs: [DH, { label: "My Sales", path: "/home/my-sales" }] },
   { pattern: "/home", activeItem: "dashboard", expandedMenuIds: [], breadcrumbs: [DH] },
 ]);
