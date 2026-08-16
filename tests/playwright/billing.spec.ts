@@ -289,10 +289,10 @@ test.describe("Billing flow", () => {
 
     test("cash toggle and M-Pesa toggle are present", async ({ page }) => {
       await page.getByRole("button", { name: /Create Bill/ }).first().click();
-      await expect(page.locator("#cashSettledToggle")).toBeVisible({
+      await expect(page.getByTestId("payment-method-cash")).toBeVisible({
         timeout: 5000,
       });
-      await expect(page.locator("#mpesaSettledToggle")).toBeVisible({
+      await expect(page.getByTestId("payment-method-mpesa")).toBeVisible({
         timeout: 5000,
       });
     });
@@ -311,7 +311,7 @@ test.describe("Billing flow", () => {
       page,
     }) => {
       await page.getByRole("button", { name: /Create Bill/ }).first().click();
-      await page.locator("#cashSettledToggle").click();
+      await page.getByTestId("payment-method-cash").click();
       const dialog = page.getByRole("dialog");
       await expect(
         dialog.getByRole("button", { name: /Create & Settle \(Cash\)/i }),

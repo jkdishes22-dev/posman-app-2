@@ -1404,6 +1404,7 @@ const BillingSection = () => {
                 <div className="d-flex gap-2">
                   <button
                     type="button"
+                    data-testid="payment-method-later"
                     className={`btn flex-fill py-3 d-flex flex-column align-items-center gap-1 ${!cashSettled && !mpesaSettled ? "btn-secondary" : "btn-outline-secondary"}`}
                     onClick={() => { setCashSettled(false); setMpesaSettled(false); setMpesaRef(""); }}
                     disabled={isSubmitting}
@@ -1413,6 +1414,7 @@ const BillingSection = () => {
                   </button>
                   <button
                     type="button"
+                    data-testid="payment-method-cash"
                     className={`btn flex-fill py-3 d-flex flex-column align-items-center gap-1 ${cashSettled ? "btn-success" : "btn-outline-success"}`}
                     onClick={() => { setCashSettled(true); setMpesaSettled(false); setMpesaRef(""); }}
                     disabled={isSubmitting}
@@ -1422,6 +1424,7 @@ const BillingSection = () => {
                   </button>
                   <button
                     type="button"
+                    data-testid="payment-method-mpesa"
                     className={`btn flex-fill py-3 d-flex flex-column align-items-center gap-1 ${mpesaSettled ? "btn-primary" : "btn-outline-primary"}`}
                     onClick={() => { setMpesaSettled(true); setCashSettled(false); }}
                     disabled={isSubmitting}
