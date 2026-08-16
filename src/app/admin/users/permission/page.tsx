@@ -6,7 +6,7 @@ import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
 import Form from "react-bootstrap/Form";
 import AsyncSelect from "react-select/async";
-import { AuthError, Role, Scope } from "src/app/types/types";
+import { Role, Scope } from "src/app/types/types";
 import { decodeJwt } from "../../../utils/tokenUtils";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
 import PageHeaderStrip from "src/app/components/PageHeaderStrip";
@@ -37,11 +37,10 @@ export default function UsersPage() {
   const [permissionToDelete, setPermissionToDelete] = useState<{ id: string, name: string } | null>(
     null,
   );
-  const [availablePermissions, setAvailablePermissions] = useState<string[]>(
+  const [, setAvailablePermissions] = useState<string[]>(
     [],
   );
   const [selectedPermission, setSelectedPermission] = useState(null);
-  const [authError, setAuthError] = useState<AuthError>(null);
   const [sessionError, setSessionError] = useState("");
 
   useEffect(() => {

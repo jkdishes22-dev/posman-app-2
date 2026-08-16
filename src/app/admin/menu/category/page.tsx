@@ -8,7 +8,6 @@ import CategoryDeleteModal from "./components/category/category-delete";
 import { AuthError } from "src/app/types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
-import { useAuth } from "../../../contexts/AuthContext";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { useTooltips } from "../../../hooks/useTooltips";
@@ -34,7 +33,7 @@ const CategoryPage: React.FC = () => {
     id: string;
     name: string;
   } | null>(null);
-  const [authError, setAuthError] = useState<AuthError>(null);
+  const [, setAuthError] = useState<AuthError>(null);
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
 

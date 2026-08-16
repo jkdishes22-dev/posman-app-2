@@ -28,8 +28,8 @@ export default function StationPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editTarget, setEditTarget] = useState<{ id: number; name: string; description: string } | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
-  const [authError, setAuthError] = useState<AuthError>(null);
-  const [fetchStationsError, setFetchStationsError] = useState(null);
+  const [, setAuthError] = useState<AuthError>(null);
+  const [, setFetchStationsError] = useState(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const apiCall = useApiCall();
   const [fetchPricelistsError, setFetchPricelistsError] = useState(null);

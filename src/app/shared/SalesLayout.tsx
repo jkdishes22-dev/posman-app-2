@@ -20,8 +20,8 @@ interface SalesLayoutProps {
 const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
-    const { activeItem, setActiveItem, breadcrumbs } = useNavigation(salesRoutes, SALES_DEFAULT_BREADCRUMB);
-    const { user, logout } = useAuth();
+    const { activeItem, setActiveItem } = useNavigation(salesRoutes, SALES_DEFAULT_BREADCRUMB);
+    const { user } = useAuth();
     const { currentStation } = useStation();
     const router = useRouter();
     const apiCall = useApiCall();

@@ -9,15 +9,11 @@ import { cache } from "@backend/utils/cache";
 
 export class UserService {
   private userRepository: Repository<User>;
-  private roleRepository: Repository<Role>;
-  private permissionRepository: Repository<Permission>;
   private userStationRepository: Repository<UserStation>;
 
   constructor(dataSource: DataSource) {
     this.userRepository = dataSource.getRepository(User);
-    this.roleRepository = dataSource.getRepository(Role);
     this.userStationRepository = dataSource.getRepository(UserStation);
-    this.permissionRepository = dataSource.getRepository(Permission);
   }
 
   public async createUser(

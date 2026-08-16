@@ -30,8 +30,8 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
-  const { activeItem, setActiveItem, breadcrumbs, expandedMenus, setExpandedMenus } = useNavigation(storekeeperRoutes, STOREKEEPER_DEFAULT_BREADCRUMB);
-  const { user, logout } = useAuth();
+  const { activeItem, setActiveItem, expandedMenus, setExpandedMenus } = useNavigation(storekeeperRoutes, STOREKEEPER_DEFAULT_BREADCRUMB);
+  const { user } = useAuth();
   const { currentStation } = useStation();
   const router = useRouter();
   const apiCall = useApiCall();
@@ -159,25 +159,6 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
       }
       return [menuId];
     });
-  };
-
-  const getMenuTooltip = (label: string): string => {
-    const tooltips: { [key: string]: string } = {
-      "Dashboard": "View inventory dashboard and system overview",
-      "Inventory": "Manage inventory levels and transactions",
-      "Overview": "Overview of inventory levels and alerts",
-      "Inventory List": "View all inventory items and their current levels",
-      "Transactions": "View all inventory movement transactions",
-      "Suppliers": "Manage suppliers and purchase orders",
-      "Purchase Config": "Configure pack sizes and default prices for suppliable items",
-      "Purchase Orders": "Create and manage purchase orders",
-      "Supplier payments": "Full ledger of supplier payments and balance transactions",
-      "Production": "Manage production and inventory",
-      "Issue Production": "Create a new production issue record",
-      "Production History": "View production history and records",
-      "Reports": "View reports and system analytics",
-    };
-    return tooltips[label] || `Navigate to ${label}`;
   };
 
   useEffect(() => {

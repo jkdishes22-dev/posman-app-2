@@ -3,10 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
-import { useStation } from "../contexts/StationContext";
 import LogoutButton from "../components/LogoutButton";
 import AppVersion from "../components/AppVersion";
-import StationSwitcher from "../components/StationSwitcher";
 import { AuthError } from "../types/types";
 import { useNavigation } from "../hooks/useNavigation";
 import { cashierRoutes, CASHIER_DEFAULT_BREADCRUMB } from "./routeConfigs";
@@ -29,9 +27,8 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [sidebarWidth, setSidebarWidth] = useState(250);
     const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
-    const { activeItem, setActiveItem, breadcrumbs, expandedMenus, setExpandedMenus } = useNavigation(cashierRoutes, CASHIER_DEFAULT_BREADCRUMB);
-    const { user, logout } = useAuth();
-    const { currentStation } = useStation();
+    const { activeItem, setActiveItem } = useNavigation(cashierRoutes, CASHIER_DEFAULT_BREADCRUMB);
+    const { user } = useAuth();
     const router = useRouter();
     const apiCall = useApiCall();
 
@@ -42,34 +39,6 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
         return () => window.removeEventListener("resize", update);
     }, []);
 
-
-    const toggleMenu = (menuId: string) => {
-        const menuItem = menuItems.find(item => item.id === menuId);
-
-        // Check if any sub-item is currently active (if submenu exists)
-        // Note: CashierLayout doesn't have submenus, but keeping this for consistency
-        if (menuItem && "submenu" in menuItem) {
-            const submenu = menuItem.submenu as Array<{ id: string; label: string; icon: string; path: string }> | undefined;
-            if (submenu) {
-                const hasActiveSubItem = submenu.some(
-                    subItem => activeItem === subItem.id
-                );
-
-                // Prevent collapse if a sub-item is active
-                if (hasActiveSubItem && expandedMenus.includes(menuId)) {
-                    return; // Don't allow collapse
-                }
-            }
-        }
-
-        // Accordion: only one submenu open; opening another closes the rest
-        setExpandedMenus((prev) => {
-            if (prev.includes(menuId)) {
-                return prev.filter((id) => id !== menuId);
-            }
-            return [menuId];
-        });
-    };
 
     const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement>) => {
         setActiveItem(itemId);

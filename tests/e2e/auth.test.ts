@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import { testApiHandler } from "next-test-api-route-handler";
 import loginHandler from "../../pages/api/auth/login.js";
 import refreshHandler from "../../pages/api/auth/refresh.js";
@@ -61,26 +61,6 @@ describe("POST /api/auth/login", () => {
 });
 
 describe("POST /api/auth/refresh", () => {
-  let refreshToken: string;
-
-  beforeAll(async () => {
-    // Get a refresh token by logging in
-    await testApiHandler({
-      pagesHandler: loginHandler,
-      test: async ({ fetch }) => {
-        const res = await fetch({
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: "admin", password: "admin123" }),
-        });
-        // Refresh token comes back as a Set-Cookie header
-        const setCookie = res.headers.get("set-cookie") ?? "";
-        const match = setCookie.match(/refreshToken=([^;]+)/);
-        refreshToken = match?.[1] ?? "";
-      },
-    });
-  });
-
   it("returns 401 when no refresh token cookie is provided", async () => {
     await testApiHandler({
       pagesHandler: refreshHandler,

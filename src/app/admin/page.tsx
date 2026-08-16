@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Row, Col, Button } from "react-bootstrap";
+import { Card, Row, Col } from "react-bootstrap";
 import { useRouter } from "next/navigation";
 
 import RoleAwareLayout from "../shared/RoleAwareLayout";

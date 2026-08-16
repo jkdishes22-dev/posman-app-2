@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Modal, Table, Badge, Spinner } from "react-bootstrap";
+import { Modal, Table, Spinner } from "react-bootstrap";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import ErrorDisplay from "./ErrorDisplay";

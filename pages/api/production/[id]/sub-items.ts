@@ -3,7 +3,6 @@ import { authMiddleware, authorize } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import permissions from "@backend/config/permissions";
-import { ItemService } from "@backend/service/ItemService";
 import { getConnection } from "@backend/config/data-source";
 import { ItemGroup } from "@backend/entities/ItemGroup";
 import { Item } from "@backend/entities/Item";
@@ -16,7 +15,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 
     const connection = await getConnection();
-    const itemService = new ItemService(connection);
 
     if (req.method === "GET") {
         try {

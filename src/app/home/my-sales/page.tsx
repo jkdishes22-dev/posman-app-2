@@ -1,21 +1,18 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import SecureRoute from "../../components/SecureRoute";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
-import { formatISO } from "date-fns";
 import { Button, Form, Modal } from "react-bootstrap";
 import SubmitBillModal from "./submit-bill";
-import TimeZoneAwareDatePicker from "src/app/shared/TimezoneAwareDatePicker";
 import FilterDatePicker from "src/app/shared/FilterDatePicker";
 import { todayEAT } from "src/app/shared/eatDate";
 import { dateToYmdEat, ymdToDateEat } from "src/app/shared/filterDateUtils";
-import { Bill, BillItem, VoidRequestPayload, VoidRequestResponse } from "src/app/types/types";
+import { Bill, BillItem, VoidRequestPayload } from "src/app/types/types";
 import Pagination from "src/app/components/Pagination";
 import PageHeaderStrip from "src/app/components/PageHeaderStrip";
 import { CustomerCopyPrint, defaultReceiptBranding, type ReceiptBranding } from "../../shared/ReceiptPrint";
 import { printCustomerCopyOnly, downloadReceiptAsFile, logClientFromRenderer } from "../../shared/printUtils";
-import ReactDOM from "react-dom/client";
 import { useApiCall } from "../../utils/apiUtils";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
@@ -66,7 +63,7 @@ const MySales = () => {
     const d = ymdToDateEat(todayEAT());
     return d ?? new Date();
   });
-  const [bills, setBills] = useState([]);
+  const [, setBills] = useState([]);
   const [filteredBills, setFilteredBills] = useState([]);
   const [selectedBill, setSelectedBill] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -75,7 +72,6 @@ const MySales = () => {
   const { user } = useAuth();
   const [billIdFilter, setBillIdFilter] = useState("");
   const [error, setError] = useState<string>("");
-  const [itemError, setItemError] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [total, setTotal] = useState(0);
@@ -290,37 +286,6 @@ const MySales = () => {
       }
     }, 300);
   }, [selectedDate, statusFilter, fetchBills]);
-
-  const fetchBillsByBillId = async (billId: number) => {
-    try {
-      const result = await apiCall(`/api/bills?billId=${billId}`);
-      if (result.status === 200) {
-        const allBills = result.data?.bills || [];
-        // Filter bills to only show those belonging to the current user
-        const userBills = user && user.id
-          ? allBills.filter((bill: Bill) => bill.user?.id === user.id)
-          : allBills;
-
-        if (userBills.length === 0) {
-          setError("No bill found with that ID that belongs to you");
-          setFilteredBills([]);
-          setBills([]);
-          return;
-        }
-        setBills(userBills);
-        setFilteredBills(userBills);
-        setError("");
-      } else {
-        setError(result.error || "No bill found with that ID");
-        setErrorDetails(result.errorDetails);
-        setFilteredBills([]);
-      }
-    } catch (error) {
-      setError("Network error occurred");
-      setErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
-      setFilteredBills([]);
-    }
-  };
 
   const handleBillClick = async (bill: Bill) => {
     // Safety check: ensure bill belongs to current user (shouldn't happen if filtering works correctly)
@@ -548,7 +513,6 @@ const MySales = () => {
       });
 
       if (result.status === 200) {
-        const response: VoidRequestResponse = result.data;
         setShowVoidModal(false);
         setVoidReason("");
         setSelectedItem(null);
@@ -1067,10 +1031,7 @@ const MySales = () => {
                         (() => {
                           const hasPendingVoids = selectedBill.bill_items?.some(item => item.status === "void_pending");
                           const hasPendingQuantityChanges = selectedBill.bill_items?.some(item => item.status === "quantity_change_request");
-                          const pendingVoidCount = selectedBill.bill_items?.filter(item => item.status === "void_pending").length || 0;
-                          const pendingQuantityChangeCount = selectedBill.bill_items?.filter(item => item.status === "quantity_change_request").length || 0;
                           const hasPendingApprovals = hasPendingVoids || hasPendingQuantityChanges;
-                          const totalPendingCount = pendingVoidCount + pendingQuantityChangeCount;
 
                           return (
                             <div className="w-100">

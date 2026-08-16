@@ -15,7 +15,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   const stationService = new StationService(req.db);
-  const pricelistService = new PricelistService(req.db);
 
   try {
     switch (req.method) {

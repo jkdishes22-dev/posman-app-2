@@ -29,70 +29,11 @@ export const StationProvider: React.FC<StationProviderProps> = ({ children }) =>
     const [availableStations, setAvailableStations] = useState<Station[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
+    const [, setErrorDetails] = useState<ApiErrorResponse | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const hasInitiallyLoaded = useRef(false);
 
     const apiCall = useApiCall();
-
-    // Fetch user's available stations
-    // Note: 401 (token expired) is handled by apiUtils - it will logout automatically
-    // 403 (permission denied) means user doesn't have access - return empty array, don't logout
-    const fetchUserStations = useCallback(async (): Promise<Station[]> => {
-        const result = await apiCall("/api/users/me/stations");
-        if (result.status === 200) {
-            return result.data.stations || [];
-        } else if (result.status === 403) {
-            // 403 Forbidden: User is authenticated but doesn't have permission
-            // This is fine - some users (e.g., admin) might not have stations assigned
-            console.warn("User does not have permission to access stations (non-critical):", result.error);
-            return [];
-        } else if (result.status === 401) {
-            // 401 Unauthorized: Token expired/invalid - apiUtils should handle logout
-            // If we get here, apiUtils didn't handle it, so set error and return empty array
-            console.warn("Authentication failed when fetching stations:", result.error);
-            setError(result.error || "Authentication failed");
-            setErrorDetails(result.errorDetails);
-            return [];
-        } else {
-            // Other errors (500, etc.)
-            console.warn("Failed to fetch stations:", result.error);
-            setError(result.error || "Failed to fetch stations");
-            setErrorDetails(result.errorDetails);
-            return [];
-        }
-    }, [apiCall]);
-
-    // Get user's default station
-    // Note: 401 (token expired) is handled by apiUtils - it will logout automatically
-    // 403 (permission denied) means user doesn't have access - return null, show error, don't logout
-    const fetchDefaultStation = useCallback(async (): Promise<Station | null> => {
-        const result = await apiCall("/api/users/me/default-station");
-        if (result.status === 200) {
-            return result.data.station || null;
-        } else if (result.status === 403) {
-            // 403 Forbidden: User is authenticated but doesn't have permission
-            console.warn("User does not have permission to access default station (non-critical):", result.error);
-            setError(result.error || "You do not have permission to access default station");
-            setErrorDetails(result.errorDetails);
-            return null;
-        } else if (result.status === 401) {
-            // 401 Unauthorized: Token expired/invalid - apiUtils should handle logout
-            // If we get here, apiUtils didn't handle it, so set error and return null
-            console.warn("Authentication failed when fetching default station:", result.error);
-            setError(result.error || "Authentication failed");
-            setErrorDetails(result.errorDetails);
-            return null;
-        } else if (result.status === 404) {
-            return null; // No default station set
-        } else {
-            // Other errors (500, etc.)
-            console.warn("Failed to fetch default station:", result.error);
-            setError(result.error || "Failed to fetch default station");
-            setErrorDetails(result.errorDetails);
-            return null;
-        }
-    }, [apiCall]);
 
     // Validate user access to a station
     const validateStationAccess = async (stationId: number): Promise<boolean> => {

@@ -7,7 +7,6 @@ import ViewItems from "../category/components/items/items-view";
 import ItemAdd from "../category/components/items/items-new";
 import AddSubItemModal from "../recipes/new";
 import { Button, Form } from "react-bootstrap";
-import { AuthError } from "src/app/types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import PricelistUploadModal from "../../../components/PricelistUploadModal";
@@ -55,7 +54,6 @@ export default function PricelistPage() {
   const [itemsPerPage] = useState(10);
   const [itemSearchTerm, setItemSearchTerm] = useState("");
   const [debouncedItemSearch, setDebouncedItemSearch] = useState("");
-  const [authError, setAuthError] = useState<AuthError>(null);
   const [pricelistError, setFetchPricelistError] = useState<string | null>(null);
   const [addPricelistError, setAddPricelistError] = useState<string | null>(null);
   const [addPricelistErrorDetails, setAddPricelistErrorDetails] = useState<any>(null);
@@ -201,14 +199,6 @@ export default function PricelistPage() {
   const handleCloseModal = () => setShowModal(false);
   const handleShowItemModal = () => setShowItemModal(true);
   const handleCloseItemModal = () => setShowItemModal(false);
-
-  const handleStationFilterChange = (stationId: string) => {
-    if (stationId === "") {
-      setSelectedStationId(null);
-    } else {
-      setSelectedStationId(Number(stationId));
-    }
-  };
 
   interface PricelistParams {
     name: string;

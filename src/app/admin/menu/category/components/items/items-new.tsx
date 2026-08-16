@@ -48,7 +48,6 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   const [authError, setAuthError] = useState<AuthError>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
-  const [priceListError, setFetchPricelistError] = useState(null);
   const apiCall = useApiCall();
   useTooltips();
 

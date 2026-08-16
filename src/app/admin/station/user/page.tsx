@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { Card, Button, Form, Modal } from "react-bootstrap";
 import RoleAwareLayout from "../../../shared/RoleAwareLayout";
-import { AuthError, User } from "../../../types/types";
+import { User } from "../../../types/types";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
@@ -20,7 +20,6 @@ function StationUsersPage() {
   const [stations, setStations] = useState([]);
   const [selectedStation, setSelectedStation] = useState("");
   const [userStations, setUserStations] = useState([]);
-  const [authError, setAuthError] = useState<AuthError>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [loadingUsers, setLoadingUsers] = useState(true);

@@ -87,7 +87,7 @@ function PurchaseOrdersContent() {
     const [showSupplierDropdown, setShowSupplierDropdown] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
-    const [authError, setAuthError] = useState<AuthError>(null);
+    const [, setAuthError] = useState<AuthError>(null);
 
     // Modal states
     const [showCreateModal, setShowCreateModal] = useState(false);

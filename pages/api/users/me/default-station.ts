@@ -1,6 +1,5 @@
-import permissions from "@backend/config/permissions";
 import { StationService } from "@backend/service/StationService";
-import { authMiddleware, authorize } from "@backend/middleware/auth";
+import { authMiddleware } from "@backend/middleware/auth";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { NextApiRequest, NextApiResponse } from "next";

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Card, Button, Form } from "react-bootstrap";
+import { Button, Form } from "react-bootstrap";
 import { useStation } from "../contexts/StationContext";
 import { Item, Pricelist, Station } from "../types/types";
 import StationFilter from "./StationFilter";

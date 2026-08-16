@@ -60,7 +60,7 @@ export default function InventoryTransactionsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
-    const [authError, setAuthError] = useState<AuthError>(null);
+    const [, setAuthError] = useState<AuthError>(null);
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
     const [searchTerm, setSearchTerm] = useState<string>("");

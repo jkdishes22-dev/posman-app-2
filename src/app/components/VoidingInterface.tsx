@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, Modal, Form, Alert } from "react-bootstrap";
+import { Button, Modal, Form } from "react-bootstrap";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import ErrorDisplay from "./ErrorDisplay";
@@ -38,10 +38,6 @@ export default function VoidingInterface({
 
     const canVoidItem = (item: BillItem) => {
         return item.status === "pending";
-    };
-
-    const canApproveVoid = (item: BillItem) => {
-        return item.status === "void_pending";
     };
 
     // Handle void request (Rule 4.5)

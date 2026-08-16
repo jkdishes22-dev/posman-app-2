@@ -88,7 +88,7 @@ describe("PricelistUploadService", () => {
     });
 
     it("parses an Excel file using xlsx", async () => {
-      const { read, utils } = await import("xlsx");
+      const { read } = await import("xlsx");
       const buffer = Buffer.from("fake excel");
 
       const result = await service.parseUploadFile(buffer, "menu.xlsx");
@@ -150,7 +150,7 @@ describe("PricelistUploadService", () => {
       const pricelistQb = mockPricelistRepo.createQueryBuilder();
       pricelistQb.getMany.mockResolvedValue([{ id: 1, code: "STD", name: "Standard" }]);
 
-      const result = await service.validateUploadData(rows as any);
+      await service.validateUploadData(rows as any);
 
       expect(categoryQb.getMany).toHaveBeenCalled();
     });

@@ -1,12 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
 import LogoutButton from "../components/LogoutButton";
 import AppVersion from "../components/AppVersion";
-import StationSwitcher from "../components/StationSwitcher";
 import { AuthError } from "../types/types";
 import { useTooltips } from "../hooks/useTooltips";
 import { useNavigation } from "../hooks/useNavigation";
@@ -30,9 +28,8 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [sidebarWidth, setSidebarWidth] = useState(280);
     const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
-    const { activeItem, setActiveItem, breadcrumbs, expandedMenus, setExpandedMenus } = useNavigation(supervisorRoutes, SUPERVISOR_DEFAULT_BREADCRUMB);
+    const { activeItem, setActiveItem, expandedMenus, setExpandedMenus } = useNavigation(supervisorRoutes, SUPERVISOR_DEFAULT_BREADCRUMB);
     const { user } = useAuth();
-    const router = useRouter();
     const apiCall = useApiCall();
 
     useEffect(() => {
@@ -251,20 +248,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         },
     ];
 
-    const handleItemClick = (itemId: string, path: string, event?: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
-        if (event) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-        setActiveItem(itemId);
-        // Use router.push with scroll: false to prevent full page reload
-        router.push(path);
-        // Focus the clicked menu item for better accessibility
-        if (event?.currentTarget) {
-            event.currentTarget.focus();
-        }
-    };
-
     const toggleMenu = (menuId: string) => {
         const menuItem = menuItems.find(item => item.id === menuId);
 
@@ -289,38 +272,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
         });
     };
 
-    const getMenuTooltip = (label: string): string => {
-        const tooltips: { [key: string]: string } = {
-            "Dashboard": "View supervisor dashboard and system overview",
-            "Bills Management": "Manage bills, payments, void requests, and reopened bills",
-            "Create Bill": "Simple billing interface for creating new bills",
-            "Process Bills": "Bills management: payments, closing, and bulk operations",
-            "Void Requests": "Approve or reject void requests from sales team",
-            "Reopened Bills": "View and manage bills that have been reopened",
-            "Menu & Pricing": "Manage menu items and pricing",
-            "Categories": "Manage menu categories and organize items",
-            "Recipes": "Manage composite items and their ingredients",
-            "Pricelists": "Configure pricing for different stations or customer groups",
-            "Production": "Manage production and inventory",
-            "Issue Production": "Create a new production issue record",
-            "Stations": "Manage POS stations and their configurations",
-            "Overview": "View and manage all POS stations",
-            "Station Users": "Assign users to stations and manage access",
-            "Suppliers": "Manage suppliers and purchase orders",
-            "Purchase Config": "Configure pack sizes and default prices for suppliable items",
-            "Purchase Orders": "Create and manage purchase orders",
-            "Supplier payments": "Full ledger of supplier payments and balance transactions",
-            "Expenses": "Record operational expenses and payments",
-            "Inventory": "Manage inventory levels and transactions",
-            "Inventory List": "View all inventory items and their current levels",
-            "Transactions": "View all inventory movement transactions",
-            "Reports": "View reports and system analytics",
-            "Sales Reports": "View sales reports and analytics",
-            "Bills Reports": "View bills reports and analytics",
-            "Production Reports": "View production reports and analytics",
-        };
-        return tooltips[label] || `Navigate to ${label}`;
-    };
 
     useEffect(() => {
         apiCall("/api/system/module-visibility?role=supervisor")

@@ -5,7 +5,6 @@ import React, { useState, useEffect } from "react";
 import CategoryItems from "../../../admin/menu/category/components/category/category-items";
 import Categories from "../../../admin/menu/category/components/category/categories";
 import CategoryDeleteModal from "../../../admin/menu/category/components/category/category-delete";
-import { AuthError } from "../../../types/types";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
@@ -23,7 +22,7 @@ export default function SupervisorCategoryPage() {
   const [errorDetails, setErrorDetails] = useState<ApiErrorResponse | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [itemError, setItemError] = useState<string | null>(null);
-  const [itemErrorDetails, setItemErrorDetails] = useState<ApiErrorResponse | null>(null);
+  const [, setItemErrorDetails] = useState<ApiErrorResponse | null>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -127,31 +126,6 @@ export default function SupervisorCategoryPage() {
     } catch (error: any) {
       console.error("Error deleting category:", error);
       setFormError("Network error occurred");
-    }
-  };
-
-  const handleAddItem = async (itemData) => {
-    try {
-      setItemError(null);
-      setItemErrorDetails(null);
-      const result = await apiCall("/api/menu/items", {
-        method: "POST",
-        body: JSON.stringify(itemData),
-      });
-
-      if (result.status === 200 || result.status === 201) {
-        // Refresh items for the selected category
-        if (selectedCategory) {
-          await fetchItems(selectedCategory.id);
-        }
-      } else {
-        setItemError(result.error || "Failed to add item");
-        setItemErrorDetails(result.errorDetails);
-      }
-    } catch (error: any) {
-      console.error("Error adding item:", error);
-      setItemError("Network error occurred");
-      setItemErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
     }
   };
 

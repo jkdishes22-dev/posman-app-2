@@ -1,5 +1,4 @@
-import { Station } from "@backend/entities/Station";
-import { StationPricelist, StationPricelistStatus } from "@backend/entities/StationPricelist";
+import { StationPricelist } from "@backend/entities/StationPricelist";
 import { Pricelist, PriceListStatus } from "@entities/Pricelist";
 import { PricelistItem } from "@entities/PricelistItem";
 import { DataSource, Repository } from "typeorm";
@@ -9,13 +8,11 @@ import { cache } from "@backend/utils/cache";
 export class PricelistService {
   private pricelistRepository: Repository<Pricelist>;
   private pricelistItemRepository: Repository<PricelistItem>;
-  private stationRepository: Repository<Station>;
   private stationPricelistRepository: Repository<StationPricelist>;
 
   constructor(datasource: DataSource) {
     this.pricelistRepository = datasource.getRepository(Pricelist);
     this.pricelistItemRepository = datasource.getRepository(PricelistItem);
-    this.stationRepository = datasource.getRepository(Station);
     this.stationPricelistRepository = datasource.getRepository(StationPricelist);
   }
 
@@ -131,43 +128,7 @@ export class PricelistService {
         query.andWhere("(item.name LIKE :q OR item.code LIKE :q)", { q: `%${normalizedSearch}%` });
       }
 
-      // First, let's check if there are any pricelist items at all for this pricelist
-      const basicCount = await this.pricelistItemRepository
-        .createQueryBuilder("pi")
-        .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) })
-        .getCount();
-
       const rawItems = await query.getRawMany();
-
-      // If no items found with joins, try a simpler approach
-      if (rawItems.length === 0) {
-        const simpleQuery = this.pricelistItemRepository
-          .createQueryBuilder("pi")
-          .leftJoin("pi.item", "item")
-          .leftJoin("pi.pricelist", "pricelist")
-          .select([
-            "pi.id AS pricelistItemId",
-            "pi.price AS price",
-            "pi.currency AS currency",
-            "pi.is_enabled AS isEnabled",
-            "pi.pricelist_id AS pricelist_id",
-            "item.id AS item_id",
-            "item.name AS item_name",
-            "item.code AS item_code",
-            "item.isGroup AS item_isGroup",
-            "item.isStock AS item_isStock",
-            "item.allowNegativeInventory AS item_allowNegativeInventory",
-            "pricelist.name AS pricelist_name",
-          ])
-          .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) });
-
-        if (isSearching) {
-          simpleQuery.andWhere("(item.name LIKE :q OR item.code LIKE :q)", { q: `%${normalizedSearch}%` });
-        }
-
-        const simpleItems = await simpleQuery.getRawMany();
-        // Items found but not processed (fallback query)
-      }
 
       const toBoolean = (value: any): boolean =>
         value === true ||

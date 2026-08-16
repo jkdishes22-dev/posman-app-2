@@ -64,7 +64,7 @@ export default function PurchaseItemsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const [uomSettings, setUomSettings] = useState<UomSettings>(DEFAULT_UOM);
+    const [, setUomSettings] = useState<UomSettings>(DEFAULT_UOM);
     const [uomGroups, setUomGroups] = useState<{ label: string; units: string[] }[]>([]);
     const [allKnownUom, setAllKnownUom] = useState<string[]>([]);
 
