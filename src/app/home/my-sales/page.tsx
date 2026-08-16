@@ -94,6 +94,8 @@ const MySales = () => {
   const receiptRef = useRef<HTMLDivElement>(null);
   const isLoadingBillsRef = useRef(false);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const billDetailsBodyRef = useRef<HTMLDivElement>(null);
+  const paymentSectionRef = useRef<HTMLDivElement>(null);
   const [isLoadingBillDetails, setIsLoadingBillDetails] = useState(false);
   /** Matches admin “Show tax details on receipt” (`bill_settings.show_tax_on_receipt`). */
   const [showTax, setShowTax] = useState(true);
@@ -632,6 +634,23 @@ const MySales = () => {
     setSelectedBill(null);
   }, [statusFilter, selectedDate, billIdFilter]);
 
+  // Auto-scroll to payment section when a submitted/closed bill with payments is selected
+  useEffect(() => {
+    if (
+      selectedBill &&
+      (selectedBill.status === "submitted" || selectedBill.status === "closed") &&
+      selectedBill.bill_payments &&
+      selectedBill.bill_payments.length > 0 &&
+      paymentSectionRef.current &&
+      billDetailsBodyRef.current
+    ) {
+      const timer = setTimeout(() => {
+        paymentSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedBill?.id, selectedBill?.status]);
+
   return (
     <RoleAwareLayout>
       <SecureRoute roleRequired="sales">
@@ -1000,7 +1019,7 @@ const MySales = () => {
                       Bill #{selectedBill.id} Details
                     </h6>
                   </div>
-                  <div className="card-body flex-grow-1" style={{ overflowY: "auto", minHeight: 0 }}>
+                  <div ref={billDetailsBodyRef} className="card-body flex-grow-1" style={{ overflowY: "auto", minHeight: 0 }}>
                     {/* Void Approval Interface for Cashiers */}
                     {selectedBill && selectedBill.bill_items?.some((item: BillItem) => item.status === "void_pending") && (
                       <div className="alert alert-warning mb-3">
@@ -1361,7 +1380,7 @@ const MySales = () => {
 
                     {/* Payment Details Section - Only show for submitted/closed bills */}
                     {(selectedBill.status === "submitted" || selectedBill.status === "closed") && selectedBill.bill_payments && selectedBill.bill_payments.length > 0 && (
-                      <div className="mt-4">
+                      <div ref={paymentSectionRef} className="mt-4">
                         <h6 className="fw-bold text-secondary mb-3">
                           <i className="bi bi-credit-card me-2"></i>
                           Payment Details

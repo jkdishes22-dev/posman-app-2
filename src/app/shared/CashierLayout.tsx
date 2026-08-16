@@ -99,6 +99,12 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
             icon: "bi-receipt",
             path: "/home/cashier/bills",
         },
+        {
+            id: "my-sales-report",
+            label: "My Sales",
+            icon: "bi-graph-up",
+            path: "/home/my-sales-report",
+        },
     ];
 
     useEffect(() => {

@@ -1399,48 +1399,36 @@ const BillingSection = () => {
                 )}
               </div>
               <div className="mt-4 pt-3 border-top">
-                {/* Cash Settled Toggle */}
-                <div className="d-flex align-items-center justify-content-between gap-3">
-                  <div>
-                    <div className="fw-semibold fs-6">Cash Settled</div>
-                    <div className="text-muted small">Automatically submit with full cash payment</div>
-                  </div>
-                  <div className="form-check form-switch m-0" style={{ transform: "scale(1.6)", transformOrigin: "right center" }}>
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      role="switch"
-                      id="cashSettledToggle"
-                      checked={cashSettled}
-                      onChange={(e) => { setCashSettled(e.target.checked); if (e.target.checked) { setMpesaSettled(false); setMpesaRef(""); } }}
-                      disabled={isSubmitting}
-                      style={{ cursor: "pointer" }}
-                    />
-                  </div>
-                </div>
-
-                {/* M-Pesa Settled Toggle */}
-                <div className="d-flex align-items-center justify-content-between gap-3 mt-3 pt-3 border-top">
-                  <div>
-                    <div className="fw-semibold fs-6">M-Pesa Settled</div>
-                    <div className="text-muted small">Automatically submit with full M-Pesa payment</div>
-                  </div>
-                  <div className="form-check form-switch m-0" style={{ transform: "scale(1.6)", transformOrigin: "right center" }}>
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      role="switch"
-                      id="mpesaSettledToggle"
-                      checked={mpesaSettled}
-                      onChange={(e) => {
-                        setMpesaSettled(e.target.checked);
-                        if (!e.target.checked) setMpesaRef("");
-                        if (e.target.checked) setCashSettled(false);
-                      }}
-                      disabled={isSubmitting}
-                      style={{ cursor: "pointer" }}
-                    />
-                  </div>
+                {/* Payment Method Selector */}
+                <div className="fw-semibold fs-6 mb-2 text-muted">Payment Method</div>
+                <div className="d-flex gap-2">
+                  <button
+                    type="button"
+                    className={`btn flex-fill py-3 d-flex flex-column align-items-center gap-1 ${!cashSettled && !mpesaSettled ? "btn-secondary" : "btn-outline-secondary"}`}
+                    onClick={() => { setCashSettled(false); setMpesaSettled(false); setMpesaRef(""); }}
+                    disabled={isSubmitting}
+                  >
+                    <i className="bi bi-hourglass fs-5"></i>
+                    <span className="small fw-semibold">Pay Later</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn flex-fill py-3 d-flex flex-column align-items-center gap-1 ${cashSettled ? "btn-success" : "btn-outline-success"}`}
+                    onClick={() => { setCashSettled(true); setMpesaSettled(false); setMpesaRef(""); }}
+                    disabled={isSubmitting}
+                  >
+                    <i className="bi bi-cash-coin fs-5"></i>
+                    <span className="small fw-semibold">Cash</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn flex-fill py-3 d-flex flex-column align-items-center gap-1 ${mpesaSettled ? "btn-primary" : "btn-outline-primary"}`}
+                    onClick={() => { setMpesaSettled(true); setCashSettled(false); }}
+                    disabled={isSubmitting}
+                  >
+                    <i className="bi bi-phone fs-5"></i>
+                    <span className="small fw-semibold">M-Pesa</span>
+                  </button>
                 </div>
 
                 {/* M-Pesa Reference Input */}

@@ -87,7 +87,7 @@ const UserHomePage = () => {
             return {
               id: bill.id,
               amount: Number(bill.total) || 0,
-              status: bill.status === "closed" ? "completed" : (bill.status === "pending" || bill.status === "submitted" || bill.status === "reopened") ? "pending" : "cancelled",
+              status: bill.status as string,
               time: timeAgo
             };
           });
@@ -341,7 +341,7 @@ const UserHomePage = () => {
                     </div>
                     <div className="text-end">
                       <div className="fw-semibold">KES {bill.amount}</div>
-                      <span className={`badge ${bill.status === "completed" ? "bg-success" : bill.status === "pending" ? "bg-warning text-dark" : "bg-secondary"}`}>
+                      <span className={`badge ${bill.status === "closed" ? "bg-success" : bill.status === "submitted" ? "bg-info text-dark" : bill.status === "reopened" ? "bg-danger" : bill.status === "voided" ? "bg-secondary" : "bg-warning text-dark"}`}>
                         {bill.status}
                       </span>
                     </div>
