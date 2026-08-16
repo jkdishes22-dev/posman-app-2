@@ -101,7 +101,7 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
         },
         {
             id: "my-sales-report",
-            label: "My Sales",
+            label: "Sales Report",
             icon: "bi-graph-up",
             path: "/home/my-sales-report",
         },

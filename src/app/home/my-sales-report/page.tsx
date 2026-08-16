@@ -147,7 +147,7 @@ export default function MySalesReportPage() {
           totalQuantity,
           totalAmount: totalRevenue,
         },
-        "My Sales Report",
+        "Sales Report",
         "receipt",
         printerName,
       );
@@ -178,7 +178,7 @@ export default function MySalesReportPage() {
           <PageHeaderStrip>
             <h1 className="h4 mb-0 fw-bold">
               <i className="bi bi-graph-up me-2" aria-hidden></i>
-              My Sales
+              Sales Report
             </h1>
             <p className="mb-0 mt-2 small text-white-50">
               {user ? `${user.firstname} ${user.lastname}` : ""}

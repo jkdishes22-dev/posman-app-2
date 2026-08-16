@@ -57,7 +57,7 @@ const SalesLayout: React.FC<SalesLayoutProps> = ({ children, authError }) => {
         },
         {
             id: "my-sales-report",
-            label: "My Sales Report",
+            label: "Sales Report",
             icon: "bi-graph-up",
             path: "/home/my-sales-report",
         },
