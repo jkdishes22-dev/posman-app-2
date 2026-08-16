@@ -11,6 +11,8 @@ import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterS
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
+import { printReceiptWithTimestamp } from "../../../shared/printUtils";
+import SalesRevenueThermalPrint from "./SalesRevenueThermalPrint";
 
 interface SalesRevenueReportItem {
   date: string;
@@ -57,7 +59,21 @@ export default function SalesRevenueReportPage() {
   const [loadingFilters, setLoadingFilters] = useState(false);
   const [businessShifts, setBusinessShifts] = useState<BusinessShift[]>([]);
   const [selectedShiftId, setSelectedShiftId] = useState<string>("");
+  const [printerName, setPrinterName] = useState<string | undefined>(undefined);
+  const [orgTitle, setOrgTitle] = useState<string>("POS System");
+  const [printLoading, setPrintLoading] = useState(false);
   const apiCall = useApiCall();
+
+  useEffect(() => {
+    apiCall("/api/system/receipt-printer-prefs")
+      .then((res) => {
+        if (res.status === 200) {
+          if (res.data?.value?.printer_name) setPrinterName(res.data.value.printer_name);
+          if (res.data?.receipt_display?.title) setOrgTitle(res.data.receipt_display.title);
+        }
+      })
+      .catch(() => {});
+  }, [apiCall]);
 
   useEffect(() => {
     fetchFilters();
@@ -91,6 +107,26 @@ export default function SalesRevenueReportPage() {
       console.error("Error fetching filters:", error);
     } finally {
       setLoadingFilters(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (reports.length === 0) return;
+    setPrintLoading(true);
+    try {
+      const totalActual = reports.reduce((s, r) => s + (r.actualRevenue || 0), 0);
+      const totalProjected = reports.reduce((s, r) => s + (r.projectedRevenue || 0), 0);
+      const totalRevenue = reports.reduce((s, r) => s + (r.totalRevenue || 0), 0);
+      const totalBills = reports.reduce((s, r) => s + (r.billCount || 0), 0);
+      await printReceiptWithTimestamp(
+        SalesRevenueThermalPrint,
+        { orgTitle, startDate: dateRange.startDate, endDate: dateRange.endDate, rows: reports, totalActual, totalProjected, totalRevenue, totalBills },
+        "Sales Revenue Report",
+        "receipt",
+        printerName,
+      );
+    } finally {
+      setPrintLoading(false);
     }
   };
 
@@ -285,6 +321,9 @@ export default function SalesRevenueReportPage() {
                     <Button type="button" variant="outline-secondary" size="sm" disabled={!reportFiltersDirty} onClick={clearReportFilters}>
                       <i className="bi bi-x-lg me-1" aria-hidden />
                       Clear filters
+                    </Button>
+                    <Button type="button" variant="outline-secondary" size="sm" onClick={handlePrint} disabled={reports.length === 0 || printLoading} title="Print thermal report">
+                      <i className="bi bi-printer" aria-hidden />
                     </Button>
                   </Col>
                 </Row>
