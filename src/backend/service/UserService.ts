@@ -718,7 +718,7 @@ export class UserService {
     cache.invalidateMany([`user_${userId}`]);
   }
 
-  async getSecuritySetupStatus(userId: number): Promise<{ hasSecurityQuestion: boolean; recoveryCodeGeneratedAt: Date | null }> {
+  async getSecuritySetupStatus(userId: number): Promise<{ hasSecurityQuestion: boolean; securityQuestion: string | null; recoveryCodeGeneratedAt: Date | null }> {
     const rows: any[] = await this.userRepository.manager.query(
       "SELECT security_question, recovery_code_generated_at FROM user WHERE id = ? LIMIT 1",
       [userId],
@@ -726,6 +726,7 @@ export class UserService {
     const row = rows[0];
     return {
       hasSecurityQuestion: !!row?.security_question,
+      securityQuestion: row?.security_question ?? null,
       recoveryCodeGeneratedAt: row?.recovery_code_generated_at ?? null,
     };
   }

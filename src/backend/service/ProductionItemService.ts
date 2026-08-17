@@ -18,12 +18,21 @@ export interface IssueProductionItemInput {
     issued_at?: Date;
 }
 
+export interface UpdateProductionItemInput {
+    item_id?: number;
+    quantity_produced?: number;
+    notes?: string | null;
+    issued_at?: Date;
+}
+
 export interface ProductionItemFilters {
     production_id?: number;
     item_id?: number;
     issued_by?: number;
     start_date?: Date;
     end_date?: Date;
+    item_search?: string;
+    status?: string;
 }
 
 export class ProductionItemService {
@@ -83,6 +92,76 @@ export class ProductionItemService {
         );
 
         return saved;
+    }
+
+    public async updateItem(
+        productionItemId: number,
+        input: UpdateProductionItemInput,
+        userId: number,
+    ): Promise<ProductionItem> {
+        const existing = await this.productionItemRepository.findOne({ where: { id: productionItemId } });
+        if (!existing) throw new Error(`Production item ${productionItemId} not found`);
+
+        const production = await this.productionRepository.findOne({ where: { id: existing.production_id! } });
+        if (!production) throw new Error("Production not found");
+        if (production.status !== ProductionStatus.OPEN) {
+            throw new Error(`Cannot edit items in a ${production.status} production.`);
+        }
+
+        const newItemId = input.item_id ?? existing.item_id;
+        const newQty = input.quantity_produced ?? existing.quantity_produced;
+
+        if (newQty <= 0) throw new Error("Quantity must be greater than 0");
+
+        if (newItemId !== existing.item_id) {
+            const newItem = await this.itemRepository.findOne({ where: { id: newItemId } });
+            if (!newItem) throw new Error(`Item ${newItemId} not found`);
+            if (newItem.isGroup) throw new Error("Grouped items cannot be issued directly.");
+        }
+
+        await this.inventoryService.reverseAndReapplyProduction(
+            existing.item_id,
+            existing.quantity_produced,
+            newItemId,
+            newQty,
+            productionItemId,
+            userId,
+        );
+
+        const issuedAt = input.issued_at ?? existing.issued_at;
+        await this.productionItemRepository.update(productionItemId, {
+            item_id: newItemId,
+            quantity_produced: newQty,
+            notes: input.notes !== undefined ? input.notes : existing.notes,
+            issued_at: issuedAt ?? undefined,
+            updated_by: userId,
+        } as any);
+
+        const updated = await this.fetchItemById(productionItemId);
+        if (!updated) throw new Error("Failed to reload updated item");
+        return updated;
+    }
+
+    public async cancelItem(productionItemId: number, userId: number): Promise<void> {
+        const existing = await this.productionItemRepository.findOne({ where: { id: productionItemId } });
+        if (!existing) throw new Error(`Production item ${productionItemId} not found`);
+        if (existing.status !== ProductionItemStatus.ISSUED) {
+            throw new Error("Only issued items can be cancelled.");
+        }
+
+        await this.inventoryService.reverseAndReapplyProduction(
+            existing.item_id,
+            existing.quantity_produced,
+            existing.item_id,
+            0,
+            productionItemId,
+            userId,
+        );
+
+        await this.productionItemRepository.update(productionItemId, {
+            status: ProductionItemStatus.CANCELLED,
+            updated_by: userId,
+        } as any);
     }
 
     public async fetchItems(
@@ -172,6 +251,15 @@ export class ProductionItemService {
         if (filters.issued_by != null) {
             parts.push("pi.issued_by = ?");
             params.push(filters.issued_by);
+        }
+        if (filters.status) {
+            parts.push("pi.status = ?");
+            params.push(filters.status);
+        }
+        if (filters.item_search?.trim()) {
+            parts.push("(it.name LIKE ? OR it.code LIKE ?)");
+            const q = `%${filters.item_search.trim()}%`;
+            params.push(q, q);
         }
         if (filters.start_date) {
             const d = new Date(filters.start_date);

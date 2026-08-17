@@ -57,14 +57,14 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
       icon: "bi-box-seam",
       submenu: [
         {
-          id: "production-issuing",
-          label: "Issue Production",
-          icon: "bi-arrow-up-circle",
-          path: "/storekeeper/production/issue",
+          id: "production-sessions",
+          label: "Manage production",
+          icon: "bi-collection",
+          path: "/storekeeper/production",
         },
         {
           id: "production-history",
-          label: "Production History",
+          label: "Transactions",
           icon: "bi-clock-history",
           path: "/storekeeper/production/history",
         },
@@ -313,7 +313,7 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
       {/* Main Content */}
       <div className="flex-grow-1 d-flex flex-column">
         {/* Page Content */}
-        <main className="flex-grow-1 p-4">
+        <main className="flex-grow-1 p-4" style={{ overflowY: "auto" }}>
           {authError && (
             <div className="alert alert-danger" role="alert">
               <i className="bi bi-exclamation-triangle me-2"></i>

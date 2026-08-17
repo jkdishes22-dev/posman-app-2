@@ -28,7 +28,9 @@ export const supervisorRoutes: RouteEntry[] = sortRoutes([
   { pattern: "/supervisor/menu/category", activeItem: "menu-category", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DS, MENU_PRICING_SUP] },
   { pattern: "/supervisor/menu", activeItem: "", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DS, MENU_PRICING_SUP] },
   // Production
-  { pattern: "/supervisor/production", activeItem: "production-issuing", expandedMenuIds: ["production"], breadcrumbs: [DS, { label: "Production", path: "/supervisor/production" }] },
+  { pattern: "/supervisor/production/history", activeItem: "production-history", expandedMenuIds: ["production"], breadcrumbs: [DS, { label: "Production", path: "/supervisor/production" }, { label: "Transactions", path: "/supervisor/production/history" }] },
+  { pattern: "/supervisor/production/", activeItem: "production-sessions", expandedMenuIds: ["production"], breadcrumbs: [DS, { label: "Production", path: "/supervisor/production" }, { label: "Production Detail", path: "" }] },
+  { pattern: "/supervisor/production", activeItem: "production-sessions", expandedMenuIds: ["production"], breadcrumbs: [DS, { label: "Production", path: "/supervisor/production" }] },
   // Stations
   { pattern: "/supervisor/station/user", activeItem: "station-users", expandedMenuIds: ["stations"], breadcrumbs: [DS, STATIONS_SUP, { label: "Station Users", path: "/supervisor/station/user" }] },
   { pattern: "/admin/station/user", activeItem: "station-users", expandedMenuIds: ["stations"], breadcrumbs: [DS, STATIONS_SUP, { label: "Station Users", path: "/supervisor/station/user" }] },
@@ -86,7 +88,9 @@ export const adminRoutes: RouteEntry[] = sortRoutes([
   { pattern: "/admin/menu/pricelist", activeItem: "menu-pricelist", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DA, MENU_PRICING_ADM, { label: "Pricelists", path: "/admin/menu/pricelist" }] },
   { pattern: "/admin/menu/category", activeItem: "menu-category", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DA, MENU_PRICING_ADM, { label: "Categories", path: "/admin/menu/category" }] },
   // Production
-  { pattern: "/admin/production", activeItem: "production-issuing", expandedMenuIds: ["production"], breadcrumbs: [DA, { label: "Production", path: "/admin/production" }, { label: "Issue Production", path: "/admin/production" }] },
+  { pattern: "/admin/production/history", activeItem: "production-history", expandedMenuIds: ["production"], breadcrumbs: [DA, { label: "Production", path: "/admin/production" }, { label: "Transactions", path: "/admin/production/history" }] },
+  { pattern: "/admin/production/", activeItem: "production-sessions", expandedMenuIds: ["production"], breadcrumbs: [DA, { label: "Production", path: "/admin/production" }, { label: "Production Detail", path: "" }] },
+  { pattern: "/admin/production", activeItem: "production-sessions", expandedMenuIds: ["production"], breadcrumbs: [DA, { label: "Production", path: "/admin/production" }] },
   // Bills
   { pattern: "/admin/bill", activeItem: "bills", expandedMenuIds: [], breadcrumbs: [DA, { label: "Bill", path: "/admin/bill" }] },
   // Expenses
@@ -138,9 +142,10 @@ export const storekeeperRoutes: RouteEntry[] = sortRoutes([
   { pattern: "/storekeeper/purchase-items", activeItem: "purchase-items", expandedMenuIds: ["suppliers"], breadcrumbs: [DSK, SUPPLIERS_SK, { label: "Purchase Config", path: "/storekeeper/purchase-items" }] },
   { pattern: "/storekeeper/suppliers", activeItem: "suppliers-list", expandedMenuIds: ["suppliers"], breadcrumbs: [DSK, SUPPLIERS_SK, { label: "Suppliers", path: "/storekeeper/suppliers" }] },
   // Production
-  { pattern: "/storekeeper/production/history", activeItem: "production-history", expandedMenuIds: ["production"], breadcrumbs: [DSK, PRODUCTION_SK, { label: "Production History", path: "/storekeeper/production/history" }] },
-  { pattern: "/storekeeper/production/issue", activeItem: "production-issuing", expandedMenuIds: ["production"], breadcrumbs: [DSK, PRODUCTION_SK, { label: "Issue Production", path: "/storekeeper/production/issue" }] },
-  { pattern: "/storekeeper/production", activeItem: "production-issuing", expandedMenuIds: ["production"], breadcrumbs: [DSK, PRODUCTION_SK] },
+  { pattern: "/storekeeper/production/history", activeItem: "production-history", expandedMenuIds: ["production"], breadcrumbs: [DSK, PRODUCTION_SK, { label: "Transactions", path: "/storekeeper/production/history" }] },
+  { pattern: "/storekeeper/production/issue", activeItem: "production-sessions", expandedMenuIds: ["production"], breadcrumbs: [DSK, PRODUCTION_SK, { label: "Issue Production", path: "/storekeeper/production/issue" }] },
+  { pattern: "/storekeeper/production/", activeItem: "production-sessions", expandedMenuIds: ["production"], breadcrumbs: [DSK, PRODUCTION_SK, { label: "Production Detail", path: "" }] },
+  { pattern: "/storekeeper/production", activeItem: "production-sessions", expandedMenuIds: ["production"], breadcrumbs: [DSK, PRODUCTION_SK] },
   // Reports
   { pattern: "/storekeeper/reports", activeItem: "reports", expandedMenuIds: ["reports"], breadcrumbs: [DSK, { label: "Reports", path: "/storekeeper/reports" }] },
   // Dashboard (catch-all)

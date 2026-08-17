@@ -1,6 +1,7 @@
 import { Production, ProductionStatus } from "@backend/entities/Production";
-import { ProductionItem } from "@backend/entities/ProductionItem";
+import { ProductionItem, ProductionItemStatus } from "@backend/entities/ProductionItem";
 import { DataSource, Repository } from "typeorm";
+import { InventoryService } from "./InventoryService";
 import {
     assignBaseEntityDates,
     mapUserRowWithPrefix,
@@ -14,14 +15,22 @@ export interface CreateProductionInput {
 
 export class ProductionSessionService {
     private productionRepository: Repository<Production>;
+    private productionItemRepository: Repository<ProductionItem>;
+    private inventoryService: InventoryService;
 
     constructor(dataSource: DataSource) {
         this.productionRepository = dataSource.getRepository(Production);
+        this.productionItemRepository = dataSource.getRepository(ProductionItem);
+        this.inventoryService = new InventoryService(dataSource);
     }
 
     public async createProduction(input: CreateProductionInput, userId: number): Promise<Production> {
         if (!input.name?.trim()) {
             throw new Error("Production name is required");
+        }
+        const existing = await this.productionRepository.findOne({ where: { name: input.name.trim() } });
+        if (existing) {
+            throw new Error(`A production named "${input.name.trim()}" already exists. Please use a different name.`);
         }
         const production = this.productionRepository.create({
             name: input.name.trim(),
@@ -30,6 +39,57 @@ export class ProductionSessionService {
             created_by: userId,
         });
         return this.productionRepository.save(production);
+    }
+
+    /**
+     * Delete a production.
+     * - No issued items → hard delete.
+     * - Has issued items → soft delete (sets deleted_at) so inventory transaction
+     *   audit trail is preserved.
+     * Returns `{ deleted: true }` for hard delete, `{ archived: true, itemCount }` for soft.
+     */
+    public async deleteProduction(
+        id: number,
+        userId: number,
+    ): Promise<{ deleted: boolean; archived: boolean; itemCount: number }> {
+        const production = await this.productionRepository.findOne({ where: { id } });
+        if (!production) throw new Error(`Production ${id} not found`);
+
+        const countRows = (await this.productionRepository.manager.query(
+            "SELECT COUNT(*) AS cnt FROM \"production_item\" WHERE production_id = ? AND status = 'issued'",
+            [id],
+        )) as Array<{ cnt: number | string }>;
+        const itemCount = Number(countRows[0]?.cnt ?? 0);
+
+        if (itemCount === 0) {
+            await this.productionRepository.delete(id);
+            return { deleted: true, archived: false, itemCount: 0 };
+        }
+
+        // Load issued items to reverse their inventory
+        const issuedItems = (await this.productionItemRepository.manager.query(
+            "SELECT id, item_id, quantity_produced FROM \"production_item\" WHERE production_id = ? AND status = 'issued'",
+            [id],
+        )) as Array<{ id: number; item_id: number; quantity_produced: number }>;
+
+        // Reverse each item's inventory and mark it cancelled
+        for (const pi of issuedItems) {
+            await this.inventoryService.reverseAndReapplyProduction(
+                pi.item_id, pi.quantity_produced,  // reverse: remove old qty
+                pi.item_id, 0,                      // apply: add 0 (net = reversal only)
+                pi.id, userId,
+            );
+            await this.productionItemRepository.update(pi.id, {
+                status: ProductionItemStatus.CANCELLED,
+                updated_by: userId,
+            } as any);
+        }
+
+        await this.productionRepository.update(id, {
+            deleted_at: new Date(),
+            updated_by: userId,
+        } as any);
+        return { deleted: false, archived: true, itemCount };
     }
 
     public async closeProduction(id: number, userId: number): Promise<Production> {
@@ -41,16 +101,96 @@ export class ProductionSessionService {
         return this.productionRepository.save(production);
     }
 
+    /** Returns earliest shift start in minutes-since-midnight EAT, or 360 (06:00) if none configured. */
+    private async getDayShiftStartMinutes(): Promise<number> {
+        try {
+            const rows = (await this.productionRepository.manager.query(
+                "SELECT value FROM system_settings WHERE key = ?",
+                ["system_settings"],
+            )) as Array<{ value: string }>;
+            if (rows.length) {
+                const settings = JSON.parse(rows[0].value) as Record<string, unknown>;
+                const shifts = (settings.business_shifts ?? []) as Array<{ start_time?: string }>;
+                const candidates = shifts
+                    .map((s) => {
+                        const parts = (s.start_time ?? "").split(":");
+                        const h = parseInt(parts[0] ?? "", 10);
+                        const m = parseInt(parts[1] ?? "", 10);
+                        return isNaN(h) || isNaN(m) ? Infinity : h * 60 + m;
+                    })
+                    .filter((v) => v < Infinity);
+                if (candidates.length) return Math.min(...candidates);
+            }
+        } catch {
+            // fall through to default
+        }
+        return 360; // 06:00
+    }
+
+    /**
+     * Auto-close open productions that belong to a previous business day.
+     * Runs only when `production_settings.auto_close_at_shift_start` is true.
+     */
+    public async autoCloseStaleProductions(): Promise<void> {
+        try {
+            const settingRows = (await this.productionRepository.manager.query(
+                "SELECT value FROM system_settings WHERE key = ?",
+                ["production_settings"],
+            )) as Array<{ value: string }>;
+            if (!settingRows.length) return;
+            const prodSettings = JSON.parse(settingRows[0].value) as Record<string, unknown>;
+            if (!prodSettings.auto_close_at_shift_start) return;
+        } catch {
+            return;
+        }
+
+        const shiftStartMinutes = await this.getDayShiftStartMinutes();
+
+        // Convert shift start to UTC offset: EAT = UTC+3, so shift EAT = (shiftStartMinutes - 180) minutes UTC
+        const shiftStartOffsetMs = (shiftStartMinutes - 180) * 60 * 1000;
+
+        // "Today" in EAT = UTC + 3h
+        const nowMs = Date.now();
+        const nowEAT = new Date(nowMs + 3 * 60 * 60 * 1000);
+        const eatDateMidnightUTC = Date.UTC(
+            nowEAT.getUTCFullYear(),
+            nowEAT.getUTCMonth(),
+            nowEAT.getUTCDate(),
+        );
+
+        // Today's shift start in UTC
+        const todayShiftStartMs = eatDateMidnightUTC + shiftStartOffsetMs;
+
+        // If it's not yet today's shift start, use yesterday's shift start
+        const cutoffMs = nowMs < todayShiftStartMs
+            ? todayShiftStartMs - 24 * 60 * 60 * 1000
+            : todayShiftStartMs;
+
+        const cutoff = new Date(cutoffMs).toISOString();
+
+        await this.productionRepository.manager.query(
+            `UPDATE "production" SET status = 'closed', updated_at = CURRENT_TIMESTAMP
+             WHERE status = 'open' AND deleted_at IS NULL AND created_at < ?`,
+            [cutoff],
+        );
+    }
+
     public async fetchProductions(filters: {
         status?: ProductionStatus;
         start_date?: Date;
         end_date?: Date;
+        search?: string;
         limit?: number;
         offset?: number;
     }): Promise<{ productions: Production[]; total: number }> {
+        await this.autoCloseStaleProductions();
         const params: unknown[] = [];
         const clauses: string[] = [];
 
+        if (filters.search?.trim()) {
+            clauses.push("p.name LIKE ?");
+            params.push(`%${filters.search.trim()}%`);
+        }
         if (filters.status) {
             clauses.push("p.status = ?");
             params.push(filters.status);
@@ -71,7 +211,7 @@ export class ProductionSessionService {
         const offset = filters.offset ?? 0;
 
         const countRows = (await this.productionRepository.manager.query(
-            `SELECT COUNT(*) AS cnt FROM "production" p WHERE 1=1${where}`,
+            `SELECT COUNT(*) AS cnt FROM "production" p WHERE p.deleted_at IS NULL${where}`,
             params,
         )) as Array<{ cnt: number | string }>;
         const total = Number(countRows[0]?.cnt ?? 0);
@@ -81,7 +221,7 @@ export class ProductionSessionService {
                     p.created_at, p.updated_at,
                     (SELECT COUNT(*) FROM "production_item" pi WHERE pi.production_id = p.id AND pi.status = 'issued') AS item_count
              FROM "production" p
-             WHERE 1=1${where}
+             WHERE p.deleted_at IS NULL${where}
              ORDER BY p.created_at DESC
              LIMIT ? OFFSET ?`,
             [...params, limit, offset],

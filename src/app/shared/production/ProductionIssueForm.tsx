@@ -12,7 +12,6 @@ import {
   loadIssueProductionItemOptions,
   type IssueProductionItemOption,
 } from "./loadIssueProductionOptions";
-import NewProductionModal from "./NewProductionModal";
 
 type ProductionOption = { id: number; name: string; status: string };
 
@@ -40,7 +39,6 @@ export default function ProductionIssueForm({
   const [selectedProductionId, setSelectedProductionId] = useState<string>(
     fixedProductionId ? String(fixedProductionId) : ""
   );
-  const [showNewProductionModal, setShowNewProductionModal] = useState(false);
 
   // Item state
   const [options, setOptions] = useState<IssueProductionItemOption[]>([]);
@@ -99,12 +97,7 @@ export default function ProductionIssueForm({
     void loadItems();
   }, [loadProductions, loadItems]);
 
-  const handleProductionCreated = (production: ProductionOption) => {
-    setProductions((prev) => [production, ...prev]);
-    setSelectedProductionId(String(production.id));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     setError(null);
@@ -203,27 +196,18 @@ export default function ProductionIssueForm({
                 <Spinner animation="border" size="sm" className="me-1" />Loading productions…
               </div>
             ) : (
-              <InputGroup>
-                <Form.Select
-                  value={selectedProductionId}
-                  onChange={(e) => setSelectedProductionId(e.target.value)}
-                  required={!fixedProductionId}
-                >
-                  <option value="">
-                    {productions.length === 0 ? "No open productions — create one" : "Select a production run"}
-                  </option>
-                  {productions.map((p) => (
-                    <option key={p.id} value={String(p.id)}>{p.name}</option>
-                  ))}
-                </Form.Select>
-                <Button
-                  variant="outline-primary"
-                  onClick={() => setShowNewProductionModal(true)}
-                  title="Create new production"
-                >
-                  <i className="bi bi-plus" /> New
-                </Button>
-              </InputGroup>
+              <Form.Select
+                value={selectedProductionId}
+                onChange={(e) => setSelectedProductionId(e.target.value)}
+                required={!fixedProductionId}
+              >
+                <option value="">
+                  {productions.length === 0 ? "No open productions — create one from the Production list" : "Select a production run"}
+                </option>
+                {productions.map((p) => (
+                  <option key={p.id} value={String(p.id)}>{p.name}</option>
+                ))}
+              </Form.Select>
             )}
           </Form.Group>
         )}
@@ -335,11 +319,6 @@ export default function ProductionIssueForm({
         </Button>
       </Form>
 
-      <NewProductionModal
-        show={showNewProductionModal}
-        onHide={() => setShowNewProductionModal(false)}
-        onCreated={handleProductionCreated}
-      />
     </div>
   );
 }

@@ -1403,6 +1403,72 @@ WHERE inv.reorder_point IS NOT NULL
      * Add inventory from production issue
      * Adds produced items to inventory (supports both stock and produced items)
      */
+    /** Reverse a production item's inventory effect and apply corrected values atomically. */
+    public async reverseAndReapplyProduction(
+        oldItemId: number,
+        oldQty: number,
+        newItemId: number,
+        newQty: number,
+        productionIssueId: number,
+        userId: number,
+    ): Promise<void> {
+        await this.inventoryRepository.manager.transaction(async (txManager) => {
+            const inventoryRepo = txManager.getRepository(Inventory);
+            const transactionRepo = txManager.getRepository(InventoryTransaction);
+
+            // Reverse old item
+            const oldInv = await inventoryRepo.findOne({ where: { item: { id: oldItemId } } });
+            if (oldInv) {
+                await inventoryRepo
+                    .createQueryBuilder()
+                    .update(Inventory)
+                    .set({ quantity: oldInv.quantity - oldQty, updated_by: userId })
+                    .where("item_id = :id", { id: oldItemId })
+                    .execute();
+                await transactionRepo.insert({
+                    item_id: oldItemId,
+                    transaction_type: InventoryTransactionType.ADJUSTMENT,
+                    quantity: -oldQty,
+                    reference_type: InventoryReferenceType.PRODUCTION_ISSUE,
+                    reference_id: productionIssueId,
+                    notes: `Reversal: correction of production issue ${productionIssueId}`,
+                    created_by: userId,
+                });
+            }
+
+            // Apply new item (skip if qty is 0 — pure reversal)
+            if (newQty > 0) {
+                let newInv = await inventoryRepo.findOne({ where: { item: { id: newItemId } } });
+                if (!newInv) {
+                    const result = await inventoryRepo.insert({
+                        item: { id: newItemId } as Item,
+                        quantity: newQty,
+                        last_restocked_at: new Date(),
+                        created_by: userId,
+                    });
+                    newInv = await inventoryRepo.findOne({ where: { id: result.identifiers[0].id } });
+                } else {
+                    await inventoryRepo
+                        .createQueryBuilder()
+                        .update(Inventory)
+                        .set({ quantity: newInv.quantity + newQty, last_restocked_at: new Date(), updated_by: userId })
+                        .where("item_id = :id", { id: newItemId })
+                        .execute();
+                }
+                await transactionRepo.insert({
+                    item_id: newItemId,
+                    transaction_type: InventoryTransactionType.PRODUCTION,
+                    quantity: newQty,
+                    reference_type: InventoryReferenceType.PRODUCTION_ISSUE,
+                    reference_id: productionIssueId,
+                    notes: `Correction: production issue ${productionIssueId}`,
+                    created_by: userId,
+                });
+            }
+        });
+        InventoryService.invalidateInventoryCache();
+    }
+
     public async addInventoryFromProduction(
         itemId: number,
         quantity: number,

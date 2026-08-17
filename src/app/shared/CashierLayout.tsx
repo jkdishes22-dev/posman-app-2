@@ -162,7 +162,7 @@ const CashierLayout: React.FC<CashierLayoutProps> = ({ children, authError }) =>
             {/* Main Content */}
             <div className="flex-grow-1 d-flex flex-column min-w-0 overflow-hidden">
                 {/* Page Content */}
-                <main className="flex-grow-1 p-4 min-w-0 overflow-hidden">
+                <main className="flex-grow-1 p-4 min-w-0" style={{ overflowY: "auto" }}>
                     {authError && (
                         <div className="alert alert-danger" role="alert">
                             <i className="bi bi-exclamation-triangle me-2"></i>

@@ -91,11 +91,7 @@ const ROLE_MENUS: Record<string, MenuNode[]> = {
                 { id: "menu-recipes", label: "Recipes" },
             ],
         },
-        {
-            id: "production", label: "Production", children: [
-                { id: "production-issuing", label: "Issue Production" },
-            ],
-        },
+        { id: "production", label: "Production" },
         {
             id: "inventory", label: "Inventory", children: [
                 { id: "inventory-dashboard", label: "Dashboard" },
@@ -119,6 +115,7 @@ const ROLE_MENUS: Record<string, MenuNode[]> = {
                 { id: "reports-purchase-orders", label: "Purchase Orders" },
                 { id: "reports-sales-revenue", label: "Sales Revenue" },
                 { id: "reports-bill-payments", label: "Bill Payments" },
+                { id: "my-sales-report", label: "My Sales Report" },
             ],
         },
         { id: "settings", label: "Settings" },
@@ -126,15 +123,11 @@ const ROLE_MENUS: Record<string, MenuNode[]> = {
     cashier: [
         { id: "dashboard", label: "Dashboard" },
         { id: "bills", label: "Bills" },
+        { id: "my-sales-report", label: "Sales Report" },
     ],
     storekeeper: [
         { id: "dashboard", label: "Dashboard" },
-        {
-            id: "production", label: "Production", children: [
-                { id: "production-issuing", label: "Issue Production" },
-                { id: "production-history", label: "History" },
-            ],
-        },
+        { id: "production", label: "Production" },
         {
             id: "inventory", label: "Inventory", children: [
                 { id: "inventory-dashboard", label: "Dashboard" },
@@ -155,6 +148,7 @@ const ROLE_MENUS: Record<string, MenuNode[]> = {
         { id: "dashboard", label: "Dashboard" },
         { id: "bill", label: "Bill" },
         { id: "my-sales", label: "My Sales" },
+        { id: "my-sales-report", label: "Sales Report" },
         { id: "pricelist-catalog", label: "Pricelist Catalog" },
     ],
 };
