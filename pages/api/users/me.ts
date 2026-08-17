@@ -7,6 +7,19 @@ import { cache } from "@backend/utils/cache";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { SECURITY_QUESTIONS } from "@backend/config/securityQuestions";
+import type { DataSource } from "typeorm";
+
+async function getMinPasswordLength(db: DataSource): Promise<number> {
+    try {
+        const rows = await db.query("SELECT value FROM system_settings WHERE key = 'system_settings'");
+        if (rows?.length > 0) {
+            const settings = JSON.parse(rows[0].value);
+            const len = settings?.security_policy?.min_password_length;
+            if (typeof len === "number" && len >= 4) return len;
+        }
+    } catch { /* fall through to default */ }
+    return 8;
+}
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     try {
@@ -70,6 +83,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                 const { currentPassword, newPassword } = req.body;
                 if (!currentPassword || !newPassword) {
                     return res.status(400).json({ error: "Current and new password required" });
+                }
+                const minLen = await getMinPasswordLength(req.db);
+                if (newPassword.length < minLen) {
+                    return res.status(400).json({ error: `New password must be at least ${minLen} characters.` });
                 }
                 const user = await userService.getUserById(Number(userId));
                 const isMatch = await bcrypt.compare(currentPassword, user.password);

@@ -41,6 +41,7 @@ async function executeRequest<T = any>(
         const token = localStorage.getItem("token");
         const publicEndpoints = [
             "/api/auth/login",
+            "/api/auth/forgot-password",
             "/api/system/setup-status",
             "/api/system/setup-initialize",
             "/api/system/license-status",

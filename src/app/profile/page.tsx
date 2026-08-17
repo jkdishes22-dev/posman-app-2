@@ -190,14 +190,14 @@ const ProfilePage = () => {
                                                         </div>
                                                         <div className="d-flex flex-column align-items-end gap-2">
                                                             <div className="d-flex align-items-center gap-2">
-                                                                {station.isDefault ? (
+                                                                {(Boolean(station.isDefault) || user.stations.length === 1) ? (
                                                                     <span className="badge bg-primary">
                                                                         <i className="bi bi-star-fill me-1"></i>
-                                                                        Default Station
+                                                                        Default
                                                                     </span>
                                                                 ) : (
                                                                     <button
-                                                                        className="btn btn-sm btn-outline-primary"
+                                                                        className="btn btn-sm btn-outline-secondary btn-sm"
                                                                         onClick={() => handleSetDefaultStation(station.id)}
                                                                         disabled={settingDefaultId !== null}
                                                                         title="Set as your default station"

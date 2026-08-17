@@ -601,54 +601,53 @@ export default function StationPage() {
                             </span>
                           </td>
                           <td className="text-center">
-                            <div className="d-flex gap-1 justify-content-center flex-wrap">
-                              {station.status !== "active" && (
+                            <div className="d-flex gap-1 justify-content-center">
+                              {station.status !== "active" ? (
                                 <Button
                                   variant="outline-success"
                                   size="sm"
+                                  title="Activate"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleToggleStationStatus(station.id, station.status || "inactive", station.name);
                                   }}
                                 >
-                                  <i className="bi bi-play-circle me-1"></i>
-                                  Activate
+                                  <i className="bi bi-play-circle"></i>
                                 </Button>
-                              )}
-                              {station.status === "active" && (
+                              ) : (
                                 <Button
                                   variant="outline-warning"
                                   size="sm"
+                                  title="Deactivate"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleToggleStationStatus(station.id, station.status, station.name);
                                   }}
                                 >
-                                  <i className="bi bi-pause-circle me-1"></i>
-                                  Deactivate
+                                  <i className="bi bi-pause-circle"></i>
                                 </Button>
                               )}
                               <Button
                                 variant="outline-secondary"
                                 size="sm"
+                                title="Edit"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleEditStation(station.id, station.name, station.description || "");
                                 }}
                               >
-                                <i className="bi bi-pencil me-1"></i>
-                                Edit
+                                <i className="bi bi-pencil"></i>
                               </Button>
                               <Button
                                 variant="outline-danger"
                                 size="sm"
+                                title="Delete"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleDeleteStation(station.id, station.name);
                                 }}
                               >
-                                <i className="bi bi-trash me-1"></i>
-                                Delete
+                                <i className="bi bi-trash"></i>
                               </Button>
                             </div>
                           </td>
@@ -746,21 +745,21 @@ export default function StationPage() {
                                   <Button
                                     variant="outline-primary"
                                     size="sm"
+                                    title="Set as default"
                                     onClick={() => handleSetDefaultPricelist(pricelist.id)}
                                     disabled={stations.find(s => s.id === selectedStationId)?.status !== "active"}
                                   >
-                                    <i className="bi bi-star me-1"></i>
-                                    Set Default
+                                    <i className="bi bi-star"></i>
                                   </Button>
                                 )}
                                 <Button
-                                  variant="outline-secondary"
+                                  variant="outline-danger"
                                   size="sm"
+                                  title="Remove"
                                   onClick={() => handleUnlinkPricelist(pricelist.id)}
                                   disabled={stations.find(s => s.id === selectedStationId)?.status !== "active"}
                                 >
-                                  <i className="bi bi-trash me-1"></i>
-                                  Remove
+                                  <i className="bi bi-trash"></i>
                                 </Button>
                               </div>
                             </div>
@@ -833,20 +832,20 @@ export default function StationPage() {
                                 <Button
                                   variant="outline-secondary"
                                   size="sm"
+                                  title={user.status === "active" ? "Deactivate" : "Activate"}
                                   onClick={() => handleToggleUserStatus(user.id, user.status)}
                                   disabled={stations.find(s => s.id === selectedStationId)?.status !== "active"}
                                 >
-                                  <i className={`bi ${user.status === "active" ? "bi-pause-circle" : "bi-play-circle"} me-1`}></i>
-                                  {user.status === "active" ? "Deactivate" : "Activate"}
+                                  <i className={`bi ${user.status === "active" ? "bi-pause-circle" : "bi-play-circle"}`}></i>
                                 </Button>
                                 <Button
                                   variant="outline-danger"
                                   size="sm"
+                                  title="Remove"
                                   onClick={() => handleRemoveUser(user.id)}
                                   disabled={stations.find(s => s.id === selectedStationId)?.status !== "active"}
                                 >
-                                  <i className="bi bi-trash me-1"></i>
-                                  Remove
+                                  <i className="bi bi-trash"></i>
                                 </Button>
                               </div>
                             </div>

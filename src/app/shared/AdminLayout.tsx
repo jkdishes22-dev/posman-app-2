@@ -139,10 +139,16 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       icon: "bi-box-seam",
       submenu: [
         {
-          id: "production-issuing",
-          label: "Issue Production",
-          icon: "bi-arrow-up-circle",
+          id: "production-sessions",
+          label: "Manage production",
+          icon: "bi-collection",
           path: "/admin/production",
+        },
+        {
+          id: "production-history",
+          label: "Transactions",
+          icon: "bi-clock-history",
+          path: "/admin/production/history",
         },
       ],
     },
@@ -459,7 +465,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       {/* Main Content */}
       <div className="flex-grow-1 d-flex flex-column">
         {/* Page Content */}
-        <main className="flex-grow-1 p-4">
+        <main className="flex-grow-1 p-4" style={{ overflowY: "auto" }}>
           {authError && (
             <div className="alert alert-danger" role="alert">
               <i className="bi bi-exclamation-triangle me-2"></i>

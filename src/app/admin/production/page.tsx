@@ -1,33 +1,22 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-import { todayEAT } from "../../shared/eatDate";
+import { useRouter, usePathname } from "next/navigation";
 import FilterDatePicker from "../../shared/FilterDatePicker";
 import { ymdToDateEat } from "../../shared/filterDateUtils";
 import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
-    Card, Button, Spinner, Alert, Table, Badge, Row, Col,
-    Accordion, Form,
+    Button, Spinner, Alert, Badge, Row, Col, Form, Modal,
 } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { format } from "date-fns";
 import IssueProductionModal from "./IssueProductionModal";
-import DisposeItemModal from "./DisposeItemModal";
 import NewProductionModal from "../../shared/production/NewProductionModal";
 import { useTooltips } from "../../hooks/useTooltips";
 import PageHeaderStrip from "../../components/PageHeaderStrip";
-
-interface ProductionItem {
-    id: number;
-    item: { id: number; name: string; code: string };
-    quantity_produced: number;
-    status: "issued" | "cancelled";
-    issued_by_user?: { id: number; firstName: string; lastName: string };
-    issued_at: string | null;
-    notes: string | null;
-}
+import CollapsibleFilterSectionCard from "../../components/CollapsibleFilterSectionCard";
 
 interface Production {
     id: number;
@@ -36,11 +25,12 @@ interface Production {
     status: "open" | "closed";
     item_count: number;
     created_at: string;
-    items?: ProductionItem[];
 }
 
 export default function AdminProductionPage() {
     const apiCall = useApiCall();
+    const router = useRouter();
+    const pathname = usePathname();
     useTooltips();
 
     const [productions, setProductions] = useState<Production[]>([]);
@@ -48,19 +38,17 @@ export default function AdminProductionPage() {
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [fetchErrorDetails, setFetchErrorDetails] = useState<ApiErrorResponse | null>(null);
 
-    const [startDate, setStartDate] = useState(() => todayEAT());
-    const [endDate, setEndDate] = useState(() => todayEAT());
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
     const [statusFilter, setStatusFilter] = useState<"all" | "open" | "closed">("all");
 
     const [showIssueModal, setShowIssueModal] = useState(false);
     const [showNewProductionModal, setShowNewProductionModal] = useState(false);
     const [issueContext, setIssueContext] = useState<{ id: number; name: string } | null>(null);
 
-    const [showDisposeModal, setShowDisposeModal] = useState(false);
-    const [disposeItem, setDisposeItem] = useState<{ id: number; name: string; code: string } | null>(null);
-
-    const [expandedId, setExpandedId] = useState<number | null>(null);
-    const [loadingItems, setLoadingItems] = useState<Record<number, boolean>>({});
+    const [deleteTarget, setDeleteTarget] = useState<Production | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const loadProductions = useCallback(async () => {
         setIsLoading(true);
@@ -87,32 +75,6 @@ export default function AdminProductionPage() {
 
     useEffect(() => { void loadProductions(); }, [loadProductions]);
 
-    const loadProductionItems = async (productionId: number) => {
-        setLoadingItems((prev) => ({ ...prev, [productionId]: true }));
-        try {
-            const result = await apiCall<{ items: ProductionItem[] }>(
-                `/api/production/runs/${productionId}/items`
-            );
-            if (result.status === 200) {
-                setProductions((prev) =>
-                    prev.map((p) => p.id === productionId ? { ...p, items: result.data?.items ?? [] } : p)
-                );
-            }
-        } finally {
-            setLoadingItems((prev) => ({ ...prev, [productionId]: false }));
-        }
-    };
-
-    const handleToggle = (id: number) => {
-        if (expandedId === id) {
-            setExpandedId(null);
-        } else {
-            setExpandedId(id);
-            const prod = productions.find((p) => p.id === id);
-            if (!prod?.items) void loadProductionItems(id);
-        }
-    };
-
     const handleCloseProduction = async (id: number) => {
         if (!confirm("Close this production? No more items can be issued to it.")) return;
         const result = await apiCall(`/api/production/runs/${id}`, { method: "PATCH" });
@@ -121,10 +83,23 @@ export default function AdminProductionPage() {
         }
     };
 
-    const handleProductionCreated = (production: { id: number; name: string; status: string }) => {
-        loadProductions();
-        setIssueContext({ id: production.id, name: production.name });
-        setShowIssueModal(true);
+    const handleDeleteConfirm = async () => {
+        if (!deleteTarget) return;
+        setIsDeleting(true);
+        setDeleteError(null);
+        const result = await apiCall(`/api/production/runs/${deleteTarget.id}`, { method: "DELETE" });
+        setIsDeleting(false);
+        if (result.status === 200) {
+            setDeleteTarget(null);
+            void loadProductions();
+        } else {
+            setDeleteError((result as any).error || "Failed to delete production");
+        }
+    };
+
+    const handleProductionCreated = (production: { id: number }) => {
+        void loadProductions();
+        router.push(`${pathname}/${production.id}`);
     };
 
     return (
@@ -132,9 +107,6 @@ export default function AdminProductionPage() {
             <div className="container-fluid">
                 <PageHeaderStrip>
                     <h1 className="h4 mb-0 fw-bold text-white">Production</h1>
-                    <Button variant="light" size="sm" onClick={() => setShowNewProductionModal(true)}>
-                        <i className="bi bi-plus-circle me-1" />New Production
-                    </Button>
                 </PageHeaderStrip>
 
                 <ErrorDisplay
@@ -143,33 +115,37 @@ export default function AdminProductionPage() {
                     onDismiss={() => { setFetchError(null); setFetchErrorDetails(null); }}
                 />
 
-                <Card className="shadow-sm mb-3 border-0">
-                    <Card.Body className="py-2">
-                        <Row className="g-2 align-items-end">
-                            <Col md={3}>
-                                <Form.Label className="mb-1 small fw-semibold">Status</Form.Label>
-                                <Form.Select size="sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}>
-                                    <option value="all">All</option>
-                                    <option value="open">Open</option>
-                                    <option value="closed">Closed</option>
-                                </Form.Select>
-                            </Col>
-                            <Col md={3}>
-                                <FilterDatePicker id="prod-start" label="From" value={startDate} onChange={setStartDate}
-                                    maxDate={endDate ? ymdToDateEat(endDate) ?? new Date() : new Date()} />
-                            </Col>
-                            <Col md={3}>
-                                <FilterDatePicker id="prod-end" label="To" value={endDate} onChange={setEndDate}
-                                    minDate={startDate ? ymdToDateEat(startDate) ?? undefined : undefined} maxDate={new Date()} />
-                            </Col>
-                            <Col md={3}>
-                                <Button size="sm" variant="outline-secondary" onClick={loadProductions} disabled={isLoading}>
-                                    <i className="bi bi-arrow-clockwise" />
-                                </Button>
-                            </Col>
-                        </Row>
-                    </Card.Body>
-                </Card>
+                <CollapsibleFilterSectionCard
+                    headerActions={
+                        <>
+                            <Button size="sm" variant="outline-secondary" onClick={loadProductions} disabled={isLoading}>
+                                <i className="bi bi-arrow-clockwise" />
+                            </Button>
+                            <Button size="sm" variant="primary" onClick={() => setShowNewProductionModal(true)}>
+                                <i className="bi bi-plus-circle me-1" />New Production
+                            </Button>
+                        </>
+                    }
+                >
+                    <Row className="g-2 align-items-end">
+                        <Col md={3}>
+                            <Form.Label className="mb-1 small fw-semibold">Status</Form.Label>
+                            <Form.Select size="sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)}>
+                                <option value="all">All</option>
+                                <option value="open">Open</option>
+                                <option value="closed">Closed</option>
+                            </Form.Select>
+                        </Col>
+                        <Col md={3}>
+                            <FilterDatePicker id="prod-start" label="From" value={startDate} onChange={setStartDate}
+                                maxDate={endDate ? ymdToDateEat(endDate) ?? new Date() : new Date()} />
+                        </Col>
+                        <Col md={3}>
+                            <FilterDatePicker id="prod-end" label="To" value={endDate} onChange={setEndDate}
+                                minDate={startDate ? ymdToDateEat(startDate) ?? undefined : undefined} maxDate={new Date()} />
+                        </Col>
+                    </Row>
+                </CollapsibleFilterSectionCard>
 
                 {isLoading ? (
                     <div className="text-center py-5"><Spinner animation="border" /></div>
@@ -181,11 +157,16 @@ export default function AdminProductionPage() {
                         </Button>
                     </Alert>
                 ) : (
-                    <Accordion activeKey={expandedId != null ? String(expandedId) : ""}>
+                    <div>
                         {productions.map((prod) => (
-                            <Accordion.Item key={prod.id} eventKey={String(prod.id)} className="mb-2 border shadow-sm">
-                                <Accordion.Header onClick={() => handleToggle(prod.id)}>
-                                    <div className="d-flex align-items-center gap-3 flex-wrap w-100 me-3">
+                            <div key={prod.id} className="card mb-2 shadow-sm border">
+                                <div className="card-body d-flex align-items-center gap-2 flex-wrap py-2">
+                                    {/* Clickable info area */}
+                                    <div
+                                        className="d-flex align-items-center gap-2 flex-wrap flex-grow-1"
+                                        style={{ cursor: "pointer" }}
+                                        onClick={() => router.push(`${pathname}/${prod.id}`)}
+                                    >
                                         <span className="fw-bold">{prod.name}</span>
                                         <Badge bg={prod.status === "open" ? "success" : "secondary"} className="text-capitalize">
                                             {prod.status}
@@ -193,75 +174,95 @@ export default function AdminProductionPage() {
                                         <span className="text-muted small">
                                             {prod.item_count} item{prod.item_count !== 1 ? "s" : ""} issued
                                         </span>
-                                        <span className="text-muted small ms-auto">
+                                        <span className="text-muted small">
                                             {format(new Date(prod.created_at), "MMM d, yyyy HH:mm")}
                                         </span>
-                                    </div>
-                                </Accordion.Header>
-                                <Accordion.Body className="p-0">
-                                    <div className="d-flex align-items-center gap-2 p-3 border-bottom bg-light flex-wrap">
                                         {prod.description && (
-                                            <span className="text-muted small flex-grow-1">{prod.description}</span>
-                                        )}
-                                        <Button size="sm" variant="outline-primary"
-                                            disabled={prod.status !== "open"}
-                                            onClick={() => { setIssueContext({ id: prod.id, name: prod.name }); setShowIssueModal(true); }}>
-                                            <i className="bi bi-plus me-1" />Issue Item
-                                        </Button>
-                                        {prod.status === "open" && (
-                                            <Button size="sm" variant="outline-secondary" onClick={() => handleCloseProduction(prod.id)}>
-                                                <i className="bi bi-lock me-1" />Close
-                                            </Button>
+                                            <span className="text-muted small fst-italic">{prod.description}</span>
                                         )}
                                     </div>
 
-                                    {loadingItems[prod.id] ? (
-                                        <div className="text-center py-3"><Spinner animation="border" size="sm" /></div>
-                                    ) : prod.items && prod.items.length > 0 ? (
-                                        <Table striped hover responsive className="mb-0 small">
-                                            <thead>
-                                                <tr>
-                                                    <th>Item</th><th>Qty</th><th>Issued By</th>
-                                                    <th>Issued At</th><th>Notes</th><th>Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {prod.items.map((item) => (
-                                                    <tr key={item.id}>
-                                                        <td>
-                                                            <div className="fw-semibold">{item.item.name}</div>
-                                                            <div className="text-muted">{item.item.code}</div>
-                                                        </td>
-                                                        <td>{item.quantity_produced}</td>
-                                                        <td>{item.issued_by_user ? `${item.issued_by_user.firstName} ${item.issued_by_user.lastName}` : "—"}</td>
-                                                        <td>{item.issued_at ? format(new Date(item.issued_at), "MMM d HH:mm") : "—"}</td>
-                                                        <td className="text-muted">{item.notes || "—"}</td>
-                                                        <td>
-                                                            <Button size="sm" variant="outline-danger"
-                                                                onClick={() => { setDisposeItem(item.item); setShowDisposeModal(true); }}>
-                                                                <i className="bi bi-trash" /> Dispose
-                                                            </Button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </Table>
-                                    ) : prod.items ? (
-                                        <div className="text-center text-muted py-3 small">No items issued yet.</div>
-                                    ) : null}
-                                </Accordion.Body>
-                            </Accordion.Item>
+                                    {/* Action buttons */}
+                                    <div className="d-flex gap-1 flex-shrink-0">
+                                        <Button size="sm" variant="outline-secondary"
+                                            onClick={() => router.push(`${pathname}/${prod.id}`)}
+                                            title="View items">
+                                            <i className="bi bi-eye" />
+                                        </Button>
+                                        {prod.status === "open" && (
+                                            <>
+                                                <Button size="sm" variant="primary"
+                                                    onClick={() => { setIssueContext({ id: prod.id, name: prod.name }); setShowIssueModal(true); }}>
+                                                    <i className="bi bi-plus-circle me-1" />Issue Item
+                                                </Button>
+                                                <Button size="sm" variant="outline-secondary"
+                                                    onClick={() => handleCloseProduction(prod.id)}>
+                                                    <i className="bi bi-lock me-1" />Close
+                                                </Button>
+                                            </>
+                                        )}
+                                        <Button size="sm" variant="outline-danger"
+                                            onClick={() => { setDeleteError(null); setDeleteTarget(prod); }}
+                                            title="Delete production">
+                                            <i className="bi bi-trash" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
                         ))}
-                    </Accordion>
+                    </div>
                 )}
+
+                {/* Delete confirmation modal */}
+                <Modal show={!!deleteTarget} onHide={() => !isDeleting && setDeleteTarget(null)} centered>
+                    <Modal.Header closeButton className={deleteTarget?.item_count ? "bg-warning text-dark" : "bg-danger text-white"}>
+                        <Modal.Title className="fw-bold">
+                            <i className="bi bi-trash me-2" />
+                            {deleteTarget?.item_count ? "Archive Production?" : "Delete Production?"}
+                        </Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                        {deleteError && <Alert variant="danger">{deleteError}</Alert>}
+                        {deleteTarget?.item_count ? (
+                            <>
+                                <Alert variant="warning" className="mb-3">
+                                    <strong>{deleteTarget.name}</strong> has{" "}
+                                    <strong>{deleteTarget.item_count} issued item{deleteTarget.item_count !== 1 ? "s" : ""}</strong>.
+                                    These are recorded in inventory transactions.
+                                </Alert>
+                                <p>
+                                    The production will be <strong>archived</strong> (hidden from the list) rather than permanently deleted,
+                                    so inventory transaction records remain intact for auditing.
+                                </p>
+                            </>
+                        ) : (
+                            <p>
+                                Are you sure you want to permanently delete <strong>{deleteTarget?.name}</strong>?
+                                This cannot be undone.
+                            </p>
+                        )}
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button variant="secondary" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>Cancel</Button>
+                        <Button
+                            variant={deleteTarget?.item_count ? "warning" : "danger"}
+                            onClick={handleDeleteConfirm}
+                            disabled={isDeleting}
+                        >
+                            {isDeleting
+                                ? <><Spinner animation="border" size="sm" className="me-2" />Processing…</>
+                                : deleteTarget?.item_count
+                                    ? <><i className="bi bi-archive me-1" />Archive</>
+                                    : <><i className="bi bi-trash me-1" />Delete</>
+                            }
+                        </Button>
+                    </Modal.Footer>
+                </Modal>
 
                 <IssueProductionModal
                     show={showIssueModal}
                     onHide={() => { setShowIssueModal(false); setIssueContext(null); }}
-                    onSuccess={() => {
-                        if (issueContext) void loadProductionItems(issueContext.id);
-                        loadProductions();
-                    }}
+                    onSuccess={() => { void loadProductions(); }}
                     productionId={issueContext?.id}
                     productionName={issueContext?.name}
                 />
@@ -269,12 +270,6 @@ export default function AdminProductionPage() {
                     show={showNewProductionModal}
                     onHide={() => setShowNewProductionModal(false)}
                     onCreated={handleProductionCreated}
-                />
-                <DisposeItemModal
-                    show={showDisposeModal}
-                    onHide={() => { setShowDisposeModal(false); setDisposeItem(null); }}
-                    onSuccess={loadProductions}
-                    item={disposeItem}
                 />
             </div>
         </RoleAwareLayout>

@@ -168,6 +168,8 @@ export default function AdminSettingsPage() {
 
     // Bill settings
     const [billSettings, setBillSettings] = useState<BillSettings>({ show_tax_on_receipt: true, show_payment_on_receipt: true, top_n_billing_items: 10, top_n_lookback_days: 30, cashier_can_bill: false, bill_tags: [] });
+    const [topNInput, setTopNInput] = useState("10");
+    const [lookbackInput, setLookbackInput] = useState("30");
     const [newTagName, setNewTagName] = useState("");
     const [newTagColor, setNewTagColor] = useState("primary");
     const [billSettingsSaving, setBillSettingsSaving] = useState(false);
@@ -177,6 +179,11 @@ export default function AdminSettingsPage() {
     const [businessShifts, setBusinessShifts] = useState<BusinessShift[]>([]);
     const [shiftSettingsSaving, setShiftSettingsSaving] = useState(false);
     const [shiftSettingsResult, setShiftSettingsResult] = useState<{ success: boolean; error?: string } | null>(null);
+
+    // Production settings
+    const [prodAutoClose, setProdAutoClose] = useState(false);
+    const [prodSettingsSaving, setProdSettingsSaving] = useState(false);
+    const [prodSettingsResult, setProdSettingsResult] = useState<{ success: boolean; error?: string } | null>(null);
 
     // DB backup settings
     const [dbBackup, setDbBackup] = useState<DbBackupSettings>({ frequency: "daily" });
@@ -248,6 +255,12 @@ export default function AdminSettingsPage() {
     const [sessionTimeoutSaving, setSessionTimeoutSaving] = useState(false);
     const [sessionTimeoutResult, setSessionTimeoutResult] = useState<{ success: boolean; message?: string } | null>(null);
 
+    // Password policy
+    const [minPasswordLength, setMinPasswordLength] = useState(8);
+    const [minPasswordLengthInput, setMinPasswordLengthInput] = useState("8");
+    const [passwordPolicySaving, setPasswordPolicySaving] = useState(false);
+    const [passwordPolicyResult, setPasswordPolicyResult] = useState<{ success: boolean; message?: string } | null>(null);
+
     const [organisation, setOrganisation] = useState<OrganisationSettingsValue>(() => emptyOrganisation());
     const [organisationSaving, setOrganisationSaving] = useState(false);
     const [organisationResult, setOrganisationResult] = useState<{ success: boolean; error?: string } | null>(null);
@@ -261,6 +274,7 @@ export default function AdminSettingsPage() {
     const [securityQuestion, setSecurityQuestion] = useState("");
     const [securityAnswer, setSecurityAnswer] = useState("");
     const [hasSecurityQuestion, setHasSecurityQuestion] = useState(false);
+    const [currentSecurityQuestion, setCurrentSecurityQuestion] = useState<string | null>(null);
     const [recoveryCodeGeneratedAt, setRecoveryCodeGeneratedAt] = useState<string | null>(null);
     const [securitySaving, setSecuritySaving] = useState(false);
     const [securityResult, setSecurityResult] = useState<{ success: boolean; error?: string } | null>(null);
@@ -293,9 +307,20 @@ export default function AdminSettingsPage() {
                 setSessionTimeout(res.data.value.session_timeout);
             }
         });
+        apiCall("/api/system/settings?key=system_settings&sub=security_policy").then((res) => {
+            if (res.status === 200 && typeof res.data?.value?.min_password_length === "number") {
+                const len = Math.max(4, res.data.value.min_password_length);
+                setMinPasswordLength(len);
+                setMinPasswordLengthInput(String(len));
+            }
+        });
         // bill_settings is its own top-level key (product settings)
         apiCall("/api/system/settings?key=bill_settings").then((res) => {
-            if (res.status === 200 && res.data?.value) setBillSettings((prev) => ({ ...prev, ...res.data.value }));
+            if (res.status === 200 && res.data?.value) {
+                setBillSettings((prev) => ({ ...prev, ...res.data.value }));
+                if (res.data.value.top_n_billing_items != null) setTopNInput(String(res.data.value.top_n_billing_items));
+                if (res.data.value.top_n_lookback_days != null) setLookbackInput(String(res.data.value.top_n_lookback_days));
+            }
         });
         apiCall("/api/system/settings?key=system_settings&sub=business_shifts").then((res) => {
             if (res.status === 200 && Array.isArray(res.data?.value)) {
@@ -308,6 +333,11 @@ export default function AdminSettingsPage() {
                         end_time: typeof shift.end_time === "string" ? shift.end_time : "",
                     }));
                 setBusinessShifts(normalized);
+            }
+        });
+        apiCall("/api/system/settings?key=production_settings&sub=auto_close_at_shift_start").then((res) => {
+            if (res.status === 200 && res.data?.value != null) {
+                setProdAutoClose(Boolean(res.data.value));
             }
         });
         apiCall("/api/system/settings?key=organisation_settings").then((res) => {
@@ -358,6 +388,7 @@ export default function AdminSettingsPage() {
         apiCall("/api/users/me").then((res) => {
             if (res.status === 200 && res.data?.securitySetup) {
                 setHasSecurityQuestion(!!res.data.securitySetup.hasSecurityQuestion);
+                setCurrentSecurityQuestion(res.data.securitySetup.securityQuestion ?? null);
                 setRecoveryCodeGeneratedAt(res.data.securitySetup.recoveryCodeGeneratedAt ?? null);
             }
         }).catch(() => {});
@@ -403,14 +434,31 @@ export default function AdminSettingsPage() {
         }
     };
 
-    const handleSaveBillSettings = async () => {
+    const handleSaveBillSettings = async (billTagsOverride?: Array<{ id: string; name: string; color: string }>) => {
+        const topN = Math.max(0, Math.min(50, Number(topNInput) || 0));
+        const lookback = Math.max(0, Math.min(365, Number(lookbackInput) || 0));
+        const tags = billTagsOverride ?? billSettings.bill_tags;
+        const payload = { ...billSettings, top_n_billing_items: topN, top_n_lookback_days: lookback, bill_tags: tags };
         setBillSettingsSaving(true);
         setBillSettingsResult(null);
         try {
             const result = await apiCall("/api/system/settings?key=bill_settings", {
                 method: "PUT",
-                body: JSON.stringify(billSettings),
+                body: JSON.stringify(payload),
             });
+            if (result.status === 200) {
+                // Re-fetch to confirm what the server persisted
+                const refreshed = await apiCall("/api/system/settings?key=bill_settings");
+                if (refreshed.status === 200 && refreshed.data?.value) {
+                    setBillSettings((prev) => ({ ...prev, ...refreshed.data.value }));
+                    if (refreshed.data.value.top_n_billing_items != null) setTopNInput(String(refreshed.data.value.top_n_billing_items));
+                    if (refreshed.data.value.top_n_lookback_days != null) setLookbackInput(String(refreshed.data.value.top_n_lookback_days));
+                } else {
+                    setBillSettings(payload);
+                    setTopNInput(String(topN));
+                    setLookbackInput(String(lookback));
+                }
+            }
             setBillSettingsResult(result.status === 200 ? { success: true } : { success: false, error: result.error || "Failed to save" });
         } catch {
             setBillSettingsResult({ success: false, error: "Network error occurred" });
@@ -469,6 +517,26 @@ export default function AdminSettingsPage() {
             setShiftSettingsResult({ success: false, error: "Network error occurred" });
         } finally {
             setShiftSettingsSaving(false);
+        }
+    };
+
+    const handleSaveProdSettings = async () => {
+        setProdSettingsSaving(true);
+        setProdSettingsResult(null);
+        try {
+            const result = await apiCall(
+                "/api/system/settings?key=production_settings&sub=auto_close_at_shift_start",
+                { method: "PUT", body: JSON.stringify(prodAutoClose) },
+            );
+            setProdSettingsResult(
+                result.status === 200
+                    ? { success: true }
+                    : { success: false, error: result.error || "Failed to save production settings" },
+            );
+        } catch {
+            setProdSettingsResult({ success: false, error: "Network error occurred" });
+        } finally {
+            setProdSettingsSaving(false);
         }
     };
 
@@ -625,6 +693,27 @@ export default function AdminSettingsPage() {
         }
     };
 
+    const handleSavePasswordPolicy = async () => {
+        const len = Number(minPasswordLengthInput);
+        if (!Number.isFinite(len) || len < 4 || len > 32) {
+            setPasswordPolicyResult({ success: false, message: "Enter a number between 4 and 32." });
+            return;
+        }
+        setPasswordPolicySaving(true);
+        setPasswordPolicyResult(null);
+        const result = await apiCall("/api/system/settings?key=system_settings&sub=security_policy", {
+            method: "PUT",
+            body: JSON.stringify({ min_password_length: len }),
+        });
+        setPasswordPolicySaving(false);
+        if (result.status === 200) {
+            setMinPasswordLength(len);
+            setPasswordPolicyResult({ success: true, message: `Minimum password length set to ${len} characters.` });
+        } else {
+            setPasswordPolicyResult({ success: false, message: result.error || "Failed to save setting." });
+        }
+    };
+
     const handleSaveOrganisation = async () => {
         setOrganisationSaving(true);
         setOrganisationResult(null);
@@ -775,6 +864,7 @@ export default function AdminSettingsPage() {
             if (result.status === 200) {
                 setSecurityResult({ success: true });
                 setHasSecurityQuestion(true);
+                setCurrentSecurityQuestion(securityQuestion);
                 setSecurityAnswer("");
             } else {
                 setSecurityResult({ success: false, error: result.error || "Failed to save" });
@@ -825,9 +915,149 @@ export default function AdminSettingsPage() {
                     </div>
                 </PageHeaderStrip>
 
-                {/* Top row: License + Business Shifts */}
-                <Row className="mb-4">
-                    <Col md={6} className="mb-4 mb-md-0">
+                {/* Row 1: Organisation & M-PESA | License */}
+                <Row className="g-4 mb-4">
+                    <Col md={6}>
+                        <Card className="shadow-sm h-100">
+                            <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1 flex-wrap">
+                                <span>Organisation &amp; receipts</span>
+                                <HelpPopover id="org-receipts" title="Organisation &amp; receipts">
+                                    <p className="mb-2">
+                                        Business name and tagline appear on printed and downloaded receipts. The M-PESA method marked{" "}
+                                        <strong>Default</strong> is printed above the thank-you footer.
+                                    </p>
+                                </HelpPopover>
+                            </Card.Header>
+                            <Card.Body>
+                                {organisationResult && (
+                                    <Alert variant={organisationResult.success ? "success" : "danger"} dismissible onClose={() => setOrganisationResult(null)} className="mb-3">
+                                        {organisationResult.success ? "Organisation settings saved." : organisationResult.error}
+                                    </Alert>
+                                )}
+                                <Row className="g-3 mb-3">
+                                    <Col md={6}>
+                                        <Form.Label className="fw-medium">Organisation name (receipt header)</Form.Label>
+                                        <Form.Control
+                                            type="text"
+                                            value={organisation.name ?? ""}
+                                            onChange={(e) => setOrganisation((o) => ({ ...o, name: e.target.value }))}
+                                            placeholder="e.g. Emirates Restaurant & Bar"
+                                        />
+                                    </Col>
+                                    <Col md={6}>
+                                        <Form.Label className="fw-medium">Tagline <span className="text-muted fw-normal">(optional)</span></Form.Label>
+                                        <Form.Control
+                                            type="text"
+                                            value={organisation.tagline ?? ""}
+                                            onChange={(e) => setOrganisation((o) => ({ ...o, tagline: e.target.value }))}
+                                            placeholder="Shown under the name; leave blank for none"
+                                        />
+                                    </Col>
+                                </Row>
+                                <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                                    <div className="d-flex align-items-center gap-1">
+                                        <h6 className="fw-bold mb-0">M-PESA payment options</h6>
+                                        <HelpPopover id="mpesa-lines" title="M-PESA on receipts">
+                                            Without at least one method, no M-PESA lines appear on the receipt. Add a method to show Till, Pochi la biashara,
+                                            or Paybill details.
+                                        </HelpPopover>
+                                    </div>
+                                    <Button variant="outline-primary" size="sm" onClick={addMpesaMethod}>
+                                        Add method
+                                    </Button>
+                                </div>
+                                {(organisation.mpesa_methods ?? []).length === 0 ? (
+                                    <p className="text-muted small fst-italic mb-0">No payment methods yet.</p>
+                                ) : (
+                                    <Table responsive bordered size="sm" className="mb-0 align-middle">
+                                        <thead className="table-light">
+                                            <tr>
+                                                <th style={{ width: "9rem" }}>Default</th>
+                                                <th style={{ width: "11rem" }}>Type</th>
+                                                <th>Details</th>
+                                                <th style={{ width: "4rem" }} />
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(organisation.mpesa_methods ?? []).map((m) => (
+                                                <tr key={m.id}>
+                                                    <td>
+                                                        <Form.Check
+                                                            type="radio"
+                                                            name="org-mpesa-default"
+                                                            checked={!!m.is_default}
+                                                            onChange={() => setDefaultMpesaMethod(m.id)}
+                                                            label="Use on receipt"
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <Form.Select
+                                                            value={m.type}
+                                                            onChange={(e) =>
+                                                                patchMpesaMethod(m.id, {
+                                                                    type: e.target.value as MpesaMethodType,
+                                                                })
+                                                            }
+                                                        >
+                                                            <option value="till">Till number</option>
+                                                            <option value="pochi_la_biashara">Pochi la biashara</option>
+                                                            <option value="paybill">Paybill + account</option>
+                                                        </Form.Select>
+                                                    </td>
+                                                    <td>
+                                                        {m.type === "till" && (
+                                                            <Form.Control
+                                                                size="sm"
+                                                                placeholder="Till number"
+                                                                value={m.till_number ?? ""}
+                                                                onChange={(e) => patchMpesaMethod(m.id, { till_number: e.target.value })}
+                                                            />
+                                                        )}
+                                                        {m.type === "pochi_la_biashara" && (
+                                                            <Form.Control
+                                                                size="sm"
+                                                                placeholder="Pochi number"
+                                                                value={m.pochi_la_biashara ?? ""}
+                                                                onChange={(e) => patchMpesaMethod(m.id, { pochi_la_biashara: e.target.value })}
+                                                            />
+                                                        )}
+                                                        {m.type === "paybill" && (
+                                                            <div className="d-flex flex-wrap gap-2">
+                                                                <Form.Control
+                                                                    size="sm"
+                                                                    placeholder="Paybill"
+                                                                    value={m.paybill ?? ""}
+                                                                    onChange={(e) => patchMpesaMethod(m.id, { paybill: e.target.value })}
+                                                                    style={{ maxWidth: "10rem" }}
+                                                                />
+                                                                <Form.Control
+                                                                    size="sm"
+                                                                    placeholder="Account no."
+                                                                    value={m.paybill_account ?? ""}
+                                                                    onChange={(e) => patchMpesaMethod(m.id, { paybill_account: e.target.value })}
+                                                                    style={{ maxWidth: "10rem" }}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="text-end">
+                                                        <Button variant="outline-danger" size="sm" onClick={() => removeMpesaMethod(m.id)}>
+                                                            Remove
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                )}
+                                <Button className="mt-3" variant="primary" onClick={handleSaveOrganisation} disabled={organisationSaving}>
+                                    {organisationSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save organisation"}
+                                </Button>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+
+                    <Col md={6}>
                         <Card className="shadow-sm h-100">
                             <Card.Header className="bg-light fw-bold">License</Card.Header>
                             <Card.Body>
@@ -909,11 +1139,226 @@ export default function AdminSettingsPage() {
                             </Card.Body>
                         </Card>
                     </Col>
+                </Row>
+
+                {/* Row 2: Receipt & Bill Settings | Printer */}
+                <Row className="g-4 mb-4">
+                    <Col md={6}>
+                        <Card className="shadow-sm h-100">
+                            <Card.Header className="bg-light fw-bold">Receipt &amp; Bill Settings</Card.Header>
+                            <Card.Body>
+                                {billSettingsResult && (
+                                    <Alert variant={billSettingsResult.success ? "success" : "danger"} dismissible onClose={() => setBillSettingsResult(null)} className="mb-3">
+                                        {billSettingsResult.success ? "Display settings saved." : billSettingsResult.error}
+                                    </Alert>
+                                )}
+                                <h6 className="fw-bold mb-2">Receipt display</h6>
+                                <Form.Check
+                                    type="switch"
+                                    id="show-tax-switch"
+                                    label="Show tax on receipt"
+                                    checked={billSettings.show_tax_on_receipt}
+                                    onChange={(e) => setBillSettings((s) => ({ ...s, show_tax_on_receipt: e.target.checked }))}
+                                    className="mb-2"
+                                />
+                                <Form.Check
+                                    type="switch"
+                                    id="show-payment-switch"
+                                    label="Show payment mode on receipt"
+                                    checked={billSettings.show_payment_on_receipt !== false}
+                                    onChange={(e) => setBillSettings((s) => ({ ...s, show_payment_on_receipt: e.target.checked }))}
+                                    className="mb-3"
+                                />
+                                <h6 className="fw-bold mb-2 mt-3">Billing page defaults</h6>
+                                <Form.Group className="mb-2">
+                                    <Form.Label className="small mb-1">Top items to show on billing page load</Form.Label>
+                                    <Form.Control
+                                        type="number"
+                                        min={0}
+                                        max={50}
+                                        value={topNInput}
+                                        onChange={(e) => setTopNInput(e.target.value)}
+                                        style={{ width: "100px" }}
+                                    />
+                                    <Form.Text className="text-muted">Items shown before a category is selected (0 = none, max 50).</Form.Text>
+                                </Form.Group>
+                                <Form.Group className="mb-3">
+                                    <Form.Label className="small mb-1">Lookback window for top items (days)</Form.Label>
+                                    <Form.Control
+                                        type="number"
+                                        min={0}
+                                        max={365}
+                                        value={lookbackInput}
+                                        onChange={(e) => setLookbackInput(e.target.value)}
+                                        style={{ width: "100px" }}
+                                    />
+                                    <Form.Text className="text-muted">Past days to consider when ranking items (0 = all time).</Form.Text>
+                                </Form.Group>
+                                <h6 className="fw-bold mb-2 mt-3">Sales Rep Labels</h6>
+                                <p className="text-muted small mb-2">Define unregistered sales reps. Cashiers select a label when creating a bill on their behalf.</p>
+                                <div className="d-flex flex-wrap gap-2 mb-2">
+                                    {(billSettings.bill_tags ?? []).map((tag) => (
+                                        <Badge key={tag.id} bg={tag.color} className="d-flex align-items-center gap-1 fs-6 fw-normal">
+                                            {tag.name}
+                                            <button
+                                                type="button"
+                                                className="btn-close btn-close-white ms-1"
+                                                style={{ fontSize: "0.6rem" }}
+                                                aria-label="Remove"
+                                                disabled={billSettingsSaving}
+                                                onClick={() => {
+                                                    const newTags = (billSettings.bill_tags ?? []).filter((t) => t.id !== tag.id);
+                                                    setBillSettings((s) => ({ ...s, bill_tags: newTags }));
+                                                    handleSaveBillSettings(newTags);
+                                                }}
+                                            />
+                                        </Badge>
+                                    ))}
+                                    {(billSettings.bill_tags ?? []).length === 0 && (
+                                        <span className="text-muted small">No labels yet.</span>
+                                    )}
+                                </div>
+                                <div className="d-flex gap-2 align-items-center flex-wrap">
+                                    <Form.Control
+                                        type="text"
+                                        placeholder="Rep name (e.g. Alice)"
+                                        value={newTagName}
+                                        onChange={(e) => setNewTagName(e.target.value)}
+                                        style={{ maxWidth: "200px" }}
+                                        disabled={billSettingsSaving}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter" && newTagName.trim()) {
+                                                e.preventDefault();
+                                                const id = newMpesaMethodId();
+                                                const newTags = [...(billSettings.bill_tags ?? []), { id, name: newTagName.trim(), color: newTagColor }];
+                                                setBillSettings((s) => ({ ...s, bill_tags: newTags }));
+                                                setNewTagName("");
+                                                handleSaveBillSettings(newTags);
+                                            }
+                                        }}
+                                    />
+                                    <Form.Select value={newTagColor} onChange={(e) => setNewTagColor(e.target.value)} style={{ maxWidth: "130px" }} disabled={billSettingsSaving}>
+                                        <option value="primary">Blue</option>
+                                        <option value="success">Green</option>
+                                        <option value="warning">Yellow</option>
+                                        <option value="danger">Red</option>
+                                        <option value="info">Teal</option>
+                                        <option value="secondary">Grey</option>
+                                    </Form.Select>
+                                    <Button
+                                        variant="outline-primary"
+                                        size="sm"
+                                        disabled={!newTagName.trim() || billSettingsSaving}
+                                        onClick={() => {
+                                            const id = newMpesaMethodId();
+                                            const newTags = [...(billSettings.bill_tags ?? []), { id, name: newTagName.trim(), color: newTagColor }];
+                                            setBillSettings((s) => ({ ...s, bill_tags: newTags }));
+                                            setNewTagName("");
+                                            handleSaveBillSettings(newTags);
+                                        }}
+                                    >
+                                        {billSettingsSaving ? <Spinner animation="border" size="sm" /> : "Add"}
+                                    </Button>
+                                </div>
+                                <Button variant="primary" onClick={() => handleSaveBillSettings()} disabled={billSettingsSaving} className="mt-3">
+                                    {billSettingsSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save display settings"}
+                                </Button>
+                            </Card.Body>
+                        </Card>
+                    </Col>
 
                     <Col md={6}>
                         <Card className="shadow-sm h-100">
+                            <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1">
+                                <span>Printer Settings</span>
+                                <HelpPopover id="printer-settings-intro" title="Printer settings">
+                                    Configure thermal/receipt printing for the desktop app. Use <strong>Test Print</strong> after choosing a device.
+                                </HelpPopover>
+                            </Card.Header>
+                            <Card.Body>
+                                {printerResult && (
+                                    <Alert variant={printerResult.success ? "success" : "danger"} dismissible onClose={() => setPrinterResult(null)} className="mb-3">
+                                        {printerResult.success ? "Printer settings saved." : printerResult.error}
+                                    </Alert>
+                                )}
+                                <div className="d-flex align-items-start gap-1 mb-2">
+                                    <Form.Check
+                                        type="switch"
+                                        id="auto-print-switch"
+                                        label="Auto-print when creating a new bill"
+                                        checked={printerSettings.print_after_create_bill}
+                                        onChange={(e) => setPrinterSettings((s) => ({ ...s, print_after_create_bill: e.target.checked }))}
+                                        className="flex-grow-1 mb-0"
+                                    />
+                                    <HelpPopover id="auto-print-detail" title="Auto-print behaviour" wide>
+                                        <p className="mb-2">
+                                            When on, saving a new bill from billing prints two jobs (customer copy with totals first, then business copy).
+                                            Closing a bill never prints automatically.
+                                        </p>
+                                        <p className="mb-0">
+                                            My Sales → Print: one customer copy with totals. Billing → Print on a pending bill: the same pair as auto-print.
+                                        </p>
+                                    </HelpPopover>
+                                </div>
+                                <Form.Group className="mb-3">
+                                    <Form.Label className="fw-medium small mb-1">Auto-print copy mode</Form.Label>
+                                    <Form.Select
+                                        value={printerSettings.auto_print_copy_mode}
+                                        onChange={(e) =>
+                                            setPrinterSettings((s) => ({
+                                                ...s,
+                                                auto_print_copy_mode: e.target.value as PrinterSettings["auto_print_copy_mode"],
+                                            }))
+                                        }
+                                    >
+                                        <option value="customer">Print customer copy only</option>
+                                        <option value="business">Print business copy only</option>
+                                        <option value="both">Print both (customer and business copy)</option>
+                                    </Form.Select>
+                                    <Form.Text className="text-muted">
+                                        Default behavior is <strong>both copies</strong> when not explicitly configured.
+                                    </Form.Text>
+                                </Form.Group>
+                                <Form.Group className="mb-3">
+                                    <Form.Label className="fw-medium small mb-1">Printer</Form.Label>
+                                    <Form.Control
+                                        type="text"
+                                        list="printer-datalist"
+                                        placeholder="Leave blank to use default printer"
+                                        value={printerSettings.printer_name}
+                                        onChange={(e) => setPrinterSettings((s) => ({ ...s, printer_name: e.target.value }))}
+                                    />
+                                    <datalist id="printer-datalist">
+                                        <option value="">Default printer</option>
+                                        {printers.map((p) => (
+                                            <option key={p.name} value={p.name}>{p.displayName || p.name}{p.isDefault ? " (default)" : ""}</option>
+                                        ))}
+                                    </datalist>
+                                </Form.Group>
+                                {printTestMessage && (
+                                    <Alert variant={printTestMessage.startsWith("Print job sent") ? "success" : "warning"} className="mb-3" dismissible onClose={() => setPrintTestMessage(null)}>
+                                        {printTestMessage}
+                                    </Alert>
+                                )}
+                                <div className="d-flex gap-2">
+                                    <Button variant="outline-secondary" onClick={handleTestPrint} disabled={printTestBusy}>
+                                        {printTestBusy ? <><Spinner animation="border" size="sm" className="me-1" />Sending…</> : "Test Print"}
+                                    </Button>
+                                    <Button variant="primary" onClick={handleSavePrinterSettings} disabled={printerSaving}>
+                                        {printerSaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save printer"}
+                                    </Button>
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                </Row>
+
+                {/* Row 3: Business Shifts | Units of Measurement */}
+                <Row className="g-4 mb-4">
+                    <Col md={6}>
+                        <Card className="shadow-sm h-100">
                             <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1 flex-wrap">
-                                <span>Business shifts</span>
+                                <span>Business Shifts</span>
                                 <HelpPopover id="business-shifts-help" title="Business shift windows">
                                     Define unlimited shift windows for operational tracking (for example 07:00-12:00 and 15:00-22:00).
                                     These shifts will be used later in shift-based sales and cashier reporting.
@@ -994,376 +1439,152 @@ export default function AdminSettingsPage() {
                             </Card.Body>
                         </Card>
                     </Col>
+
+                    <Col md={6}>
+                        <Card className="shadow-sm h-100">
+                            <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1">
+                                Units of Measurement
+                                <HelpPopover id="uom-settings" title="Units of measurement">
+                                    These units appear in the Purchase Item Config dropdown. Add units per category so staff
+                                    can pick from a consistent list. Units are shared across all items.
+                                </HelpPopover>
+                            </Card.Header>
+                            <Card.Body>
+                                {uomResult && (
+                                    <Alert variant={uomResult.success ? "success" : "danger"} dismissible onClose={() => setUomResult(null)} className="mb-3">
+                                        {uomResult.success ? "Units of measurement saved." : uomResult.error}
+                                    </Alert>
+                                )}
+                                <Row className="g-3">
+                                    {(Object.keys(UOM_CATEGORY_LABELS) as UomCategory[]).map((cat) => (
+                                        <Col key={cat} xs={6}>
+                                            <div className="border rounded p-2 h-100">
+                                                <div className="fw-medium small mb-2">{UOM_CATEGORY_LABELS[cat]}</div>
+                                                <div className="d-flex flex-wrap gap-1 mb-2" style={{ minHeight: 28 }}>
+                                                    {uomSettings[cat].length === 0 && (
+                                                        <span className="text-muted small fst-italic">No units yet</span>
+                                                    )}
+                                                    {uomSettings[cat].map((unit) => (
+                                                        <Badge
+                                                            key={unit}
+                                                            bg="light"
+                                                            text="dark"
+                                                            className="border d-flex align-items-center gap-1 px-2 py-1"
+                                                            style={{ fontWeight: 400 }}
+                                                        >
+                                                            {unit}
+                                                            <button
+                                                                type="button"
+                                                                className="btn-close btn-close-sm ms-1"
+                                                                style={{ fontSize: "0.55rem" }}
+                                                                aria-label={`Remove ${unit}`}
+                                                                onClick={() => removeUomUnit(cat, unit)}
+                                                            />
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                                <InputGroup size="sm">
+                                                    <Form.Control
+                                                        placeholder="Add unit…"
+                                                        value={uomNewInputs[cat]}
+                                                        onChange={(e) => setUomNewInputs((prev) => ({ ...prev, [cat]: e.target.value }))}
+                                                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addUomUnit(cat); } }}
+                                                    />
+                                                    <Button variant="outline-secondary" onClick={() => addUomUnit(cat)}>
+                                                        <i className="bi bi-plus" />
+                                                    </Button>
+                                                </InputGroup>
+                                            </div>
+                                        </Col>
+                                    ))}
+                                </Row>
+                                <div className="mt-3">
+                                    <Button variant="primary" onClick={handleSaveUom} disabled={uomSaving}>
+                                        {uomSaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save Units"}
+                                    </Button>
+                                </div>
+                            </Card.Body>
+                        </Card>
+                    </Col>
                 </Row>
 
-                {/* Organisation & Receipts — consolidated: branding, display options, printer */}
-                <Card className="shadow-sm mb-4">
-                    <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1 flex-wrap">
-                        <span>Organisation &amp; receipts</span>
-                        <HelpPopover id="org-receipts" title="Organisation &amp; receipts">
-                            <p className="mb-2">
-                                Business name and tagline appear on printed and downloaded receipts. The M-PESA method marked{" "}
-                                <strong>Default</strong> is printed above the thank-you footer.
-                            </p>
-                            <p className="mb-0">
-                                Receipt display and printer settings are also managed here.
-                            </p>
-                        </HelpPopover>
-                    </Card.Header>
-                    <Card.Body>
-
-                        {/* ── Organisation branding ───────────────────────────────── */}
-                        <h6 className="fw-bold mb-3">Organisation branding</h6>
-                        {organisationResult && (
-                            <Alert variant={organisationResult.success ? "success" : "danger"} dismissible onClose={() => setOrganisationResult(null)} className="mb-3">
-                                {organisationResult.success ? "Organisation settings saved." : organisationResult.error}
-                            </Alert>
-                        )}
-                        <Row className="g-3 mb-3">
-                            <Col md={6}>
-                                <Form.Label className="fw-medium">Organisation name (receipt header)</Form.Label>
-                                <Form.Control
-                                    type="text"
-                                    value={organisation.name ?? ""}
-                                    onChange={(e) => setOrganisation((o) => ({ ...o, name: e.target.value }))}
-                                    placeholder="e.g. Emirates Restaurant & Bar"
-                                />
-                            </Col>
-                            <Col md={6}>
-                                <Form.Label className="fw-medium">Tagline <span className="text-muted fw-normal">(optional)</span></Form.Label>
-                                <Form.Control
-                                    type="text"
-                                    value={organisation.tagline ?? ""}
-                                    onChange={(e) => setOrganisation((o) => ({ ...o, tagline: e.target.value }))}
-                                    placeholder="Shown under the name; leave blank for none"
-                                />
-                            </Col>
-                        </Row>
-                        <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
-                            <div className="d-flex align-items-center gap-1">
-                                <h6 className="fw-bold mb-0">M-PESA payment options</h6>
-                                <HelpPopover id="mpesa-lines" title="M-PESA on receipts">
-                                    Without at least one method, no M-PESA lines appear on the receipt. Add a method to show Till, Pochi la biashara,
-                                    or Paybill details.
+                {/* Row 3b: Production Settings */}
+                <Row className="g-4 mb-4">
+                    <Col md={6}>
+                        <Card className="shadow-sm h-100">
+                            <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1 flex-wrap">
+                                <span>Production Settings</span>
+                                <HelpPopover id="prod-settings-help" title="Production auto-close">
+                                    When enabled, open production sessions are automatically closed at the start of the next
+                                    business day. The day boundary is the earliest shift start time you have configured above.
+                                    If no shifts are configured, the default is 06:00 AM.
                                 </HelpPopover>
-                            </div>
-                            <Button variant="outline-primary" size="sm" onClick={addMpesaMethod}>
-                                Add method
-                            </Button>
-                        </div>
-                        {(organisation.mpesa_methods ?? []).length === 0 ? (
-                            <p className="text-muted small fst-italic mb-0">No payment methods yet.</p>
-                        ) : (
-                            <Table responsive bordered size="sm" className="mb-0 align-middle">
-                                <thead className="table-light">
-                                    <tr>
-                                        <th style={{ width: "9rem" }}>Default</th>
-                                        <th style={{ width: "11rem" }}>Type</th>
-                                        <th>Details</th>
-                                        <th style={{ width: "4rem" }} />
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(organisation.mpesa_methods ?? []).map((m) => (
-                                        <tr key={m.id}>
-                                            <td>
-                                                <Form.Check
-                                                    type="radio"
-                                                    name="org-mpesa-default"
-                                                    checked={!!m.is_default}
-                                                    onChange={() => setDefaultMpesaMethod(m.id)}
-                                                    label="Use on receipt"
-                                                />
-                                            </td>
-                                            <td>
-                                                <Form.Select
-                                                    value={m.type}
-                                                    onChange={(e) =>
-                                                        patchMpesaMethod(m.id, {
-                                                            type: e.target.value as MpesaMethodType,
-                                                        })
-                                                    }
-                                                >
-                                                    <option value="till">Till number</option>
-                                                    <option value="pochi_la_biashara">Pochi la biashara</option>
-                                                    <option value="paybill">Paybill + account</option>
-                                                </Form.Select>
-                                            </td>
-                                            <td>
-                                                {m.type === "till" && (
-                                                    <Form.Control
-                                                        size="sm"
-                                                        placeholder="Till number"
-                                                        value={m.till_number ?? ""}
-                                                        onChange={(e) => patchMpesaMethod(m.id, { till_number: e.target.value })}
-                                                    />
-                                                )}
-                                                {m.type === "pochi_la_biashara" && (
-                                                    <Form.Control
-                                                        size="sm"
-                                                        placeholder="Pochi number"
-                                                        value={m.pochi_la_biashara ?? ""}
-                                                        onChange={(e) => patchMpesaMethod(m.id, { pochi_la_biashara: e.target.value })}
-                                                    />
-                                                )}
-                                                {m.type === "paybill" && (
-                                                    <div className="d-flex flex-wrap gap-2">
-                                                        <Form.Control
-                                                            size="sm"
-                                                            placeholder="Paybill"
-                                                            value={m.paybill ?? ""}
-                                                            onChange={(e) => patchMpesaMethod(m.id, { paybill: e.target.value })}
-                                                            style={{ maxWidth: "10rem" }}
-                                                        />
-                                                        <Form.Control
-                                                            size="sm"
-                                                            placeholder="Account no."
-                                                            value={m.paybill_account ?? ""}
-                                                            onChange={(e) => patchMpesaMethod(m.id, { paybill_account: e.target.value })}
-                                                            style={{ maxWidth: "10rem" }}
-                                                        />
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="text-end">
-                                                <Button variant="outline-danger" size="sm" onClick={() => removeMpesaMethod(m.id)}>
-                                                    Remove
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </Table>
-                        )}
-                        <Button className="mt-3" variant="primary" onClick={handleSaveOrganisation} disabled={organisationSaving}>
-                            {organisationSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save organisation"}
-                        </Button>
-
-                        <hr className="my-4" />
-
-                        {/* ── Receipt display + Printer side by side ─────────────── */}
-                        <Row className="g-4">
-                            <Col md={6}>
-                                <h6 className="fw-bold mb-3">Receipt display</h6>
-                                {billSettingsResult && (
-                                    <Alert variant={billSettingsResult.success ? "success" : "danger"} dismissible onClose={() => setBillSettingsResult(null)} className="mb-3">
-                                        {billSettingsResult.success ? "Display settings saved." : billSettingsResult.error}
+                            </Card.Header>
+                            <Card.Body>
+                                {prodSettingsResult && (
+                                    <Alert
+                                        variant={prodSettingsResult.success ? "success" : "danger"}
+                                        dismissible
+                                        onClose={() => setProdSettingsResult(null)}
+                                        className="mb-3"
+                                    >
+                                        {prodSettingsResult.success ? "Production settings saved." : prodSettingsResult.error}
                                     </Alert>
                                 )}
                                 <Form.Check
                                     type="switch"
-                                    id="show-tax-switch"
-                                    label="Show tax on receipt"
-                                    checked={billSettings.show_tax_on_receipt}
-                                    onChange={(e) => setBillSettings((s) => ({ ...s, show_tax_on_receipt: e.target.checked }))}
+                                    id="prod-auto-close-switch"
+                                    label="Auto-close open productions at start of next day shift"
+                                    checked={prodAutoClose}
+                                    onChange={(e) => setProdAutoClose(e.target.checked)}
                                     className="mb-2"
                                 />
-                                <Form.Check
-                                    type="switch"
-                                    id="show-payment-switch"
-                                    label="Show payment mode on receipt"
-                                    checked={billSettings.show_payment_on_receipt !== false}
-                                    onChange={(e) => setBillSettings((s) => ({ ...s, show_payment_on_receipt: e.target.checked }))}
-                                    className="mb-3"
-                                />
-                                <h6 className="fw-bold mb-2 mt-3">Billing page defaults</h6>
-                                <Form.Group className="mb-2">
-                                    <Form.Label className="small mb-1">Top items to show on billing page load</Form.Label>
-                                    <Form.Control
-                                        type="number"
-                                        min={1}
-                                        max={50}
-                                        value={billSettings.top_n_billing_items}
-                                        onChange={(e) => setBillSettings((s) => ({ ...s, top_n_billing_items: Math.max(1, Number(e.target.value)) }))}
-                                        style={{ width: "100px" }}
-                                    />
-                                    <Form.Text className="text-muted">Items shown before a category is selected (1–50).</Form.Text>
-                                </Form.Group>
-                                <Form.Group className="mb-3">
-                                    <Form.Label className="small mb-1">Lookback window for top items (days)</Form.Label>
-                                    <Form.Control
-                                        type="number"
-                                        min={1}
-                                        max={365}
-                                        value={billSettings.top_n_lookback_days}
-                                        onChange={(e) => setBillSettings((s) => ({ ...s, top_n_lookback_days: Math.max(1, Number(e.target.value)) }))}
-                                        style={{ width: "100px" }}
-                                    />
-                                    <Form.Text className="text-muted">How many past days of sales to consider when ranking items.</Form.Text>
-                                </Form.Group>
-                                <h6 className="fw-bold mb-2 mt-3">Sales Rep Labels</h6>
-                                <p className="text-muted small mb-2">Define unregistered sales reps. Cashiers select a label when creating a bill on their behalf.</p>
-                                <div className="d-flex flex-wrap gap-2 mb-2">
-                                    {(billSettings.bill_tags ?? []).map((tag) => (
-                                        <Badge key={tag.id} bg={tag.color} className="d-flex align-items-center gap-1 fs-6 fw-normal">
-                                            {tag.name}
-                                            <button
-                                                type="button"
-                                                className="btn-close btn-close-white ms-1"
-                                                style={{ fontSize: "0.6rem" }}
-                                                aria-label="Remove"
-                                                onClick={() => setBillSettings((s) => ({ ...s, bill_tags: (s.bill_tags ?? []).filter((t) => t.id !== tag.id) }))}
-                                            />
-                                        </Badge>
-                                    ))}
-                                    {(billSettings.bill_tags ?? []).length === 0 && (
-                                        <span className="text-muted small">No labels yet.</span>
-                                    )}
-                                </div>
-                                <div className="d-flex gap-2 align-items-center flex-wrap">
-                                    <Form.Control
-                                        type="text"
-                                        placeholder="Rep name (e.g. Alice)"
-                                        value={newTagName}
-                                        onChange={(e) => setNewTagName(e.target.value)}
-                                        style={{ maxWidth: "200px" }}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter" && newTagName.trim()) {
-                                                e.preventDefault();
-                                                const id = newMpesaMethodId();
-                                                setBillSettings((s) => ({ ...s, bill_tags: [...(s.bill_tags ?? []), { id, name: newTagName.trim(), color: newTagColor }] }));
-                                                setNewTagName("");
-                                            }
-                                        }}
-                                    />
-                                    <Form.Select value={newTagColor} onChange={(e) => setNewTagColor(e.target.value)} style={{ maxWidth: "130px" }}>
-                                        <option value="primary">Blue</option>
-                                        <option value="success">Green</option>
-                                        <option value="warning">Yellow</option>
-                                        <option value="danger">Red</option>
-                                        <option value="info">Teal</option>
-                                        <option value="secondary">Grey</option>
-                                    </Form.Select>
-                                    <Button
-                                        variant="outline-primary"
-                                        size="sm"
-                                        disabled={!newTagName.trim()}
-                                        onClick={() => {
-                                            const id = newMpesaMethodId();
-                                            setBillSettings((s) => ({ ...s, bill_tags: [...(s.bill_tags ?? []), { id, name: newTagName.trim(), color: newTagColor }] }));
-                                            setNewTagName("");
-                                        }}
-                                    >
-                                        Add
-                                    </Button>
-                                </div>
-                                <Button variant="primary" onClick={handleSaveBillSettings} disabled={billSettingsSaving} className="mt-3">
-                                    {billSettingsSaving ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</> : "Save display settings"}
-                                </Button>
-                            </Col>
-
-                            <Col md={6} className="border-start">
-                                <div className="d-flex align-items-center gap-1 mb-3">
-                                    <h6 className="fw-bold mb-0">Printer settings</h6>
-                                    <HelpPopover id="printer-settings-intro" title="Printer settings">
-                                        Configure thermal/receipt printing for the desktop app. Use <strong>Test Print</strong> after choosing a device.
-                                    </HelpPopover>
-                                </div>
-                                {printerResult && (
-                                    <Alert variant={printerResult.success ? "success" : "danger"} dismissible onClose={() => setPrinterResult(null)} className="mb-3">
-                                        {printerResult.success ? "Printer settings saved." : printerResult.error}
-                                    </Alert>
-                                )}
-                                <div className="d-flex align-items-start gap-1 mb-2">
-                                    <Form.Check
-                                        type="switch"
-                                        id="auto-print-switch"
-                                        label="Auto-print when creating a new bill"
-                                        checked={printerSettings.print_after_create_bill}
-                                        onChange={(e) => setPrinterSettings((s) => ({ ...s, print_after_create_bill: e.target.checked }))}
-                                        className="flex-grow-1 mb-0"
-                                    />
-                                    <HelpPopover id="auto-print-detail" title="Auto-print behaviour" wide>
-                                        <p className="mb-2">
-                                            When on, saving a new bill from billing prints two jobs (customer copy with totals first, then business copy).
-                                            Closing a bill never prints automatically.
-                                        </p>
-                                        <p className="mb-0">
-                                            My Sales → Print: one customer copy with totals. Billing → Print on a pending bill: the same pair as auto-print.
-                                        </p>
-                                    </HelpPopover>
-                                </div>
-                                <Form.Group className="mb-3">
-                                    <Form.Label className="fw-medium small mb-1">Auto-print copy mode</Form.Label>
-                                    <Form.Select
-                                        value={printerSettings.auto_print_copy_mode}
-                                        onChange={(e) =>
-                                            setPrinterSettings((s) => ({
-                                                ...s,
-                                                auto_print_copy_mode: e.target.value as PrinterSettings["auto_print_copy_mode"],
-                                            }))
-                                        }
-                                    >
-                                        <option value="customer">Print customer copy only</option>
-                                        <option value="business">Print business copy only</option>
-                                        <option value="both">Print both (customer and business copy)</option>
-                                    </Form.Select>
-                                    <Form.Text className="text-muted">
-                                        Default behavior is <strong>both copies</strong> when not explicitly configured.
-                                    </Form.Text>
-                                </Form.Group>
-                                <Form.Group className="mb-3">
-                                    <div className="d-flex align-items-center gap-1 mb-1">
-                                        <Form.Label className="fw-medium small mb-0">Printer</Form.Label>
-                                        <HelpPopover id="printer-desktop-list" title="Printer list">
-                                            The selectable printer list is only available in the desktop app (Electron). In the browser, enter a printer name
-                                            or leave blank for the OS default.
-                                        </HelpPopover>
-                                    </div>
-                                    {printers.length > 0 ? (
-                                        <Form.Select value={printerSettings.printer_name} onChange={(e) => setPrinterSettings((s) => ({ ...s, printer_name: e.target.value }))}>
-                                            <option value="">Default printer</option>
-                                            {printers.map((p) => (
-                                                <option key={p.name} value={p.name}>{p.displayName || p.name}{p.isDefault ? " (default)" : ""}</option>
-                                            ))}
-                                        </Form.Select>
+                                <p className="text-muted small mb-3">
+                                    {businessShifts.length > 0 ? (
+                                        <>
+                                            Day boundary:{" "}
+                                            <strong>
+                                                {(() => {
+                                                    const earliest = businessShifts
+                                                        .map((s) => s.start_time)
+                                                        .filter(Boolean)
+                                                        .sort()[0];
+                                                    return earliest ?? "06:00";
+                                                })()}
+                                            </strong>{" "}
+                                            (earliest configured shift start).
+                                        </>
                                     ) : (
-                                        <Form.Control
-                                            type="text"
-                                            placeholder="Leave blank to use default printer"
-                                            value={printerSettings.printer_name}
-                                            onChange={(e) => setPrinterSettings((s) => ({ ...s, printer_name: e.target.value }))}
-                                        />
+                                        <>Default day boundary: <strong>06:00 AM</strong> — configure shifts above to change this.</>
                                     )}
-                                </Form.Group>
-                                {printTestMessage && (
-                                    <Alert variant={printTestMessage.startsWith("Print job sent") ? "success" : "warning"} className="mb-3" dismissible onClose={() => setPrintTestMessage(null)}>
-                                        {printTestMessage}
-                                    </Alert>
-                                )}
-                                <div className="d-flex gap-2">
-                                    <Button variant="outline-secondary" onClick={handleTestPrint} disabled={printTestBusy}>
-                                        {printTestBusy ? <><Spinner animation="border" size="sm" className="me-1" />Sending…</> : "Test Print"}
-                                    </Button>
-                                    <Button variant="primary" onClick={handleSavePrinterSettings} disabled={printerSaving}>
-                                        {printerSaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save printer"}
-                                    </Button>
-                                </div>
-                            </Col>
-                        </Row>
+                                </p>
+                                <Button variant="primary" onClick={handleSaveProdSettings} disabled={prodSettingsSaving}>
+                                    {prodSettingsSaving
+                                        ? <><Spinner animation="border" size="sm" className="me-2" />Saving…</>
+                                        : "Save production settings"}
+                                </Button>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                </Row>
 
-                    </Card.Body>
-                </Card>
-
-                {/* System Configuration card — DB Backup + Logs */}
-                <Card className="shadow-sm mb-4">
-                    <Card.Header className="bg-light fw-bold">System Configuration</Card.Header>
-                    <Card.Body className="p-0">
-
-                        {/* Database Backup */}
-                        <div className="p-4">
-                                <div className="d-flex align-items-center gap-1 mb-3">
-                                    <h6 className="fw-bold mb-0">Database Backup</h6>
-                                    <HelpPopover id="db-backup-overview" title="Database backup" wide>
-                                        <p className="mb-2">
-                                            Backups are stored alongside the database file. A backup can also be created automatically on the first launch of the day,
-                                            depending on frequency below.
-                                        </p>
-                                        <p className="mb-0">
-                                            <Link href="/help/admin">Admin Help</Link> explains restore options and manual recovery.
-                                        </p>
-                                    </HelpPopover>
-                                </div>
+                {/* Row 4: Database Backup | Log Settings */}
+                <Row className="g-4 mb-4">
+                    <Col md={6}>
+                        <Card className="shadow-sm h-100">
+                            <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1">
+                                <span>Database Backup</span>
+                                <HelpPopover id="db-backup-overview" title="Database backup" wide>
+                                    <p className="mb-2">
+                                        Backups are stored alongside the database file. A backup can also be created automatically on the first launch of the day,
+                                        depending on frequency below.
+                                    </p>
+                                    <p className="mb-0">
+                                        <Link href="/help/admin">Admin Help</Link> explains restore options and manual recovery.
+                                    </p>
+                                </HelpPopover>
+                            </Card.Header>
+                            <Card.Body>
                                 <Form.Group className="mb-3">
                                     <Form.Label className="fw-medium small">Automatic backup frequency</Form.Label>
                                     <Form.Select
@@ -1480,14 +1701,14 @@ export default function AdminSettingsPage() {
                                         {dbBackupSaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save"}
                                     </Button>
                                 </div>
-                        </div>
+                            </Card.Body>
+                        </Card>
+                    </Col>
 
-                        <hr className="m-0" />
-
-                        {/* Log Settings (full width) */}
-                        <div className="p-4">
-                            <div className="d-flex align-items-center gap-1 mb-3">
-                                <h6 className="fw-bold mb-0">Log Settings</h6>
+                    <Col md={6}>
+                        <Card className="shadow-sm h-100">
+                            <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1">
+                                <span>Log Settings</span>
                                 <HelpPopover id="log-retention" title="Log retention &amp; viewer" wide>
                                     <p className="mb-2">
                                         Controls how long application log files are kept on disk. Files older than the retention window are deleted automatically
@@ -1499,238 +1720,224 @@ export default function AdminSettingsPage() {
                                         {" "}to diagnose desktop (Electron) issues. Access requires the <code>can_view_logs</code> permission (assigned to admin by default).
                                     </p>
                                 </HelpPopover>
-                            </div>
-                            <Row className="g-2 align-items-end" style={{ maxWidth: 340 }}>
-                                <Col>
-                                    <Form.Label className="small mb-1">Retention period (days)</Form.Label>
-                                    <Form.Control
-                                        type="number"
-                                        min={1}
-                                        max={365}
-                                        value={logRetentionInput}
-                                        onChange={(e) => setLogRetentionInput(e.target.value)}
-                                    />
-                                </Col>
-                                <Col xs="auto">
-                                    <Button
-                                        variant="primary"
-                                        onClick={handleLogRetentionSave}
-                                        disabled={logRetentionLoading || Number(logRetentionInput) === logRetentionDays}
-                                    >
-                                        {logRetentionLoading ? <Spinner animation="border" size="sm" /> : "Save"}
-                                    </Button>
-                                </Col>
-                            </Row>
-                            {logRetentionResult && (
-                                <Alert variant={logRetentionResult.success ? "success" : "danger"} dismissible onClose={() => setLogRetentionResult(null)} className="mt-3 mb-0">
-                                    {logRetentionResult.message}
-                                </Alert>
-                            )}
-                        </div>
+                            </Card.Header>
+                            <Card.Body>
+                                <Row className="g-2 align-items-end" style={{ maxWidth: 340 }}>
+                                    <Col>
+                                        <Form.Label className="small mb-1">Retention period (days)</Form.Label>
+                                        <Form.Control
+                                            type="number"
+                                            min={1}
+                                            max={365}
+                                            value={logRetentionInput}
+                                            onChange={(e) => setLogRetentionInput(e.target.value)}
+                                        />
+                                    </Col>
+                                    <Col xs="auto">
+                                        <Button
+                                            variant="primary"
+                                            onClick={handleLogRetentionSave}
+                                            disabled={logRetentionLoading || Number(logRetentionInput) === logRetentionDays}
+                                        >
+                                            {logRetentionLoading ? <Spinner animation="border" size="sm" /> : "Save"}
+                                        </Button>
+                                    </Col>
+                                </Row>
+                                {logRetentionResult && (
+                                    <Alert variant={logRetentionResult.success ? "success" : "danger"} dismissible onClose={() => setLogRetentionResult(null)} className="mt-3 mb-0">
+                                        {logRetentionResult.message}
+                                    </Alert>
+                                )}
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                </Row>
 
-                    </Card.Body>
-                </Card>
-
-                {/* Security */}
-                <Card className="shadow-sm mb-4">
-                    <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1">
-                        Security
-                    </Card.Header>
-                    <Card.Body>
-                        <div className="p-2">
-                            <div className="d-flex align-items-center gap-1 mb-3">
-                                <h6 className="fw-bold mb-0">Session Timeout</h6>
-                                <HelpPopover id="session-timeout" title="Session timeout">
-                                    Controls how long a user stays logged in after signing in. Longer sessions are more
-                                    convenient but less secure. Changes take effect on the next login.
-                                </HelpPopover>
-                            </div>
-                            <Row className="g-2 align-items-end" style={{ maxWidth: 340 }}>
-                                <Col>
-                                    <Form.Label className="small mb-1">Timeout duration</Form.Label>
-                                    <Form.Select
-                                        value={sessionTimeout}
-                                        onChange={(e) => setSessionTimeout(e.target.value)}
-                                    >
-                                        <option value="1h">1 hour</option>
-                                        <option value="4h">4 hours</option>
-                                        <option value="8h">8 hours (default)</option>
-                                        <option value="12h">12 hours</option>
-                                        <option value="24h">24 hours</option>
-                                    </Form.Select>
-                                </Col>
-                                <Col xs="auto">
-                                    <Button
-                                        variant="primary"
-                                        onClick={handleSessionTimeoutSave}
-                                        disabled={sessionTimeoutSaving}
-                                    >
-                                        {sessionTimeoutSaving ? <Spinner animation="border" size="sm" /> : "Save"}
-                                    </Button>
-                                </Col>
-                            </Row>
-                            {sessionTimeoutResult && (
-                                <Alert
-                                    variant={sessionTimeoutResult.success ? "success" : "danger"}
-                                    dismissible
-                                    onClose={() => setSessionTimeoutResult(null)}
-                                    className="mt-3 mb-0"
-                                >
-                                    {sessionTimeoutResult.message}
-                                </Alert>
-                            )}
-                        </div>
-                    </Card.Body>
-                </Card>
-
-                {/* Units of Measurement */}
-                <Card className="shadow-sm mb-4">
-                    <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1">
-                        Units of Measurement
-                        <HelpPopover id="uom-settings" title="Units of measurement">
-                            These units appear in the Purchase Item Config dropdown. Add units per category so staff
-                            can pick from a consistent list. Units are shared across all items.
-                        </HelpPopover>
-                    </Card.Header>
-                    <Card.Body>
-                        {uomResult && (
-                            <Alert variant={uomResult.success ? "success" : "danger"} dismissible onClose={() => setUomResult(null)} className="mb-3">
-                                {uomResult.success ? "Units of measurement saved." : uomResult.error}
-                            </Alert>
-                        )}
-                        <Row className="g-3">
-                            {(Object.keys(UOM_CATEGORY_LABELS) as UomCategory[]).map((cat) => (
-                                <Col key={cat} md={6}>
-                                    <div className="border rounded p-3 h-100">
-                                        <div className="fw-medium small mb-2">{UOM_CATEGORY_LABELS[cat]}</div>
-                                        <div className="d-flex flex-wrap gap-1 mb-2 min-height-chips" style={{ minHeight: 32 }}>
-                                            {uomSettings[cat].length === 0 && (
-                                                <span className="text-muted small fst-italic">No units yet</span>
-                                            )}
-                                            {uomSettings[cat].map((unit) => (
-                                                <Badge
-                                                    key={unit}
-                                                    bg="light"
-                                                    text="dark"
-                                                    className="border d-flex align-items-center gap-1 px-2 py-1"
-                                                    style={{ fontWeight: 400 }}
-                                                >
-                                                    {unit}
-                                                    <button
-                                                        type="button"
-                                                        className="btn-close btn-close-sm ms-1"
-                                                        style={{ fontSize: "0.55rem" }}
-                                                        aria-label={`Remove ${unit}`}
-                                                        onClick={() => removeUomUnit(cat, unit)}
-                                                    />
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                        <InputGroup size="sm">
-                                            <Form.Control
-                                                placeholder="Add unit…"
-                                                value={uomNewInputs[cat]}
-                                                onChange={(e) => setUomNewInputs((prev) => ({ ...prev, [cat]: e.target.value }))}
-                                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addUomUnit(cat); } }}
-                                            />
-                                            <Button variant="outline-secondary" onClick={() => addUomUnit(cat)}>
-                                                <i className="bi bi-plus" />
-                                            </Button>
-                                        </InputGroup>
-                                    </div>
-                                </Col>
-                            ))}
-                        </Row>
-                        <div className="mt-3">
-                            <Button variant="primary" onClick={handleSaveUom} disabled={uomSaving}>
-                                {uomSaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save Units"}
-                            </Button>
-                        </div>
-                    </Card.Body>
-                </Card>
-
-                {/* Account Security */}
-                <Card className="mb-4">
-                    <Card.Header><strong>Account Security</strong></Card.Header>
-                    <Card.Body>
-                        <h6 className="mb-3">Security Question</h6>
-                        {hasSecurityQuestion && (
-                            <Alert variant="success" className="py-2">Security question is configured.</Alert>
-                        )}
-                        {!hasSecurityQuestion && (
-                            <Alert variant="warning" className="py-2">Not configured — set a security question so you can reset your password if forgotten.</Alert>
-                        )}
-                        {securityResult && (
-                            <Alert variant={securityResult.success ? "success" : "danger"} className="py-2">
-                                {securityResult.success ? "Security question saved." : securityResult.error}
-                            </Alert>
-                        )}
-                        <Form.Group className="mb-2">
-                            <Form.Label>{hasSecurityQuestion ? "Update security question" : "Choose a security question"}</Form.Label>
-                            <Form.Select value={securityQuestion} onChange={(e) => setSecurityQuestion(e.target.value)}>
-                                <option value="">— Select a question —</option>
-                                {SECURITY_QUESTIONS.map((q) => (
-                                    <option key={q} value={q}>{q}</option>
-                                ))}
-                            </Form.Select>
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Your answer</Form.Label>
-                            <Form.Control
-                                type="password"
-                                value={securityAnswer}
-                                onChange={(e) => setSecurityAnswer(e.target.value)}
-                                placeholder="Answer (case-insensitive)"
-                            />
-                        </Form.Group>
-                        <Button
-                            variant="primary"
-                            onClick={handleSaveSecurityQuestion}
-                            disabled={securitySaving || !securityQuestion || !securityAnswer.trim()}
-                        >
-                            {securitySaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save Security Question"}
-                        </Button>
-
-                        <hr />
-
-                        <h6 className="mb-2">Recovery Code</h6>
-                        <p className="text-muted small mb-2">
-                            A one-time 8-character code you can use to reset your password without answering the security question.
-                            Store it somewhere safe — it will only be shown once.
-                        </p>
-                        {recoveryCodeGeneratedAt && !generatedCode && (
-                            <Alert variant="info" className="py-2">
-                                Last generated: {new Date(recoveryCodeGeneratedAt).toLocaleString()}
-                            </Alert>
-                        )}
-                        {generatedCode && (
-                            <Alert variant="warning">
-                                <strong>Your recovery code — save this now:</strong>
-                                <div className="d-flex align-items-center gap-2 mt-2">
-                                    <code className="fs-5 fw-bold letter-spacing-2">{generatedCode}</code>
-                                    <Button
-                                        size="sm"
-                                        variant="outline-secondary"
-                                        onClick={() => { navigator.clipboard.writeText(generatedCode); setCodeCopied(true); }}
-                                    >
-                                        {codeCopied ? "Copied!" : "Copy"}
-                                    </Button>
+                {/* Row 5: Security | Account Security */}
+                <Row className="g-4 mb-4">
+                    <Col md={6}>
+                        <Card className="shadow-sm h-100">
+                            <Card.Header className="bg-light fw-bold d-flex align-items-center gap-1">
+                                Security
+                            </Card.Header>
+                            <Card.Body>
+                                <div className="d-flex align-items-center gap-1 mb-3">
+                                    <h6 className="fw-bold mb-0">Session Timeout</h6>
+                                    <HelpPopover id="session-timeout" title="Session timeout">
+                                        Controls how long a user stays logged in after signing in. Longer sessions are more
+                                        convenient but less secure. Changes take effect on the next login.
+                                    </HelpPopover>
                                 </div>
-                                <div className="small text-danger mt-1">This code will not be shown again.</div>
-                            </Alert>
-                        )}
-                        <Button
-                            variant={recoveryCodeGeneratedAt ? "outline-warning" : "outline-primary"}
-                            onClick={handleGenerateRecoveryCode}
-                            disabled={recoveryCodeLoading}
-                        >
-                            {recoveryCodeLoading
-                                ? <><Spinner animation="border" size="sm" className="me-1" />Generating…</>
-                                : recoveryCodeGeneratedAt ? "Regenerate Recovery Code" : "Generate Recovery Code"}
-                        </Button>
-                    </Card.Body>
-                </Card>
+                                <Row className="g-2 align-items-end" style={{ maxWidth: 340 }}>
+                                    <Col>
+                                        <Form.Label className="small mb-1">Timeout duration</Form.Label>
+                                        <Form.Select
+                                            value={sessionTimeout}
+                                            onChange={(e) => setSessionTimeout(e.target.value)}
+                                        >
+                                            <option value="1h">1 hour</option>
+                                            <option value="4h">4 hours</option>
+                                            <option value="8h">8 hours (default)</option>
+                                            <option value="12h">12 hours</option>
+                                            <option value="24h">24 hours</option>
+                                        </Form.Select>
+                                    </Col>
+                                    <Col xs="auto">
+                                        <Button
+                                            variant="primary"
+                                            onClick={handleSessionTimeoutSave}
+                                            disabled={sessionTimeoutSaving}
+                                        >
+                                            {sessionTimeoutSaving ? <Spinner animation="border" size="sm" /> : "Save"}
+                                        </Button>
+                                    </Col>
+                                </Row>
+                                {sessionTimeoutResult && (
+                                    <Alert
+                                        variant={sessionTimeoutResult.success ? "success" : "danger"}
+                                        dismissible
+                                        onClose={() => setSessionTimeoutResult(null)}
+                                        className="mt-3 mb-0"
+                                    >
+                                        {sessionTimeoutResult.message}
+                                    </Alert>
+                                )}
 
+                                <hr />
+
+                                <div className="d-flex align-items-center gap-1 mb-3">
+                                    <h6 className="fw-bold mb-0">Password Policy</h6>
+                                    <HelpPopover id="password-policy" title="Password policy">
+                                        Sets the minimum number of characters required when users change their password or PIN.
+                                        Use 4 to allow short numeric PINs, or 8+ for stronger password security.
+                                    </HelpPopover>
+                                </div>
+                                <Row className="g-2 align-items-end" style={{ maxWidth: 340 }}>
+                                    <Col>
+                                        <Form.Label className="small mb-1">Minimum password / PIN length</Form.Label>
+                                        <Form.Control
+                                            type="number"
+                                            min={4}
+                                            max={32}
+                                            value={minPasswordLengthInput}
+                                            onChange={(e) => setMinPasswordLengthInput(e.target.value)}
+                                        />
+                                        <Form.Text className="text-muted">Minimum 4 (PIN), recommended 8+ for passwords.</Form.Text>
+                                    </Col>
+                                    <Col xs="auto">
+                                        <Button
+                                            variant="primary"
+                                            onClick={handleSavePasswordPolicy}
+                                            disabled={passwordPolicySaving || Number(minPasswordLengthInput) === minPasswordLength}
+                                        >
+                                            {passwordPolicySaving ? <Spinner animation="border" size="sm" /> : "Save"}
+                                        </Button>
+                                    </Col>
+                                </Row>
+                                {passwordPolicyResult && (
+                                    <Alert
+                                        variant={passwordPolicyResult.success ? "success" : "danger"}
+                                        dismissible
+                                        onClose={() => setPasswordPolicyResult(null)}
+                                        className="mt-3 mb-0"
+                                    >
+                                        {passwordPolicyResult.message}
+                                    </Alert>
+                                )}
+                            </Card.Body>
+                        </Card>
+                    </Col>
+
+                    <Col md={6}>
+                        <Card className="shadow-sm h-100">
+                            <Card.Header className="bg-light fw-bold">Account Security</Card.Header>
+                            <Card.Body>
+                                <h6 className="mb-1">Security Question</h6>
+                                <p className="text-muted small mb-2">
+                                    Used on the login page &#8594; <strong>Forgot password</strong> to verify your identity and reset your password.
+                                </p>
+                                {!hasSecurityQuestion && (
+                                    <Alert variant="warning" className="py-2 small">Not configured — set a question so you can recover access if your password is forgotten.</Alert>
+                                )}
+                                {hasSecurityQuestion && currentSecurityQuestion && (
+                                    <div className="mb-3 p-2 border rounded bg-light small">
+                                        <span className="text-muted">Current question: </span>
+                                        <strong>{currentSecurityQuestion}</strong>
+                                    </div>
+                                )}
+                                {securityResult && (
+                                    <Alert variant={securityResult.success ? "success" : "danger"} className="py-2 small">
+                                        {securityResult.success ? "Security question saved." : securityResult.error}
+                                    </Alert>
+                                )}
+                                <Form.Group className="mb-2">
+                                    <Form.Label className="small">{hasSecurityQuestion ? "Change question" : "Choose a security question"}</Form.Label>
+                                    <Form.Select value={securityQuestion} onChange={(e) => setSecurityQuestion(e.target.value)}>
+                                        <option value="">— Select a question —</option>
+                                        {SECURITY_QUESTIONS.map((q) => (
+                                            <option key={q} value={q}>{q}</option>
+                                        ))}
+                                    </Form.Select>
+                                </Form.Group>
+                                <Form.Group className="mb-3">
+                                    <Form.Label className="small">Your answer</Form.Label>
+                                    <Form.Control
+                                        type="password"
+                                        value={securityAnswer}
+                                        onChange={(e) => setSecurityAnswer(e.target.value)}
+                                        placeholder="Answer (case-insensitive)"
+                                    />
+                                </Form.Group>
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={handleSaveSecurityQuestion}
+                                    disabled={securitySaving || !securityQuestion || !securityAnswer.trim()}
+                                >
+                                    {securitySaving ? <><Spinner animation="border" size="sm" className="me-1" />Saving…</> : "Save Security Question"}
+                                </Button>
+
+                                <hr />
+
+                                <h6 className="mb-1">Recovery Code</h6>
+                                <p className="text-muted small mb-2">
+                                    A one-time 8-character code — an alternative to the security question on the <strong>Forgot password</strong> screen.
+                                    Consumed on first use. Store it somewhere safe; it will only be shown once.
+                                </p>
+                                {recoveryCodeGeneratedAt && !generatedCode && (
+                                    <Alert variant="info" className="py-2">
+                                        Last generated: {new Date(recoveryCodeGeneratedAt).toLocaleString()}
+                                    </Alert>
+                                )}
+                                {generatedCode && (
+                                    <Alert variant="warning">
+                                        <strong>Your recovery code — save this now:</strong>
+                                        <div className="d-flex align-items-center gap-2 mt-2">
+                                            <code className="fs-5 fw-bold letter-spacing-2">{generatedCode}</code>
+                                            <Button
+                                                size="sm"
+                                                variant="outline-secondary"
+                                                onClick={() => { navigator.clipboard.writeText(generatedCode); setCodeCopied(true); }}
+                                            >
+                                                {codeCopied ? "Copied!" : "Copy"}
+                                            </Button>
+                                        </div>
+                                        <div className="small text-danger mt-1">This code will not be shown again.</div>
+                                    </Alert>
+                                )}
+                                <Button
+                                    variant={recoveryCodeGeneratedAt ? "outline-warning" : "outline-primary"}
+                                    onClick={handleGenerateRecoveryCode}
+                                    disabled={recoveryCodeLoading}
+                                >
+                                    {recoveryCodeLoading
+                                        ? <><Spinner animation="border" size="sm" className="me-1" />Generating…</>
+                                        : recoveryCodeGeneratedAt ? "Regenerate Recovery Code" : "Generate Recovery Code"}
+                                </Button>
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                </Row>
                 <Modal show={restoreConfirm !== null} onHide={() => !restoreBusy && setRestoreConfirm(null)} centered>
                     <Modal.Header closeButton={!restoreBusy}>
                         <Modal.Title>Confirm database restore</Modal.Title>

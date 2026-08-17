@@ -12,7 +12,7 @@ export enum ProductionStatus {
 @Index(["status"])
 @Index(["created_at"])
 export class Production extends BaseEntity {
-    @Column({ type: "varchar", length: 255 })
+    @Column({ type: "varchar", length: 255, unique: true })
     name: string;
 
     @Column({ type: "text", nullable: true })
@@ -24,6 +24,9 @@ export class Production extends BaseEntity {
         default: ProductionStatus.OPEN,
     })
     status: ProductionStatus;
+
+    @Column({ type: "datetime", nullable: true, name: "deleted_at" })
+    deleted_at: Date | null;
 
     @OneToMany(() => ProductionItem, (item) => item.production)
     items: ProductionItem[];

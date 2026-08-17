@@ -211,14 +211,7 @@ const SupervisorBillSettingsPage = () => {
     return (
         <RoleAwareLayout>
             <div className="container-fluid">
-                <PageHeaderStrip
-                    actions={
-                        <Button variant="light" onClick={handleAdd}>
-                            <i className="bi bi-plus-circle me-2"></i>
-                            Add Reopen Reason
-                        </Button>
-                    }
-                >
+                <PageHeaderStrip>
                     <div className="d-flex align-items-center gap-2 flex-wrap">
                         <h1 className="h4 mb-0 fw-bold">Bill Settings</h1>
                         <HelpPopover
@@ -244,7 +237,7 @@ const SupervisorBillSettingsPage = () => {
                 />
 
                 <div className="card shadow-sm">
-                    <div className="card-header bg-light">
+                    <div className="card-header bg-light d-flex align-items-center justify-content-between">
                         <h5 className="mb-0 fw-bold d-flex align-items-center gap-2 flex-wrap">
                             <span>
                                 <i className="bi bi-list-ul me-2 text-primary"></i>
@@ -259,6 +252,10 @@ const SupervisorBillSettingsPage = () => {
                                 reopening; inactive ones stay out of new selections.
                             </HelpPopover>
                         </h5>
+                        <Button size="sm" variant="primary" onClick={handleAdd}>
+                            <i className="bi bi-plus-circle me-1"></i>
+                            Add Reopen Reason
+                        </Button>
                     </div>
                     <div className="card-body">
                         {loading ? (

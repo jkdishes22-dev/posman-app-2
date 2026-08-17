@@ -134,10 +134,16 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             icon: "bi-box-seam",
             submenu: [
                 {
-                    id: "production-issuing",
-                    label: "Issue Production",
-                    icon: "bi-arrow-up-circle",
+                    id: "production-sessions",
+                    label: "Manage production",
+                    icon: "bi-collection",
                     path: "/supervisor/production",
+                },
+                {
+                    id: "production-history",
+                    label: "Transactions",
+                    icon: "bi-clock-history",
+                    path: "/supervisor/production/history",
                 },
             ],
         },
@@ -427,7 +433,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             {/* Main Content */}
             <div className="flex-grow-1 d-flex flex-column min-w-0 overflow-hidden">
                 {/* Page Content */}
-                <main className="flex-grow-1 p-4 min-w-0 overflow-hidden">
+                <main className="flex-grow-1 p-4 min-w-0" style={{ overflowY: "auto" }}>
                     {authError && (
                         <div className="alert alert-danger" role="alert">
                             <i className="bi bi-exclamation-triangle me-2"></i>

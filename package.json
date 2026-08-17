@@ -6,7 +6,7 @@
   "description": "JK POSMAN",
   "scripts": {
     "tsc": "tsc --noEmit",
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
     "start": "NODE_ENV=production next start",
     "lint": "next lint",

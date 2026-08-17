@@ -31,6 +31,7 @@ const ChangePasswordPage = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [dashboardPath, setDashboardPath] = useState("/home");
+  const [minPasswordLength, setMinPasswordLength] = useState(8);
 
   useEffect(() => {
     setIsClient(true);
@@ -51,6 +52,14 @@ const ChangePasswordPage = () => {
     }
   }, [router]);
 
+  useEffect(() => {
+    apiCall("/api/system/settings?key=system_settings&sub=security_policy").then((res) => {
+      if (res.status === 200 && typeof res.data?.value?.min_password_length === "number") {
+        setMinPasswordLength(Math.max(4, res.data.value.min_password_length));
+      }
+    }).catch(() => {});
+  }, [apiCall]);
+
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -63,8 +72,8 @@ const ChangePasswordPage = () => {
       setError("Please enter a new password.");
       return;
     }
-    if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters.");
+    if (newPassword.length < minPasswordLength) {
+      setError(`New password must be at least ${minPasswordLength} characters.`);
       return;
     }
     if (newPassword === currentPassword) {
@@ -199,7 +208,7 @@ const ChangePasswordPage = () => {
                         <input
                           type={showNew ? "text" : "password"}
                           className="form-control border-start-0 border-end-0"
-                          placeholder="At least 8 characters"
+                          placeholder={`At least ${minPasswordLength} characters`}
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           autoComplete="new-password"
@@ -215,10 +224,10 @@ const ChangePasswordPage = () => {
                           <i className={`bi ${showNew ? "bi-eye-slash" : "bi-eye"}`}></i>
                         </button>
                       </div>
-                      {newPassword.length > 0 && newPassword.length < 8 && (
+                      {newPassword.length > 0 && newPassword.length < minPasswordLength && (
                         <div className="form-text text-primary small">
                           <i className="bi bi-info-circle me-1"></i>
-                          Must be at least 8 characters
+                          Must be at least {minPasswordLength} characters
                         </div>
                       )}
                     </div>
@@ -257,7 +266,7 @@ const ChangePasswordPage = () => {
                           Passwords do not match
                         </div>
                       )}
-                      {confirmPassword.length > 0 && newPassword === confirmPassword && newPassword.length >= 8 && (
+                      {confirmPassword.length > 0 && newPassword === confirmPassword && newPassword.length >= minPasswordLength && (
                         <div className="form-text text-success small">
                           <i className="bi bi-check-circle me-1"></i>
                           Passwords match
