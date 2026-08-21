@@ -84,9 +84,16 @@ async function replaceWindowsSqliteBinary(context, destNodeModules, projectRoot,
     const bsq3Version = JSON.parse(fs.readFileSync(bsq3PkgPath, "utf8")).version;
 
     const existingMachine = readPeMachine(destBinaryPath);
-    if (existingMachine != null && peMachineMatchesTargetArch(existingMachine, arch)) {
+    // When ELECTRON_VERSION is explicitly set (e.g. the Win7 legacy build), skip the arch-only
+    // early return: a Windows PE binary may have the wrong NMV (e.g. 108 for Node 18 instead of
+    // 110 for Electron 22) even though its PE machine type is correct. Always download in this case.
+    const forceReplace = !!(process.env.ELECTRON_VERSION || "").trim();
+    if (!forceReplace && existingMachine != null && peMachineMatchesTargetArch(existingMachine, arch)) {
         log(`   ✅ better_sqlite3.node already matches target arch (${arch}) — skipping download`);
         return;
+    }
+    if (forceReplace && existingMachine != null && peMachineMatchesTargetArch(existingMachine, arch)) {
+        log(`   🔄 ELECTRON_VERSION override set — replacing binary regardless of arch match to ensure correct NMV`);
     }
 
     /** Prefer env / installed electron package — electron-builder context often tracks package.json devDependency, not CI-pinned Electron (e.g. Win7 legacy line). */

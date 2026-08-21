@@ -89,23 +89,37 @@ jobs:
       - name: Rebuild keytar for legacy Electron
         shell: pwsh
         run: |
-          Push-Location ".next/standalone"
+          # Rebuild in root node_modules where full source is available.
+          # .next/standalone/node_modules only contains traced JS + pre-compiled binary — no binding.gyp.
           npx --yes @electron/rebuild --module-dir "." --only keytar --arch x64 --version $env:ELECTRON_VERSION --force
-          Pop-Location
+          $srcBinary = "node_modules/keytar/build/Release/keytar.node"
+          if (-not (Test-Path $srcBinary)) {
+            Write-Error "keytar rebuild failed — binary not found at $srcBinary"
+            exit 1
+          }
+          $destBinary = ".next/standalone/node_modules/keytar/build/Release/keytar.node"
+          New-Item -ItemType Directory -Path (Split-Path $destBinary) -Force | Out-Null
+          Copy-Item -Path $srcBinary -Destination $destBinary -Force
+          Write-Host "✅ keytar (Electron $env:ELECTRON_VERSION ABI) installed: $destBinary"
 
       - name: Rebuild better-sqlite3 for legacy Electron ABI
         shell: pwsh
         run: |
-          Push-Location ".next/standalone"
-          Remove-Item -Recurse -Force "node_modules/better-sqlite3/build" -ErrorAction SilentlyContinue
+          # Rebuild in root node_modules where full source (binding.gyp, src/, deps/) is available.
+          # .next/standalone/node_modules only ships the traced JS files + pre-compiled Node.js binary —
+          # @electron/rebuild cannot compile from source there, leaving NMV 108 (Node 18) instead of
+          # NMV 110 (Electron 22), which causes the "compiled against a different Node.js version" error.
           npx --yes @electron/rebuild --module-dir "." --only better-sqlite3 --arch x64 --version $env:ELECTRON_VERSION --force
-          $binaryPath = "node_modules/better-sqlite3/build/Release/better_sqlite3.node"
-          if (-not (Test-Path $binaryPath)) {
-            Write-Error "better-sqlite3 rebuild failed — binary not found at $binaryPath"
+          $srcBinary = "node_modules/better-sqlite3/build/Release/better_sqlite3.node"
+          if (-not (Test-Path $srcBinary)) {
+            Write-Error "better-sqlite3 rebuild failed — binary not found at $srcBinary"
             exit 1
           }
-          Write-Host "better-sqlite3 rebuilt successfully: $binaryPath"
-          Pop-Location
+          # Copy the Electron-22-compiled binary into the standalone, replacing the Node.js-compiled one.
+          $destBinary = ".next/standalone/node_modules/better-sqlite3/build/Release/better_sqlite3.node"
+          New-Item -ItemType Directory -Path (Split-Path $destBinary) -Force | Out-Null
+          Copy-Item -Path $srcBinary -Destination $destBinary -Force
+          Write-Host "✅ better-sqlite3 (Electron $env:ELECTRON_VERSION ABI) installed: $destBinary"
 
       - name: Install undici v5 into standalone (Node 16 fetch polyfill)
         shell: pwsh
