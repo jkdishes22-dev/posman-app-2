@@ -29,7 +29,7 @@ export class ProductionSessionService {
             throw new Error("Production name is required");
         }
         const existing = await this.productionRepository.findOne({ where: { name: input.name.trim() } });
-        if (existing) {
+        if (existing && !existing.deleted_at && existing.status === ProductionStatus.OPEN) {
             throw new Error(`A production named "${input.name.trim()}" already exists. Please use a different name.`);
         }
         const production = this.productionRepository.create({
