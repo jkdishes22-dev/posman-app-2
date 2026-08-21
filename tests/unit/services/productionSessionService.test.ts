@@ -204,6 +204,7 @@ describe("ProductionSessionService", () => {
   describe("fetchProductions", () => {
     it("returns empty list and total 0 when no rows", async () => {
       mockProductionRepo.manager.query
+        .mockResolvedValueOnce([])          // autoCloseStaleProductions: no production_settings → returns early
         .mockResolvedValueOnce([{ cnt: 0 }])
         .mockResolvedValueOnce([]);
 
@@ -213,18 +214,20 @@ describe("ProductionSessionService", () => {
       expect(result.productions).toHaveLength(0);
     });
 
-    it("runs two queries — count then fetch", async () => {
+    it("runs three queries — auto-close check, count, fetch", async () => {
       mockProductionRepo.manager.query
+        .mockResolvedValueOnce([])          // autoCloseStaleProductions: no production_settings → returns early
         .mockResolvedValueOnce([{ cnt: 1 }])
         .mockResolvedValueOnce([makeProductionRow()]);
 
       await service.fetchProductions({});
 
-      expect(mockProductionRepo.manager.query).toHaveBeenCalledTimes(2);
+      expect(mockProductionRepo.manager.query).toHaveBeenCalledTimes(3);
     });
 
     it("maps row to Production with item_count", async () => {
       mockProductionRepo.manager.query
+        .mockResolvedValueOnce([])          // autoCloseStaleProductions: no production_settings → returns early
         .mockResolvedValueOnce([{ cnt: 1 }])
         .mockResolvedValueOnce([makeProductionRow({ item_count: 4 })]);
 
@@ -239,63 +242,68 @@ describe("ProductionSessionService", () => {
 
     it("applies status filter in WHERE clause", async () => {
       mockProductionRepo.manager.query
+        .mockResolvedValueOnce([])          // autoCloseStaleProductions: no production_settings → returns early
         .mockResolvedValueOnce([{ cnt: 0 }])
         .mockResolvedValueOnce([]);
 
       await service.fetchProductions({ status: ProductionStatus.CLOSED });
 
-      const countSql = String(mockProductionRepo.manager.query.mock.calls[0][0]);
+      const countSql = String(mockProductionRepo.manager.query.mock.calls[1][0]);
       expect(countSql).toContain("p.status = ?");
-      expect(mockProductionRepo.manager.query.mock.calls[0][1]).toContain(ProductionStatus.CLOSED);
+      expect(mockProductionRepo.manager.query.mock.calls[1][1]).toContain(ProductionStatus.CLOSED);
     });
 
     it("applies start_date filter in WHERE clause", async () => {
       mockProductionRepo.manager.query
+        .mockResolvedValueOnce([])          // autoCloseStaleProductions: no production_settings → returns early
         .mockResolvedValueOnce([{ cnt: 0 }])
         .mockResolvedValueOnce([]);
 
       const start = new Date("2024-04-01");
       await service.fetchProductions({ start_date: start });
 
-      const countSql = String(mockProductionRepo.manager.query.mock.calls[0][0]);
+      const countSql = String(mockProductionRepo.manager.query.mock.calls[1][0]);
       expect(countSql).toContain("p.created_at >= ?");
     });
 
     it("applies end_date filter and sets time to end of day", async () => {
       mockProductionRepo.manager.query
+        .mockResolvedValueOnce([])          // autoCloseStaleProductions: no production_settings → returns early
         .mockResolvedValueOnce([{ cnt: 0 }])
         .mockResolvedValueOnce([]);
 
       const end = new Date("2024-04-30");
       await service.fetchProductions({ end_date: end });
 
-      const countSql = String(mockProductionRepo.manager.query.mock.calls[0][0]);
+      const countSql = String(mockProductionRepo.manager.query.mock.calls[1][0]);
       expect(countSql).toContain("p.created_at <= ?");
-      const params = mockProductionRepo.manager.query.mock.calls[0][1] as string[];
+      const params = mockProductionRepo.manager.query.mock.calls[1][1] as string[];
       // setHours(23,59,59,999) in local time — ISO string ends in :59.999Z regardless of offset
       expect(params[0]).toMatch(/:59\.999Z$/);
     });
 
     it("uses default limit=100 and offset=0", async () => {
       mockProductionRepo.manager.query
+        .mockResolvedValueOnce([])          // autoCloseStaleProductions: no production_settings → returns early
         .mockResolvedValueOnce([{ cnt: 0 }])
         .mockResolvedValueOnce([]);
 
       await service.fetchProductions({});
 
-      const fetchParams = mockProductionRepo.manager.query.mock.calls[1][1] as unknown[];
+      const fetchParams = mockProductionRepo.manager.query.mock.calls[2][1] as unknown[];
       expect(fetchParams.at(-2)).toBe(100);
       expect(fetchParams.at(-1)).toBe(0);
     });
 
     it("uses provided limit and offset", async () => {
       mockProductionRepo.manager.query
+        .mockResolvedValueOnce([])          // autoCloseStaleProductions: no production_settings → returns early
         .mockResolvedValueOnce([{ cnt: 0 }])
         .mockResolvedValueOnce([]);
 
       await service.fetchProductions({ limit: 10, offset: 20 });
 
-      const fetchParams = mockProductionRepo.manager.query.mock.calls[1][1] as unknown[];
+      const fetchParams = mockProductionRepo.manager.query.mock.calls[2][1] as unknown[];
       expect(fetchParams.at(-2)).toBe(10);
       expect(fetchParams.at(-1)).toBe(20);
     });
