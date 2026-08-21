@@ -134,6 +134,10 @@ jobs:
             Write-Host "⚠️ No WINDOWS_CERTIFICATE secret — building unsigned"
           }
 
+      - name: Fix swagger-api tree-sitter deps (electron-builder workaround)
+        shell: pwsh
+        run: node scripts/fix-swagger-deps.cjs
+
       - name: Build Windows NSIS Installer (x64)
         run: npx electron-builder --win --x64 --config electron-builder.config.cjs --config.compression=store --config.npmRebuild=false --publish never
         env:
