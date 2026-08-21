@@ -1340,7 +1340,7 @@ const BillingSection = () => {
       )}
 
       {/* Submit Confirmation Modal - Simple Bill Creation */}
-      <Modal show={showSubmitModal} onHide={handleCloseSubmitModal} size="lg" centered backdrop="static" keyboard={false}>
+      <Modal show={showSubmitModal} onHide={handleCloseSubmitModal} size="lg" centered backdrop="static" keyboard={false} dialogClassName="submit-bill-modal-dialog">
         <Modal.Header closeButton className="bg-primary text-white">
           <Modal.Title className="fw-bold">
             Confirm create bill: KES {(Number(totalAmount) || 0).toFixed(2)}
