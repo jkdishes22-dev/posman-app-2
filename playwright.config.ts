@@ -21,10 +21,10 @@ export default defineConfig({
   ],
   outputDir: 'tests/playwright/results',
   webServer: {
-    command: 'npm run dev',
+    command: 'next dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120000,
+    timeout: 180000,
     env: {
       DB_MODE: 'sqlite',
       SQLITE_DB_PATH: TEST_DB_PATH,
