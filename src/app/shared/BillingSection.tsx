@@ -1418,17 +1418,21 @@ const BillingSection = () => {
                 {/* M-Pesa Reference Input */}
                 {mpesaSettled && !cashSettled && (
                   <div className="mt-2">
+                    <label className="fw-semibold fs-6 mb-1 d-block">
+                      <i className="bi bi-phone me-1 text-primary"></i>
+                      M-Pesa Reference <span className="text-danger">*</span>
+                    </label>
                     <div className="position-relative">
                       <input
                         type="text"
-                        className={`form-control${mpesaRefValidationError && mpesaRef.trim() ? " is-invalid" : mpesaRef.trim() && !isValidatingMpesaRef && !mpesaRefValidationError ? " is-valid" : ""}`}
-                        placeholder="M-Pesa reference (e.g. QRM123456789)"
+                        className={`form-control form-control-lg${mpesaRefValidationError && mpesaRef.trim() ? " is-invalid" : mpesaRef.trim() && !isValidatingMpesaRef && !mpesaRefValidationError ? " is-valid" : ""}`}
+                        placeholder="e.g. QRM123456789"
                         value={mpesaRef}
                         onChange={(e) => setMpesaRef(e.target.value.toUpperCase())}
                         disabled={isSubmitting}
                         autoComplete="off"
                         spellCheck={false}
-                        style={{ fontSize: "1rem", padding: "0.6rem 0.75rem", letterSpacing: "0.04em" }}
+                        style={{ letterSpacing: "0.06em", fontWeight: 600 }}
                       />
                       {isValidatingMpesaRef && (
                         <div className="position-absolute top-50 end-0 translate-middle-y me-2">
@@ -1437,9 +1441,9 @@ const BillingSection = () => {
                       )}
                     </div>
                     {!mpesaRef.trim() && (
-                      <div className="text-muted small mt-1">
-                        <i className="bi bi-info-circle me-1"></i>
-                        Reference required to auto-settle via M-Pesa
+                      <div className="alert alert-warning py-2 px-3 mb-0 mt-2 d-flex align-items-center gap-2">
+                        <i className="bi bi-exclamation-triangle-fill fs-5"></i>
+                        <span className="fw-medium">Enter the M-Pesa reference to auto-settle this bill</span>
                       </div>
                     )}
                     {mpesaRefValidationError && (
