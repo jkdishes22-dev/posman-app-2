@@ -317,6 +317,52 @@ test.describe("Billing flow", () => {
         dialog.getByRole("button", { name: /Create & Settle \(Cash\)/i }),
       ).toBeVisible({ timeout: 5000 });
     });
+
+    test.describe("Keypad (M-Pesa QWERTY keyboard)", () => {
+      test.beforeEach(async ({ page }) => {
+        await page.getByRole("button", { name: /Create Bill/ }).first().click();
+        await expect(page.getByText(/Confirm create bill/i)).toBeVisible({ timeout: 5000 });
+        await page.getByTestId("payment-method-mpesa").click();
+      });
+
+      test("modal dialog uses the wider submit-bill-modal-dialog class", async ({ page }) => {
+        await expect(page.locator(".modal-dialog.submit-bill-modal-dialog")).toBeVisible({ timeout: 5000 });
+      });
+
+      test("QWERTY keyboard appears when M-Pesa is selected", async ({ page }) => {
+        await expect(page.locator(".submit-bill-vkeyboard")).toBeVisible({ timeout: 5000 });
+      });
+
+      test("keyboard keys use btn-outline-secondary styling", async ({ page }) => {
+        const qKey = page.locator(".submit-bill-vkeyboard button").filter({ hasText: /^Q$/i }).first();
+        await expect(qKey).toBeVisible({ timeout: 5000 });
+        await expect(qKey).toHaveClass(/btn-outline-secondary/);
+      });
+
+      test("keyboard keys use comfortable row padding (py-3)", async ({ page }) => {
+        const qKey = page.locator(".submit-bill-vkeyboard button").filter({ hasText: /^Q$/i }).first();
+        await expect(qKey).toBeVisible({ timeout: 5000 });
+        await expect(qKey).toHaveClass(/py-3/);
+      });
+
+      test("all three QWERTY rows are present", async ({ page }) => {
+        const keyboard = page.locator(".submit-bill-vkeyboard");
+        await expect(keyboard).toBeVisible({ timeout: 5000 });
+        for (const letter of ["Q", "A", "Z"]) {
+          await expect(
+            keyboard.getByRole("button", { name: letter, exact: true }),
+          ).toBeVisible();
+        }
+      });
+
+      test("Caps Lock, Space, Backspace, Clear keys are present", async ({ page }) => {
+        const keyboard = page.locator(".submit-bill-vkeyboard");
+        await expect(keyboard.getByRole("button", { name: "Caps Lock", exact: true })).toBeVisible({ timeout: 5000 });
+        await expect(keyboard.getByRole("button", { name: "Space", exact: true })).toBeVisible();
+        await expect(keyboard.getByRole("button", { name: "Backspace", exact: true })).toBeVisible();
+        await expect(keyboard.getByRole("button", { name: "Clear", exact: true })).toBeVisible();
+      });
+    });
   });
 
   // ── Bill creation ────────────────────────────────────────────────────────────

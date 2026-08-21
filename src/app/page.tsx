@@ -559,14 +559,14 @@ const LoginForm = () => {
               <div className="btn-group w-100 mb-2" role="group" aria-label="Keyboard layout">
                 <button
                   type="button"
-                  className={`btn btn-sm ${keyboardMode === "numeric" ? "btn-secondary" : "btn-outline-secondary"}`}
+                  className={`btn ${keyboardMode === "numeric" ? "btn-primary" : "btn-outline-secondary"}`}
                   onClick={() => setKeyboardMode("numeric")}
                 >
                   123
                 </button>
                 <button
                   type="button"
-                  className={`btn btn-sm ${keyboardMode === "alpha" ? "btn-secondary" : "btn-outline-secondary"}`}
+                  className={`btn ${keyboardMode === "alpha" ? "btn-primary" : "btn-outline-secondary"}`}
                   onClick={() => setKeyboardMode("alpha")}
                 >
                   ABC
@@ -588,7 +588,7 @@ const LoginForm = () => {
           <div className="p-3 border bg-light mb-3">
             <div className="p-3 border bg-light h-100 d-flex flex-column justify-content-center align-items-center">
               <img
-                src="/icons/JK-icon.svg"
+                src="/images/jk-big.png"
                 width={300}
                 height={300}
                 className="m-2"

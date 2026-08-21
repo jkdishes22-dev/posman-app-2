@@ -21,7 +21,7 @@ test.describe('Login page', () => {
     test('logo renders correctly', async ({ page }) => {
       const logo = page.locator('img[alt="JK PosMan"]');
       await expect(logo).toBeVisible();
-      await expect(logo).toHaveAttribute('src', '/icons/JK-icon.svg');
+      await expect(logo).toHaveAttribute('src', '/images/jk-big.png');
     });
 
     test('numpad digits 0-9 are visible', async ({ page }) => {

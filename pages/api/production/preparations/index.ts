@@ -23,19 +23,32 @@ const issueWithAutoBucketHandler = async (req: NextApiRequest, res: NextApiRespo
     const sessionSvc = new ProductionSessionService(req.db);
     const itemSvc = new ProductionItemService(req.db);
 
-    // Use today's open production or create one
+    // Use today's open production or create one.
+    // Search by name (which encodes the date) to avoid SQLite date-format mismatch
+    // where TypeORM stores "YYYY-MM-DD HH:MM:SS" but ISO params use "T" separator.
     const today = new Date();
     const todayName = `Production for ${format(today, "EEE, MMM do")}`;
     const { productions } = await sessionSvc.fetchProductions({
         status: "open" as any,
-        start_date: new Date(today.setHours(0, 0, 0, 0)),
-        end_date: new Date(today.setHours(23, 59, 59, 999)),
+        search: todayName,
         limit: 1,
     });
 
     let production = productions[0];
     if (!production) {
-        production = await sessionSvc.createProduction({ name: todayName }, userId);
+        try {
+            production = await sessionSvc.createProduction({ name: todayName }, userId);
+        } catch (err: any) {
+            if (!err?.message?.includes("already exists")) throw err;
+            // A concurrent request already created it — find it by name
+            const { productions: found } = await sessionSvc.fetchProductions({
+                status: "open" as any,
+                search: todayName,
+                limit: 1,
+            });
+            if (!found[0]) throw err;
+            production = found[0];
+        }
     }
 
     try {

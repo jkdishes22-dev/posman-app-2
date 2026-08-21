@@ -149,6 +149,38 @@ describe("ProductionSessionService", () => {
         expect.objectContaining({ created_by: 42 })
       );
     });
+
+    it("throws when an OPEN non-deleted production with the same name exists", async () => {
+      mockProductionRepo.findOne.mockResolvedValue({
+        id: 1, name: "Morning Run", status: ProductionStatus.OPEN, deleted_at: null,
+      });
+
+      await expect(
+        service.createProduction({ name: "Morning Run" }, 1)
+      ).rejects.toThrow("already exists");
+    });
+
+    it("allows creating when an existing production with the same name is CLOSED", async () => {
+      mockProductionRepo.findOne.mockResolvedValue({
+        id: 1, name: "Morning Run", status: ProductionStatus.CLOSED, deleted_at: null,
+      });
+      mockProductionRepo.save.mockResolvedValue({ id: 2, name: "Morning Run" });
+
+      const result = await service.createProduction({ name: "Morning Run" }, 1);
+
+      expect(result.id).toBe(2);
+    });
+
+    it("allows creating when an existing production with the same name is soft-deleted", async () => {
+      mockProductionRepo.findOne.mockResolvedValue({
+        id: 1, name: "Morning Run", status: ProductionStatus.OPEN, deleted_at: new Date(),
+      });
+      mockProductionRepo.save.mockResolvedValue({ id: 2, name: "Morning Run" });
+
+      const result = await service.createProduction({ name: "Morning Run" }, 1);
+
+      expect(result.id).toBe(2);
+    });
   });
 
   // ─── closeProduction ──────────────────────────────────────────────────────
