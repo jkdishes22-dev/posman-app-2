@@ -357,10 +357,10 @@ test.describe("Billing flow", () => {
 
       test("Caps Lock, Space, Backspace, Clear keys are present", async ({ page }) => {
         const keyboard = page.locator(".submit-bill-vkeyboard");
-        await expect(keyboard.getByRole("button", { name: "Caps Lock" })).toBeVisible({ timeout: 5000 });
-        await expect(keyboard.getByRole("button", { name: "Space" })).toBeVisible();
-        await expect(keyboard.getByRole("button", { name: "Backspace" })).toBeVisible();
-        await expect(keyboard.getByRole("button", { name: "Clear" })).toBeVisible();
+        await expect(keyboard.getByRole("button", { name: "Caps Lock", exact: true })).toBeVisible({ timeout: 5000 });
+        await expect(keyboard.getByRole("button", { name: "Space", exact: true })).toBeVisible();
+        await expect(keyboard.getByRole("button", { name: "Backspace", exact: true })).toBeVisible();
+        await expect(keyboard.getByRole("button", { name: "Clear", exact: true })).toBeVisible();
       });
     });
   });
