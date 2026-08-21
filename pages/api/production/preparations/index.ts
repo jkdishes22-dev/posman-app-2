@@ -35,7 +35,20 @@ const issueWithAutoBucketHandler = async (req: NextApiRequest, res: NextApiRespo
 
     let production = productions[0];
     if (!production) {
-        production = await sessionSvc.createProduction({ name: todayName }, userId);
+        try {
+            production = await sessionSvc.createProduction({ name: todayName }, userId);
+        } catch (err: any) {
+            if (!err?.message?.includes("already exists")) throw err;
+            // Race condition: another concurrent request created it — re-fetch
+            const { productions: found } = await sessionSvc.fetchProductions({
+                status: "open" as any,
+                start_date: new Date(new Date().setHours(0, 0, 0, 0)),
+                end_date: new Date(new Date().setHours(23, 59, 59, 999)),
+                limit: 1,
+            });
+            if (!found[0]) throw err;
+            production = found[0];
+        }
     }
 
     try {
