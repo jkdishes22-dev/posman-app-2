@@ -35,15 +35,15 @@ const nextConfig = {
     experimental: {
         // Prevent server bundle class-name mangling that breaks TypeORM targetName lookups.
         serverMinification: false,
-    },
-    turbopack: {
-        resolveAlias: {
-            "@backend": path.resolve(__dirname, "src/backend"),
-            "@entities": path.resolve(__dirname, "src/backend/entities"),
-            "@services": path.resolve(__dirname, "src/backend/service"),
-            "@repos": path.resolve(__dirname, "src/backend/repos"),
-            "@controllers": path.resolve(__dirname, "src/backend/controllers"),
-            "@interfaces": path.resolve(__dirname, "src/backend/interfaces"),
+        turbo: {
+            resolveAlias: {
+                "@backend": path.resolve(__dirname, "src/backend"),
+                "@entities": path.resolve(__dirname, "src/backend/entities"),
+                "@services": path.resolve(__dirname, "src/backend/service"),
+                "@repos": path.resolve(__dirname, "src/backend/repos"),
+                "@controllers": path.resolve(__dirname, "src/backend/controllers"),
+                "@interfaces": path.resolve(__dirname, "src/backend/interfaces"),
+            },
         },
     },
     // Include migration files and native modules in the standalone server bundle.
