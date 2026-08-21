@@ -105,20 +105,23 @@ jobs:
       - name: Rebuild better-sqlite3 for legacy Electron ABI
         shell: pwsh
         run: |
-          # Rebuild in root node_modules where full source (binding.gyp, src/, deps/) is available.
-          # .next/standalone/node_modules only ships the traced binary (Node.js 18, NMV 108).
-          # Running @electron/rebuild there has no source to compile against, so NMV stays wrong.
-          # Fix: rebuild here in root, then copy the Electron-22 binary (NMV 110) into standalone.
+          # Rebuild at root (better-sqlite3@8.7.0 already installed there).
+          # .next/standalone doesn't auto-include native modules, so we copy the full
+          # package after rebuilding rather than trying to rebuild inside standalone.
+          # This ensures the Electron-22 ABI (NMV 110) binary replaces the Node.js 18 one (NMV 108).
+          Remove-Item -Recurse -Force "node_modules/better-sqlite3/build" -ErrorAction SilentlyContinue
           npx --yes @electron/rebuild --module-dir "." --only better-sqlite3 --arch x64 --version $env:ELECTRON_VERSION --force
           $srcBinary = "node_modules/better-sqlite3/build/Release/better_sqlite3.node"
           if (-not (Test-Path $srcBinary)) {
             Write-Error "better-sqlite3 rebuild failed - binary not found at $srcBinary"
             exit 1
           }
-          $destBinary = ".next/standalone/node_modules/better-sqlite3/build/Release/better_sqlite3.node"
-          New-Item -ItemType Directory -Path (Split-Path $destBinary) -Force | Out-Null
-          Copy-Item -Path $srcBinary -Destination $destBinary -Force
-          Write-Host "better-sqlite3 (Electron $env:ELECTRON_VERSION ABI) installed: $destBinary"
+          Write-Host "better-sqlite3 rebuilt at root: $srcBinary"
+          # Copy the full rebuilt package into standalone so it is available at runtime.
+          $destDir = ".next/standalone/node_modules/better-sqlite3"
+          if (Test-Path $destDir) { Remove-Item -Recurse -Force $destDir }
+          Copy-Item -Recurse "node_modules/better-sqlite3" $destDir
+          Write-Host "better-sqlite3 copied to standalone: $destDir"
 
       - name: Install undici v5 into standalone (Node 16 fetch polyfill)
         shell: pwsh
