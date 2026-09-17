@@ -281,43 +281,18 @@ export class BillService {
 
       const bills = await query.getMany();
 
-      // Optimize: Only fetch prices if we have bills and items
-      const billItemIds = bills.flatMap(bill =>
-        bill.bill_items?.map(item => item.id) || []
-      );
-
-      let itemPrices = {};
-      if (billItemIds.length > 0) {
-        // Optimize: Use IN clause with proper indexing
-        const priceQuery = this.billItemRepository
-          .createQueryBuilder("billItem")
-          .leftJoin("pricelist_item", "pi", "pi.item_id = billItem.item_id AND pi.is_enabled = 1")
-          .select([
-            "billItem.id as billItemId",
-            "COALESCE(pi.price, 0) as price"
-          ])
-          .where("billItem.id IN (:...billItemIds)", { billItemIds });
-
-        const priceResults = await priceQuery.getRawMany();
-        itemPrices = priceResults.reduce((acc, result) => {
-          acc[result.billItemId] = parseFloat(result.price) || 0;
-          return acc;
-        }, {});
-      }
-
-      // Transform bills to include item prices
+      // Derive unit price from subtotal/quantity stored at time of sale —
+      // avoids joining pricelist_item which causes duplicates (multi-pricelist items)
+      // and broken display (items removed from all pricelists show price=0).
       const transformedBills = bills.map(bill => ({
         ...bill,
-        bill_items: bill.bill_items?.map(item => {
-          const itemPrice = itemPrices[item.id] || 0;
-          return {
-            ...item,
-            item: {
-              ...item.item,
-              price: itemPrice
-            }
-          };
-        }) || []
+        bill_items: bill.bill_items?.map(item => ({
+          ...item,
+          item: {
+            ...item.item,
+            price: item.quantity > 0 ? item.subtotal / item.quantity : 0,
+          }
+        })) || []
       }));
 
       // Adjust total if billId query returned no results
@@ -566,21 +541,22 @@ export class BillService {
 
   async fetchBillItems(billId: number) {
     const query = `
-    SELECT 
+    SELECT
       bill_item.id,
       bill_item.quantity,
       bill_item.subtotal,
       bill_item.status,
       item.name AS item_name,
       bill_item.created_at AS created_at,
-      pi.price AS item_price
-    FROM 
+      CASE WHEN bill_item.quantity > 0
+        THEN CAST(bill_item.subtotal AS REAL) / bill_item.quantity
+        ELSE 0
+      END AS item_price
+    FROM
       bill_item
-    JOIN 
+    JOIN
       item ON bill_item.item_id = item.id
-    JOIN 
-      pricelist_item pi ON pi.item_id = item.id
-    WHERE 
+    WHERE
       bill_item.bill_id = ?
   `;
     return await AppDataSource.query(query, [billId]);

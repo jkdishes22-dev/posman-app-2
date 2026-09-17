@@ -1049,7 +1049,7 @@ const CashierBillsPage = () => {
                         disabled={selectedBills.filter((id) => {
                           const bill = bills.find((b) => b.id === id);
                           if (!bill || bill.status !== "pending") return false;
-                          if (userRole === "supervisor" || userRole === "admin" || userRole === "cashier") return true;
+                          if (userRole === "supervisor" || userRole === "admin" || userRole === "cashier" || userRole === "sales") return true;
                           return currentUserId && bill.user?.id === currentUserId;
                         }).length === 0}
                         title="Submit selected pending bills"
@@ -1164,7 +1164,7 @@ const CashierBillsPage = () => {
                             </td>
                             <td>
                               {/* Role-based actions */}
-                              {userRole === "cashier" ? (
+                              {userRole === "cashier" || userRole === "sales" ? (
                                 bill.status === "submitted" ? (
                                   <button
                                     className="btn btn-sm btn-primary"
@@ -1495,15 +1495,15 @@ const CashierBillsPage = () => {
                         <i className="bi bi-clock me-1"></i>
                         <strong>Bill is pending</strong>
                         <div className="small mt-1">
-                          {userRole === "supervisor" || userRole === "admin" || userRole === "cashier"
+                          {userRole === "supervisor" || userRole === "admin" || userRole === "cashier" || userRole === "sales"
                             ? "This bill is pending payment. Submit it to record payment."
                             : currentUserId && selectedBill.user?.id === currentUserId
                             ? "This bill is pending payment. Submit it to record payment."
                             : "This bill is waiting to be submitted."}
                         </div>
-                        {/* Supervisors/admins/cashiers can submit any pending bill; sales submit their own */}
-                        {(userRole === "supervisor" || userRole === "admin" || userRole === "cashier" ||
-                          ((userRole === "sales" || userRole === "user" || userRole === "waitress") && currentUserId && selectedBill.user?.id === currentUserId)) && (
+                        {/* Supervisors/admins/cashiers/sales can submit any pending bill; other roles submit their own */}
+                        {(userRole === "supervisor" || userRole === "admin" || userRole === "cashier" || userRole === "sales" ||
+                          ((userRole === "user" || userRole === "waitress") && currentUserId && selectedBill.user?.id === currentUserId)) && (
                           <div className="mt-2">
                             <Button
                               variant="success"

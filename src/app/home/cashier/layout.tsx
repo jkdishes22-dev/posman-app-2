@@ -4,7 +4,7 @@ import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 
 export default function CashierLayoutWrapper({ children }: { children: React.ReactNode }) {
     return (
-        <SecureRoute rolesRequired={["cashier", "supervisor"]}>
+        <SecureRoute rolesRequired={["cashier", "sales", "supervisor"]}>
             <RoleAwareLayout>
                 {children}
             </RoleAwareLayout>
