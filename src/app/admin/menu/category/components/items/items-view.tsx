@@ -388,25 +388,16 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
         </div>
         )}
 
-        {/* Add / Link Item buttons — only for category sections */}
-        {!isBillingSection && selectedCategory && !isPricelistSection && (
-          <div className="mb-3 d-flex gap-2 flex-wrap">
+        {/* Link Item button — only for category sections */}
+        {!isBillingSection && selectedCategory && !isPricelistSection && handleLinkItemsClick && (
+          <div className="mb-3">
             <button
-              className="btn btn-success btn-sm"
-              onClick={handleAddItemClick}
+              className="btn btn-outline-primary btn-sm"
+              onClick={handleLinkItemsClick}
             >
-              <i className="bi bi-plus-circle me-1"></i>
-              Add Item
+              <i className="bi bi-link-45deg me-1"></i>
+              Link Existing Items
             </button>
-            {handleLinkItemsClick && (
-              <button
-                className="btn btn-outline-primary btn-sm"
-                onClick={handleLinkItemsClick}
-              >
-                <i className="bi bi-link-45deg me-1"></i>
-                Link Existing Items
-              </button>
-            )}
           </div>
         )}
         {itemError && <p style={{ color: "red" }}>{itemError}</p>}

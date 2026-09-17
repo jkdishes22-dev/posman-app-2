@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import ViewItems from "../items/items-view";
-import NewItemModal from "../items/items-new";
 import LinkItemsToCategoryModal from "./link-items-modal";
 import { Category, Item } from "../../../../../types/types";
 
@@ -17,7 +16,6 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
   itemError,
   fetchItems,
 }) => {
-  const [showModal, setShowModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [localItems, setLocalItems] = useState<Item[]>([]); // Local state for items
 
@@ -25,14 +23,6 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
   useEffect(() => {
     setLocalItems(items);
   }, [items]);
-
-  const handleAddItemClick = () => {
-    setShowModal(true);
-  };
-
-  const handleModalClose = () => {
-    setShowModal(false);
-  };
 
   const handleDeleteItem = (itemId: number) => {
     if (selectedCategory) {
@@ -52,7 +42,6 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
         selectedCategory={selectedCategory}
         items={localItems}
         itemError={itemError}
-        handleAddItemClick={handleAddItemClick}
         handleLinkItemsClick={() => setShowLinkModal(true)}
         handleDeleteItem={handleDeleteItem}
         setItems={setLocalItems}
@@ -61,12 +50,6 @@ const CategoryItems: React.FC<ItemsTableProps> = ({
         isCategoryItemsSection={true}
         onItemPick={() => { }}
         onItemUpdated={handleItemUpdated}
-      />
-      <NewItemModal
-        selectedCategory={selectedCategory}
-        showModal={showModal}
-        handleModalClose={handleModalClose}
-        fetchItems={fetchItems}
       />
       {selectedCategory && (
         <LinkItemsToCategoryModal
