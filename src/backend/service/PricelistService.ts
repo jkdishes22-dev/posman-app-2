@@ -463,6 +463,6 @@ export class PricelistService {
     }
 
     // Invalidate cache
-    cache.invalidateMany([`pricelist_items_${pricelistId}`, "items"]);
+    cache.invalidateMany([`pricelist_items_${pricelistId}`, "items", "items_all_with_details_raw"]);
   }
 }
