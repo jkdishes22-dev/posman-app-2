@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 import path from "path";
 
 const TEST_DB_PATH = path.join(process.cwd(), ".test-db", "posman-test.db");
+const MOVIE_PORT   = 3010;
 
 /**
  * Movie config — slower interactions + video recording.
@@ -19,7 +20,7 @@ export default defineConfig({
   workers: 1,
   globalSetup: "./tests/playwright/global-setup.ts",
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: `http://localhost:${MOVIE_PORT}`,
     launchOptions: {
       slowMo: 600,
     },
@@ -36,9 +37,9 @@ export default defineConfig({
   ],
   outputDir: "tests/playwright/movie",
   webServer: {
-    command: "next dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: true,
+    command: `next dev -p ${MOVIE_PORT}`,
+    url: `http://localhost:${MOVIE_PORT}`,
+    reuseExistingServer: false,
     timeout: 180_000,
     env: {
       DB_MODE: "sqlite",
@@ -47,7 +48,7 @@ export default defineConfig({
       NODE_ENV: "test",
       ADMIN_USERNAME: "admin",
       ADMIN_PASSWORD: "admin123",
-      NEXTAUTH_URL: "http://localhost:3000",
+      NEXTAUTH_URL: `http://localhost:${MOVIE_PORT}`,
       NEXTAUTH_SECRET: "e2e-nextauth-secret",
     },
   },

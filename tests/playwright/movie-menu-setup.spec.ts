@@ -33,30 +33,35 @@ const ITEM_2_PRICE   = "120";
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 test.describe("Menu & Pricing Setup", () => {
-  let stationId: number;
-
-  // Create the demo station silently via API so the UI demo can focus on
-  // categories, pricelists and items.
+  // Ensure exactly ONE active demo station exists.
+  // Deletes duplicate stations from prior runs, then creates/activates one.
   test.beforeAll(async () => {
-    const ctx = await playwrightRequest.newContext({ baseURL: "http://localhost:3000" });
+    const ctx = await playwrightRequest.newContext({ baseURL: "http://localhost:3010" });
     const loginRes = await ctx.post("/api/auth/login", {
       data: { username: "admin", password: "admin123" },
     });
     const { token } = await loginRes.json();
     const auth = { Authorization: `Bearer ${token}` };
 
-    // Create station (ignore conflict if it already exists from a prior run)
-    const stationRes = await ctx.post("/api/stations", {
-      headers: auth,
-      data: { name: STATION_NAME },
-    });
-    if (stationRes.status() === 201) {
-      stationId = (await stationRes.json()).id;
-    } else {
-      // Fetch all stations and find ours
-      const all = await ctx.get("/api/stations", { headers: auth });
-      const stations = await all.json();
-      stationId = stations.find((s: any) => s.name === STATION_NAME)?.id;
+    const allRes = await ctx.get("/api/stations", { headers: auth });
+    const allBody = await allRes.json();
+    const all: any[] = Array.isArray(allBody) ? allBody : [];
+    const matches = all.filter((s: any) => s.name === STATION_NAME);
+
+    // Soft-delete all but the first match (keeps the table clean for the demo)
+    for (const s of matches.slice(1)) {
+      await ctx.delete(`/api/stations/${s.id}`, { headers: auth });
+    }
+
+    let stationId: number | undefined = matches[0]?.id;
+    if (!stationId) {
+      const createRes = await ctx.post("/api/stations", { headers: auth, data: { name: STATION_NAME } });
+      if (createRes.status() === 201) stationId = (await createRes.json()).id;
+    }
+
+    // Ensure the one remaining station is active
+    if (stationId) {
+      await ctx.patch(`/api/stations/${stationId}/status`, { headers: auth, data: { action: "activate" } });
     }
     await ctx.dispose();
   });
@@ -98,7 +103,7 @@ test.describe("Menu & Pricing Setup", () => {
     await pause(800);
 
     // Confirm it appears in the table
-    await expect(page.getByRole("cell", { name: CATEGORY_NAME })).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole("cell", { name: CATEGORY_NAME }).first()).toBeVisible({ timeout: 8000 });
     await pause(1000);
 
     /* ────────────────────────────────────────────────────────────────────────
@@ -111,9 +116,12 @@ test.describe("Menu & Pricing Setup", () => {
     await page.getByRole("button", { name: /add pricelist/i }).click();
     await pause(500);
 
-    const plNameInput = page.getByLabel(/pricelist name/i);
-    await plNameInput.click();
-    await plNameInput.pressSequentially(PRICELIST_NAME, { delay: 80 });
+    await page.locator("#name").click();
+    await page.locator("#name").pressSequentially(PRICELIST_NAME, { delay: 80 });
+    await pause(400);
+
+    // Select which station this pricelist applies to
+    await page.locator("#station").selectOption({ label: STATION_NAME });
     await pause(400);
 
     // Submit add-pricelist form/modal
@@ -121,8 +129,16 @@ test.describe("Menu & Pricing Setup", () => {
     await pause(1000);
 
     // Confirm it appears in the pricelists table
-    await expect(page.getByRole("cell", { name: PRICELIST_NAME })).toBeVisible({ timeout: 8000 });
-    await pause(1000);
+    await expect(page.getByRole("cell", { name: PRICELIST_NAME }).first()).toBeVisible({ timeout: 8000 });
+    await pause(800);
+
+    // Activate the pricelist (defaults to inactive) so items can be linked
+    const plRow = page.locator("tr").filter({ hasText: PRICELIST_NAME }).last();
+    await plRow.getByTitle("Activate").click();
+    await pause(500);
+    await page.locator('.modal.show').getByRole("button", { name: /activate pricelist/i }).click();
+    await page.waitForFunction(() => !document.querySelector('.modal.show'), { timeout: 8000 });
+    await pause(800);
 
     /* ────────────────────────────────────────────────────────────────────────
      * STEP 4 — Link Pricelist to Station
@@ -131,24 +147,33 @@ test.describe("Menu & Pricing Setup", () => {
     await page.waitForLoadState("networkidle");
     await pause(800);
 
-    // Click on the demo station row
-    await page.getByRole("cell", { name: STATION_NAME }).click();
+    // Wait for station data to load, then click the active station row.
+    // Active stations use bg-success badge; inactive use bg-secondary — this
+    // is more reliable than text-matching "Active" which is a substring of "Inactive".
+    await page.locator("tbody tr").first().waitFor({ state: "visible", timeout: 15_000 });
+    const activeStationRow = page.locator("tbody tr")
+      .filter({ hasText: STATION_NAME })
+      .filter({ has: page.locator("span.badge.bg-success") })
+      .first();
+    await activeStationRow.locator("td").nth(1).click();
+    // Wait for the "Add" button to appear (confirms selectedStationId was set)
+    await page.locator(".card").filter({ hasText: "Linked Pricelists" }).getByRole("button", { name: "Add" }).waitFor({ state: "visible", timeout: 10_000 });
     await pause(600);
 
-    // Click "Link Pricelist to Station" button
-    await page.getByRole("button", { name: /link pricelist to station/i }).click();
-    await pause(500);
+    // Click "Add" under the Linked Pricelists card to open the link modal
+    const pricelistCard = page.locator(".card").filter({ hasText: "Linked Pricelists" });
+    await pricelistCard.getByRole("button", { name: "Add" }).click();
+    await pause(800);
 
-    // Select the pricelist from the dropdown
-    await page.getByRole("combobox").selectOption({ label: PRICELIST_NAME });
-    await pause(400);
-
-    // Confirm / submit
-    await page.getByRole("button", { name: /link pricelist/i }).last().click();
+    // Each pricelist appears as a list item with a "Link" button — click ours.
+    // There may be duplicate names from prior runs; link the last one (most recently added).
+    const modal = page.locator('.modal.show');
+    await modal.locator(".list-group-item").filter({ hasText: PRICELIST_NAME }).first().waitFor({ state: "visible", timeout: 8000 });
+    await modal.locator(".list-group-item").filter({ hasText: PRICELIST_NAME }).last().getByRole("button", { name: "Link" }).click();
     await pause(1000);
 
     // Verify the pricelist now shows under the station
-    await expect(page.getByText(PRICELIST_NAME)).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText(PRICELIST_NAME).first()).toBeVisible({ timeout: 8000 });
     await pause(1200);
 
     /* ────────────────────────────────────────────────────────────────────────
@@ -161,22 +186,22 @@ test.describe("Menu & Pricing Setup", () => {
     await page.getByRole("button", { name: /add item/i }).click();
     await pause(500);
 
-    await page.getByLabel(/item name/i).pressSequentially(ITEM_1_NAME, { delay: 80 });
+    await page.locator("#add-item-name").pressSequentially(ITEM_1_NAME, { delay: 80 });
     await pause(300);
 
-    await page.getByLabel(/item code/i).pressSequentially(ITEM_1_CODE, { delay: 80 });
+    await page.locator("#add-item-code").pressSequentially(ITEM_1_CODE, { delay: 80 });
     await pause(300);
 
-    await page.getByLabel(/category/i).selectOption({ label: CATEGORY_NAME });
+    await page.locator("#add-item-category").selectOption({ label: CATEGORY_NAME });
     await pause(300);
 
-    await page.getByLabel(/pricelist/i).selectOption({ label: PRICELIST_NAME });
+    await page.locator("#add-item-pricelist").selectOption({ label: PRICELIST_NAME });
     await pause(300);
 
-    await page.getByLabel(/price/i).pressSequentially(ITEM_1_PRICE, { delay: 80 });
+    await page.locator("#add-item-price").pressSequentially(ITEM_1_PRICE, { delay: 80 });
     await pause(400);
 
-    await page.getByRole("button", { name: /save|add item/i }).last().click();
+    await page.locator('.modal.show').getByRole("button", { name: /add item/i }).click();
     await pause(1000);
 
     // Confirm item appears in the list
@@ -189,22 +214,22 @@ test.describe("Menu & Pricing Setup", () => {
     await page.getByRole("button", { name: /add item/i }).click();
     await pause(500);
 
-    await page.getByLabel(/item name/i).pressSequentially(ITEM_2_NAME, { delay: 80 });
+    await page.locator("#add-item-name").pressSequentially(ITEM_2_NAME, { delay: 80 });
     await pause(300);
 
-    await page.getByLabel(/item code/i).pressSequentially(ITEM_2_CODE, { delay: 80 });
+    await page.locator("#add-item-code").pressSequentially(ITEM_2_CODE, { delay: 80 });
     await pause(300);
 
-    await page.getByLabel(/category/i).selectOption({ label: CATEGORY_NAME });
+    await page.locator("#add-item-category").selectOption({ label: CATEGORY_NAME });
     await pause(300);
 
-    await page.getByLabel(/pricelist/i).selectOption({ label: PRICELIST_NAME });
+    await page.locator("#add-item-pricelist").selectOption({ label: PRICELIST_NAME });
     await pause(300);
 
-    await page.getByLabel(/price/i).pressSequentially(ITEM_2_PRICE, { delay: 80 });
+    await page.locator("#add-item-price").pressSequentially(ITEM_2_PRICE, { delay: 80 });
     await pause(400);
 
-    await page.getByRole("button", { name: /save|add item/i }).last().click();
+    await page.locator('.modal.show').getByRole("button", { name: /add item/i }).click();
     await pause(1000);
 
     await expect(page.getByText(ITEM_2_NAME)).toBeVisible({ timeout: 8000 });
@@ -217,7 +242,7 @@ test.describe("Menu & Pricing Setup", () => {
     await page.waitForLoadState("networkidle");
     await pause(800);
 
-    await page.getByRole("cell", { name: CATEGORY_NAME }).click();
+    await page.getByRole("cell", { name: CATEGORY_NAME }).first().click();
     await pause(600);
 
     await expect(page.getByText(ITEM_1_NAME)).toBeVisible({ timeout: 8000 });
