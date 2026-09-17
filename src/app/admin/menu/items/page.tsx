@@ -507,6 +507,7 @@ export default function ItemsPage() {
           itemId={linkPricelistItem?.id ?? 0}
           itemName={linkPricelistItem?.name ?? ""}
           linkedPricelistIds={linkPricelistItem?.pricelists.map((pl) => pl.id) ?? []}
+          existingPrices={linkPricelistItem?.pricelists.map((pl) => ({ name: pl.name, price: pl.price })) ?? []}
           onHide={() => setLinkPricelistItem(null)}
           onLinked={(plId, plName, plPrice) => {
             if (linkPricelistItem) {
