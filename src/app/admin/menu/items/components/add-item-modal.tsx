@@ -95,22 +95,22 @@ export default function AddItemModal({ show, onHide, onAdded }: AddItemModalProp
             <i className="bi bi-exclamation-circle me-1"></i>{error}
           </div>
         )}
-        <Form.Group className="mb-3">
+        <Form.Group className="mb-3" controlId="add-item-name">
           <Form.Label className="fw-semibold small">Name <span className="text-danger">*</span></Form.Label>
           <Form.Control size="sm" value={name} onChange={(e) => { setName(e.target.value); setError(null); }} placeholder="Item name" />
         </Form.Group>
-        <Form.Group className="mb-3">
+        <Form.Group className="mb-3" controlId="add-item-code">
           <Form.Label className="fw-semibold small">Code <span className="text-danger">*</span></Form.Label>
           <Form.Control size="sm" value={code} onChange={(e) => { setCode(e.target.value); setError(null); }} placeholder="Item code" />
         </Form.Group>
-        <Form.Group className="mb-3">
+        <Form.Group className="mb-3" controlId="add-item-category">
           <Form.Label className="fw-semibold small">Category</Form.Label>
           <Form.Select size="sm" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
             <option value="">— No category —</option>
             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Form.Select>
         </Form.Group>
-        <Form.Group className="mb-2">
+        <Form.Group className="mb-2" controlId="add-item-pricelist">
           <Form.Label className="fw-semibold small">Pricelist</Form.Label>
           <Form.Select size="sm" value={pricelistId} onChange={(e) => { setPricelistId(e.target.value); setError(null); }}>
             <option value="">— No pricelist —</option>
@@ -118,7 +118,7 @@ export default function AddItemModal({ show, onHide, onAdded }: AddItemModalProp
           </Form.Select>
         </Form.Group>
         {pricelistId && (
-          <Form.Group className="mb-3">
+          <Form.Group className="mb-3" controlId="add-item-price">
             <Form.Label className="fw-semibold small">Price (KES) <span className="text-danger">*</span></Form.Label>
             <Form.Control type="number" size="sm" min={0} step="0.01" placeholder="0.00" value={price} onChange={(e) => { setPrice(e.target.value); setError(null); }} style={{ maxWidth: 140 }} />
           </Form.Group>

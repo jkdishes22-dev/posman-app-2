@@ -228,8 +228,9 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         />
         <form onSubmit={handleItemSubmit} className="row g-3">
           <div className="form-group">
-            <label>Item Name <span className="text-danger">*</span></label>
+            <label htmlFor="new-item-name">Item Name <span className="text-danger">*</span></label>
             <input
+              id="new-item-name"
               type="text"
               className="form-control"
               value={itemName}
@@ -238,8 +239,9 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
             />
           </div>
           <div className="form-group">
-            <label>Item Code <span className="text-danger">*</span></label>
+            <label htmlFor="new-item-code">Item Code <span className="text-danger">*</span></label>
             <input
+              id="new-item-code"
               type="text"
               className="form-control"
               value={itemCode}
@@ -251,8 +253,9 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           {/* Category selection - only show when adding from pricelist page */}
           {isFromPricelistPage && (
             <div className="form-group">
-              <label>Category <span className="text-danger">*</span></label>
+              <label htmlFor="new-item-category">Category <span className="text-danger">*</span></label>
               <select
+                id="new-item-category"
                 className="form-control"
                 value={selectedCategoryId}
                 onChange={(e) => setSelectedCategoryId(e.target.value)}
@@ -270,8 +273,9 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
 
           {!selectedPricelistId && (
             <div className="form-group">
-              <label>Pricelist <span className="text-danger">*</span></label>
+              <label htmlFor="new-item-pricelist">Pricelist <span className="text-danger">*</span></label>
               <select
+                id="new-item-pricelist"
                 className="form-control"
                 value={pricelistId}
                 onChange={(e) => setPricelistId(e.target.value)}
@@ -300,8 +304,9 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           )}
 
           <div className="form-group">
-            <label>Item Price <span className="text-danger">*</span></label>
+            <label htmlFor="new-item-price">Item Price <span className="text-danger">*</span></label>
             <input
+              id="new-item-price"
               type="number"
               step="0.01"
               min="0"
