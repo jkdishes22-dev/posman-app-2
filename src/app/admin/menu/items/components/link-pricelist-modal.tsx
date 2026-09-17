@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 import { useApiCall } from "src/app/utils/apiUtils";
 
@@ -34,6 +34,7 @@ export default function LinkPricelistModal({
   onLinked,
 }: LinkPricelistModalProps) {
   const apiCall = useApiCall();
+  const priceInputRef = useRef<HTMLInputElement>(null);
   const [pricelists, setPricelists] = useState<Pricelist[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -141,8 +142,13 @@ export default function LinkPricelistModal({
                       type="button"
                       className={`btn btn-sm py-0 px-2 ${price === String(ep.price) ? "btn-primary" : "btn-outline-secondary"}`}
                       style={{ fontSize: "0.75rem" }}
-                      onClick={() => { setPrice(String(ep.price)); setError(null); }}
-                      title={`Use price from ${ep.name}`}
+                      onClick={() => {
+                        setPrice(String(ep.price));
+                        setError(null);
+                        // Select-all so the user can immediately type a different value
+                        setTimeout(() => priceInputRef.current?.select(), 0);
+                      }}
+                      title={`Use price from ${ep.name} — click then type to change`}
                     >
                       {ep.name}: KSh {Number(ep.price).toFixed(2)}
                     </button>
@@ -150,6 +156,7 @@ export default function LinkPricelistModal({
                 </div>
               )}
               <Form.Control
+                ref={priceInputRef}
                 type="number"
                 size="sm"
                 min={0}
