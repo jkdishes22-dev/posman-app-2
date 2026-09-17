@@ -207,7 +207,17 @@ export default function ItemsPage() {
   return (
     <RoleAwareLayout>
       <div className="container-fluid">
-        <PageHeaderStrip>
+        <PageHeaderStrip
+          actions={
+            <button
+              className="btn btn-outline-light btn-sm"
+              onClick={() => setShowAddItemModal(true)}
+            >
+              <i className="bi bi-plus-circle me-1"></i>
+              Add Item
+            </button>
+          }
+        >
           <h1 className="h4 mb-0 fw-bold">
             <i className="bi bi-bag me-2" aria-hidden></i>
             Items
@@ -219,13 +229,6 @@ export default function ItemsPage() {
               title="View and manage all items. Assign categories and pricelists to items here."
             ></i>
           </h1>
-          <button
-            className="btn btn-success"
-            onClick={() => setShowAddItemModal(true)}
-          >
-            <i className="bi bi-plus-circle me-1"></i>
-            Add Item
-          </button>
         </PageHeaderStrip>
 
         <ErrorDisplay error={fetchError} onDismiss={() => setFetchError(null)} />
