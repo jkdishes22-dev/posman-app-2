@@ -1118,6 +1118,138 @@ export class ItemService {
     return result;
   }
 
+  public async fetchAllItemsPaginated(
+    page: number,
+    limit: number,
+    search?: string,
+  ): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+    const normalizedSearch = search?.trim() ?? "";
+    const offset = (page - 1) * limit;
+
+    const toBoolean = (v: any) => v === true || v === 1 || v === "1" || v === "true" || v === "TRUE";
+
+    // Build a subquery that returns one row per item, then join pricelist data
+    const countQb = this.itemRepository
+      .createQueryBuilder("item")
+      .where("item.status = :status", { status: ItemStatus.ACTIVE });
+
+    if (normalizedSearch) {
+      countQb.leftJoin("item.category", "category").andWhere(
+        "(item.name LIKE :q OR item.code LIKE :q OR category.name LIKE :q)",
+        { q: `%${normalizedSearch}%` },
+      );
+    }
+
+    const total = await countQb.getCount();
+
+    const rowsQb = this.itemRepository
+      .createQueryBuilder("item")
+      .leftJoin("item.category", "category")
+      .leftJoin("pricelist_item", "pi", "pi.item_id = item.id AND pi.is_enabled = 1")
+      .leftJoin("pricelist", "pl", "pl.id = pi.pricelist_id")
+      .select([
+        "item.id AS item_id",
+        "item.name AS item_name",
+        "item.code AS item_code",
+        "item.isGroup AS item_isGroup",
+        "item.isStock AS item_isStock",
+        "item.allowNegativeInventory AS item_allowNegativeInventory",
+        "category.id AS category_id",
+        "category.name AS category_name",
+        "pi.id AS pi_id",
+        "pi.price AS pi_price",
+        "pl.id AS pl_id",
+        "pl.name AS pl_name",
+      ])
+      .where("item.status = :status", { status: ItemStatus.ACTIVE })
+      .orderBy("item.name", "ASC");
+
+    if (normalizedSearch) {
+      rowsQb.andWhere(
+        "(item.name LIKE :q OR item.code LIKE :q OR category.name LIKE :q)",
+        { q: `%${normalizedSearch}%` },
+      );
+    }
+
+    // Paginate by item: fetch a window of distinct item IDs first, then expand
+    const idRows = await this.itemRepository
+      .createQueryBuilder("item")
+      .select("item.id", "item_id")
+      .leftJoin("item.category", "category")
+      .where("item.status = :status", { status: ItemStatus.ACTIVE })
+      .andWhere(
+        normalizedSearch
+          ? "(item.name LIKE :q OR item.code LIKE :q OR category.name LIKE :q)"
+          : "1=1",
+        normalizedSearch ? { q: `%${normalizedSearch}%` } : {},
+      )
+      .orderBy("item.name", "ASC")
+      .limit(limit)
+      .offset(offset)
+      .getRawMany();
+
+    if (idRows.length === 0) {
+      return { items: [], total, page, limit };
+    }
+
+    const ids = idRows.map((r) => Number(r.item_id));
+
+    const rows = await this.itemRepository
+      .createQueryBuilder("item")
+      .leftJoin("item.category", "category")
+      .leftJoin("pricelist_item", "pi", "pi.item_id = item.id AND pi.is_enabled = 1")
+      .leftJoin("pricelist", "pl", "pl.id = pi.pricelist_id")
+      .select([
+        "item.id AS item_id",
+        "item.name AS item_name",
+        "item.code AS item_code",
+        "item.isGroup AS item_isGroup",
+        "item.isStock AS item_isStock",
+        "item.allowNegativeInventory AS item_allowNegativeInventory",
+        "category.id AS category_id",
+        "category.name AS category_name",
+        "pi.id AS pi_id",
+        "pi.price AS pi_price",
+        "pl.id AS pl_id",
+        "pl.name AS pl_name",
+      ])
+      .where("item.id IN (:...ids)", { ids })
+      .orderBy("item.name", "ASC")
+      .getRawMany();
+
+    const itemMap = new Map<number, any>();
+    // preserve order from idRows
+    for (const id of ids) {
+      itemMap.set(id, null);
+    }
+    for (const row of rows) {
+      const id = Number(row.item_id);
+      if (!itemMap.has(id) || itemMap.get(id) === null) {
+        itemMap.set(id, {
+          id,
+          name: row.item_name,
+          code: row.item_code,
+          isGroup: toBoolean(row.item_isGroup),
+          isStock: toBoolean(row.item_isStock),
+          allowNegativeInventory: toBoolean(row.item_allowNegativeInventory),
+          category: row.category_id ? { id: Number(row.category_id), name: row.category_name } : null,
+          pricelists: [],
+        });
+      }
+      if (row.pl_id && itemMap.get(id)) {
+        itemMap.get(id).pricelists.push({
+          id: Number(row.pl_id),
+          name: row.pl_name,
+          price: row.pi_price,
+          pricelistItemId: row.pi_id,
+        });
+      }
+    }
+
+    const items = ids.map((id) => itemMap.get(id)).filter(Boolean);
+    return { items, total, page, limit };
+  }
+
   public async updateItemCategory(itemId: number, categoryId: number | null): Promise<void> {
     const item = await this.itemRepository.findOne({ where: { id: itemId } });
     if (!item) {
