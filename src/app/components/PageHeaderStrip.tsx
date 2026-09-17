@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useAuth } from "../contexts/AuthContext";
+import KeyboardToggleButton from "../shared/KeyboardToggleButton";
 
 export interface PageHeaderStripProps {
   /** Title row: use `<h1 className="h4 mb-0 fw-bold">` (+ optional icon / HelpPopover with `className="text-white"`). */
@@ -29,6 +30,7 @@ export default function PageHeaderStrip({
         <div className="min-w-0">{children}</div>
         <div className="d-flex flex-wrap gap-2 align-items-center flex-shrink-0">
           {actions ?? null}
+          <KeyboardToggleButton />
           {showProfileMenu ? (
             <div className="dropdown">
               <button

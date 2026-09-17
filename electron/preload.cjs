@@ -20,5 +20,7 @@ contextBridge.exposeInMainWorld('electron', {
   getInstallationId: () => ipcRenderer.invoke('get-installation-id'),
   /** Submit an activation code; resolves { ok, error? }. On ok the main process starts the app. */
   completeActivation: (code) => ipcRenderer.invoke('complete-activation', String(code ?? '')),
+  /** Show (true) or hide (false) the Windows on-screen keyboard. No-op on non-Windows. */
+  toggleKeyboard: (show) => ipcRenderer.invoke('toggle-keyboard', show),
 });
 
