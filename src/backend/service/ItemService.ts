@@ -546,31 +546,70 @@ export class ItemService {
             .getOne();
         }
 
+        let actualPricelistId: number;
+
         if (pricelistItemToUpdate) {
-          await this.disablePreExistingPricelistItems(
-            transactionalEntityManager,
-            pricelistItemToUpdate,
-          );
+          const oldPricelistId = pricelistItemToUpdate.pricelist.id;
+          const targetPricelistId = Number(pricelistId) > 0 ? Number(pricelistId) : oldPricelistId;
+          const isMovingPricelist = targetPricelistId !== oldPricelistId;
 
-          // Log price change if it changed
-          const oldPrice = pricelistItemToUpdate.price;
-          if (oldPrice !== price) {
-            await this.auditService.logPricelistItemChange(
-              pricelistItemToUpdate.id,
-              "price",
-              oldPrice,
+          if (isMovingPricelist) {
+            // Soft-disable all rows for the old pricelist — preserves audit trail
+            await transactionalEntityManager
+              .createQueryBuilder()
+              .update(PricelistItem)
+              .set({ is_enabled: false })
+              .where("item_id = :itemId", { itemId: itemData.id })
+              .andWhere("pricelist_id = :pricelistId", { pricelistId: oldPricelistId })
+              .execute();
+            // Soft-disable any existing rows in the target pricelist to prevent duplicates
+            await transactionalEntityManager
+              .createQueryBuilder()
+              .update(PricelistItem)
+              .set({ is_enabled: false })
+              .where("item_id = :itemId", { itemId: itemData.id })
+              .andWhere("pricelist_id = :pricelistId", { pricelistId: targetPricelistId })
+              .execute();
+            await this.createNewPricelistItem(
               price,
-              user_id
+              user_id,
+              targetPricelistId,
+              itemData,
+              transactionalEntityManager,
             );
-          }
+            actualPricelistId = targetPricelistId;
+            // Also invalidate the old pricelist cache
+            cache.invalidate(`pricelist_items_${oldPricelistId}`);
+          } else {
+            // Same pricelist — hard-delete duplicate rows, then update this row
+            await this.disablePreExistingPricelistItems(
+              transactionalEntityManager,
+              pricelistItemToUpdate,
+            );
 
-          pricelistItemToUpdate.price = price;
-          pricelistItemToUpdate.updated_by = user_id;
-          await transactionalEntityManager.save(
-            PricelistItem,
-            pricelistItemToUpdate,
-          );
+            // Log price change if it changed
+            const oldPrice = pricelistItemToUpdate.price;
+            if (oldPrice !== price) {
+              await this.auditService.logPricelistItemChange(
+                pricelistItemToUpdate.id,
+                "price",
+                oldPrice,
+                price,
+                user_id
+              );
+            }
+
+            pricelistItemToUpdate.price = price;
+            pricelistItemToUpdate.updated_by = user_id;
+            await transactionalEntityManager.save(
+              PricelistItem,
+              pricelistItemToUpdate,
+            );
+            actualPricelistId = oldPricelistId;
+          }
         } else {
+          // No existing active row — soft-disable any stale rows, then insert fresh.
+          // Soft-disable (not hard delete) preserves pricelist_item_audit FK references.
           await transactionalEntityManager
             .createQueryBuilder()
             .update(PricelistItem)
@@ -585,11 +624,8 @@ export class ItemService {
             itemData,
             transactionalEntityManager,
           );
+          actualPricelistId = Number(pricelistId);
         }
-
-        // Derive the actual pricelist ID — when editing from the items page,
-        // pricelistId param is undefined; fall back to the joined relation id.
-        const actualPricelistId = pricelistItemToUpdate?.pricelist?.id ?? pricelistId;
 
         // Invalidate cache after updating item (affects items and prices)
         cache.invalidateMany([
@@ -636,14 +672,17 @@ export class ItemService {
     transactionalEntityManager: EntityManager,
     pricelistItem: PricelistItem | null,
   ) {
+    if (!pricelistItem) return;
+    // Soft-disable duplicate rows (same item+pricelist) while preserving the row
+    // being updated (excluded by id) so the subsequent save() re-enables only it.
+    // Soft-disable (not hard delete) keeps pricelist_item_audit FK references intact.
     await transactionalEntityManager
       .createQueryBuilder()
       .update(PricelistItem)
       .set({ is_enabled: false })
-      .where("item_id = :itemId", { itemId: pricelistItem?.item.id })
-      .andWhere("pricelist_id = :pricelistId", {
-        pricelistId: pricelistItem?.pricelist.id,
-      })
+      .where("item_id = :itemId", { itemId: pricelistItem.item.id })
+      .andWhere("pricelist_id = :pricelistId", { pricelistId: pricelistItem.pricelist.id })
+      .andWhere("id != :id", { id: pricelistItem.id })
       .execute();
   }
 

@@ -94,7 +94,8 @@ export const fetchPricelistItems = async (
   try {
     const pricelistId = req.query.pricelistId as string;
     const search = req.query.q as string | undefined;
-    const pricelistItems = await pricelistService.fetchPricelistItems(pricelistId, search);
+    const forceRefresh = req.query.t !== undefined;
+    const pricelistItems = await pricelistService.fetchPricelistItems(pricelistId, search, forceRefresh);
     res.status(200).json(pricelistItems);
   } catch (error: any) {
     const { userMessage, errorCode } = handleApiError(error, {

@@ -138,7 +138,7 @@ export default function PricelistPage() {
     if (selectedPricelistId) {
       setItemSearchTerm("");
       setDebouncedItemSearch("");
-      fetchPricelistItems(selectedPricelistId);
+      fetchPricelistItems(selectedPricelistId, true);
       setCurrentPage(1);
     }
   }, [selectedPricelistId]);
@@ -154,6 +154,17 @@ export default function PricelistPage() {
       setCurrentPage(1);
     }
   }, [debouncedItemSearch]);
+
+  // Refresh when the browser tab becomes visible again (handles multi-tab edits)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && selectedPricelistId) {
+        fetchPricelistItems(selectedPricelistId, true, debouncedItemSearch);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [selectedPricelistId, debouncedItemSearch]);
 
   // Refresh station-scoped dataset when station filter changes
   useEffect(() => {
@@ -280,9 +291,12 @@ export default function PricelistPage() {
       return;
     }
 
+    // Optimistic removal so the item disappears immediately
+    setPricelistItems(prev => (prev as any[]).filter((item: any) => item.id !== itemId));
+    allLinkedItemIds.current.delete(itemId);
+
     try {
       setItemError("");
-      // Delete item from pricelist by disabling the pricelist_item relationship
       const result = await apiCall(`/api/menu/pricelists/${selectedPricelistId}/items/${itemId}`, {
         method: "DELETE",
       });
@@ -291,12 +305,14 @@ export default function PricelistPage() {
         setItemError("");
         fetchPricelistItems(selectedPricelistId, true);
       } else {
-        // Error - apiCall already standardizes all non-2XX errors
         setItemError(result.error || "Failed to delete item from pricelist");
+        // Rollback: re-fetch to restore the item
+        fetchPricelistItems(selectedPricelistId, true);
       }
     } catch (error: any) {
       console.error("Failed to delete item from pricelist", error);
       setItemError("Failed to delete item: " + error.message);
+      fetchPricelistItems(selectedPricelistId, true);
     }
   };
 
