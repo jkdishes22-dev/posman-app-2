@@ -25,6 +25,7 @@ export const supervisorRoutes: RouteEntry[] = sortRoutes([
   // Menu & Pricing
   { pattern: "/supervisor/menu/recipes", activeItem: "menu-recipes", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DS, MENU_PRICING_SUP, { label: "Recipes", path: "/supervisor/menu/recipes" }] },
   { pattern: "/supervisor/menu/pricelist", activeItem: "menu-pricelist", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DS, MENU_PRICING_SUP] },
+  { pattern: "/supervisor/menu/items", activeItem: "menu-items", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DS, MENU_PRICING_SUP, { label: "Items", path: "/supervisor/menu/items" }] },
   { pattern: "/supervisor/menu/category", activeItem: "menu-category", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DS, MENU_PRICING_SUP] },
   { pattern: "/supervisor/menu", activeItem: "", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DS, MENU_PRICING_SUP] },
   // Production
@@ -86,6 +87,7 @@ export const adminRoutes: RouteEntry[] = sortRoutes([
   // Menu & Pricing
   { pattern: "/admin/menu/recipes", activeItem: "menu-recipes", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DA, MENU_PRICING_ADM, { label: "Recipes", path: "/admin/menu/recipes" }] },
   { pattern: "/admin/menu/pricelist", activeItem: "menu-pricelist", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DA, MENU_PRICING_ADM, { label: "Pricelists", path: "/admin/menu/pricelist" }] },
+  { pattern: "/admin/menu/items", activeItem: "menu-items", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DA, MENU_PRICING_ADM, { label: "Items", path: "/admin/menu/items" }] },
   { pattern: "/admin/menu/category", activeItem: "menu-category", expandedMenuIds: ["menu-pricing"], breadcrumbs: [DA, MENU_PRICING_ADM, { label: "Categories", path: "/admin/menu/category" }] },
   // Production
   { pattern: "/admin/production/history", activeItem: "production-history", expandedMenuIds: ["production"], breadcrumbs: [DA, { label: "Production", path: "/admin/production" }, { label: "Transactions", path: "/admin/production/history" }] },

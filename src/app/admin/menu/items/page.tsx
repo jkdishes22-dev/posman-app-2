@@ -7,6 +7,8 @@ import ErrorDisplay from "src/app/components/ErrorDisplay";
 import { useApiCall } from "src/app/utils/apiUtils";
 import { useTooltips } from "src/app/hooks/useTooltips";
 import AssignCategoryModal from "./components/assign-category-modal";
+import LinkPricelistModal from "./components/link-pricelist-modal";
+import EditItemDetailsModal from "./components/edit-item-details-modal";
 
 interface ItemPricelist {
   id: number;
@@ -21,14 +23,9 @@ interface Item {
   code: string;
   isGroup: boolean;
   isStock: boolean;
+  allowNegativeInventory: boolean;
   category: { id: number; name: string } | null;
   pricelists: ItemPricelist[];
-}
-
-interface Pricelist {
-  id: number;
-  name: string;
-  status: string;
 }
 
 export default function ItemsPage() {
@@ -36,18 +33,19 @@ export default function ItemsPage() {
   const apiCall = useApiCall();
 
   const [items, setItems] = useState<Item[]>([]);
-  const [pricelists, setPricelists] = useState<Pricelist[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const [assignCategoryItem, setAssignCategoryItem] = useState<Item | null>(null);
   const [assignCategoryError, setAssignCategoryError] = useState<string | null>(null);
 
-  const [linkPricelistItemId, setLinkPricelistItemId] = useState<number | null>(null);
-  const [linkPricelistId, setLinkPricelistId] = useState<string>("");
-  const [linkPrice, setLinkPrice] = useState<string>("");
-  const [linkError, setLinkError] = useState<string | null>(null);
-  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkPricelistItem, setLinkPricelistItem] = useState<Item | null>(null);
+
+  const [editItem, setEditItem] = useState<Item | null>(null);
+
+  const [deleteItem, setDeleteItem] = useState<Item | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchItems = useCallback(async () => {
     const result = await apiCall("/api/menu/items?all=true");
@@ -59,17 +57,9 @@ export default function ItemsPage() {
     }
   }, [apiCall]);
 
-  const fetchPricelists = useCallback(async () => {
-    const result = await apiCall("/api/menu/pricelists");
-    if (result.status >= 200 && result.status < 300) {
-      setPricelists(Array.isArray(result.data) ? result.data : []);
-    }
-  }, [apiCall]);
-
   useEffect(() => {
     fetchItems();
-    fetchPricelists();
-  }, [fetchItems, fetchPricelists]);
+  }, [fetchItems]);
 
   const handleAssignCategory = async (categoryId: number | null) => {
     if (!assignCategoryItem) return;
@@ -86,7 +76,7 @@ export default function ItemsPage() {
     }
   };
 
-  const handleUnlinkFromPricelist = async (item: Item, pricelistItemId: number, pricelistId: number) => {
+  const handleUnlinkFromPricelist = async (item: Item, pricelistId: number) => {
     const result = await apiCall(`/api/menu/pricelists/${pricelistId}/items/${item.id}`, {
       method: "DELETE",
     });
@@ -95,25 +85,17 @@ export default function ItemsPage() {
     }
   };
 
-  const handleLinkToPricelist = async (itemId: number) => {
-    if (!linkPricelistId || !linkPrice) {
-      setLinkError("Please select a pricelist and enter a price.");
-      return;
-    }
-    setLinkLoading(true);
-    setLinkError(null);
-    const result = await apiCall(`/api/menu/pricelists/${linkPricelistId}/items/${itemId}`, {
-      method: "POST",
-      body: JSON.stringify({ price: Number(linkPrice) }),
-    });
-    setLinkLoading(false);
+  const handleConfirmDelete = async () => {
+    if (!deleteItem) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    const result = await apiCall(`/api/menu/items/${deleteItem.id}`, { method: "DELETE" });
+    setDeleteLoading(false);
     if (result.status >= 200 && result.status < 300) {
-      setLinkPricelistItemId(null);
-      setLinkPricelistId("");
-      setLinkPrice("");
+      setDeleteItem(null);
       fetchItems();
     } else {
-      setLinkError(result.error || "Failed to link item to pricelist");
+      setDeleteError(result.error || "Failed to delete item");
     }
   };
 
@@ -123,12 +105,9 @@ export default function ItemsPage() {
     return (
       item.name.toLowerCase().includes(q) ||
       item.code.toLowerCase().includes(q) ||
-      item.category?.name.toLowerCase().includes(q)
+      (item.category?.name ?? "").toLowerCase().includes(q)
     );
   });
-
-  const availablePricelists = (item: Item) =>
-    pricelists.filter((pl) => !item.pricelists.some((ip) => ip.id === pl.id));
 
   return (
     <RoleAwareLayout>
@@ -183,13 +162,14 @@ export default function ItemsPage() {
           </div>
           <div className="card-body p-0">
             <div className="table-responsive">
-              <table className="table table-hover mb-0">
+              <table className="table table-sm table-hover mb-0">
                 <thead className="table-light">
                   <tr>
                     <th className="fw-semibold">#</th>
                     <th className="fw-semibold">Name</th>
                     <th className="fw-semibold">Code</th>
                     <th className="fw-semibold">Category</th>
+                    <th className="fw-semibold">Flags</th>
                     <th className="fw-semibold">Pricelists</th>
                     <th className="fw-semibold text-center">Actions</th>
                   </tr>
@@ -197,151 +177,105 @@ export default function ItemsPage() {
                 <tbody>
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="text-center text-muted py-4">
+                      <td colSpan={7} className="text-center text-muted py-4">
                         {search ? "No items match your search." : "No items found."}
                       </td>
                     </tr>
                   )}
                   {filtered.map((item, index) => (
-                    <React.Fragment key={item.id}>
-                      <tr>
-                        <td className="fw-medium align-middle">{index + 1}</td>
-                        <td className="align-middle">
-                          {item.name}
-                          {item.isGroup && (
-                            <span className="ms-1 badge bg-info text-dark small">Group</span>
-                          )}
-                          {item.isStock && (
-                            <span className="ms-1 badge bg-secondary small">Stock</span>
-                          )}
-                        </td>
-                        <td className="align-middle">
-                          <span className="badge bg-secondary-subtle text-secondary border">
-                            {item.code}
+                    <tr key={item.id}>
+                      <td className="fw-medium align-middle">{index + 1}</td>
+                      <td className="align-middle fw-semibold">{item.name}</td>
+                      <td className="align-middle">
+                        <span className="badge bg-secondary-subtle text-secondary border">
+                          {item.code}
+                        </span>
+                      </td>
+                      <td className="align-middle">
+                        {item.category ? (
+                          <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
+                            {item.category.name}
                           </span>
-                        </td>
-                        <td className="align-middle">
-                          {item.category ? (
-                            <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
-                              {item.category.name}
-                            </span>
-                          ) : (
-                            <span className="badge bg-warning-subtle text-warning border border-warning-subtle">
-                              Uncategorised
-                            </span>
+                        ) : (
+                          <span className="badge bg-warning-subtle text-warning border border-warning-subtle">
+                            Uncategorised
+                          </span>
+                        )}
+                      </td>
+                      <td className="align-middle">
+                        <div className="d-flex gap-1 flex-wrap">
+                          {item.isGroup && <span className="badge bg-primary">Group</span>}
+                          {item.isStock && <span className="badge bg-success">Stock</span>}
+                          {item.allowNegativeInventory && (
+                            <span className="badge bg-warning text-dark">Allow Neg</span>
                           )}
-                        </td>
-                        <td className="align-middle">
-                          {item.pricelists.length === 0 ? (
-                            <span className="badge bg-warning-subtle text-warning border border-warning-subtle">
-                              None
-                            </span>
-                          ) : (
-                            <div className="d-flex flex-wrap gap-1">
-                              {item.pricelists.map((pl) => (
-                                <span
-                                  key={pl.id}
-                                  className="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1"
-                                >
-                                  {pl.name}
-                                  <button
-                                    type="button"
-                                    className="btn-close btn-close-sm"
-                                    style={{ fontSize: "0.5rem" }}
-                                    title={`Remove from ${pl.name}`}
-                                    onClick={() => handleUnlinkFromPricelist(item, pl.pricelistItemId, pl.id)}
-                                    aria-label={`Remove from ${pl.name}`}
-                                  />
-                                </span>
-                              ))}
-                            </div>
+                          {!item.isGroup && !item.isStock && !item.allowNegativeInventory && (
+                            <span className="text-muted small">—</span>
                           )}
-                        </td>
-                        <td className="text-center align-middle">
-                          <div className="d-flex gap-1 justify-content-center">
-                            <button
-                              className="btn btn-outline-primary btn-sm"
-                              title="Assign category"
-                              onClick={() => {
-                                setAssignCategoryItem(item);
-                                setAssignCategoryError(null);
-                              }}
-                            >
-                              <i className="bi bi-tag me-1"></i>
-                              Category
-                            </button>
-                            <button
-                              className="btn btn-outline-success btn-sm"
-                              title="Link to pricelist"
-                              onClick={() => {
-                                setLinkPricelistItemId(item.id === linkPricelistItemId ? null : item.id);
-                                setLinkPricelistId("");
-                                setLinkPrice("");
-                                setLinkError(null);
-                              }}
-                            >
-                              <i className="bi bi-link-45deg me-1"></i>
-                              Pricelist
-                            </button>
+                        </div>
+                      </td>
+                      <td className="align-middle">
+                        {item.pricelists.length === 0 ? (
+                          <span className="badge bg-warning-subtle text-warning border border-warning-subtle">
+                            None
+                          </span>
+                        ) : (
+                          <div className="d-flex flex-wrap gap-1">
+                            {item.pricelists.map((pl) => (
+                              <span
+                                key={pl.id}
+                                className="badge bg-success-subtle text-success border border-success-subtle d-inline-flex align-items-center gap-1"
+                              >
+                                {pl.name} — KSh {Number(pl.price).toFixed(2)}
+                                <button
+                                  type="button"
+                                  className="btn-close btn-close-sm"
+                                  style={{ fontSize: "0.5rem" }}
+                                  title={`Remove from ${pl.name}`}
+                                  onClick={() => handleUnlinkFromPricelist(item, pl.id)}
+                                  aria-label={`Remove from ${pl.name}`}
+                                />
+                              </span>
+                            ))}
                           </div>
-                        </td>
-                      </tr>
-                      {linkPricelistItemId === item.id && (
-                        <tr className="table-light">
-                          <td colSpan={6} className="py-2 px-3">
-                            <div className="d-flex align-items-center gap-2 flex-wrap">
-                              <span className="fw-semibold small text-muted">Link to pricelist:</span>
-                              <select
-                                className="form-select form-select-sm"
-                                style={{ maxWidth: 200 }}
-                                value={linkPricelistId}
-                                onChange={(e) => setLinkPricelistId(e.target.value)}
-                              >
-                                <option value="">Select pricelist…</option>
-                                {availablePricelists(item).map((pl) => (
-                                  <option key={pl.id} value={pl.id}>
-                                    {pl.name}
-                                  </option>
-                                ))}
-                              </select>
-                              <input
-                                type="number"
-                                className="form-control form-control-sm"
-                                style={{ maxWidth: 110 }}
-                                placeholder="Price (KES)"
-                                min={0}
-                                step="0.01"
-                                value={linkPrice}
-                                onChange={(e) => setLinkPrice(e.target.value)}
-                              />
-                              <button
-                                className="btn btn-success btn-sm"
-                                onClick={() => handleLinkToPricelist(item.id)}
-                                disabled={linkLoading}
-                              >
-                                {linkLoading ? (
-                                  <span className="spinner-border spinner-border-sm" role="status"></span>
-                                ) : (
-                                  <><i className="bi bi-check-circle me-1"></i>Link</>
-                                )}
-                              </button>
-                              <button
-                                className="btn btn-outline-secondary btn-sm"
-                                onClick={() => { setLinkPricelistItemId(null); setLinkError(null); }}
-                              >
-                                Cancel
-                              </button>
-                              {linkError && (
-                                <span className="text-danger small">
-                                  <i className="bi bi-exclamation-circle me-1"></i>
-                                  {linkError}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
+                        )}
+                      </td>
+                      <td className="text-center align-middle">
+                        <div className="d-flex gap-1 justify-content-center flex-nowrap">
+                          <button
+                            className="btn btn-outline-primary btn-sm"
+                            title="Edit item details"
+                            onClick={() => setEditItem(item)}
+                          >
+                            <i className="bi bi-pencil"></i>
+                          </button>
+                          <button
+                            className="btn btn-outline-secondary btn-sm"
+                            title="Assign category"
+                            onClick={() => {
+                              setAssignCategoryItem(item);
+                              setAssignCategoryError(null);
+                            }}
+                          >
+                            <i className="bi bi-tag"></i>
+                          </button>
+                          <button
+                            className="btn btn-outline-success btn-sm"
+                            title="Link to pricelist"
+                            onClick={() => setLinkPricelistItem(item)}
+                          >
+                            <i className="bi bi-link-45deg"></i>
+                          </button>
+                          <button
+                            className="btn btn-outline-danger btn-sm"
+                            title="Delete item"
+                            onClick={() => { setDeleteItem(item); setDeleteError(null); }}
+                          >
+                            <i className="bi bi-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -363,6 +297,102 @@ export default function ItemsPage() {
           onHide={() => setAssignCategoryItem(null)}
           onConfirm={handleAssignCategory}
         />
+
+        <LinkPricelistModal
+          show={!!linkPricelistItem}
+          itemId={linkPricelistItem?.id ?? 0}
+          itemName={linkPricelistItem?.name ?? ""}
+          linkedPricelistIds={linkPricelistItem?.pricelists.map((pl) => pl.id) ?? []}
+          onHide={() => setLinkPricelistItem(null)}
+          onLinked={(plId, plName, plPrice) => {
+            if (linkPricelistItem) {
+              setItems((prev) =>
+                prev.map((i) =>
+                  i.id === linkPricelistItem.id
+                    ? {
+                        ...i,
+                        pricelists: [
+                          ...i.pricelists,
+                          { id: plId, name: plName, price: plPrice, pricelistItemId: 0 },
+                        ],
+                      }
+                    : i
+                )
+              );
+            }
+            fetchItems();
+          }}
+        />
+
+        <EditItemDetailsModal
+          show={!!editItem}
+          item={editItem}
+          onHide={() => setEditItem(null)}
+          onUpdated={(updated) => {
+            setItems((prev) =>
+              prev.map((i) => (i.id === updated.id ? { ...i, ...updated } : i))
+            );
+            fetchItems();
+          }}
+        />
+
+        {/* Delete confirmation modal */}
+        {deleteItem && (
+          <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">
+                    <i className="bi bi-trash text-danger me-2"></i>
+                    Delete Item
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => { setDeleteItem(null); setDeleteError(null); }}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  {deleteError && (
+                    <div className="alert alert-danger py-2 small" role="alert">
+                      <i className="bi bi-exclamation-circle me-1"></i>
+                      {deleteError}
+                    </div>
+                  )}
+                  <p>
+                    Are you sure you want to delete <strong>&quot;{deleteItem.name}&quot;</strong>?
+                  </p>
+                  <div className="alert alert-warning mb-0" role="alert">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    This action cannot be undone. The item will be permanently removed from all pricelists and categories.
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => { setDeleteItem(null); setDeleteError(null); }}
+                    disabled={deleteLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={handleConfirmDelete}
+                    disabled={deleteLoading}
+                  >
+                    {deleteLoading ? (
+                      <><span className="spinner-border spinner-border-sm me-1" role="status"></span>Deleting…</>
+                    ) : (
+                      <><i className="bi bi-trash me-1"></i>Delete Item</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </RoleAwareLayout>
   );

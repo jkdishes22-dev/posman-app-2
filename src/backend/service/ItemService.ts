@@ -508,6 +508,27 @@ export class ItemService {
           }
         }
 
+        // Skip pricelist price update entirely when neither pricelistItemId nor pricelistId is given
+        const hasPricelistContext =
+          (pricelistItemId !== null && pricelistItemId !== undefined && !isNaN(Number(pricelistItemId)) && Number(pricelistItemId) > 0) ||
+          (pricelistId !== null && pricelistId !== undefined && !isNaN(Number(pricelistId)) && Number(pricelistId) > 0);
+
+        if (!hasPricelistContext) {
+          // Only invalidate item caches, then return
+          cache.invalidateMany([
+            "items",
+            `item_${itemData.id}`,
+            "items_pricelist",
+            "items_station",
+            "items_all_with_details_raw",
+          ]);
+          const savedItem = await transactionalEntityManager.findOne(Item, {
+            where: { id: itemData.id },
+            relations: ["category"],
+          });
+          return savedItem || updatedItemData;
+        }
+
         // Only query for pricelistItem if pricelistItemId is provided and valid
         let pricelistItemToUpdate = null;
         if (pricelistItemId !== null && pricelistItemId !== undefined && !isNaN(Number(pricelistItemId)) && Number(pricelistItemId) > 0) {
@@ -569,6 +590,7 @@ export class ItemService {
           `pricelist_items_${pricelistId}`,
           "items_pricelist",
           "items_station",
+          "items_all_with_details_raw",
         ]);
 
         // Reload the item to ensure all fields are properly set and relations are loaded
@@ -1040,7 +1062,7 @@ export class ItemService {
     const rows = await this.itemRepository
       .createQueryBuilder("item")
       .leftJoin("item.category", "category")
-      .leftJoin("pricelist_item", "pi", "pi.item_id = item.id")
+      .leftJoin("pricelist_item", "pi", "pi.item_id = item.id AND pi.is_enabled = 1")
       .leftJoin("pricelist", "pl", "pl.id = pi.pricelist_id")
       .select([
         "item.id AS item_id",
@@ -1048,6 +1070,7 @@ export class ItemService {
         "item.code AS item_code",
         "item.isGroup AS item_isGroup",
         "item.isStock AS item_isStock",
+        "item.allowNegativeInventory AS item_allowNegativeInventory",
         "category.id AS category_id",
         "category.name AS category_name",
         "pi.id AS pi_id",
@@ -1071,6 +1094,7 @@ export class ItemService {
           code: row.item_code,
           isGroup: toBoolean(row.item_isGroup),
           isStock: toBoolean(row.item_isStock),
+          allowNegativeInventory: toBoolean(row.item_allowNegativeInventory),
           category: row.category_id ? { id: Number(row.category_id), name: row.category_name } : null,
           pricelists: [],
         });
@@ -1100,6 +1124,17 @@ export class ItemService {
       category: categoryId ? ({ id: categoryId } as any) : null,
     });
 
-    cache.invalidateMany(["items_", "items_all_with_details"]);
+    cache.invalidateMany(["items_", "items_all_with_details", "items_all_with_details_raw"]);
+  }
+
+  public async deleteItem(itemId: number): Promise<void> {
+    const item = await this.itemRepository.findOne({ where: { id: itemId } });
+    if (!item) {
+      throw Object.assign(new Error("Item not found"), { statusCode: 404 });
+    }
+
+    await this.itemRepository.update(itemId, { status: ItemStatus.DELETED });
+
+    cache.invalidateMany(["items_", "items_all_with_details", "items_all_with_details_raw", "items_pricelist_", "items_station_"]);
   }
 }

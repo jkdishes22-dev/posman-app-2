@@ -1,6 +1,6 @@
 import { StationPricelist } from "@backend/entities/StationPricelist";
 import { Pricelist, PriceListStatus } from "@entities/Pricelist";
-import { PricelistItem } from "@entities/PricelistItem";
+import { Currency, PricelistItem } from "@entities/PricelistItem";
 import { DataSource, Repository } from "typeorm";
 import logger from "@backend/utils/logger";
 import { cache } from "@backend/utils/cache";
@@ -122,7 +122,8 @@ export class PricelistService {
           "category.name AS category_name",
           "pricelist.name AS pricelist_name",
         ])
-        .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) });
+        .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) })
+        .andWhere("pi.is_enabled = :enabled", { enabled: true });
 
       if (isSearching) {
         query.andWhere("(item.name LIKE :q OR item.code LIKE :q)", { q: `%${normalizedSearch}%` });
@@ -367,10 +368,13 @@ export class PricelistService {
     return result;
   }
 
-  async addItemToPricelist(pricelistId: number, itemId: number, price: number): Promise<void> {
-    const existing = await this.pricelistItemRepository.findOne({
-      where: { pricelist: { id: pricelistId }, item: { id: itemId } },
-    });
+  async addItemToPricelist(pricelistId: number, itemId: number, price: number, userId?: number): Promise<void> {
+    const existing = await this.pricelistItemRepository
+      .createQueryBuilder("pi")
+      .where("pi.pricelist_id = :pricelistId", { pricelistId })
+      .andWhere("pi.item_id = :itemId", { itemId })
+      .andWhere("pi.is_enabled = :enabled", { enabled: true })
+      .getOne();
     if (existing) {
       throw new Error("Item is already in this pricelist");
     }
@@ -378,10 +382,12 @@ export class PricelistService {
       pricelist: { id: pricelistId } as any,
       item: { id: itemId } as any,
       price,
+      currency: Currency.KES,
       is_enabled: true,
+      ...(userId ? { created_by: userId } : {}),
     });
     await this.pricelistItemRepository.save(pricelistItem);
-    cache.invalidateMany([`pricelist_items_${pricelistId}`, "items"]);
+    cache.invalidateMany([`pricelist_items_${pricelistId}`, "items", "items_all_with_details_raw"]);
   }
 
   async deletePricelist(pricelistId: number): Promise<void> {
@@ -419,6 +425,26 @@ export class PricelistService {
       "available_pricelists",
       `stations_using_pricelist_${pricelistId}`,
       "items_",
+    ]);
+  }
+
+  async updatePricelist(pricelistId: number, data: { name: string; code?: string | null; description?: string | null }): Promise<void> {
+    const pricelist = await this.pricelistRepository.findOne({ where: { id: pricelistId } });
+    if (!pricelist) {
+      throw Object.assign(new Error("Pricelist not found"), { statusCode: 404 });
+    }
+
+    await this.pricelistRepository.update(pricelistId, {
+      name: data.name,
+      code: data.code ?? null,
+      description: data.description ?? null,
+    });
+
+    cache.invalidateMany([
+      "pricelists",
+      `pricelist_${pricelistId}`,
+      "pricelists_by_station",
+      "available_pricelists",
     ]);
   }
 

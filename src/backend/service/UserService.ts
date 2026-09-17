@@ -335,21 +335,23 @@ export class UserService {
       const stationPricelistRepository = this.userRepository.manager.getRepository("StationPricelist");
       defaultPricelists = await stationPricelistRepository
         .createQueryBuilder("sp")
-        .leftJoinAndSelect("sp.pricelist", "pricelist")
-        .leftJoinAndSelect("sp.station", "station")
+        .innerJoin("sp.pricelist", "pricelist")
+        .innerJoin("sp.station", "station")
+        .select("station.id", "stationId")
+        .addSelect("pricelist.id", "pricelistId")
+        .addSelect("pricelist.name", "pricelistName")
         .where("station.id IN (:...stationIds)", { stationIds })
         .andWhere("sp.is_default = :isDefault", { isDefault: true })
         .andWhere("sp.status = :status", { status: "active" })
-        .select(["pricelist.id", "pricelist.name", "station.id"])
-        .getMany();
+        .getRawMany();
     }
 
     // Create a map of station ID to default pricelist
     const pricelistMap = new Map();
-    defaultPricelists.forEach(sp => {
-      pricelistMap.set(sp.station.id, {
-        id: sp.pricelist.id,
-        name: sp.pricelist.name
+    defaultPricelists.forEach((row: any) => {
+      pricelistMap.set(Number(row.stationId), {
+        id: Number(row.pricelistId),
+        name: row.pricelistName,
       });
     });
 
@@ -470,7 +472,7 @@ export class UserService {
         const updated = await this.userStationRepository.save(existingUserStation);
 
         // Invalidate cache
-        cache.invalidateMany([`user_stations_${userId}`, `user_roles_stations_${userId}`, "user_stations"]);
+        cache.invalidateMany([`user_stations_${userId}`, `user_roles_stations_${userId}`, "user_stations", `api_user_me_${userId}`]);
 
         return updated;
       }
@@ -486,7 +488,7 @@ export class UserService {
     const saved = await this.userStationRepository.save(userStation);
 
     // Invalidate cache
-    cache.invalidateMany([`user_stations_${userId}`, `user_roles_stations_${userId}`, "user_stations"]);
+    cache.invalidateMany([`user_stations_${userId}`, `user_roles_stations_${userId}`, "user_stations", `api_user_me_${userId}`]);
 
     return saved;
   }
@@ -533,6 +535,7 @@ export class UserService {
           `user_roles_stations_${userStationRequest.user}`,
           "user_stations",
           `user_default_station_${userStationRequest.user}`,
+          `api_user_me_${userStationRequest.user}`,
         ]);
 
         return existingStation;
@@ -548,6 +551,7 @@ export class UserService {
       where: {
         id: userStationRequest.userStation,
       },
+      relations: ["user"],
     });
 
     if (!existingStation) {
@@ -573,6 +577,7 @@ export class UserService {
       `user_stations_${existingStation.user.id}`,
       `user_roles_stations_${existingStation.user.id}`,
       "user_stations",
+      `api_user_me_${existingStation.user.id}`,
     ]);
 
     return saved;

@@ -9,16 +9,22 @@ interface CatalogItem {
   code?: string;
   price?: number;
   category?: { id: string; name: string } | null;
+  isGroup?: boolean;
+  isStock?: boolean;
+  allowNegativeInventory?: boolean;
 }
 
 interface LinkItemModalProps {
   show: boolean;
   pricelistId: number;
+  pricelistName?: string;
+  existingItemIds?: number[];
   onHide: () => void;
-  onLinked: () => void;
+  onLinked: (items: CatalogItem[]) => void;
+  onLinkComplete?: () => void;
 }
 
-export default function LinkItemModal({ show, pricelistId, onHide, onLinked }: LinkItemModalProps) {
+export default function LinkItemModal({ show, pricelistId, pricelistName, existingItemIds = [], onHide, onLinked, onLinkComplete }: LinkItemModalProps) {
   const apiCall = useApiCall();
   const [allItems, setAllItems] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,19 +41,25 @@ export default function LinkItemModal({ show, pricelistId, onHide, onLinked }: L
       return;
     }
     setLoading(true);
-    apiCall("/api/menu/items")
+    apiCall("/api/menu/items?all=true")
       .then(res => {
         if (res.status === 200) {
           const raw = Array.isArray(res.data) ? res.data : [];
+          const excludeSet = new Set(existingItemIds);
           const seen = new Map<number, CatalogItem>();
           for (const item of raw) {
-            if (!seen.has(item.id)) {
+            if (!seen.has(item.id) && !excludeSet.has(item.id)) {
               seen.set(item.id, {
                 id: item.id,
                 name: item.name,
                 code: item.code,
-                price: item.price ?? 0,
-                category: item.category ?? null,
+                price: item.price ?? (item.pricelists?.[0]?.price ?? 0),
+                category: item.category
+                  ? { id: String(item.category.id), name: item.category.name }
+                  : null,
+                isGroup: item.isGroup ?? false,
+                isStock: item.isStock ?? false,
+                allowNegativeInventory: item.allowNegativeInventory ?? false,
               });
             }
           }
@@ -104,29 +116,23 @@ export default function LinkItemModal({ show, pricelistId, onHide, onLinked }: L
   const handleLink = async () => {
     const toLink = allItems.filter(i => checkedIds.has(i.id));
     if (!toLink.length) return;
-    setSaving(true);
-    setResultMsg(null);
-    let linked = 0;
-    let skipped = 0;
-    for (const item of toLink) {
-      const res = await apiCall(
-        `/api/menu/pricelists/${pricelistId}/items/${item.id}`,
-        { method: "POST", body: JSON.stringify({ price: item.price ?? 0 }) }
-      );
-      if (res.status === 201) linked++;
-      else if (res.status === 409) skipped++;
-    }
-    setSaving(false);
-    if (linked > 0) onLinked();
-    if (linked === 0 && skipped > 0) {
-      setResultMsg("All selected items are already in this pricelist.");
-      return;
-    }
-    if (skipped > 0) {
-      setResultMsg(`${linked} item(s) linked. ${skipped} already in pricelist.`);
-      return;
-    }
+
+    // Show items immediately and close the modal
+    onLinked(toLink);
     onHide();
+
+    // Fire all API calls in parallel in the background
+    await Promise.allSettled(
+      toLink.map(item =>
+        apiCall(
+          `/api/menu/pricelists/${pricelistId}/items/${item.id}`,
+          { method: "POST", body: JSON.stringify({ price: item.price ?? 0 }) }
+        )
+      )
+    );
+
+    // Signal the parent to refetch so pricelistItemIds are corrected
+    onLinkComplete?.();
   };
 
   return (
@@ -157,7 +163,11 @@ export default function LinkItemModal({ show, pricelistId, onHide, onLinked }: L
             <Spinner size="sm" className="me-2" />Loading items…
           </div>
         ) : allItems.length === 0 ? (
-          <div className="text-muted text-center py-5">No items in catalog.</div>
+          <div className="text-muted text-center py-5">
+            {existingItemIds.length > 0
+              ? "All catalog items are already in this pricelist."
+              : "No items in catalog."}
+          </div>
         ) : (
           <>
             <div className="px-3 py-2 border-bottom d-flex align-items-center bg-light">

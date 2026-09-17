@@ -398,6 +398,7 @@ export class StationService {
         `pricelist_stations_${pricelistId}`,
         `pricelists_by_station_${stationId}_false`,
         `pricelists_by_station_${stationId}_true`,
+        "user_roles_stations_",
       ]);
     } catch (error: any) {
       console.error(`Error setting default pricelist for station ${stationId}:`, error);

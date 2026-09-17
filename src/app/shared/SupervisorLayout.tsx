@@ -17,16 +17,17 @@ interface SupervisorLayoutProps {
 }
 
 function getExpandedSidebarWidth(): number {
-    if (typeof window === "undefined") return 280;
+    if (typeof window === "undefined") return 240;
     if (window.innerWidth < 1024) return 60;
-    if (window.innerWidth < 1400) return 220;
-    return 280;
+    if (window.innerWidth < 1280) return 200;
+    if (window.innerWidth < 1600) return 220;
+    return 240;
 }
 
 const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError }) => {
     useTooltips();
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const [sidebarWidth, setSidebarWidth] = useState(280);
+    const [sidebarWidth, setSidebarWidth] = useState(240);
     const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
     const { activeItem, setActiveItem, expandedMenus, setExpandedMenus } = useNavigation(supervisorRoutes, SUPERVISOR_DEFAULT_BREADCRUMB);
     const { user } = useAuth();
@@ -100,6 +101,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     label: "Pricelists",
                     icon: "bi-tags",
                     path: "/supervisor/menu/pricelist",
+                },
+                {
+                    id: "menu-items",
+                    label: "Items",
+                    icon: "bi-bag",
+                    path: "/supervisor/menu/items",
                 },
                 {
                     id: "menu-recipes",
@@ -209,39 +216,15 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             icon: "bi-bar-chart",
             submenu: [
                 {
-                    id: "reports-pnl",
-                    label: "Profit & Loss",
-                    icon: "bi-graph-up-arrow",
-                    path: "/admin/reports/pnl",
-                },
-                {
-                    id: "reports-items-sold-count",
-                    label: "Items Sold Count",
-                    icon: "bi-cart",
-                    path: "/admin/reports/items-sold-count",
-                },
-                {
-                    id: "reports-production-stock-revenue",
-                    label: "Stock & Production",
-                    icon: "bi-box-seam",
-                    path: "/admin/reports/production-stock-revenue",
-                },
-                {
-                    id: "reports-expenditure",
-                    label: "Expenses",
-                    icon: "bi-cash-stack",
-                    path: "/admin/reports/expenditure",
-                },
-                {
-                    id: "reports-purchase-orders",
-                    label: "Purchase Orders",
-                    icon: "bi-cart-check",
-                    path: "/admin/reports/purchase-orders",
+                    id: "reports-dashboard",
+                    label: "Dashboard",
+                    icon: "bi-speedometer2",
+                    path: "/admin/reports",
                 },
                 {
                     id: "reports-sales-revenue",
                     label: "Sales Revenue",
-                    icon: "bi-graph-up",
+                    icon: "bi-currency-dollar",
                     path: "/admin/reports/sales-revenue",
                 },
                 {
@@ -250,6 +233,48 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                     icon: "bi-receipt-cutoff",
                     path: "/admin/reports/bill-payments",
                 },
+                {
+                    id: "reports-production-stock-revenue",
+                    label: "Production/Stock Revenue",
+                    icon: "bi-box-seam",
+                    path: "/admin/reports/production-stock-revenue",
+                },
+                {
+                    id: "reports-items-sold-count",
+                    label: "Items Sold Count",
+                    icon: "bi-cart",
+                    path: "/admin/reports/items-sold-count",
+                },
+                {
+                    id: "reports-voided-items",
+                    label: "Voided Items",
+                    icon: "bi-exclamation-triangle",
+                    path: "/admin/reports/voided-items",
+                },
+                {
+                    id: "reports-expenditure",
+                    label: "Expenditure",
+                    icon: "bi-cash-stack",
+                    path: "/admin/reports/expenditure",
+                },
+                {
+                    id: "reports-invoices-pending-bills",
+                    label: "Invoices & Pending Bills",
+                    icon: "bi-file-earmark-text",
+                    path: "/admin/reports/invoices-pending-bills",
+                },
+                {
+                    id: "reports-purchase-orders",
+                    label: "Purchase Orders",
+                    icon: "bi-cart-check",
+                    path: "/admin/reports/purchase-orders",
+                },
+                {
+                    id: "reports-pnl",
+                    label: "Profit & Loss",
+                    icon: "bi-graph-up-arrow",
+                    path: "/admin/reports/pnl",
+                },
             ],
         },
     ];
@@ -257,19 +282,16 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
     const toggleMenu = (menuId: string) => {
         const menuItem = menuItems.find(item => item.id === menuId);
 
-        // Check if any sub-item is currently active
         if (menuItem?.submenu) {
             const hasActiveSubItem = menuItem.submenu.some(
                 subItem => activeItem === subItem.id
             );
 
-            // Prevent collapse if a sub-item is active
             if (hasActiveSubItem && expandedMenus.includes(menuId)) {
-                return; // Don't allow collapse
+                return;
             }
         }
 
-        // Accordion: only one submenu open; opening another closes the rest
         setExpandedMenus((prev) => {
             if (prev.includes(menuId)) {
                 return prev.filter((id) => id !== menuId);
@@ -316,7 +338,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 }}
             >
                 {/* Header */}
-                <div className="p-3 border-bottom border-secondary">
+                <div className="p-2 border-bottom border-secondary">
                     <div className="d-flex align-items-center">
                         {!isCollapsed && (
                             <div className="flex-grow-1">
@@ -346,44 +368,42 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
 
 
                 {/* Navigation */}
-                <nav className="flex-grow-1 px-3 pt-1 pb-3" style={{ overflowY: "auto" }}>
+                <nav className="flex-grow-1 px-2 pt-1 pb-2" style={{ overflowY: "auto" }}>
                     <ul className="nav nav-pills flex-column">
                         {visibleMenuItems.map((item) => (
-                            <li key={item.id} className="nav-item mb-2">
+                            <li key={item.id} className="nav-item mb-1">
                                 {item.submenu ? (
                                     <div>
                                         <button
-                                            className={`nav-link w-100 text-start d-flex align-items-center ${expandedMenus.includes(item.id) ? "active" : ""}`}
+                                            className={"nav-link w-100 text-start d-flex align-items-center"}
                                             onClick={() => toggleMenu(item.id)}
                                             style={{
-                                                background: expandedMenus.includes(item.id) ? "var(--bs-primary)" : "transparent",
+                                                background: "transparent",
                                                 border: "none",
-                                                color: expandedMenus.includes(item.id) ? "white" : "rgba(255,255,255,0.8)",
+                                                color: "rgba(255,255,255,0.8)",
+                                                cursor: "pointer",
                                             }}
                                         >
-                                            <i className={`bi ${item.icon} me-3`}></i>
+                                            <i className={`bi ${item.icon} me-2`}></i>
                                             {!isCollapsed && <span>{item.label}</span>}
                                             {!isCollapsed && (
                                                 <i className={`bi ${expandedMenus.includes(item.id) ? "bi-chevron-up" : "bi-chevron-down"} ms-auto`}></i>
                                             )}
                                         </button>
                                         {expandedMenus.includes(item.id) && !isCollapsed && (
-                                            <ul className="nav nav-pills flex-column ms-3 mt-2">
+                                            <ul className="nav nav-pills flex-column ms-2 mt-1">
                                                 {item.submenu.map((subItem) => (
                                                     <li key={subItem.id} className="nav-item mb-1">
                                                         <Link
                                                             href={subItem.path}
                                                             className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === subItem.id ? "active" : ""}`}
-                                                            onClick={(e) => {
-                                                                setActiveItem(subItem.id);
-                                                                // Let Link handle navigation naturally
-                                                            }}
+                                                            onClick={() => setActiveItem(subItem.id)}
                                                             style={{
                                                                 background: activeItem === subItem.id ? "var(--bs-primary)" : "transparent",
                                                                 border: "none",
                                                                 color: activeItem === subItem.id ? "white" : "rgba(255,255,255,0.8)",
-                                                                fontSize: "0.9rem",
-                                                                padding: "0.5rem 0.75rem",
+                                                                fontSize: "0.85rem",
+                                                                padding: "0.35rem 0.6rem",
                                                                 textDecoration: "none",
                                                             }}
                                                         >
@@ -398,12 +418,8 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                                 ) : (
                                     <Link
                                         href={item.path}
-                                        className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""
-                                            }`}
-                                        onClick={(e) => {
-                                            setActiveItem(item.id);
-                                            // Let Link handle navigation naturally
-                                        }}
+                                        className={`nav-link w-100 text-start d-flex align-items-center ${activeItem === item.id ? "active" : ""}`}
+                                        onClick={() => setActiveItem(item.id)}
                                         style={{
                                             background: activeItem === item.id ? "var(--bs-primary)" : "transparent",
                                             border: "none",
@@ -411,7 +427,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                                             textDecoration: "none",
                                         }}
                                     >
-                                        <i className={`bi ${item.icon} me-3`}></i>
+                                        <i className={`bi ${item.icon} me-2`}></i>
                                         {!isCollapsed && <span>{item.label}</span>}
                                     </Link>
                                 )}
@@ -424,7 +440,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
                 {/* Logout */}
                 <div className="border-top border-secondary">
                     <AppVersion isCollapsed={isCollapsed} />
-                    <div className="p-3">
+                    <div className="p-2">
                         <LogoutButton />
                     </div>
                 </div>
@@ -433,7 +449,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             {/* Main Content */}
             <div className="flex-grow-1 d-flex flex-column min-w-0 overflow-hidden">
                 {/* Page Content */}
-                <main className="flex-grow-1 p-4 min-w-0" style={{ overflowY: "auto" }}>
+                <main className="flex-grow-1 p-3 min-w-0" style={{ overflowY: "auto" }}>
                     {authError && (
                         <div className="alert alert-danger" role="alert">
                             <i className="bi bi-exclamation-triangle me-2"></i>
@@ -455,4 +471,3 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
 };
 
 export default SupervisorLayout;
-

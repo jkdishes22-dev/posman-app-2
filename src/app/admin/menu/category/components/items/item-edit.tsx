@@ -174,7 +174,14 @@ const EditItemModal: React.FC<EditItemModalProps> = ({
           // Clear errors on success
           setError(null);
           setErrorDetails(null);
-          onSave(result.data); // Call save function with the updated item
+          // Merge API response with local form state so price is included in the optimistic update
+          onSave({
+            ...editedItem,
+            ...(result.data || {}),
+            price: editedItem.price,
+            pricelistId: pricelistId ?? editedItem.pricelistId,
+            pricelistItemId: pricelistItemId ?? editedItem.pricelistItemId,
+          });
           onClose(); // Close modal
         } else {
           // Error - apiCall already standardizes all non-2XX errors

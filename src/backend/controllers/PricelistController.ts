@@ -62,6 +62,30 @@ export const deletePricelistHandler = async (
   }
 };
 
+export const updatePricelistHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const pricelistService = new PricelistService(req.db);
+  try {
+    const { pricelistId } = req.query;
+    if (!pricelistId) {
+      return res.status(400).json({ error: "Pricelist ID is required" });
+    }
+    const { name, code, description } = req.body;
+    if (!name?.trim()) {
+      return res.status(400).json({ error: "Pricelist name is required" });
+    }
+    await pricelistService.updatePricelist(Number(pricelistId), { name: name.trim(), code: code || null, description: description || null });
+    res.status(200).json({ message: "Pricelist updated successfully" });
+  } catch (error: any) {
+    const statusCode = error.statusCode ?? 500;
+    if (statusCode === 404) return res.status(404).json({ error: error.message });
+    const { userMessage, errorCode } = handleApiError(error, { operation: "updating", resource: "pricelist" });
+    res.status(500).json({ error: userMessage, code: errorCode });
+  }
+};
+
 export const fetchPricelistItems = async (
   req: NextApiRequest,
   res: NextApiResponse,

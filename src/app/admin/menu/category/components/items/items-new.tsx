@@ -51,9 +51,10 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   const apiCall = useApiCall();
   useTooltips();
 
-  // Determine context for conditional rendering
-  const isFromPricelistPage = !selectedCategory && selectedPricelistId;
-  const isFromCategoryPage = selectedCategory && !selectedPricelistId;
+  // Determine context for conditional rendering.
+  // Pricelist page always passes handleAddItem; category page passes selectedCategory.
+  const isFromPricelistPage = !!handleAddItem || (!selectedCategory && !!selectedPricelistId);
+  const isFromCategoryPage = !isFromPricelistPage && !!selectedCategory;
 
   useEffect(() => {
     async function fetchPricelists() {

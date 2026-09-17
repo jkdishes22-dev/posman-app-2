@@ -964,10 +964,10 @@ function createWindow() {
     }
 
     const windowOptions = {
-        width: 1400,
-        height: 900,
+        width: 1280,
+        height: 800,
         minWidth: 1024,
-        minHeight: 768,
+        minHeight: 700,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -985,8 +985,9 @@ function createWindow() {
 
     mainWindow = new BrowserWindow(windowOptions);
 
-    // Show window when ready
+    // Show window when ready — maximize so it fills the screen on any size monitor
     mainWindow.once("ready-to-show", () => {
+        mainWindow.maximize();
         mainWindow.show();
         if (isDev) {
             mainWindow.webContents.openDevTools();

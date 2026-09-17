@@ -250,6 +250,26 @@ export const fetchAllItemsWithDetailsHandler = async (
   }
 };
 
+export const deleteItemHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const itemService = new ItemService(req.db);
+  try {
+    const { id } = req.query;
+    if (!id) {
+      return res.status(400).json({ error: "Item ID is required" });
+    }
+    await itemService.deleteItem(Number(id));
+    res.status(200).json({ message: "Item deleted" });
+  } catch (error: any) {
+    const statusCode = error.statusCode ?? 500;
+    if (statusCode === 404) return res.status(404).json({ error: error.message });
+    const { userMessage, errorCode } = handleApiError(error, { operation: "deleting", resource: "item" });
+    res.status(500).json({ error: userMessage, code: errorCode });
+  }
+};
+
 export const updateItemCategoryHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,

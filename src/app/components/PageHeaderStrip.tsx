@@ -23,7 +23,7 @@ export default function PageHeaderStrip({
 
   return (
     <div
-      className={`page-header-strip bg-primary text-white p-3 mb-4 position-relative ${className ?? ""}`.trim()}
+      className={`page-header-strip bg-primary text-white p-2 mb-3 position-relative ${className ?? ""}`.trim()}
       style={{ zIndex: 1050 }}
     >
       <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">

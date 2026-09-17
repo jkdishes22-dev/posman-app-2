@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import PricelistAdd from "./pricelist-new";
 import ViewItems from "../category/components/items/items-view";
@@ -51,7 +51,15 @@ export default function PricelistPage() {
   const [showDeletePricelistModal, setShowDeletePricelistModal] = useState(false);
   const [pricelistToDelete, setPricelistToDelete] = useState<Pricelist | null>(null);
   const [deletePricelistError, setDeletePricelistError] = useState<string | null>(null);
+  const [showEditPricelistModal, setShowEditPricelistModal] = useState(false);
+  const [pricelistToEdit, setPricelistToEdit] = useState<Pricelist | null>(null);
+  const [editPricelistName, setEditPricelistName] = useState("");
+  const [editPricelistCode, setEditPricelistCode] = useState("");
+  const [editPricelistDescription, setEditPricelistDescription] = useState("");
+  const [editPricelistError, setEditPricelistError] = useState<string | null>(null);
+  const [editPricelistLoading, setEditPricelistLoading] = useState(false);
   const [pricelistItems, setPricelistItems] = useState([]);
+  const allLinkedItemIds = useRef<Set<number>>(new Set());
   const [selectedPricelistId, setSelectedPricelistId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -151,6 +159,7 @@ export default function PricelistPage() {
   useEffect(() => {
     setSelectedPricelistId(null);
     setPricelistItems([]);
+    allLinkedItemIds.current = new Set();
     setItemError("");
 
     if (selectedStationId === null) {
@@ -189,7 +198,12 @@ export default function PricelistPage() {
       const url = `/api/menu/pricelists/${pricelistId}/items${qs ? `?${qs}` : ""}`;
       const result = await apiCall(url);
       if (result.status >= 200 && result.status < 300) {
-        setPricelistItems(result.data || []);
+        const items = result.data || [];
+        setPricelistItems(items);
+        // Keep the complete ID set in sync whenever we fetch without a search filter
+        if (!search.trim()) {
+          allLinkedItemIds.current = new Set((items as any[]).map((i: any) => Number(i.id)));
+        }
       } else {
         setPricelistItems([]);
       }
@@ -403,6 +417,7 @@ export default function PricelistPage() {
         if (selectedPricelistId === pricelistToDelete.id) {
           setSelectedPricelistId(null);
           setPricelistItems([]);
+          allLinkedItemIds.current = new Set();
         }
         setShowDeletePricelistModal(false);
         setPricelistToDelete(null);
@@ -411,6 +426,47 @@ export default function PricelistPage() {
       }
     } catch (error: any) {
       setDeletePricelistError("Failed to delete pricelist: " + error.message);
+    }
+  };
+
+  const openEditPricelistModal = (pricelist: Pricelist) => {
+    setPricelistToEdit(pricelist);
+    setEditPricelistName(pricelist.name);
+    setEditPricelistCode(pricelist.code || "");
+    setEditPricelistDescription(pricelist.description || "");
+    setEditPricelistError(null);
+    setShowEditPricelistModal(true);
+  };
+
+  const handleUpdatePricelist = async () => {
+    if (!pricelistToEdit) return;
+    if (!editPricelistName.trim()) {
+      setEditPricelistError("Pricelist name is required.");
+      return;
+    }
+    setEditPricelistLoading(true);
+    setEditPricelistError(null);
+    const result = await apiCall(`/api/menu/pricelists/${pricelistToEdit.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        name: editPricelistName.trim(),
+        code: editPricelistCode.trim() || null,
+        description: editPricelistDescription.trim() || null,
+      }),
+    });
+    setEditPricelistLoading(false);
+    if (result.status >= 200 && result.status < 300) {
+      setPricelists((prev) =>
+        prev.map((p) =>
+          p.id === pricelistToEdit.id
+            ? { ...p, name: editPricelistName.trim(), code: editPricelistCode.trim() || undefined, description: editPricelistDescription.trim() || undefined }
+            : p
+        )
+      );
+      setShowEditPricelistModal(false);
+      setPricelistToEdit(null);
+    } else {
+      setEditPricelistError(result.error || "Failed to update pricelist.");
     }
   };
 
@@ -576,42 +632,53 @@ export default function PricelistPage() {
                             </span>
                           </td>
                           <td className="text-center">
-                            <div className="d-flex gap-1 justify-content-center flex-wrap">
-                              {(!pricelist.status || pricelist.status === "inactive") && (
+                            <div className="d-flex gap-1 justify-content-center">
+                              {(!pricelist.status || pricelist.status === "inactive") ? (
                                 <Button
                                   variant="outline-success"
                                   size="sm"
+                                  title="Activate"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleTogglePricelistStatus(pricelist.id, pricelist.status || "inactive", pricelist.name);
                                   }}
                                 >
-                                  <i className="bi bi-play-circle me-1"></i>
-                                  Activate
+                                  <i className="bi bi-play-circle"></i>
                                 </Button>
-                              )}
-                              {pricelist.status === "active" && (
+                              ) : (
                                 <Button
                                   variant="outline-warning"
                                   size="sm"
+                                  title="Deactivate"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleTogglePricelistStatus(pricelist.id, pricelist.status, pricelist.name);
                                   }}
                                 >
-                                  <i className="bi bi-pause-circle me-1"></i>
-                                  Deactivate
+                                  <i className="bi bi-pause-circle"></i>
                                 </Button>
                               )}
                               <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                title="Edit"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditPricelistModal(pricelist);
+                                }}
+                              >
+                                <i className="bi bi-pencil"></i>
+                              </Button>
+                              <Button
                                 variant="outline-danger"
                                 size="sm"
+                                title="Delete"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setPricelistToDelete(pricelist);
+                                  setDeletePricelistError(null);
                                   setShowDeletePricelistModal(true);
                                 }}
-                                title="Delete this pricelist"
                               >
                                 <i className="bi bi-trash"></i>
                               </Button>
@@ -815,8 +882,32 @@ export default function PricelistPage() {
           <LinkItemModal
             show={showLinkItemModal}
             pricelistId={selectedPricelistId}
+            pricelistName={filteredPricelists.find(p => p.id === selectedPricelistId)?.name ?? ""}
+            existingItemIds={Array.from(allLinkedItemIds.current)}
             onHide={() => setShowLinkItemModal(false)}
-            onLinked={() => fetchPricelistItems(selectedPricelistId, true)}
+            onLinked={(linkedItems) => {
+              const plName = filteredPricelists.find(p => p.id === selectedPricelistId)?.name ?? "";
+              // Optimistically add items and update the complete ID set immediately
+              linkedItems.forEach(item => allLinkedItemIds.current.add(Number(item.id)));
+              setPricelistItems(prev => [
+                ...prev,
+                ...linkedItems.map(item => ({
+                  id: item.id,
+                  name: item.name,
+                  code: item.code ?? "",
+                  isGroup: item.isGroup ?? false,
+                  isStock: item.isStock ?? false,
+                  allowNegativeInventory: item.allowNegativeInventory ?? false,
+                  category: item.category ? { id: Number(item.category.id), name: item.category.name } : null,
+                  price: item.price ?? 0,
+                  currency: "KES",
+                  pricelistItemId: 0,
+                  pricelistId: selectedPricelistId,
+                  pricelistName: plName,
+                })),
+              ]);
+            }}
+            onLinkComplete={() => fetchPricelistItems(selectedPricelistId, true)}
           />
         )}
 
@@ -838,6 +929,87 @@ export default function PricelistPage() {
               onHide={() => setShowAuditModal(false)}
             />
           </>
+        )}
+
+        {/* Edit Pricelist Modal */}
+        {showEditPricelistModal && pricelistToEdit && (
+          <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">
+                    <i className="bi bi-pencil text-secondary me-2"></i>
+                    Edit Pricelist
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => { setShowEditPricelistModal(false); setPricelistToEdit(null); }}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  {editPricelistError && (
+                    <div className="alert alert-danger py-2 small" role="alert">
+                      <i className="bi bi-exclamation-circle me-1"></i>
+                      {editPricelistError}
+                    </div>
+                  )}
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold small">Name <span className="text-danger">*</span></label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      value={editPricelistName}
+                      onChange={(e) => { setEditPricelistName(e.target.value); setEditPricelistError(null); }}
+                      placeholder="Pricelist name"
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold small">Code</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      value={editPricelistCode}
+                      onChange={(e) => setEditPricelistCode(e.target.value)}
+                      placeholder="Short code (optional)"
+                    />
+                  </div>
+                  <div className="mb-0">
+                    <label className="form-label fw-semibold small">Description</label>
+                    <textarea
+                      className="form-control form-control-sm"
+                      rows={2}
+                      value={editPricelistDescription}
+                      onChange={(e) => setEditPricelistDescription(e.target.value)}
+                      placeholder="Description (optional)"
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => { setShowEditPricelistModal(false); setPricelistToEdit(null); }}
+                    disabled={editPricelistLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleUpdatePricelist}
+                    disabled={editPricelistLoading}
+                  >
+                    {editPricelistLoading ? (
+                      <><span className="spinner-border spinner-border-sm me-1" role="status"></span>Saving…</>
+                    ) : (
+                      <><i className="bi bi-check-circle me-1"></i>Save</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Delete Pricelist Modal */}
