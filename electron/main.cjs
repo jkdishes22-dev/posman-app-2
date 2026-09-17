@@ -1348,7 +1348,23 @@ button:hover{background:#2563eb}</style></head>
 /**
  * App lifecycle handlers
  */
+// Suppress / restore Windows touch-keyboard auto-invoke on input focus.
+// EnableDesktopModeAutoInvoke = 0 stops TabTip from popping up automatically;
+// the user can still open it manually via the in-app toggle button.
+function setOskAutoInvoke(enabled) {
+    if (process.platform !== "win32") return;
+    const { exec } = require("child_process");
+    const value = enabled ? 1 : 0;
+    const cmd = `reg add "HKCU\\Software\\Microsoft\\TabletTip\\1.7" /v EnableDesktopModeAutoInvoke /t REG_DWORD /d ${value} /f`;
+    exec(cmd, { windowsHide: true }, (err) => {
+        if (err) logToFile(`setOskAutoInvoke(${enabled}) error: ${err.message}`, "WARN");
+        else logToFile(`OSK auto-invoke ${enabled ? "restored" : "suppressed"}`);
+    });
+}
+
 app.whenReady().then(async () => {
+    setOskAutoInvoke(false);
+
     // Enforce single instance — if another JK PosMan is already open, focus it and quit this one.
     if (!app.requestSingleInstanceLock()) {
         logToFile("Another instance is already running — quitting duplicate");
@@ -1428,6 +1444,8 @@ app.on("activate", () => {
 });
 
 app.on("before-quit", () => {
+    setOskAutoInvoke(true);
+
     // Clean up: kill Next.js server process
     if (nextServer) {
         try {
