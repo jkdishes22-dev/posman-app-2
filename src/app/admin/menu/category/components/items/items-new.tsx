@@ -193,7 +193,14 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         </div>
       )}
       <ModalHeader closeButton>
-        <ModalTitle>Add Item</ModalTitle>
+        <ModalTitle>
+          Add Item
+          {isFromCategoryPage && selectedCategory && (
+            <span className="ms-2 badge bg-primary fw-normal" style={{ fontSize: "0.75rem" }}>
+              <i className="bi bi-grid me-1"></i>{selectedCategory.name}
+            </span>
+          )}
+        </ModalTitle>
       </ModalHeader>
       <ModalBody>
         <ErrorDisplay

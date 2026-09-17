@@ -77,16 +77,6 @@ export default function LinkItemsToCategoryModal({
     );
   }, [allItems, filter]);
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, { label: string; items: CatalogItem[] }>();
-    for (const item of filtered) {
-      const key = item.category ? String(item.category.id) : "__none__";
-      const label = item.category?.name ?? "Uncategorized";
-      if (!map.has(key)) map.set(key, { label, items: [] });
-      map.get(key)!.items.push(item);
-    }
-    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
-  }, [filtered]);
 
   const allFilteredChecked =
     filtered.length > 0 && filtered.every((i) => checkedIds.has(i.id));
@@ -155,9 +145,7 @@ export default function LinkItemsToCategoryModal({
           </div>
         ) : allItems.length === 0 ? (
           <div className="text-muted text-center py-5">
-            {existingItemIds.length > 0
-              ? "All catalog items are already in this category."
-              : "No items in catalog."}
+            All items are already in this category.
           </div>
         ) : (
           <>
@@ -178,36 +166,29 @@ export default function LinkItemsToCategoryModal({
               )}
             </div>
             <div>
-              {grouped.map((group) => (
-                <div key={group.label}>
-                  <div
-                    className="px-3 py-1 border-bottom text-muted small fw-semibold bg-light sticky-top"
-                    style={{ top: 0 }}
-                  >
-                    <i className="bi bi-grid me-1"></i>{group.label}
+              {filtered.map((item) => (
+                <div
+                  key={item.id}
+                  className="d-flex align-items-center px-3 py-2 border-bottom"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => toggleItem(item.id)}
+                >
+                  <Form.Check
+                    type="checkbox"
+                    checked={checkedIds.has(item.id)}
+                    onChange={() => toggleItem(item.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="me-3 flex-shrink-0"
+                  />
+                  <div className="flex-grow-1">
+                    <span className="fw-semibold">{item.name}</span>
+                    {item.code && (
+                      <span className="text-muted ms-2 small">({item.code})</span>
+                    )}
                   </div>
-                  {group.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="d-flex align-items-center px-3 py-2 border-bottom"
-                      style={{ cursor: "pointer" }}
-                      onClick={() => toggleItem(item.id)}
-                    >
-                      <Form.Check
-                        type="checkbox"
-                        checked={checkedIds.has(item.id)}
-                        onChange={() => toggleItem(item.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="me-3 flex-shrink-0"
-                      />
-                      <div className="flex-grow-1">
-                        <span className="fw-semibold">{item.name}</span>
-                        {item.code && (
-                          <span className="text-muted ms-2 small">({item.code})</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  <span className={`ms-3 badge flex-shrink-0 ${item.category ? "bg-secondary" : "bg-light text-muted border"}`}>
+                    {item.category ? item.category.name : "Uncategorized"}
+                  </span>
                 </div>
               ))}
             </div>
