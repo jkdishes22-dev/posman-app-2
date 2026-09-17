@@ -80,7 +80,7 @@ const CategoryPage: React.FC = () => {
 
   const handleCategoryClick = (cat: Category) => {
     setSelectedCategory(cat);
-    fetchItems(cat.id);
+    fetchItems(cat.id, true);
   };
 
   /* ── Add category ───────────────────────────────────────────── */
