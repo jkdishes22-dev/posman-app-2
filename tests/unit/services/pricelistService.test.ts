@@ -144,7 +144,7 @@ describe("PricelistService", () => {
       await service.removeItemFromPricelist(5, 2);
 
       expect(qb.execute).toHaveBeenCalled();
-      expect(invalidateManySpy).toHaveBeenCalledWith(["pricelist_items_5", "items"]);
+      expect(invalidateManySpy).toHaveBeenCalledWith(["pricelist_items_5", "items", "items_all_with_details_raw"]);
     });
   });
 

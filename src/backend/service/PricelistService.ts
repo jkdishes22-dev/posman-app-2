@@ -376,6 +376,7 @@ export class PricelistService {
       .andWhere("pi.is_enabled = :enabled", { enabled: true })
       .getOne();
     if (existing) {
+      cache.invalidateMany([`pricelist_items_${pricelistId}`, "items", "items_all_with_details_raw"]);
       throw new Error("Item is already in this pricelist");
     }
     const pricelistItem = this.pricelistItemRepository.create({
@@ -462,6 +463,6 @@ export class PricelistService {
     }
 
     // Invalidate cache
-    cache.invalidateMany([`pricelist_items_${pricelistId}`, "items"]);
+    cache.invalidateMany([`pricelist_items_${pricelistId}`, "items", "items_all_with_details_raw"]);
   }
 }

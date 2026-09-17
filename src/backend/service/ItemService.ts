@@ -583,11 +583,15 @@ export class ItemService {
           );
         }
 
+        // Derive the actual pricelist ID — when editing from the items page,
+        // pricelistId param is undefined; fall back to the joined relation id.
+        const actualPricelistId = pricelistItemToUpdate?.pricelist?.id ?? pricelistId;
+
         // Invalidate cache after updating item (affects items and prices)
         cache.invalidateMany([
           "items",
           `item_${itemData.id}`,
-          `pricelist_items_${pricelistId}`,
+          `pricelist_items_${actualPricelistId}`,
           "items_pricelist",
           "items_station",
           "items_all_with_details_raw",
