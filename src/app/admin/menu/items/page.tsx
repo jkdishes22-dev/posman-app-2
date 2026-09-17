@@ -322,7 +322,7 @@ export default function ItemsPage() {
             </div>
           </div>
           <div className="card-body p-0">
-            <div className="table-responsive">
+            <div className="table-responsive" style={{ maxHeight: "calc(100vh - 320px)", overflowY: "auto" }}>
               <table className="table table-sm table-hover mb-0">
                 <thead className="table-light">
                   <tr>
