@@ -259,7 +259,9 @@ export const fetchAllItemsPaginatedHandler = async (
     const page = Math.max(1, Number(req.query.page) || 1);
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
     const search = typeof req.query.search === "string" ? req.query.search : undefined;
-    const result = await itemService.fetchAllItemsPaginated(page, limit, search);
+    const categoryId = req.query.categoryId ? Number(req.query.categoryId) : undefined;
+    const pricelistId = req.query.pricelistId ? Number(req.query.pricelistId) : undefined;
+    const result = await itemService.fetchAllItemsPaginated(page, limit, search, categoryId, pricelistId);
     res.status(200).json(result);
   } catch (error: any) {
     const { userMessage, errorCode } = handleApiError(error, { operation: "fetching", resource: "items" });

@@ -514,17 +514,19 @@ export class PricelistUploadService {
             updated_by: userId,
           });
 
-          // Update or create PricelistItem
+          // Update or create PricelistItem — prefer the active row; re-enable if currently disabled
           const existingPricelistItem = await queryRunner.manager
             .createQueryBuilder(PricelistItem, "pi")
             .where("pi.item_id = :itemId", { itemId: matchedItemId })
             .andWhere("pi.pricelist_id = :pricelistId", { pricelistId: pricelist.id })
+            .orderBy("pi.is_enabled", "DESC") // active rows (1) before disabled (0)
             .getOne();
 
           if (existingPricelistItem) {
             existingPricelistItem.price = row.price;
             if (row.currency) existingPricelistItem.currency = row.currency as Currency;
-            if (row.is_enabled !== undefined) existingPricelistItem.is_enabled = row.is_enabled;
+            // Re-enable any previously disabled row unless the CSV explicitly disables it
+            existingPricelistItem.is_enabled = row.is_enabled !== undefined ? row.is_enabled : true;
             existingPricelistItem.updated_by = userId;
             await queryRunner.manager.save(PricelistItem, existingPricelistItem);
           } else {

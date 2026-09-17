@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 import { useApiCall } from "src/app/utils/apiUtils";
 
@@ -9,11 +9,17 @@ interface Pricelist {
   status?: string;
 }
 
+interface ExistingPrice {
+  name: string;
+  price: number;
+}
+
 interface LinkPricelistModalProps {
   show: boolean;
   itemId: number;
   itemName: string;
   linkedPricelistIds: number[];
+  existingPrices?: ExistingPrice[];
   onHide: () => void;
   onLinked: (pricelistId: number, pricelistName: string, price: number) => void;
 }
@@ -23,10 +29,12 @@ export default function LinkPricelistModal({
   itemId,
   itemName,
   linkedPricelistIds,
+  existingPrices = [],
   onHide,
   onLinked,
 }: LinkPricelistModalProps) {
   const apiCall = useApiCall();
+  const priceInputRef = useRef<HTMLInputElement>(null);
   const [pricelists, setPricelists] = useState<Pricelist[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -125,7 +133,30 @@ export default function LinkPricelistModal({
             </Form.Group>
             <Form.Group>
               <Form.Label className="fw-semibold small">Price (KES)</Form.Label>
+              {existingPrices.length > 0 && (
+                <div className="mb-2 d-flex flex-wrap gap-1 align-items-center">
+                  <span className="text-muted small me-1">Suggested:</span>
+                  {existingPrices.map((ep) => (
+                    <button
+                      key={ep.name}
+                      type="button"
+                      className={`btn btn-sm py-0 px-2 ${price === String(ep.price) ? "btn-primary" : "btn-outline-secondary"}`}
+                      style={{ fontSize: "0.75rem" }}
+                      onClick={() => {
+                        setPrice(String(ep.price));
+                        setError(null);
+                        // Select-all so the user can immediately type a different value
+                        setTimeout(() => priceInputRef.current?.select(), 0);
+                      }}
+                      title={`Use price from ${ep.name} — click then type to change`}
+                    >
+                      {ep.name}: KSh {Number(ep.price).toFixed(2)}
+                    </button>
+                  ))}
+                </div>
+              )}
               <Form.Control
+                ref={priceInputRef}
                 type="number"
                 size="sm"
                 min={0}

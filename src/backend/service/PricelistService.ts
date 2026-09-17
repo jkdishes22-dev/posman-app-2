@@ -87,13 +87,13 @@ export class PricelistService {
     }
   }
 
-  async fetchPricelistItems(pricelistId: string, search?: string): Promise<any[]> {
+  async fetchPricelistItems(pricelistId: string, search?: string, forceRefresh = false): Promise<any[]> {
     const normalizedSearch = search?.trim() ?? "";
     const isSearching = normalizedSearch.length > 0;
     const cacheKey = `pricelist_items_${pricelistId}`;
 
-    // Only use cache for unfiltered requests; search queries bypass cache
-    if (!isSearching) {
+    // Only use cache for unfiltered requests; search queries and explicit forceRefresh bypass cache
+    if (!isSearching && !forceRefresh) {
       const cached = cache.get<any[]>(cacheKey);
       if (cached !== null) {
         return cached;
@@ -450,12 +450,14 @@ export class PricelistService {
   }
 
   async removeItemFromPricelist(pricelistId: number, itemId: number): Promise<void> {
+    // Soft-disable all active rows — preserves pricelist_item_audit FK references
     const result = await this.pricelistItemRepository
       .createQueryBuilder()
-      .delete()
-      .from(PricelistItem)
+      .update(PricelistItem)
+      .set({ is_enabled: false })
       .where("pricelist_id = :pricelistId", { pricelistId })
       .andWhere("item_id = :itemId", { itemId })
+      .andWhere("is_enabled = :enabled", { enabled: true })
       .execute();
 
     if (result.affected === 0) {
