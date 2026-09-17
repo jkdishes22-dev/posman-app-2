@@ -38,19 +38,23 @@ export class ItemService {
         const item: Item = this.itemRepository.create(newItem);
         const savedItem = await transactionalEntityManager.save(Item, item);
 
-        const newPriceListItem = {
-          price: price,
-          created_by: user_id,
-          pricelist: { id: Number(pricelistId) },
-          item: { id: savedItem.id },
-          currency: Currency.KES,
-        };
-        const pricelistItem: PricelistItem =
-          this.pricelistItemRepository.create(newPriceListItem);
-        await transactionalEntityManager.save(PricelistItem, pricelistItem);
+        const resolvedPricelistId = pricelistId ? Number(pricelistId) : null;
+        if (resolvedPricelistId) {
+          const newPriceListItem = {
+            price: price ?? 0,
+            created_by: user_id,
+            pricelist: { id: resolvedPricelistId },
+            item: { id: savedItem.id },
+            currency: Currency.KES,
+            is_enabled: true,
+          };
+          const pricelistItem: PricelistItem =
+            this.pricelistItemRepository.create(newPriceListItem);
+          await transactionalEntityManager.save(PricelistItem, pricelistItem);
+        }
 
         // Invalidate cache after creating item (affects items and prices)
-        cache.invalidateMany(["items", `pricelist_items_${pricelistId}`]);
+        cache.invalidateMany(["items", "items_all_with_details_raw", ...(resolvedPricelistId ? [`pricelist_items_${resolvedPricelistId}`] : [])]);
 
         return savedItem;
       },

@@ -115,7 +115,7 @@ describe("ItemService", () => {
       );
 
       expect(mockItemRepo.manager.connection.transaction).toHaveBeenCalled();
-      expect(invalidateManySpy).toHaveBeenCalledWith(["items", "pricelist_items_2"]);
+      expect(invalidateManySpy).toHaveBeenCalledWith(["items", "items_all_with_details_raw", "pricelist_items_2"]);
     });
   });
 
