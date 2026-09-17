@@ -986,4 +986,120 @@ export class ItemService {
       throw new Error("Failed to search items for user: " + error.message);
     }
   }
+
+  public async fetchAllItemsWithDetails(): Promise<any[]> {
+    const cacheKey = "items_all_with_details";
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) return cached;
+
+    const rows = await this.itemRepository
+      .createQueryBuilder("item")
+      .leftJoin("item.category", "category")
+      .leftJoin("pricelist_item", "pi", "pi.item_id = item.id")
+      .leftJoin("pricelist", "pl", "pl.id = pi.pricelist_id")
+      .select([
+        "item.id",
+        "item.name",
+        "item.code",
+        "item.isGroup",
+        "item.isStock",
+        "item.status",
+      ])
+      .addSelect(["category.id", "category.name"])
+      .addSelect(["pi.id", "pi.price"])
+      .addSelect(["pl.id", "pl.name"])
+      .where("item.status = :status", { status: ItemStatus.ACTIVE })
+      .orderBy("item.name", "ASC")
+      .getMany();
+
+    // Group pricelist entries per item
+    const result = rows.map((item) => {
+      const pricelists = (item as any).pricelistItems
+        ? (item as any).pricelistItems.map((pi: any) => ({ id: pi.pricelist?.id, name: pi.pricelist?.name, price: pi.price, pricelistItemId: pi.id }))
+        : [];
+      return {
+        id: item.id,
+        name: item.name,
+        code: item.code,
+        isGroup: Boolean(item.isGroup),
+        isStock: Boolean(item.isStock),
+        category: (item as any).category ? { id: (item as any).category.id, name: (item as any).category.name } : null,
+        pricelists,
+      };
+    });
+
+    cache.set(cacheKey, result);
+    return result;
+  }
+
+  public async fetchAllItemsWithDetailsRaw(): Promise<any[]> {
+    const cacheKey = "items_all_with_details_raw";
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) return cached;
+
+    const rows = await this.itemRepository
+      .createQueryBuilder("item")
+      .leftJoin("item.category", "category")
+      .leftJoin("pricelist_item", "pi", "pi.item_id = item.id")
+      .leftJoin("pricelist", "pl", "pl.id = pi.pricelist_id")
+      .select([
+        "item.id AS item_id",
+        "item.name AS item_name",
+        "item.code AS item_code",
+        "item.isGroup AS item_isGroup",
+        "item.isStock AS item_isStock",
+        "category.id AS category_id",
+        "category.name AS category_name",
+        "pi.id AS pi_id",
+        "pi.price AS pi_price",
+        "pl.id AS pl_id",
+        "pl.name AS pl_name",
+      ])
+      .where("item.status = :status", { status: ItemStatus.ACTIVE })
+      .orderBy("item.name", "ASC")
+      .getRawMany();
+
+    const toBoolean = (v: any) => v === true || v === 1 || v === "1" || v === "true" || v === "TRUE";
+
+    const itemMap = new Map<number, any>();
+    for (const row of rows) {
+      const id = Number(row.item_id);
+      if (!itemMap.has(id)) {
+        itemMap.set(id, {
+          id,
+          name: row.item_name,
+          code: row.item_code,
+          isGroup: toBoolean(row.item_isGroup),
+          isStock: toBoolean(row.item_isStock),
+          category: row.category_id ? { id: Number(row.category_id), name: row.category_name } : null,
+          pricelists: [],
+        });
+      }
+      if (row.pl_id) {
+        itemMap.get(id).pricelists.push({
+          id: Number(row.pl_id),
+          name: row.pl_name,
+          price: row.pi_price,
+          pricelistItemId: row.pi_id,
+        });
+      }
+    }
+
+    const result = Array.from(itemMap.values());
+    cache.set(cacheKey, result);
+    return result;
+  }
+
+  public async updateItemCategory(itemId: number, categoryId: number | null): Promise<void> {
+    const item = await this.itemRepository.findOne({ where: { id: itemId } });
+    if (!item) {
+      throw Object.assign(new Error("Item not found"), { statusCode: 404 });
+    }
+
+    await this.itemRepository.update(itemId, {
+      category: categoryId ? ({ id: categoryId } as any) : null,
+    });
+
+    cache.invalidateMany(["items_", "items_all_with_details"]);
+  }
 }

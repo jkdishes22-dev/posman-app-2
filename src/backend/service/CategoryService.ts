@@ -1,12 +1,15 @@
 import { Category, CategoryStatus } from "@backend/entities/Category";
+import { Item } from "@backend/entities/Item";
 import { DataSource, Repository } from "typeorm";
 import { cache } from "@backend/utils/cache";
 
 export class CategoryService {
   private categoryRepository: Repository<Category>;
+  private itemRepository: Repository<Item>;
 
   constructor(dataSource: DataSource) {
     this.categoryRepository = dataSource.getRepository(Category);
+    this.itemRepository = dataSource.getRepository(Item);
   }
 
   public async createCategory(name: string, code?: string): Promise<Category> {
@@ -52,14 +55,24 @@ export class CategoryService {
   }
 
   async deleteCategory(id: number): Promise<void> {
+    // Null out the category FK on all items belonging to this category
+    // so items remain accessible (visible on the Items management page).
+    await this.itemRepository
+      .createQueryBuilder()
+      .update(Item)
+      .set({ category: null })
+      .where("item_category_id = :id", { id })
+      .execute();
+
     await this.categoryRepository.update(id, {
       status: CategoryStatus.DELETED,
     });
 
-    // Invalidate category cache and any pricelist/station item caches that
-    // may include items belonging to the now-deleted category.
-    cache.invalidate("categories");
-    cache.invalidate("items_pricelist_");
-    cache.invalidate("items_station_");
+    cache.invalidateMany([
+      "categories",
+      "items_",
+      "items_pricelist_",
+      "items_station_",
+    ]);
   }
 }

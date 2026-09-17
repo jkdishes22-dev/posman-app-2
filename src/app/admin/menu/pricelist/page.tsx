@@ -48,6 +48,9 @@ export default function PricelistPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: "activate" | "deactivate", pricelistId: number, pricelistName: string } | null>(null);
+  const [showDeletePricelistModal, setShowDeletePricelistModal] = useState(false);
+  const [pricelistToDelete, setPricelistToDelete] = useState<Pricelist | null>(null);
+  const [deletePricelistError, setDeletePricelistError] = useState<string | null>(null);
   const [pricelistItems, setPricelistItems] = useState([]);
   const [selectedPricelistId, setSelectedPricelistId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -390,6 +393,27 @@ export default function PricelistPage() {
     }
   };
 
+  const handleDeletePricelist = async () => {
+    if (!pricelistToDelete) return;
+    try {
+      setDeletePricelistError(null);
+      const result = await apiCall(`/api/menu/pricelists/${pricelistToDelete.id}`, { method: "DELETE" });
+      if (result.status >= 200 && result.status < 300) {
+        setPricelists((prev) => prev.filter((p) => p.id !== pricelistToDelete.id));
+        if (selectedPricelistId === pricelistToDelete.id) {
+          setSelectedPricelistId(null);
+          setPricelistItems([]);
+        }
+        setShowDeletePricelistModal(false);
+        setPricelistToDelete(null);
+      } else {
+        setDeletePricelistError(result.error || "Failed to delete pricelist");
+      }
+    } catch (error: any) {
+      setDeletePricelistError("Failed to delete pricelist: " + error.message);
+    }
+  };
+
   // Pagination logic
   const totalPages = Math.ceil(pricelistItems.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -552,32 +576,46 @@ export default function PricelistPage() {
                             </span>
                           </td>
                           <td className="text-center">
-                            {(!pricelist.status || pricelist.status === "inactive") && (
-                              <Button
-                                variant="outline-success"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleTogglePricelistStatus(pricelist.id, pricelist.status || "inactive", pricelist.name);
-                                }}
-                              >
-                                <i className="bi bi-play-circle me-1"></i>
-                                Activate
-                              </Button>
-                            )}
-                            {pricelist.status === "active" && (
+                            <div className="d-flex gap-1 justify-content-center flex-wrap">
+                              {(!pricelist.status || pricelist.status === "inactive") && (
+                                <Button
+                                  variant="outline-success"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleTogglePricelistStatus(pricelist.id, pricelist.status || "inactive", pricelist.name);
+                                  }}
+                                >
+                                  <i className="bi bi-play-circle me-1"></i>
+                                  Activate
+                                </Button>
+                              )}
+                              {pricelist.status === "active" && (
+                                <Button
+                                  variant="outline-warning"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleTogglePricelistStatus(pricelist.id, pricelist.status, pricelist.name);
+                                  }}
+                                >
+                                  <i className="bi bi-pause-circle me-1"></i>
+                                  Deactivate
+                                </Button>
+                              )}
                               <Button
                                 variant="outline-danger"
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleTogglePricelistStatus(pricelist.id, pricelist.status, pricelist.name);
+                                  setPricelistToDelete(pricelist);
+                                  setShowDeletePricelistModal(true);
                                 }}
+                                title="Delete this pricelist"
                               >
-                                <i className="bi bi-pause-circle me-1"></i>
-                                Deactivate
+                                <i className="bi bi-trash"></i>
                               </Button>
-                            )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -800,6 +838,59 @@ export default function PricelistPage() {
               onHide={() => setShowAuditModal(false)}
             />
           </>
+        )}
+
+        {/* Delete Pricelist Modal */}
+        {showDeletePricelistModal && pricelistToDelete && (
+          <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">
+                    <i className="bi bi-trash text-danger me-2"></i>
+                    Delete Pricelist
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => { setShowDeletePricelistModal(false); setPricelistToDelete(null); setDeletePricelistError(null); }}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  {deletePricelistError && (
+                    <div className="alert alert-danger mb-3" role="alert">
+                      <i className="bi bi-exclamation-triangle me-2"></i>
+                      {deletePricelistError}
+                    </div>
+                  )}
+                  <p>
+                    Are you sure you want to delete the pricelist <strong>&quot;{pricelistToDelete.name}&quot;</strong>?
+                  </p>
+                  <div className="alert alert-warning mb-0" role="alert">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Items will be unlinked, not deleted.</strong> All items in this pricelist will be removed from it but will remain accessible from the <strong>Menu &amp; Pricing → Items</strong> page. Station assignments to this pricelist will also be removed.
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => { setShowDeletePricelistModal(false); setPricelistToDelete(null); setDeletePricelistError(null); }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={handleDeletePricelist}
+                  >
+                    <i className="bi bi-trash me-1"></i>
+                    Delete Pricelist
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Confirmation Modal */}

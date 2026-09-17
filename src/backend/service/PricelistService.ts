@@ -384,6 +384,44 @@ export class PricelistService {
     cache.invalidateMany([`pricelist_items_${pricelistId}`, "items"]);
   }
 
+  async deletePricelist(pricelistId: number): Promise<void> {
+    const pricelist = await this.pricelistRepository.findOne({ where: { id: pricelistId } });
+    if (!pricelist) {
+      throw Object.assign(new Error("Pricelist not found"), { statusCode: 404 });
+    }
+    if (pricelist.is_default) {
+      throw Object.assign(new Error("Cannot delete the default pricelist"), { statusCode: 400 });
+    }
+
+    // Remove all pricelist_item records — items themselves are not deleted
+    await this.pricelistItemRepository
+      .createQueryBuilder()
+      .delete()
+      .from(PricelistItem)
+      .where("pricelist_id = :pricelistId", { pricelistId })
+      .execute();
+
+    // Remove all station_pricelist links
+    await this.stationPricelistRepository
+      .createQueryBuilder()
+      .delete()
+      .from(StationPricelist)
+      .where("pricelist_id = :pricelistId", { pricelistId })
+      .execute();
+
+    await this.pricelistRepository.delete(pricelistId);
+
+    cache.invalidateMany([
+      "pricelists",
+      `pricelist_${pricelistId}`,
+      `pricelist_items_${pricelistId}`,
+      "pricelists_by_station",
+      "available_pricelists",
+      `stations_using_pricelist_${pricelistId}`,
+      "items_",
+    ]);
+  }
+
   async removeItemFromPricelist(pricelistId: number, itemId: number): Promise<void> {
     const result = await this.pricelistItemRepository
       .createQueryBuilder()

@@ -120,6 +120,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           path: "/admin/menu/category",
         },
         {
+          id: "menu-items",
+          label: "Items",
+          icon: "bi-bag",
+          path: "/admin/menu/items",
+        },
+        {
           id: "menu-recipes",
           label: "Recipes",
           icon: "bi-journal-text",

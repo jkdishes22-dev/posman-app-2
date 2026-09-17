@@ -81,11 +81,13 @@ describe("CategoryService", () => {
     });
 
     it("invalidates categories cache after deletion", async () => {
-      const invalidateSpy = vi.spyOn(cache, "invalidate");
+      const invalidateManySpy = vi.spyOn(cache, "invalidateMany");
 
       await service.deleteCategory(5);
 
-      expect(invalidateSpy).toHaveBeenCalledWith("categories");
+      expect(invalidateManySpy).toHaveBeenCalledWith(
+        expect.arrayContaining(["categories"])
+      );
     });
   });
 });
