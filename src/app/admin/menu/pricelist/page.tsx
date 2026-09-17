@@ -4,7 +4,6 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import PricelistAdd from "./pricelist-new";
 import ViewItems from "../category/components/items/items-view";
-import ItemAdd from "../category/components/items/items-new";
 import AddSubItemModal from "../recipes/new";
 import { Button, Form } from "react-bootstrap";
 import ErrorDisplay from "../../../components/ErrorDisplay";
@@ -19,7 +18,6 @@ import { useTooltips } from "../../../hooks/useTooltips";
 export default function PricelistPage() {
   useTooltips();
   const [showModal, setShowModal] = useState(false);
-  const [showItemModal, setShowItemModal] = useState(false);
   const [showLinkItemModal, setShowLinkItemModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showAuditModal, setShowAuditModal] = useState(false);
@@ -225,9 +223,6 @@ export default function PricelistPage() {
 
   const handleShowModal = () => setShowModal(true);
   const handleCloseModal = () => setShowModal(false);
-  const handleShowItemModal = () => setShowItemModal(true);
-  const handleCloseItemModal = () => setShowItemModal(false);
-
   interface PricelistParams {
     name: string;
     code?: string;
@@ -258,30 +253,6 @@ export default function PricelistPage() {
       console.error("Failed to add pricelist", error);
       setAddPricelistError("Failed to add pricelist: " + error.message);
       setAddPricelistErrorDetails({ message: "Network error occurred", networkError: true, status: 0 });
-    }
-  };
-
-  const handleAddItem = async (itemData: any) => {
-    try {
-      setItemError("");
-      const result = await apiCall("/api/menu/items", {
-        method: "POST",
-        body: JSON.stringify(itemData),
-      });
-
-      if (result.status >= 200 && result.status < 300) {
-        handleCloseItemModal();
-        setItemError("");
-        if (selectedPricelistId) {
-          fetchPricelistItems(selectedPricelistId, true);
-        }
-      } else {
-        // Error - apiCall already standardizes all non-2XX errors
-        setItemError(result.error || "Failed to add item");
-      }
-    } catch (error: any) {
-      console.error("Failed to add item", error);
-      setItemError("Failed to add item: " + error.message);
     }
   };
 
@@ -726,15 +697,6 @@ export default function PricelistPage() {
                   {selectedPricelistId && (
                     <div className="d-flex gap-2">
                       <button
-                        className="btn btn-success btn-sm"
-                        onClick={handleShowItemModal}
-                        disabled={filteredPricelists.find(p => p.id === selectedPricelistId)?.status === "inactive"}
-                        title={filteredPricelists.find(p => p.id === selectedPricelistId)?.status === "inactive" ? "Cannot add items to inactive pricelist" : "Create a brand-new item"}
-                      >
-                        <i className="bi bi-plus-circle me-1"></i>
-                        New Item
-                      </button>
-                      <button
                         className="btn btn-outline-success btn-sm"
                         onClick={() => setShowLinkItemModal(true)}
                         disabled={filteredPricelists.find(p => p.id === selectedPricelistId)?.status === "inactive"}
@@ -882,16 +844,6 @@ export default function PricelistPage() {
           setAddPricelistError={setAddPricelistError}
           addPricelistErrorDetails={addPricelistErrorDetails}
           setAddPricelistErrorDetails={setAddPricelistErrorDetails}
-        />
-
-        <ItemAdd
-          showModal={showItemModal}
-          handleModalClose={handleCloseItemModal}
-          handleAddItem={handleAddItem}
-          itemError={itemError}
-          setItemError={setItemError}
-          selectedCategory={null}
-          selectedPricelistId={selectedPricelistId}
         />
 
         {selectedPricelistId && (

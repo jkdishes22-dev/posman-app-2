@@ -42,6 +42,7 @@ export class CategoryService {
       .select([
         "category.id",
         "category.name",
+        "category.code",
         "category.status",
         "category.created_at",
         "category.updated_at"
@@ -52,6 +53,13 @@ export class CategoryService {
     // Cache the result
     cache.set(cacheKey, result);
     return result;
+  }
+
+  async updateCategory(id: number, name: string, code?: string | null): Promise<void> {
+    const category = await this.categoryRepository.findOne({ where: { id } });
+    if (!category) throw Object.assign(new Error("Category not found"), { statusCode: 404 });
+    await this.categoryRepository.update(id, { name, code: code ?? undefined });
+    cache.invalidate("categories");
   }
 
   async deleteCategory(id: number): Promise<void> {

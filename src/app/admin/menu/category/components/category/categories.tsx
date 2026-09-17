@@ -246,11 +246,11 @@ const CategoriesComponent = ({
           </div>
         )}
 
-        <div className="row g-1">
+        <div className="row g-2">
           {filteredCategories.slice(0, visibleCount).map((category) => (
             <div
               key={category.id}
-              className="col-6 col-sm-4 col-md-3 col-lg-2"
+              className="col-6 col-sm-4 col-md-3"
               onClick={() => onCategoryClick(category)}
               style={{ cursor: "pointer" }}
             >
@@ -259,7 +259,7 @@ const CategoriesComponent = ({
                   <button
                     type="button"
                     className="btn-close position-absolute"
-                    style={{ top: 4, right: 4, fontSize: "0.6rem", opacity: 0.5 }}
+                    style={{ top: 6, right: 6, fontSize: "0.65rem", opacity: 0.5 }}
                     title="Delete this category"
                     aria-label="Delete category"
                     onClick={(e) => {
@@ -268,12 +268,12 @@ const CategoriesComponent = ({
                     }}
                   />
                 )}
-                <div className="card-body p-2 text-center">
-                  <div className="fw-semibold small lh-sm mb-1" style={{ fontSize: "0.8rem" }}>
+                <div className="card-body p-3 text-center">
+                  <div className="fw-semibold lh-sm mb-1" style={{ fontSize: "0.9rem" }}>
                     {category.name}
                   </div>
                   {category.code && (
-                    <span className="badge bg-secondary" style={{ fontSize: "0.65rem" }}>{category.code}</span>
+                    <span className="badge bg-secondary" style={{ fontSize: "0.7rem" }}>{category.code}</span>
                   )}
                 </div>
               </div>

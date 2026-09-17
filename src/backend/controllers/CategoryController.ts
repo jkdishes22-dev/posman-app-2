@@ -37,6 +37,24 @@ export const fetchCategoriesHandler = async (
   }
 };
 
+export const updateCategoryHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const categoryService = new CategoryService(req.db);
+  try {
+    const { id } = req.query;
+    const { name, code } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: "Category name is required" });
+    await categoryService.updateCategory(Number(id), name.trim(), code?.trim() || null);
+    res.status(200).json({ message: "Category updated successfully" });
+  } catch (error: any) {
+    if (error.statusCode === 404) return res.status(404).json({ error: error.message });
+    const { userMessage, errorCode } = handleApiError(error, { operation: "updating", resource: "category" });
+    res.status(500).json({ error: userMessage, code: errorCode });
+  }
+};
+
 export const deleteCategoryHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,

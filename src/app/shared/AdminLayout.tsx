@@ -101,12 +101,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           icon: "bi-building",
           path: "/admin/station",
         },
-        {
-          id: "station-users",
-          label: "Station Users",
-          icon: "bi-people-fill",
-          path: "/admin/station/user",
-        },
       ],
     },
     {
