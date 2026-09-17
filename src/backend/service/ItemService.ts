@@ -65,14 +65,17 @@ export class ItemService {
     categoryId: number,
     user_id: number,
     billing: boolean = false,
+    forceRefresh: boolean = false,
   ): Promise<any[]> {
     // Cache key includes all parameters (prices can change, but cache for performance)
     const cacheKey = `items_${categoryId}_${user_id}_${billing}`;
 
-    // Try cache first
-    const cached = cache.get<any[]>(cacheKey);
-    if (cached !== null) {
-      return cached;
+    // Try cache first (skip when forceRefresh so callers get live data after mutations)
+    if (!forceRefresh) {
+      const cached = cache.get<any[]>(cacheKey);
+      if (cached !== null) {
+        return cached;
+      }
     }
 
     const query = this.itemRepository

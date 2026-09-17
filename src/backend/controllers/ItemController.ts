@@ -39,10 +39,12 @@ export const fetchItemsHandler = async (
     const targetUsage = billing === "true" ? true : false;
 
     const categoryValue = Array.isArray(category) ? category[0] : category;
+    const forceRefresh = req.query.t !== undefined;
     const items = await itemService.fetchItems(
       parseInt(categoryValue),
       user_id,
       targetUsage,
+      forceRefresh,
     );
     res.status(200).json(items);
   } catch (error: any) {
