@@ -12,6 +12,7 @@ interface ViewItemsProps {
   pricelistItems?: Item[];
   itemError: string;
   handleAddItemClick?: () => void;
+  handleLinkItemsClick?: () => void;
   handleDeleteItem?: (itemId: number) => void;
   setItems: React.Dispatch<React.SetStateAction<Item[]>>;
   isBillingSection?: boolean;
@@ -36,6 +37,7 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
   pricelistItems,
   itemError,
   handleAddItemClick,
+  handleLinkItemsClick,
   handleDeleteItem,
   setItems,
   isBillingSection = false,
@@ -386,9 +388,9 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
         </div>
         )}
 
-        {/* Add Item Button - Only for category sections, not pricelist */}
+        {/* Add / Link Item buttons — only for category sections */}
         {!isBillingSection && selectedCategory && !isPricelistSection && (
-          <div className="mb-3">
+          <div className="mb-3 d-flex gap-2 flex-wrap">
             <button
               className="btn btn-success btn-sm"
               onClick={handleAddItemClick}
@@ -396,6 +398,15 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
               <i className="bi bi-plus-circle me-1"></i>
               Add Item
             </button>
+            {handleLinkItemsClick && (
+              <button
+                className="btn btn-outline-primary btn-sm"
+                onClick={handleLinkItemsClick}
+              >
+                <i className="bi bi-link-45deg me-1"></i>
+                Link Existing Items
+              </button>
+            )}
           </div>
         )}
         {itemError && <p style={{ color: "red" }}>{itemError}</p>}
