@@ -1264,6 +1264,21 @@ ipcMain.handle("complete-activation", async (_event, code) => {
     }
 });
 
+// IPC: show or hide the Windows on-screen keyboard (tabtip.exe); no-op on other platforms
+ipcMain.handle("toggle-keyboard", async (_event, show) => {
+    if (process.platform !== "win32") return { ok: true };
+    const { exec } = require("child_process");
+    if (show) {
+        const tabtip = "C:\\Program Files\\Common Files\\microsoft shared\\ink\\TabTip.exe";
+        exec(`start "" "${tabtip}"`, { windowsHide: false }, (err) => {
+            if (err) logToFile(`toggle-keyboard show error: ${err.message}`, "WARN");
+        });
+    } else {
+        exec("taskkill /f /im TabTip.exe", { windowsHide: true }, () => {});
+    }
+    return { ok: true };
+});
+
 /**
  * Start the Next.js server and load the app URL.
  * Called on normal launch (already activated) and after the activation screen succeeds.
