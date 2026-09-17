@@ -55,6 +55,11 @@ export const uploadPricelistItemsHandler = async (
 ) => {
   const uploadService = new PricelistUploadService(req.db);
   try {
+    const pricelistId = parseInt(req.query.pricelistId as string, 10);
+    if (isNaN(pricelistId)) {
+      return res.status(400).json({ error: "Invalid pricelist ID" });
+    }
+
     const { rows, userConfirmations } = req.body;
     const userId = parseInt(req.user.id, 10);
 
@@ -75,7 +80,7 @@ export const uploadPricelistItemsHandler = async (
       });
     }
 
-    const result = await uploadService.processUpload(rows, confirmationsMap, userId);
+    const result = await uploadService.processUpload(rows, confirmationsMap, pricelistId, userId);
     res.status(200).json(result);
   } catch (error: any) {
     const { userMessage, errorCode } = handleApiError(error, {
@@ -92,20 +97,7 @@ export const downloadTemplateHandler = async (
 ) => {
   const uploadService = new PricelistUploadService(req.db);
   try {
-    const pricelistId = parseInt(req.query.pricelistId as string, 10);
-    if (isNaN(pricelistId)) {
-      return res.status(400).json({ error: "Invalid pricelist ID" });
-    }
-
-    const pricelist = await uploadService.getPricelist(pricelistId);
-    if (!pricelist) {
-      return res.status(404).json({ error: "Pricelist not found" });
-    }
-    const [categories, allPricelists] = await Promise.all([
-      uploadService.getActiveCategories(),
-      uploadService.getAllPricelists(),
-    ]);
-    const csv = uploadService.generateTemplate(pricelist, categories, allPricelists);
+    const csv = uploadService.generateTemplate();
 
     res.setHeader("Content-Type", "text/csv");
     res.setHeader(

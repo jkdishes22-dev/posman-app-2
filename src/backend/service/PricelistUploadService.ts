@@ -2,7 +2,6 @@ import { DataSource, Repository } from "typeorm";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { Item, ItemStatus } from "@entities/Item";
-import { Category, CategoryStatus } from "@entities/Category";
 import { Pricelist } from "@entities/Pricelist";
 import { PricelistItem, Currency } from "@entities/PricelistItem";
 import { Inventory } from "@entities/Inventory";
@@ -12,9 +11,6 @@ import { cache } from "@backend/utils/cache";
 export interface UploadRow {
   code: string;
   name: string;
-  category_code: string;
-  category_name?: string;
-  pricelist_code: string;
   price: number;
   currency?: string;
   is_stock?: boolean;
@@ -27,7 +23,7 @@ export interface RowMatchInfo {
   itemCode: string | null;
   itemName: string | null;
   confidence: number;
-  matchType: "exact_code" | "name_category" | "fuzzy_name" | "none";
+  matchType: "exact_code" | "fuzzy_name" | "none";
 }
 
 export interface UploadValidationResult {
@@ -52,14 +48,10 @@ export interface UploadProcessResult {
 export class PricelistUploadService {
   private dataSource: DataSource;
   private itemRepository: Repository<Item>;
-  private categoryRepository: Repository<Category>;
-  private pricelistRepository: Repository<Pricelist>;
 
   constructor(datasource: DataSource) {
     this.dataSource = datasource;
     this.itemRepository = datasource.getRepository(Item);
-    this.categoryRepository = datasource.getRepository(Category);
-    this.pricelistRepository = datasource.getRepository(Pricelist);
   }
 
   /**
@@ -144,9 +136,6 @@ export class PricelistUploadService {
           const normalized: UploadRow = {
             code: String(row.code || row.item_code || "").trim(),
             name: String(row.name || row.item_name || "").trim(),
-            category_code: String(row.category_code || "").trim(),
-            category_name: row.category_name ? String(row.category_name).trim() : undefined,
-            pricelist_code: String(row.pricelist_code || "").trim(),
             price: parseFloat(row.price || row.item_price || "0") || 0,
             currency: row.currency ? String(row.currency).trim().toUpperCase() : undefined,
             is_stock: this.parseBoolean(row.is_stock, false),
@@ -198,12 +187,6 @@ export class PricelistUploadService {
       if (!row.name) {
         errors.push(`Row ${index + 1}: Missing required field 'name'`);
       }
-      if (!row.category_code) {
-        errors.push(`Row ${index + 1}: Missing required field 'category_code'`);
-      }
-      if (!row.pricelist_code) {
-        errors.push(`Row ${index + 1}: Missing required field 'pricelist_code'`);
-      }
       if (!row.price || row.price <= 0) {
         errors.push(`Row ${index + 1}: Price must be greater than 0`);
       }
@@ -214,67 +197,7 @@ export class PricelistUploadService {
       return { valid: false, errors, warnings, rows, rowMatches };
     }
 
-    // Load categories and pricelists referenced in the upload
-    const categoryCodes = [...new Set(rows.map(r => r.category_code.toLowerCase()).filter(Boolean))];
-    const pricelistCodes = [...new Set(rows.map(r => r.pricelist_code.toLowerCase()).filter(Boolean))];
-
-    const categoriesCacheKey = `categories_by_codes_${categoryCodes.sort().join(",")}`;
-    const pricelistsCacheKey = `pricelists_by_codes_${pricelistCodes.sort().join(",")}`;
-
-    let categories = cache.get<Category[]>(categoriesCacheKey);
-    let pricelists = cache.get<Pricelist[]>(pricelistsCacheKey);
-
-    if (!categories || !pricelists) {
-      const categoriesQuery = this.categoryRepository
-        .createQueryBuilder("category")
-        .where("category.status = :status", { status: CategoryStatus.ACTIVE });
-
-      if (categoryCodes.length > 0) {
-        categoriesQuery.andWhere("LOWER(category.code) IN (:...codes)", { codes: categoryCodes });
-      }
-
-      const pricelistsQuery = this.pricelistRepository.createQueryBuilder("pricelist");
-      if (pricelistCodes.length > 0) {
-        pricelistsQuery.where("LOWER(pricelist.code) IN (:...codes)", { codes: pricelistCodes });
-      }
-
-      const [fetchedCategories, fetchedPricelists] = await Promise.all([
-        categoriesQuery.getMany(),
-        pricelistsQuery.getMany(),
-      ]);
-
-      if (!categories) {
-        categories = fetchedCategories;
-        cache.set(categoriesCacheKey, categories, 60000);
-      }
-
-      if (!pricelists) {
-        pricelists = fetchedPricelists;
-        cache.set(pricelistsCacheKey, pricelists, 60000);
-      }
-    }
-
-    const categoryCodeMap = new Map<string, Category>();
-    categories.forEach((cat) => {
-      if (cat.code) categoryCodeMap.set(cat.code.toLowerCase(), cat);
-    });
-
-    const pricelistCodeMap = new Map<string, Pricelist>();
-    pricelists.forEach((pl) => {
-      if (pl.code) pricelistCodeMap.set(pl.code.toLowerCase(), pl);
-    });
-
-    // Validate category and pricelist existence per row
-    rows.forEach((row, index) => {
-      if (!categoryCodeMap.has(row.category_code.toLowerCase())) {
-        errors.push(`Row ${index + 1}: Category code '${row.category_code}' not found or inactive`);
-      }
-      if (!pricelistCodeMap.has(row.pricelist_code.toLowerCase())) {
-        errors.push(`Row ${index + 1}: Pricelist code '${row.pricelist_code}' not found`);
-      }
-    });
-
-    // Load potentially matching items
+    // Load potentially matching items by code or name
     const itemCodes = rows.map(r => r.code.toLowerCase()).filter(Boolean);
     const itemNames = rows.map(r => r.name.toLowerCase()).filter(Boolean);
 
@@ -287,15 +210,7 @@ export class PricelistUploadService {
     if (!allItems) {
       const itemsQuery = this.itemRepository
         .createQueryBuilder("item")
-        .leftJoinAndSelect("item.category", "category")
-        .select([
-          "item.id",
-          "item.name",
-          "item.code",
-          "category.id",
-          "category.name",
-          "category.code",
-        ]);
+        .select(["item.id", "item.name", "item.code"]);
 
       if (itemCodes.length > 0) {
         itemsQuery.where("LOWER(item.code) IN (:...codes)", { codes: itemCodes });
@@ -346,17 +261,6 @@ export class PricelistUploadService {
     );
     if (exactCodeMatch) {
       return { item: exactCodeMatch, confidence: 100, matchType: "exact_code" };
-    }
-
-    const categoryMatch = allItems.find((item) => {
-      const categoryCode = item.category?.code?.toLowerCase();
-      return (
-        item.name.toLowerCase() === row.name.toLowerCase() &&
-        categoryCode === row.category_code.toLowerCase()
-      );
-    });
-    if (categoryMatch) {
-      return { item: categoryMatch, confidence: 85, matchType: "name_category" };
     }
 
     let bestFuzzyMatch: Item | null = null;
@@ -413,6 +317,7 @@ export class PricelistUploadService {
   public async processUpload(
     rows: UploadRow[],
     confirmations: Map<number, RowConfirmation>,
+    pricelistId: number,
     userId: number
   ): Promise<UploadProcessResult> {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -420,23 +325,10 @@ export class PricelistUploadService {
     await queryRunner.startTransaction();
 
     try {
-      // Re-fetch categories and pricelists fresh inside the transaction
-      const categoryCodes = [...new Set(rows.map(r => r.category_code.toLowerCase()))];
-      const pricelistCodes = [...new Set(rows.map(r => r.pricelist_code.toLowerCase()))];
-
-      const [categories, pricelists] = await Promise.all([
-        queryRunner.manager
-          .createQueryBuilder(Category, "c")
-          .where("LOWER(c.code) IN (:...codes)", { codes: categoryCodes })
-          .getMany(),
-        queryRunner.manager
-          .createQueryBuilder(Pricelist, "p")
-          .where("LOWER(p.code) IN (:...codes)", { codes: pricelistCodes })
-          .getMany(),
-      ]);
-
-      const categoryMap = new Map(categories.map(c => [c.code!.toLowerCase(), c]));
-      const pricelistMap = new Map(pricelists.map(p => [p.code!.toLowerCase(), p]));
+      const pricelist = await queryRunner.manager.findOne(Pricelist, { where: { id: pricelistId } });
+      if (!pricelist) {
+        throw new Error(`Pricelist with id ${pricelistId} not found`);
+      }
 
       const result: UploadProcessResult = { created: 0, updated: 0, skipped: 0 };
 
@@ -450,22 +342,11 @@ export class PricelistUploadService {
           continue;
         }
 
-        const category = categoryMap.get(row.category_code.toLowerCase());
-        const pricelist = pricelistMap.get(row.pricelist_code.toLowerCase());
-
-        if (!category) {
-          throw new Error(`Row ${i + 1}: category '${row.category_code}' not found or inactive`);
-        }
-        if (!pricelist) {
-          throw new Error(`Row ${i + 1}: pricelist '${row.pricelist_code}' not found`);
-        }
-
         if (action === "create" || (action === "update" && !matchedItemId)) {
-          // Create new Item
+          // Create new Item (no category — can be linked later)
           const item = queryRunner.manager.create(Item, {
             name: row.name,
             code: row.code,
-            category: category,
             isStock: row.is_stock ?? false,
             allowNegativeInventory: row.allow_negative_inventory ?? false,
             status: ItemStatus.ACTIVE,
@@ -473,7 +354,7 @@ export class PricelistUploadService {
           });
           const savedItem = await queryRunner.manager.save(Item, item);
 
-          // Create PricelistItem
+          // Create PricelistItem linked to the current pricelist
           const pricelistItem = queryRunner.manager.create(PricelistItem, {
             item: savedItem,
             pricelist: pricelist,
@@ -496,7 +377,7 @@ export class PricelistUploadService {
 
           result.created++;
         } else if (action === "update" && matchedItemId) {
-          // Update existing Item
+          // Update existing Item fields (leave category unchanged)
           const existingItem = await queryRunner.manager.findOne(Item, {
             where: { id: matchedItemId },
           });
@@ -508,7 +389,6 @@ export class PricelistUploadService {
             ...existingItem,
             name: row.name,
             code: row.code,
-            category: category,
             isStock: row.is_stock ?? existingItem.isStock,
             allowNegativeInventory: row.allow_negative_inventory ?? existingItem.allowNegativeInventory,
             updated_by: userId,
@@ -518,14 +398,14 @@ export class PricelistUploadService {
           const existingPricelistItem = await queryRunner.manager
             .createQueryBuilder(PricelistItem, "pi")
             .where("pi.item_id = :itemId", { itemId: matchedItemId })
-            .andWhere("pi.pricelist_id = :pricelistId", { pricelistId: pricelist.id })
+            .andWhere("pi.pricelist_id = :plId", { plId: pricelist.id })
             .orderBy("pi.is_enabled", "DESC") // active rows (1) before disabled (0)
             .getOne();
 
           if (existingPricelistItem) {
             existingPricelistItem.price = row.price;
             if (row.currency) existingPricelistItem.currency = row.currency as Currency;
-            // Re-enable any previously disabled row unless the CSV explicitly disables it
+            // Re-enable any previously disabled row unless the file explicitly disables it
             existingPricelistItem.is_enabled = row.is_enabled !== undefined ? row.is_enabled : true;
             existingPricelistItem.updated_by = userId;
             await queryRunner.manager.save(PricelistItem, existingPricelistItem);
@@ -549,7 +429,7 @@ export class PricelistUploadService {
 
       // Invalidate caches after commit
       cache.invalidate("items");
-      pricelists.forEach(pl => cache.invalidate(`pricelist_items_${pl.id}`));
+      cache.invalidate(`pricelist_items_${pricelistId}`);
 
       return result;
     } catch (error) {
@@ -562,46 +442,12 @@ export class PricelistUploadService {
   }
 
   /**
-   * Fetch a pricelist by ID (used for template generation)
+   * Generate a CSV template with the required columns.
    */
-  public async getPricelist(id: number): Promise<Pricelist | null> {
-    return this.pricelistRepository.findOne({ where: { id } });
-  }
-
-  /**
-   * Fetch all active categories (used for template generation)
-   */
-  public async getActiveCategories(): Promise<Category[]> {
-    return this.categoryRepository
-      .createQueryBuilder("category")
-      .where("category.status = :status", { status: CategoryStatus.ACTIVE })
-      .orderBy("category.name", "ASC")
-      .getMany();
-  }
-
-  /**
-   * Fetch all pricelists (used for template generation)
-   */
-  public async getAllPricelists(): Promise<Pricelist[]> {
-    return this.pricelistRepository
-      .createQueryBuilder("pricelist")
-      .orderBy("pricelist.name", "ASC")
-      .getMany();
-  }
-
-  /**
-   * Generate a CSV template pre-filled with real pricelist and category codes.
-   * One sample row per active category so users can see valid codes at a glance.
-   */
-  public generateTemplate(pricelist: Pricelist, categories: Category[], allPricelists: Pricelist[]): string {
-    const pricelistCode = pricelist.code ?? "";
-
+  public generateTemplate(): string {
     const headers = [
       "code",
       "name",
-      "category_code",
-      "category_name",
-      "pricelist_code",
       "price",
       "currency",
       "is_stock",
@@ -609,33 +455,11 @@ export class PricelistUploadService {
       "is_enabled",
     ].join(",");
 
-    const sampleRows = categories.length > 0
-      ? categories.map((cat, i) => [
-          `ITEM${String(i + 1).padStart(3, "0")}`,
-          `Sample Item ${i + 1}`,
-          cat.code ?? "CATEGORY_CODE",
-          cat.name ?? "Category Name",
-          pricelistCode,
-          "500",
-          "KES",
-          "false",
-          "false",
-          "true",
-        ].join(","))
-      : [
-          ["ITEM001", "Example Item 1", "CATEGORY_CODE", "Category Name", pricelistCode, "500", "KES", "false", "false", "true"].join(","),
-          ["ITEM002", "Example Item 2", "CATEGORY_CODE", "Category Name", pricelistCode, "250", "KES", "true", "false", "true"].join(","),
-        ];
-
-    // Reference lines — rows with no `name` are silently dropped by the parser,
-    // so these are safe to include and won't create phantom items on re-upload.
-    const refLines: string[] = [
-      "",
-      "# === REFERENCE (safe to delete before uploading) ===",
-      `# Available pricelists: ${allPricelists.map(p => `${p.code ?? "(no code)"} (${p.name})`).join(" | ") || "none"}`,
-      `# Available categories: ${categories.map(c => `${c.code ?? "(no code)"} (${c.name})`).join(" | ") || "none"}`,
+    const sampleRows = [
+      ["ITEM001", "Example Item 1", "500", "KES", "false", "false", "true"].join(","),
+      ["ITEM002", "Example Item 2", "250", "KES", "true", "false", "true"].join(","),
     ];
 
-    return [headers, ...sampleRows, ...refLines].join("\n");
+    return [headers, ...sampleRows].join("\n");
   }
 }
