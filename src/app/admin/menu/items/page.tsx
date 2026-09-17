@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
 import PageHeaderStrip from "src/app/components/PageHeaderStrip";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
@@ -9,6 +9,8 @@ import { useTooltips } from "src/app/hooks/useTooltips";
 import AssignCategoryModal from "./components/assign-category-modal";
 import LinkPricelistModal from "./components/link-pricelist-modal";
 import EditItemDetailsModal from "./components/edit-item-details-modal";
+
+const PAGE_SIZE = 10;
 
 interface ItemPricelist {
   id: number;
@@ -33,8 +35,12 @@ export default function ItemsPage() {
   const apiCall = useApiCall();
 
   const [items, setItems] = useState<Item[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const [assignCategoryItem, setAssignCategoryItem] = useState<Item | null>(null);
   const [assignCategoryError, setAssignCategoryError] = useState<string | null>(null);
@@ -47,10 +53,18 @@ export default function ItemsPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const fetchItems = useCallback(async () => {
-    const result = await apiCall("/api/menu/items?all=true");
+  const fetchItems = useCallback(async (targetPage: number, searchTerm: string) => {
+    const params = new URLSearchParams({
+      all: "true",
+      page: String(targetPage),
+      limit: String(PAGE_SIZE),
+    });
+    if (searchTerm.trim()) params.set("search", searchTerm.trim());
+    const result = await apiCall(`/api/menu/items?${params}`);
     if (result.status >= 200 && result.status < 300) {
-      setItems(Array.isArray(result.data) ? result.data : []);
+      const data = result.data ?? {};
+      setItems(Array.isArray(data.items) ? data.items : []);
+      setTotal(typeof data.total === "number" ? data.total : 0);
       setFetchError(null);
     } else {
       setFetchError(result.error || "Failed to fetch items");
@@ -58,8 +72,17 @@ export default function ItemsPage() {
   }, [apiCall]);
 
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+    fetchItems(page, debouncedSearch);
+  }, [fetchItems, page, debouncedSearch]);
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => {
+      setPage(1);
+      setDebouncedSearch(value);
+    }, 300);
+  };
 
   const handleAssignCategory = async (categoryId: number | null) => {
     if (!assignCategoryItem) return;
@@ -70,7 +93,7 @@ export default function ItemsPage() {
     });
     if (result.status >= 200 && result.status < 300) {
       setAssignCategoryItem(null);
-      fetchItems();
+      fetchItems(page, debouncedSearch);
     } else {
       setAssignCategoryError(result.error || "Failed to update category");
     }
@@ -81,7 +104,7 @@ export default function ItemsPage() {
       method: "DELETE",
     });
     if (result.status >= 200 && result.status < 300) {
-      fetchItems();
+      fetchItems(page, debouncedSearch);
     }
   };
 
@@ -93,21 +116,32 @@ export default function ItemsPage() {
     setDeleteLoading(false);
     if (result.status >= 200 && result.status < 300) {
       setDeleteItem(null);
-      fetchItems();
+      // If last item on page, go back a page
+      const newTotal = total - 1;
+      const maxPage = Math.max(1, Math.ceil(newTotal / PAGE_SIZE));
+      fetchItems(Math.min(page, maxPage), debouncedSearch);
     } else {
       setDeleteError(result.error || "Failed to delete item");
     }
   };
 
-  const filtered = items.filter((item) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      item.name.toLowerCase().includes(q) ||
-      item.code.toLowerCase().includes(q) ||
-      (item.category?.name ?? "").toLowerCase().includes(q)
-    );
-  });
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const startIndex = (page - 1) * PAGE_SIZE + 1;
+  const endIndex = Math.min(page * PAGE_SIZE, total);
+
+  const buildPageNumbers = () => {
+    const pages: (number | "…")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (page > 3) pages.push("…");
+      for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+      if (page < totalPages - 2) pages.push("…");
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   return (
     <RoleAwareLayout>
@@ -134,7 +168,7 @@ export default function ItemsPage() {
               <h5 className="mb-0 fw-bold">
                 <i className="bi bi-list-ul me-2 text-primary"></i>
                 All Items
-                <span className="ms-2 badge bg-secondary fw-normal">{items.length}</span>
+                <span className="ms-2 badge bg-secondary fw-normal">{total}</span>
               </h5>
               <div className="input-group input-group-sm" style={{ maxWidth: 320 }}>
                 <span className="input-group-text">
@@ -145,13 +179,13 @@ export default function ItemsPage() {
                   className="form-control"
                   placeholder="Search by name, code or category…"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                 />
                 {search && (
                   <button
                     className="btn btn-outline-secondary"
                     type="button"
-                    onClick={() => setSearch("")}
+                    onClick={() => handleSearchChange("")}
                     title="Clear search"
                   >
                     <i className="bi bi-x"></i>
@@ -175,16 +209,16 @@ export default function ItemsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 && (
+                  {items.length === 0 && (
                     <tr>
                       <td colSpan={7} className="text-center text-muted py-4">
                         {search ? "No items match your search." : "No items found."}
                       </td>
                     </tr>
                   )}
-                  {filtered.map((item, index) => (
+                  {items.map((item, index) => (
                     <tr key={item.id}>
-                      <td className="fw-medium align-middle">{index + 1}</td>
+                      <td className="fw-medium align-middle">{startIndex + index}</td>
                       <td className="align-middle fw-semibold">{item.name}</td>
                       <td className="align-middle">
                         <span className="badge bg-secondary-subtle text-secondary border">
@@ -281,6 +315,42 @@ export default function ItemsPage() {
               </table>
             </div>
           </div>
+
+          {/* Pagination footer */}
+          {total > PAGE_SIZE && (
+            <div className="card-footer bg-light d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <small className="text-muted">
+                Showing {startIndex}–{endIndex} of {total} items
+              </small>
+              <nav>
+                <ul className="pagination pagination-sm mb-0">
+                  <li className={`page-item${page === 1 ? " disabled" : ""}`}>
+                    <button className="page-link" onClick={() => setPage(page - 1)} disabled={page === 1}>
+                      <i className="bi bi-chevron-left"></i>
+                    </button>
+                  </li>
+                  {buildPageNumbers().map((p, i) =>
+                    p === "…" ? (
+                      <li key={`ellipsis-${i}`} className="page-item disabled">
+                        <span className="page-link">…</span>
+                      </li>
+                    ) : (
+                      <li key={p} className={`page-item${p === page ? " active" : ""}`}>
+                        <button className="page-link" onClick={() => setPage(p)}>
+                          {p}
+                        </button>
+                      </li>
+                    )
+                  )}
+                  <li className={`page-item${page === totalPages ? " disabled" : ""}`}>
+                    <button className="page-link" onClick={() => setPage(page + 1)} disabled={page === totalPages}>
+                      <i className="bi bi-chevron-right"></i>
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            </div>
+          )}
         </div>
 
         {assignCategoryError && (
@@ -320,7 +390,7 @@ export default function ItemsPage() {
                 )
               );
             }
-            fetchItems();
+            fetchItems(page, debouncedSearch);
           }}
         />
 
@@ -332,7 +402,7 @@ export default function ItemsPage() {
             setItems((prev) =>
               prev.map((i) => (i.id === updated.id ? { ...i, ...updated } : i))
             );
-            fetchItems();
+            fetchItems(page, debouncedSearch);
           }}
         />
 

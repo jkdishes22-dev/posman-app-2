@@ -250,6 +250,23 @@ export const fetchAllItemsWithDetailsHandler = async (
   }
 };
 
+export const fetchAllItemsPaginatedHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const itemService = new ItemService(req.db);
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
+    const result = await itemService.fetchAllItemsPaginated(page, limit, search);
+    res.status(200).json(result);
+  } catch (error: any) {
+    const { userMessage, errorCode } = handleApiError(error, { operation: "fetching", resource: "items" });
+    res.status(500).json({ error: userMessage, code: errorCode });
+  }
+};
+
 export const deleteItemHandler = async (
   req: NextApiRequest,
   res: NextApiResponse,
