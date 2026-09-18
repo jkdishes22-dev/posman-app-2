@@ -54,6 +54,9 @@ export class User extends BaseEntity {
   @Column({ type: "datetime", nullable: true })
   recovery_code_generated_at: Date | null;
 
+  @Column({ type: "datetime", nullable: true })
+  last_login_at: Date | null;
+
   @ManyToMany(() => Role, (role) => role.users)
   @JoinTable({
     name: "user_roles",

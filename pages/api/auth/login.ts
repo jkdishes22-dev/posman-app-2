@@ -73,17 +73,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       { expiresIn: process.env.JWT_EXPIRES_IN || "15m" },
     );
 
-    // Issue refresh token (long-lived)
+    // Issue refresh token (long-lived) and record last login timestamp
     const refreshToken = uuidv4();
-    // Use update query instead of loading entity for better performance
     await db.getRepository(User)
       .createQueryBuilder()
       .update(User)
-      .set({ refreshToken })
+      .set({ refreshToken, last_login_at: new Date() })
       .where("id = :id", { id: user.id })
       .execute();
 
-    // Invalidate cache after updating refresh token
+    // Invalidate cache after updating refresh token and last login
     cache.invalidate(`user_username_${username}`);
     cache.invalidate(`user_${user.id}`);
 
