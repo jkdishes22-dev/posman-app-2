@@ -120,14 +120,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             id: "stations",
             label: "Stations",
             icon: "bi-building",
-            submenu: [
-                {
-                    id: "stations-overview",
-                    label: "Overview",
-                    icon: "bi-building",
-                    path: "/supervisor/station",
-                },
-            ],
+            path: "/supervisor/station",
         },
         {
             id: "production",
