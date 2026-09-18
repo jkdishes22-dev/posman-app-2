@@ -47,20 +47,8 @@ export default function PageHeaderStrip({
               <ul className="dropdown-menu dropdown-menu-end" style={{ zIndex: 1060 }}>
                 <li>
                   <a className="dropdown-item" href="/profile">
-                    <i className="bi bi-gear me-2"></i>
-                    Settings
-                  </a>
-                </li>
-                <li>
-                  <a className="dropdown-item" href="/profile/account">
-                    <i className="bi bi-person me-2"></i>
-                    Account
-                  </a>
-                </li>
-                <li>
-                  <a className="dropdown-item" href="/profile/preferences">
-                    <i className="bi bi-sliders me-2"></i>
-                    Preferences
+                    <i className="bi bi-person-gear me-2"></i>
+                    Profile &amp; Settings
                   </a>
                 </li>
                 <li><hr className="dropdown-divider" /></li>
