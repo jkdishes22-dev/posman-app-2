@@ -94,14 +94,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       id: "stations",
       label: "Stations",
       icon: "bi-building",
-      submenu: [
-        {
-          id: "stations-overview",
-          label: "Overview",
-          icon: "bi-building",
-          path: "/admin/station",
-        },
-      ],
+      path: "/admin/station",
     },
     {
       id: "menu-pricing",
