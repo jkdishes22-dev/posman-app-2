@@ -3,43 +3,47 @@ import React, { useState, useEffect } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 import { useApiCall } from "src/app/utils/apiUtils";
 
-interface ItemPricelist {
+export interface ItemPricelist {
   id: number;
   name: string;
   price: number;
   pricelistItemId: number;
 }
 
-interface EditableItem {
+export interface EditableItem {
   id: number;
   name: string;
   code: string;
   isGroup: boolean;
   isStock: boolean;
   allowNegativeInventory: boolean;
+  category: { id: number; name: string } | null;
   pricelists: ItemPricelist[];
 }
 
-interface EditItemDetailsModalProps {
+interface Category {
+  id: number;
+  name: string;
+  status: string;
+}
+
+interface EditItemModalProps {
   show: boolean;
   item: EditableItem | null;
   onHide: () => void;
   onUpdated: (updated: EditableItem) => void;
 }
 
-export default function EditItemDetailsModal({
-  show,
-  item,
-  onHide,
-  onUpdated,
-}: EditItemDetailsModalProps) {
+export default function EditItemModal({ show, item, onHide, onUpdated }: EditItemModalProps) {
   const apiCall = useApiCall();
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [isGroup, setIsGroup] = useState(false);
   const [isStock, setIsStock] = useState(false);
   const [allowNegativeInventory, setAllowNegativeInventory] = useState(false);
+  const [categoryId, setCategoryId] = useState<string>("");
   const [prices, setPrices] = useState<Record<number, string>>({});
+  const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,34 +54,34 @@ export default function EditItemDetailsModal({
     setIsGroup(item.isGroup);
     setIsStock(item.isStock);
     setAllowNegativeInventory(item.allowNegativeInventory ?? false);
+    setCategoryId(item.category ? String(item.category.id) : "");
     const priceMap: Record<number, string> = {};
     for (const pl of item.pricelists) {
       priceMap[pl.pricelistItemId] = String(pl.price);
     }
     setPrices(priceMap);
     setError(null);
-  }, [show, item]);
+
+    apiCall("/api/menu/categories").then((res) => {
+      if (res.status === 200)
+        setCategories(Array.isArray(res.data) ? res.data.filter((c: Category) => c.status === "active") : []);
+    });
+  }, [show, item, apiCall]);
 
   const handleSave = async () => {
     if (!item) return;
-    if (!name.trim()) {
-      setError("Item name is required.");
-      return;
-    }
-    if (!code.trim()) {
-      setError("Item code is required.");
-      return;
-    }
-    for (const [piId, val] of Object.entries(prices)) {
+    if (!name.trim()) { setError("Item name is required."); return; }
+    if (!code.trim()) { setError("Item code is required."); return; }
+    for (const val of Object.values(prices)) {
       if (val === "" || isNaN(Number(val)) || Number(val) < 0) {
         setError("All prices must be valid non-negative numbers.");
         return;
       }
     }
+
     setSaving(true);
     setError(null);
 
-    // Update basic item details (no pricelist context)
     const detailsRes = await apiCall(`/api/menu/items/${item.id}`, {
       method: "PATCH",
       body: JSON.stringify({
@@ -87,6 +91,7 @@ export default function EditItemDetailsModal({
         isGroup,
         isStock,
         allowNegativeInventory,
+        categoryId: categoryId ? Number(categoryId) : null,
       }),
     });
 
@@ -96,17 +101,12 @@ export default function EditItemDetailsModal({
       return;
     }
 
-    // Update each pricelist price that changed
     for (const pl of item.pricelists) {
       const newPrice = Number(prices[pl.pricelistItemId]);
       if (newPrice === pl.price) continue;
       const priceRes = await apiCall(`/api/menu/items/${item.id}`, {
         method: "PATCH",
-        body: JSON.stringify({
-          id: item.id,
-          pricelistItemId: pl.pricelistItemId,
-          price: newPrice,
-        }),
+        body: JSON.stringify({ id: item.id, pricelistItemId: pl.pricelistItemId, price: newPrice }),
       });
       if (priceRes.status < 200 || priceRes.status >= 300) {
         setSaving(false);
@@ -116,6 +116,7 @@ export default function EditItemDetailsModal({
     }
 
     setSaving(false);
+    const selectedCategory = categories.find((c) => String(c.id) === categoryId) ?? null;
     onUpdated({
       ...item,
       name: name.trim(),
@@ -123,6 +124,11 @@ export default function EditItemDetailsModal({
       isGroup,
       isStock,
       allowNegativeInventory,
+      category: selectedCategory
+        ? { id: selectedCategory.id, name: selectedCategory.name }
+        : categoryId && item.category && String(item.category.id) === categoryId
+          ? item.category
+          : null,
       pricelists: item.pricelists.map((pl) => ({
         ...pl,
         price: Number(prices[pl.pricelistItemId] ?? pl.price),
@@ -142,30 +148,42 @@ export default function EditItemDetailsModal({
       <Modal.Body>
         {error && (
           <div className="alert alert-danger py-2 small" role="alert">
-            <i className="bi bi-exclamation-circle me-1"></i>
-            {error}
+            <i className="bi bi-exclamation-circle me-1"></i>{error}
           </div>
         )}
-        <Form.Group className="mb-3">
-          <Form.Label className="fw-semibold small">Name</Form.Label>
+
+        <Form.Group className="mb-3" controlId="edit-item-name">
+          <Form.Label className="fw-semibold small">Name <span className="text-danger">*</span></Form.Label>
           <Form.Control
-            type="text"
             size="sm"
             value={name}
             onChange={(e) => { setName(e.target.value); setError(null); }}
             placeholder="Item name"
           />
         </Form.Group>
-        <Form.Group className="mb-3">
-          <Form.Label className="fw-semibold small">Code</Form.Label>
+
+        <Form.Group className="mb-3" controlId="edit-item-code">
+          <Form.Label className="fw-semibold small">Code <span className="text-danger">*</span></Form.Label>
           <Form.Control
-            type="text"
             size="sm"
             value={code}
             onChange={(e) => { setCode(e.target.value); setError(null); }}
             placeholder="Item code"
           />
         </Form.Group>
+
+        <Form.Group className="mb-3" controlId="edit-item-category">
+          <Form.Label className="fw-semibold small">Category</Form.Label>
+          <Form.Select size="sm" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <option value="">— No category —</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </Form.Select>
+        </Form.Group>
+
+        <hr className="my-2" />
+
         <Form.Group className="mb-2">
           <Form.Check
             type="switch"
@@ -200,7 +218,7 @@ export default function EditItemDetailsModal({
             <p className="fw-semibold small mb-2">Prices by pricelist</p>
             {item.pricelists.map((pl) => (
               <Form.Group key={pl.pricelistItemId} className="mb-2 d-flex align-items-center gap-2">
-                <Form.Label className="mb-0 small text-muted" style={{ minWidth: 100 }}>
+                <Form.Label className="mb-0 small text-muted" style={{ minWidth: 120 }}>
                   {pl.name}
                 </Form.Label>
                 <Form.Control
@@ -222,15 +240,11 @@ export default function EditItemDetailsModal({
         )}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onHide} disabled={saving}>
-          Cancel
-        </Button>
+        <Button variant="secondary" onClick={onHide} disabled={saving}>Cancel</Button>
         <Button variant="primary" onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <><Spinner size="sm" className="me-1" />Saving…</>
-          ) : (
-            <><i className="bi bi-check-circle me-1"></i>Save</>
-          )}
+          {saving
+            ? <><Spinner size="sm" className="me-1" />Saving…</>
+            : <><i className="bi bi-check-circle me-1"></i>Save</>}
         </Button>
       </Modal.Footer>
     </Modal>

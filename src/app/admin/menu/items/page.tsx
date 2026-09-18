@@ -9,7 +9,7 @@ import { useApiCall } from "src/app/utils/apiUtils";
 import { useTooltips } from "src/app/hooks/useTooltips";
 import AssignCategoryModal from "./components/assign-category-modal";
 import LinkPricelistModal from "./components/link-pricelist-modal";
-import EditItemDetailsModal from "./components/edit-item-details-modal";
+import EditItemModal from "./components/edit-item-modal";
 import AddItemModal from "./components/add-item-modal";
 
 const PAGE_SIZE = 10;
@@ -529,7 +529,7 @@ export default function ItemsPage() {
           }}
         />
 
-        <EditItemDetailsModal
+        <EditItemModal
           show={!!editItem}
           item={editItem}
           onHide={() => setEditItem(null)}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import EditItemModal from "./item-edit";
+import EditItemModal, { EditableItem } from "src/app/admin/menu/items/components/edit-item-modal";
 import ItemDeleteModal from "./item-delete";
 import { Category, Item } from "../../../../../types/types";
 import { useApiCall } from "../../../../../utils/apiUtils";
@@ -746,20 +746,30 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
         {showEditModal && selectedItem && (
           <EditItemModal
             show={showEditModal}
-            onClose={() => setShowEditModal(false)}
-            onSave={(editedItem) => {
-              setItems(prevItems =>
-                prevItems.map(item =>
-                  item.id === editedItem.id ? editedItem : item
-                )
-              );
-              setShowEditModal(false);
-              // Refresh items if we have a callback
-              if (onItemUpdated) {
-                onItemUpdated();
-              }
+            onHide={() => setShowEditModal(false)}
+            item={{
+              id: selectedItem.id,
+              name: selectedItem.name,
+              code: selectedItem.code,
+              isGroup: selectedItem.isGroup ?? false,
+              isStock: selectedItem.isStock ?? false,
+              allowNegativeInventory: selectedItem.allowNegativeInventory ?? false,
+              category: selectedItem.category
+                ? { id: Number(selectedItem.category.id), name: selectedItem.category.name }
+                : null,
+              pricelists: selectedItem.pricelistId
+                ? [{
+                    id: Number(selectedItem.pricelistId),
+                    name: String(selectedItem.pricelistName ?? ""),
+                    price: selectedItem.price,
+                    pricelistItemId: selectedItem.pricelistItemId ?? 0,
+                  }]
+                : [],
             }}
-            item={selectedItem}
+            onUpdated={() => {
+              setShowEditModal(false);
+              if (onItemUpdated) onItemUpdated();
+            }}
           />
         )}
 
