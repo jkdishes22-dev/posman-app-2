@@ -93,6 +93,7 @@ const BillingSection = () => {
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintPrinterName, setAutoPrintPrinterName] = useState("");
   const [autoPrintCopyMode, setAutoPrintCopyMode] = useState<"customer" | "business" | "both">("both");
+  const [allowPrintToggle, setAllowPrintToggle] = useState(false);
   const [showTax, setShowTax] = useState(true);
   const [showPaymentMode, setShowPaymentMode] = useState(true);
   const [receiptBranding, setReceiptBranding] = useState<ReceiptBranding>(() => defaultReceiptBranding());
@@ -153,6 +154,7 @@ const BillingSection = () => {
         setAutoPrintEnabled(p.print_after_create_bill);
         setAutoPrintPrinterName(p.printer_name);
         setAutoPrintCopyMode(p.auto_print_copy_mode || "both");
+        setAllowPrintToggle(p.allow_print_toggle);
       }
       if (res.status === 200 && res.data?.receipt_display) {
         setReceiptBranding(res.data.receipt_display);
@@ -1119,6 +1121,16 @@ const BillingSection = () => {
                   Current Bill
                 </h6>
                 <div className="d-flex align-items-center gap-3">
+                  {allowPrintToggle && (
+                    <button
+                      type="button"
+                      className={`btn btn-sm ${autoPrintEnabled ? "btn-success" : "btn-outline-secondary"}`}
+                      onClick={() => setAutoPrintEnabled((prev) => !prev)}
+                      title={autoPrintEnabled ? "Printing ON — click to silence receipts" : "Printing OFF — click to enable receipts"}
+                    >
+                      <i className={`bi ${autoPrintEnabled ? "bi-printer-fill" : "bi-printer"}`}></i>
+                    </button>
+                  )}
                   <small className="text-muted">
                     {(createdBill ? createdBill.bill_items : selectedItems).length} items
                   </small>
