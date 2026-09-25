@@ -1124,11 +1124,12 @@ const BillingSection = () => {
                   {allowPrintToggle && (
                     <button
                       type="button"
-                      className={`btn btn-sm ${autoPrintEnabled ? "btn-success" : "btn-outline-secondary"}`}
+                      className={`btn btn-sm d-flex align-items-center gap-1 ${autoPrintEnabled ? "btn-success" : "btn-outline-secondary"}`}
                       onClick={() => setAutoPrintEnabled((prev) => !prev)}
-                      title={autoPrintEnabled ? "Printing ON — click to silence receipts" : "Printing OFF — click to enable receipts"}
+                      title={autoPrintEnabled ? "Click to silence receipts for this session" : "Click to enable receipts for this session"}
                     >
-                      <i className={`bi ${autoPrintEnabled ? "bi-printer-fill" : "bi-printer"}`}></i>
+                      <i className={`bi ${autoPrintEnabled ? "bi-printer-fill" : "bi-printer-x"}`}></i>
+                      <span className="small">Receipts {autoPrintEnabled ? "ON" : "OFF"}</span>
                     </button>
                   )}
                   <small className="text-muted">
