@@ -156,6 +156,12 @@ const ProfilePage = () => {
                                             <p><strong>User Role:</strong> {user.roles && user.roles.length > 0 ? (
                                                 <span className="badge bg-primary ms-2">{user.roles[0].name}</span>
                                             ) : <span className="text-muted">N/A</span>}</p>
+                                            <p>
+                                                <strong>Last Login:</strong>{" "}
+                                                {user.last_login_at
+                                                    ? <span title={new Date(user.last_login_at).toLocaleString()}>{new Date(user.last_login_at).toLocaleString()}</span>
+                                                    : <span className="text-muted">Never recorded</span>}
+                                            </p>
                                         </div>
                                         <div className="col-6">
                                             <p><strong>Locked:</strong> {user.is_locked ? "Yes" : "No"}</p>

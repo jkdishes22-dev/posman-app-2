@@ -39,10 +39,12 @@ export const fetchItemsHandler = async (
     const targetUsage = billing === "true" ? true : false;
 
     const categoryValue = Array.isArray(category) ? category[0] : category;
+    const forceRefresh = req.query.t !== undefined;
     const items = await itemService.fetchItems(
       parseInt(categoryValue),
       user_id,
       targetUsage,
+      forceRefresh,
     );
     res.status(200).json(items);
   } catch (error: any) {
@@ -232,6 +234,80 @@ export const removeItemFromGroupHandler = async (
       operation: "removing",
       resource: "item from group"
     });
+    res.status(500).json({ error: userMessage, code: errorCode });
+  }
+};
+
+export const fetchAllItemsWithDetailsHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const itemService = new ItemService(req.db);
+  try {
+    const items = await itemService.fetchAllItemsWithDetailsRaw();
+    res.status(200).json(items);
+  } catch (error: any) {
+    const { userMessage, errorCode } = handleApiError(error, { operation: "fetching", resource: "all items" });
+    res.status(500).json({ error: userMessage, code: errorCode });
+  }
+};
+
+export const fetchAllItemsPaginatedHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const itemService = new ItemService(req.db);
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 10));
+    const search = typeof req.query.search === "string" ? req.query.search : undefined;
+    const categoryId = req.query.categoryId ? Number(req.query.categoryId) : undefined;
+    const pricelistId = req.query.pricelistId ? Number(req.query.pricelistId) : undefined;
+    const result = await itemService.fetchAllItemsPaginated(page, limit, search, categoryId, pricelistId);
+    res.status(200).json(result);
+  } catch (error: any) {
+    const { userMessage, errorCode } = handleApiError(error, { operation: "fetching", resource: "items" });
+    res.status(500).json({ error: userMessage, code: errorCode });
+  }
+};
+
+export const deleteItemHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const itemService = new ItemService(req.db);
+  try {
+    const { id } = req.query;
+    if (!id) {
+      return res.status(400).json({ error: "Item ID is required" });
+    }
+    await itemService.deleteItem(Number(id));
+    res.status(200).json({ message: "Item deleted" });
+  } catch (error: any) {
+    const statusCode = error.statusCode ?? 500;
+    if (statusCode === 404) return res.status(404).json({ error: error.message });
+    const { userMessage, errorCode } = handleApiError(error, { operation: "deleting", resource: "item" });
+    res.status(500).json({ error: userMessage, code: errorCode });
+  }
+};
+
+export const updateItemCategoryHandler = async (
+  req: NextApiRequest,
+  res: NextApiResponse,
+) => {
+  const itemService = new ItemService(req.db);
+  try {
+    const { itemId } = req.query;
+    if (!itemId) {
+      return res.status(400).json({ error: "Item ID is required" });
+    }
+    const { categoryId } = req.body;
+    await itemService.updateItemCategory(Number(itemId), categoryId ?? null);
+    res.status(200).json({ message: "Item category updated" });
+  } catch (error: any) {
+    const statusCode = error.statusCode ?? 500;
+    if (statusCode === 404) return res.status(404).json({ error: error.message });
+    const { userMessage, errorCode } = handleApiError(error, { operation: "updating", resource: "item category" });
     res.status(500).json({ error: userMessage, code: errorCode });
   }
 };

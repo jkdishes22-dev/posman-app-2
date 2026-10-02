@@ -255,7 +255,7 @@ export default function PricelistUploadModal({
           <div>
             <div className="d-flex justify-content-between align-items-start mb-3">
               <p className="text-muted mb-0">
-                Upload a CSV or Excel file to add or update items on this pricelist.
+                Upload a CSV or Excel file to add or update items on this pricelist. Items will be linked to this pricelist automatically — categories can be assigned later.
               </p>
               <Button
                 variant="outline-secondary"

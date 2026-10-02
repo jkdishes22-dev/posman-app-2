@@ -28,7 +28,6 @@ export default function UploadPreview({
               <th>#</th>
               <th>Code</th>
               <th>Name</th>
-              <th>Category</th>
               <th>Price</th>
               <th>Match</th>
               <th>Action</th>
@@ -47,7 +46,6 @@ export default function UploadPreview({
                     <code>{row.code}</code>
                   </td>
                   <td>{row.name}</td>
-                  <td>{row.category_code}</td>
                   <td>{row.price}</td>
                   <td>
                     {hasMatch ? (

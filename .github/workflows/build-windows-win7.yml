@@ -10,7 +10,7 @@ on:
       prerelease:
         description: "Publish as prerelease"
         required: false
-        default: true
+        default: "true"
         type: boolean
 
 jobs:

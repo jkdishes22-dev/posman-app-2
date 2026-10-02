@@ -28,10 +28,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
                     }
                     const connection = await getConnection();
                     const pricelistService = new PricelistService(connection);
+                    const userId = req.user?.id ? parseInt(req.user.id, 10) : undefined;
                     await pricelistService.addItemToPricelist(
                         Number(pricelistId),
                         Number(itemId),
-                        Number(price)
+                        Number(price),
+                        userId
                     );
                     res.status(201).json({ message: "Item added to pricelist successfully" });
                 } catch (error: any) {

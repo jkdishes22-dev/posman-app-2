@@ -4,15 +4,24 @@ import { NextApiRequest, NextApiResponse } from "next";
 import {
   createItemHandler,
   fetchItemsHandler,
-  filterItemsHandler, // Import the new handler
+  fetchAllItemsWithDetailsHandler,
+  fetchAllItemsPaginatedHandler,
+  filterItemsHandler,
 } from "@controllers/ItemController";
 import { withMiddleware } from "@backend/middleware/middleware-util";
 import { dbMiddleware } from "@backend/middleware/dbMiddleware";
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "GET") {
-    const { search } = req.query;
-    if (req.query && search) {
+    const { search, all } = req.query;
+    if (all === "true") {
+      const { page, limit } = req.query;
+      if (page || limit) {
+        await authorize([permissions.CAN_VIEW_ITEM])(fetchAllItemsPaginatedHandler)(req, res);
+      } else {
+        await authorize([permissions.CAN_VIEW_ITEM])(fetchAllItemsWithDetailsHandler)(req, res);
+      }
+    } else if (req.query && search) {
       await authorize([permissions.CAN_VIEW_ITEM])(filterItemsHandler)(req, res);
     } else {
       await authorize([permissions.CAN_VIEW_ITEM])(fetchItemsHandler)(req, res);

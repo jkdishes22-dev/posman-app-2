@@ -38,19 +38,23 @@ export class ItemService {
         const item: Item = this.itemRepository.create(newItem);
         const savedItem = await transactionalEntityManager.save(Item, item);
 
-        const newPriceListItem = {
-          price: price,
-          created_by: user_id,
-          pricelist: { id: Number(pricelistId) },
-          item: { id: savedItem.id },
-          currency: Currency.KES,
-        };
-        const pricelistItem: PricelistItem =
-          this.pricelistItemRepository.create(newPriceListItem);
-        await transactionalEntityManager.save(PricelistItem, pricelistItem);
+        const resolvedPricelistId = pricelistId ? Number(pricelistId) : null;
+        if (resolvedPricelistId) {
+          const newPriceListItem = {
+            price: price ?? 0,
+            created_by: user_id,
+            pricelist: { id: resolvedPricelistId },
+            item: { id: savedItem.id },
+            currency: Currency.KES,
+            is_enabled: true,
+          };
+          const pricelistItem: PricelistItem =
+            this.pricelistItemRepository.create(newPriceListItem);
+          await transactionalEntityManager.save(PricelistItem, pricelistItem);
+        }
 
         // Invalidate cache after creating item (affects items and prices)
-        cache.invalidateMany(["items", `pricelist_items_${pricelistId}`]);
+        cache.invalidateMany(["items", "items_all_with_details_raw", ...(resolvedPricelistId ? [`pricelist_items_${resolvedPricelistId}`] : [])]);
 
         return savedItem;
       },
@@ -61,14 +65,17 @@ export class ItemService {
     categoryId: number,
     user_id: number,
     billing: boolean = false,
+    forceRefresh: boolean = false,
   ): Promise<any[]> {
     // Cache key includes all parameters (prices can change, but cache for performance)
     const cacheKey = `items_${categoryId}_${user_id}_${billing}`;
 
-    // Try cache first
-    const cached = cache.get<any[]>(cacheKey);
-    if (cached !== null) {
-      return cached;
+    // Try cache first (skip when forceRefresh so callers get live data after mutations)
+    if (!forceRefresh) {
+      const cached = cache.get<any[]>(cacheKey);
+      if (cached !== null) {
+        return cached;
+      }
     }
 
     const query = this.itemRepository
@@ -508,6 +515,27 @@ export class ItemService {
           }
         }
 
+        // Skip pricelist price update entirely when neither pricelistItemId nor pricelistId is given
+        const hasPricelistContext =
+          (pricelistItemId !== null && pricelistItemId !== undefined && !isNaN(Number(pricelistItemId)) && Number(pricelistItemId) > 0) ||
+          (pricelistId !== null && pricelistId !== undefined && !isNaN(Number(pricelistId)) && Number(pricelistId) > 0);
+
+        if (!hasPricelistContext) {
+          // Only invalidate item caches, then return
+          cache.invalidateMany([
+            "items",
+            `item_${itemData.id}`,
+            "items_pricelist",
+            "items_station",
+            "items_all_with_details_raw",
+          ]);
+          const savedItem = await transactionalEntityManager.findOne(Item, {
+            where: { id: itemData.id },
+            relations: ["category"],
+          });
+          return savedItem || updatedItemData;
+        }
+
         // Only query for pricelistItem if pricelistItemId is provided and valid
         let pricelistItemToUpdate = null;
         if (pricelistItemId !== null && pricelistItemId !== undefined && !isNaN(Number(pricelistItemId)) && Number(pricelistItemId) > 0) {
@@ -521,31 +549,70 @@ export class ItemService {
             .getOne();
         }
 
+        let actualPricelistId: number;
+
         if (pricelistItemToUpdate) {
-          await this.disablePreExistingPricelistItems(
-            transactionalEntityManager,
-            pricelistItemToUpdate,
-          );
+          const oldPricelistId = pricelistItemToUpdate.pricelist.id;
+          const targetPricelistId = Number(pricelistId) > 0 ? Number(pricelistId) : oldPricelistId;
+          const isMovingPricelist = targetPricelistId !== oldPricelistId;
 
-          // Log price change if it changed
-          const oldPrice = pricelistItemToUpdate.price;
-          if (oldPrice !== price) {
-            await this.auditService.logPricelistItemChange(
-              pricelistItemToUpdate.id,
-              "price",
-              oldPrice,
+          if (isMovingPricelist) {
+            // Soft-disable all rows for the old pricelist — preserves audit trail
+            await transactionalEntityManager
+              .createQueryBuilder()
+              .update(PricelistItem)
+              .set({ is_enabled: false })
+              .where("item_id = :itemId", { itemId: itemData.id })
+              .andWhere("pricelist_id = :pricelistId", { pricelistId: oldPricelistId })
+              .execute();
+            // Soft-disable any existing rows in the target pricelist to prevent duplicates
+            await transactionalEntityManager
+              .createQueryBuilder()
+              .update(PricelistItem)
+              .set({ is_enabled: false })
+              .where("item_id = :itemId", { itemId: itemData.id })
+              .andWhere("pricelist_id = :pricelistId", { pricelistId: targetPricelistId })
+              .execute();
+            await this.createNewPricelistItem(
               price,
-              user_id
+              user_id,
+              targetPricelistId,
+              itemData,
+              transactionalEntityManager,
             );
-          }
+            actualPricelistId = targetPricelistId;
+            // Also invalidate the old pricelist cache
+            cache.invalidate(`pricelist_items_${oldPricelistId}`);
+          } else {
+            // Same pricelist — hard-delete duplicate rows, then update this row
+            await this.disablePreExistingPricelistItems(
+              transactionalEntityManager,
+              pricelistItemToUpdate,
+            );
 
-          pricelistItemToUpdate.price = price;
-          pricelistItemToUpdate.updated_by = user_id;
-          await transactionalEntityManager.save(
-            PricelistItem,
-            pricelistItemToUpdate,
-          );
+            // Log price change if it changed
+            const oldPrice = pricelistItemToUpdate.price;
+            if (oldPrice !== price) {
+              await this.auditService.logPricelistItemChange(
+                pricelistItemToUpdate.id,
+                "price",
+                oldPrice,
+                price,
+                user_id
+              );
+            }
+
+            pricelistItemToUpdate.price = price;
+            pricelistItemToUpdate.updated_by = user_id;
+            await transactionalEntityManager.save(
+              PricelistItem,
+              pricelistItemToUpdate,
+            );
+            actualPricelistId = oldPricelistId;
+          }
         } else {
+          // No existing active row — soft-disable any stale rows, then insert fresh.
+          // Soft-disable (not hard delete) preserves pricelist_item_audit FK references.
           await transactionalEntityManager
             .createQueryBuilder()
             .update(PricelistItem)
@@ -560,15 +627,17 @@ export class ItemService {
             itemData,
             transactionalEntityManager,
           );
+          actualPricelistId = Number(pricelistId);
         }
 
         // Invalidate cache after updating item (affects items and prices)
         cache.invalidateMany([
           "items",
           `item_${itemData.id}`,
-          `pricelist_items_${pricelistId}`,
+          `pricelist_items_${actualPricelistId}`,
           "items_pricelist",
           "items_station",
+          "items_all_with_details_raw",
         ]);
 
         // Reload the item to ensure all fields are properly set and relations are loaded
@@ -606,14 +675,17 @@ export class ItemService {
     transactionalEntityManager: EntityManager,
     pricelistItem: PricelistItem | null,
   ) {
+    if (!pricelistItem) return;
+    // Soft-disable duplicate rows (same item+pricelist) while preserving the row
+    // being updated (excluded by id) so the subsequent save() re-enables only it.
+    // Soft-disable (not hard delete) keeps pricelist_item_audit FK references intact.
     await transactionalEntityManager
       .createQueryBuilder()
       .update(PricelistItem)
       .set({ is_enabled: false })
-      .where("item_id = :itemId", { itemId: pricelistItem?.item.id })
-      .andWhere("pricelist_id = :pricelistId", {
-        pricelistId: pricelistItem?.pricelist.id,
-      })
+      .where("item_id = :itemId", { itemId: pricelistItem.item.id })
+      .andWhere("pricelist_id = :pricelistId", { pricelistId: pricelistItem.pricelist.id })
+      .andWhere("id != :id", { id: pricelistItem.id })
       .execute();
   }
 
@@ -985,5 +1057,243 @@ export class ItemService {
       logger.error({ error: error.message, query, userId }, "Failed to search items for user");
       throw new Error("Failed to search items for user: " + error.message);
     }
+  }
+
+  public async fetchAllItemsWithDetails(): Promise<any[]> {
+    const cacheKey = "items_all_with_details";
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) return cached;
+
+    const rows = await this.itemRepository
+      .createQueryBuilder("item")
+      .leftJoin("item.category", "category")
+      .leftJoin("pricelist_item", "pi", "pi.item_id = item.id")
+      .leftJoin("pricelist", "pl", "pl.id = pi.pricelist_id")
+      .select([
+        "item.id",
+        "item.name",
+        "item.code",
+        "item.isGroup",
+        "item.isStock",
+        "item.status",
+      ])
+      .addSelect(["category.id", "category.name"])
+      .addSelect(["pi.id", "pi.price"])
+      .addSelect(["pl.id", "pl.name"])
+      .where("item.status = :status", { status: ItemStatus.ACTIVE })
+      .orderBy("item.name", "ASC")
+      .getMany();
+
+    // Group pricelist entries per item
+    const result = rows.map((item) => {
+      const pricelists = (item as any).pricelistItems
+        ? (item as any).pricelistItems.map((pi: any) => ({ id: pi.pricelist?.id, name: pi.pricelist?.name, price: pi.price, pricelistItemId: pi.id }))
+        : [];
+      return {
+        id: item.id,
+        name: item.name,
+        code: item.code,
+        isGroup: Boolean(item.isGroup),
+        isStock: Boolean(item.isStock),
+        category: (item as any).category ? { id: (item as any).category.id, name: (item as any).category.name } : null,
+        pricelists,
+      };
+    });
+
+    cache.set(cacheKey, result);
+    return result;
+  }
+
+  public async fetchAllItemsWithDetailsRaw(): Promise<any[]> {
+    const cacheKey = "items_all_with_details_raw";
+    const cached = cache.get<any[]>(cacheKey);
+    if (cached !== null) return cached;
+
+    const rows = await this.itemRepository
+      .createQueryBuilder("item")
+      .leftJoin("item.category", "category")
+      .leftJoin("pricelist_item", "pi", "pi.item_id = item.id AND pi.is_enabled = 1")
+      .leftJoin("pricelist", "pl", "pl.id = pi.pricelist_id")
+      .select([
+        "item.id AS item_id",
+        "item.name AS item_name",
+        "item.code AS item_code",
+        "item.isGroup AS item_isGroup",
+        "item.isStock AS item_isStock",
+        "item.allowNegativeInventory AS item_allowNegativeInventory",
+        "category.id AS category_id",
+        "category.name AS category_name",
+        "pi.id AS pi_id",
+        "pi.price AS pi_price",
+        "pl.id AS pl_id",
+        "pl.name AS pl_name",
+      ])
+      .where("item.status = :status", { status: ItemStatus.ACTIVE })
+      .orderBy("item.name", "ASC")
+      .getRawMany();
+
+    const toBoolean = (v: any) => v === true || v === 1 || v === "1" || v === "true" || v === "TRUE";
+
+    const itemMap = new Map<number, any>();
+    for (const row of rows) {
+      const id = Number(row.item_id);
+      if (!itemMap.has(id)) {
+        itemMap.set(id, {
+          id,
+          name: row.item_name,
+          code: row.item_code,
+          isGroup: toBoolean(row.item_isGroup),
+          isStock: toBoolean(row.item_isStock),
+          allowNegativeInventory: toBoolean(row.item_allowNegativeInventory),
+          category: row.category_id ? { id: Number(row.category_id), name: row.category_name } : null,
+          pricelists: [],
+        });
+      }
+      if (row.pl_id) {
+        itemMap.get(id).pricelists.push({
+          id: Number(row.pl_id),
+          name: row.pl_name,
+          price: row.pi_price,
+          pricelistItemId: row.pi_id,
+        });
+      }
+    }
+
+    const result = Array.from(itemMap.values());
+    cache.set(cacheKey, result);
+    return result;
+  }
+
+  public async fetchAllItemsPaginated(
+    page: number,
+    limit: number,
+    search?: string,
+    categoryId?: number,
+    pricelistId?: number,
+  ): Promise<{ items: any[]; total: number; page: number; limit: number }> {
+    const normalizedSearch = search?.trim() ?? "";
+    const offset = (page - 1) * limit;
+
+    const toBoolean = (v: any) => v === true || v === 1 || v === "1" || v === "true" || v === "TRUE";
+
+    const applyFilters = (qb: any) => {
+      qb.leftJoin("item.category", "category");
+      if (normalizedSearch) {
+        qb.andWhere(
+          "(item.name LIKE :q OR item.code LIKE :q OR category.name LIKE :q)",
+          { q: `%${normalizedSearch}%` },
+        );
+      }
+      if (categoryId) {
+        qb.andWhere("category.id = :categoryId", { categoryId });
+      }
+      if (pricelistId) {
+        qb.innerJoin(
+          "pricelist_item",
+          "pif",
+          "pif.item_id = item.id AND pif.pricelist_id = :pricelistId AND pif.is_enabled = 1",
+          { pricelistId },
+        );
+      }
+    };
+
+    const countQb = this.itemRepository
+      .createQueryBuilder("item")
+      .where("item.status = :status", { status: ItemStatus.ACTIVE });
+    applyFilters(countQb);
+    const total = await countQb.getCount();
+
+    // Paginate by item: fetch a window of distinct item IDs first, then expand
+    const idQb = this.itemRepository
+      .createQueryBuilder("item")
+      .select("item.id", "item_id")
+      .where("item.status = :status", { status: ItemStatus.ACTIVE });
+    applyFilters(idQb);
+    const idRows = await idQb.orderBy("item.name", "ASC").limit(limit).offset(offset).getRawMany();
+
+    if (idRows.length === 0) {
+      return { items: [], total, page, limit };
+    }
+
+    const ids = idRows.map((r) => Number(r.item_id));
+
+    const rows = await this.itemRepository
+      .createQueryBuilder("item")
+      .leftJoin("item.category", "category")
+      .leftJoin("pricelist_item", "pi", "pi.item_id = item.id AND pi.is_enabled = 1")
+      .leftJoin("pricelist", "pl", "pl.id = pi.pricelist_id")
+      .select([
+        "item.id AS item_id",
+        "item.name AS item_name",
+        "item.code AS item_code",
+        "item.isGroup AS item_isGroup",
+        "item.isStock AS item_isStock",
+        "item.allowNegativeInventory AS item_allowNegativeInventory",
+        "category.id AS category_id",
+        "category.name AS category_name",
+        "pi.id AS pi_id",
+        "pi.price AS pi_price",
+        "pl.id AS pl_id",
+        "pl.name AS pl_name",
+      ])
+      .where("item.id IN (:...ids)", { ids })
+      .orderBy("item.name", "ASC")
+      .getRawMany();
+
+    const itemMap = new Map<number, any>();
+    // preserve order from idRows
+    for (const id of ids) {
+      itemMap.set(id, null);
+    }
+    for (const row of rows) {
+      const id = Number(row.item_id);
+      if (!itemMap.has(id) || itemMap.get(id) === null) {
+        itemMap.set(id, {
+          id,
+          name: row.item_name,
+          code: row.item_code,
+          isGroup: toBoolean(row.item_isGroup),
+          isStock: toBoolean(row.item_isStock),
+          allowNegativeInventory: toBoolean(row.item_allowNegativeInventory),
+          category: row.category_id ? { id: Number(row.category_id), name: row.category_name } : null,
+          pricelists: [],
+        });
+      }
+      if (row.pl_id && itemMap.get(id)) {
+        itemMap.get(id).pricelists.push({
+          id: Number(row.pl_id),
+          name: row.pl_name,
+          price: row.pi_price,
+          pricelistItemId: row.pi_id,
+        });
+      }
+    }
+
+    const items = ids.map((id) => itemMap.get(id)).filter(Boolean);
+    return { items, total, page, limit };
+  }
+
+  public async updateItemCategory(itemId: number, categoryId: number | null): Promise<void> {
+    const item = await this.itemRepository.findOne({ where: { id: itemId } });
+    if (!item) {
+      throw Object.assign(new Error("Item not found"), { statusCode: 404 });
+    }
+
+    await this.itemRepository.update(itemId, {
+      category: categoryId ? ({ id: categoryId } as any) : null,
+    });
+
+    cache.invalidateMany(["items_", "items_all_with_details", "items_all_with_details_raw"]);
+  }
+
+  public async deleteItem(itemId: number): Promise<void> {
+    const item = await this.itemRepository.findOne({ where: { id: itemId } });
+    if (!item) {
+      throw Object.assign(new Error("Item not found"), { statusCode: 404 });
+    }
+
+    await this.itemRepository.update(itemId, { status: ItemStatus.DELETED });
+
+    cache.invalidateMany(["items_", "items_all_with_details", "items_all_with_details_raw", "items_pricelist_", "items_station_"]);
   }
 }

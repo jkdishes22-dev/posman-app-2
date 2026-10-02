@@ -246,47 +246,35 @@ const CategoriesComponent = ({
           </div>
         )}
 
-        <div className="row">
+        <div className="row g-2">
           {filteredCategories.slice(0, visibleCount).map((category) => (
             <div
               key={category.id}
-              className="col-sm-3 mb-1"
+              className="col-6 col-sm-4 col-md-3"
               onClick={() => onCategoryClick(category)}
               style={{ cursor: "pointer" }}
             >
-              <div className={`card ${billingMode ? "pos-category-card" : ""}`}>
-                <div className="card-body">
-                  <div className="d-flex justify-content-between align-items-start border-bottom border-light pb-1">
-                    <div className="col-auto"></div>
-                    <div className="col-auto">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      {onDeleteCategory && (
-                        <img
-                          src="/icons/x-circle.svg"
-                          alt="Delete"
-                          width={24}
-                          height={24}
-                          className="m-1"
-                          style={{ cursor: "pointer" }}
-                          title="Delete this category"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onDeleteCategory) {
-                              onDeleteCategory(category);
-                            }
-                          }}
-                        />
-                      )}
-                    </div>
+              <div className="card h-100 position-relative">
+                {onDeleteCategory && (
+                  <button
+                    type="button"
+                    className="btn-close position-absolute"
+                    style={{ top: 6, right: 6, fontSize: "0.65rem", opacity: 0.5 }}
+                    title="Delete this category"
+                    aria-label="Delete category"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteCategory(category);
+                    }}
+                  />
+                )}
+                <div className="card-body p-3 text-center">
+                  <div className="fw-semibold lh-sm mb-1" style={{ fontSize: "0.9rem" }}>
+                    {category.name}
                   </div>
-                  <div className="text-center pt-2">
-                    <h5 className="card-title mb-1">
-                      {category.name}
-                    </h5>
-                    {category.code && (
-                      <span className="badge bg-secondary small">{category.code}</span>
-                    )}
-                  </div>
+                  {category.code && (
+                    <span className="badge bg-secondary" style={{ fontSize: "0.7rem" }}>{category.code}</span>
+                  )}
                 </div>
               </div>
             </div>

@@ -17,16 +17,17 @@ interface AdminLayoutProps {
 }
 
 function getExpandedSidebarWidth(): number {
-  if (typeof window === "undefined") return 280;
+  if (typeof window === "undefined") return 240;
   if (window.innerWidth < 1024) return 60;
-  if (window.innerWidth < 1400) return 220;
-  return 280;
+  if (window.innerWidth < 1280) return 200;
+  if (window.innerWidth < 1600) return 220;
+  return 240;
 }
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
   useTooltips();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [sidebarWidth, setSidebarWidth] = useState(240);
   const [hiddenMenuIds, setHiddenMenuIds] = useState<Set<string>>(new Set());
   const { activeItem, setActiveItem, expandedMenus, setExpandedMenus } = useNavigation(adminRoutes, ADMIN_DEFAULT_BREADCRUMB);
   const { user } = useAuth();
@@ -93,20 +94,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       id: "stations",
       label: "Stations",
       icon: "bi-building",
-      submenu: [
-        {
-          id: "stations-overview",
-          label: "Overview",
-          icon: "bi-building",
-          path: "/admin/station",
-        },
-        {
-          id: "station-users",
-          label: "Station Users",
-          icon: "bi-people-fill",
-          path: "/admin/station/user",
-        },
-      ],
+      path: "/admin/station",
     },
     {
       id: "menu-pricing",
@@ -120,16 +108,22 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
           path: "/admin/menu/category",
         },
         {
-          id: "menu-recipes",
-          label: "Recipes",
-          icon: "bi-journal-text",
-          path: "/admin/menu/recipes",
-        },
-        {
           id: "menu-pricelist",
           label: "Pricelists",
           icon: "bi-tags",
           path: "/admin/menu/pricelist",
+        },
+        {
+          id: "menu-items",
+          label: "Items",
+          icon: "bi-bag",
+          path: "/admin/menu/items",
+        },
+        {
+          id: "menu-recipes",
+          label: "Recipes",
+          icon: "bi-journal-text",
+          path: "/admin/menu/recipes",
         },
       ],
     },
@@ -355,7 +349,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         }}
       >
         {/* Header */}
-        <div className="p-3 border-bottom border-secondary">
+        <div className="p-2 border-bottom border-secondary">
           <div className="d-flex align-items-center">
             {!isCollapsed && (
               <div className="flex-grow-1">
@@ -385,10 +379,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
 
 
         {/* Navigation */}
-        <nav className="flex-grow-1 px-3 pt-1 pb-3" style={{ overflowY: "auto" }}>
+        <nav className="flex-grow-1 px-2 pt-1 pb-2" style={{ overflowY: "auto" }}>
           <ul className="nav nav-pills flex-column">
             {visibleMenuItems.map((item) => (
-              <li key={item.id} className="nav-item mb-2">
+              <li key={item.id} className="nav-item mb-1">
                 {item.submenu ? (
                   <div>
                     <button
@@ -404,14 +398,14 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
                         cursor: "pointer",
                       }}
                     >
-                      <i className={`bi ${item.icon} me-3`}></i>
+                      <i className={`bi ${item.icon} me-2`}></i>
                       {!isCollapsed && <span>{item.label}</span>}
                       {!isCollapsed && (
                         <i className={`bi ${expandedMenus.includes(item.id) ? "bi-chevron-up" : "bi-chevron-down"} ms-auto`}></i>
                       )}
                     </button>
                     {expandedMenus.includes(item.id) && !isCollapsed && (
-                      <ul className="nav nav-pills flex-column ms-3 mt-2">
+                      <ul className="nav nav-pills flex-column ms-2 mt-1">
                         {item.submenu.map((subItem) => (
                           <li key={subItem.id} className="nav-item mb-1">
                             <button
@@ -421,8 +415,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
                                 background: activeItem === subItem.id ? "var(--bs-primary)" : "transparent",
                                 border: "none",
                                 color: activeItem === subItem.id ? "white" : "rgba(255,255,255,0.8)",
-                                fontSize: "0.9rem",
-                                padding: "0.5rem 0.75rem",
+                                fontSize: "0.85rem",
+                                padding: "0.35rem 0.6rem",
                               }}
                             >
                               <i className={`bi ${subItem.icon} me-2`}></i>
@@ -443,7 +437,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
                       color: activeItem === item.id ? "white" : "rgba(255,255,255,0.8)",
                     }}
                   >
-                    <i className={`bi ${item.icon} me-3`}></i>
+                    <i className={`bi ${item.icon} me-2`}></i>
                     {!isCollapsed && <span>{item.label}</span>}
                   </button>
                 )}
@@ -456,7 +450,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
         {/* Logout */}
         <div className="border-top border-secondary">
           <AppVersion isCollapsed={isCollapsed} />
-          <div className="p-3">
+          <div className="p-2">
             <LogoutButton />
           </div>
         </div>
@@ -465,7 +459,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       {/* Main Content */}
       <div className="flex-grow-1 d-flex flex-column">
         {/* Page Content */}
-        <main className="flex-grow-1 p-4" style={{ overflowY: "auto" }}>
+        <main className="flex-grow-1 p-3" style={{ overflowY: "auto" }}>
           {authError && (
             <div className="alert alert-danger" role="alert">
               <i className="bi bi-exclamation-triangle me-2"></i>

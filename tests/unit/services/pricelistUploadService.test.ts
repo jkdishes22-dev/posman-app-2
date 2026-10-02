@@ -13,8 +13,8 @@ vi.mock("xlsx", () => ({
   }),
   utils: {
     sheet_to_json: vi.fn().mockReturnValue([
-      ["code", "name", "category_code", "pricelist_code", "price"],
-      ["BRG", "Burger", "FOOD", "STD", "800"],
+      ["code", "name", "price"],
+      ["BRG", "Burger", "800"],
     ]),
   },
 }));
@@ -26,8 +26,6 @@ const mockPapaparse = vi.hoisted(() => ({
         {
           code: "BRG",
           name: "Burger",
-          category_code: "FOOD",
-          pricelist_code: "STD",
           price: "800",
         },
       ],
@@ -48,21 +46,15 @@ import { PricelistUploadService } from "@backend/service/PricelistUploadService"
 describe("PricelistUploadService", () => {
   let service: PricelistUploadService;
   let mockItemRepo: ReturnType<typeof createMockRepository>;
-  let mockCategoryRepo: ReturnType<typeof createMockRepository>;
   let mockPricelistRepo: ReturnType<typeof createMockRepository>;
-  let mockPricelistItemRepo: ReturnType<typeof createMockRepository>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockItemRepo = createMockRepository();
-    mockCategoryRepo = createMockRepository();
     mockPricelistRepo = createMockRepository();
-    mockPricelistItemRepo = createMockRepository();
     const mockDs = createMockDataSource({
       Item: mockItemRepo,
-      Category: mockCategoryRepo,
       Pricelist: mockPricelistRepo,
-      PricelistItem: mockPricelistItemRepo,
     });
     service = new PricelistUploadService(mockDs as any);
   });
@@ -77,7 +69,7 @@ describe("PricelistUploadService", () => {
     });
 
     it("parses a CSV file using papaparse", async () => {
-      const buffer = Buffer.from("code,name,category_code,pricelist_code,price\nBRG,Burger,FOOD,STD,800");
+      const buffer = Buffer.from("code,name,price\nBRG,Burger,800");
 
       const result = await service.parseUploadFile(buffer, "menu.csv");
 
@@ -99,16 +91,8 @@ describe("PricelistUploadService", () => {
   });
 
   describe("validateUploadData", () => {
-    it("returns valid: false when required fields are missing", async () => {
-      const rows = [
-        {
-          code: "",
-          name: "Burger",
-          category_code: "FOOD",
-          pricelist_code: "STD",
-          price: 800,
-        },
-      ];
+    it("returns valid: false when code is missing", async () => {
+      const rows = [{ code: "", name: "Burger", price: 800 }];
 
       const result = await service.validateUploadData(rows as any);
 
@@ -117,15 +101,7 @@ describe("PricelistUploadService", () => {
     });
 
     it("returns valid: false when price is 0 or missing", async () => {
-      const rows = [
-        {
-          code: "BRG",
-          name: "Burger",
-          category_code: "FOOD",
-          pricelist_code: "STD",
-          price: 0,
-        },
-      ];
+      const rows = [{ code: "BRG", name: "Burger", price: 0 }];
 
       const result = await service.validateUploadData(rows as any);
 
@@ -133,26 +109,32 @@ describe("PricelistUploadService", () => {
       expect(result.errors.some(e => e.includes("Price must be greater than 0"))).toBe(true);
     });
 
-    it("proceeds to database validation when basic fields are present", async () => {
-      const rows = [
-        {
-          code: "BRG",
-          name: "Burger",
-          category_code: "FOOD",
-          pricelist_code: "STD",
-          price: 800,
-        },
-      ];
+    it("proceeds to item matching when basic fields are present", async () => {
+      const rows = [{ code: "BRG", name: "Burger", price: 800 }];
 
-      const categoryQb = mockCategoryRepo.createQueryBuilder();
-      categoryQb.getMany.mockResolvedValue([{ id: 1, code: "FOOD", name: "Food" }]);
+      const itemQb = mockItemRepo.createQueryBuilder();
+      itemQb.getMany.mockResolvedValue([]);
 
-      const pricelistQb = mockPricelistRepo.createQueryBuilder();
-      pricelistQb.getMany.mockResolvedValue([{ id: 1, code: "STD", name: "Standard" }]);
+      const result = await service.validateUploadData(rows as any);
 
-      await service.validateUploadData(rows as any);
+      expect(itemQb.getMany).toHaveBeenCalled();
+      expect(result.valid).toBe(true);
+    });
+  });
 
-      expect(categoryQb.getMany).toHaveBeenCalled();
+  describe("generateTemplate", () => {
+    it("returns a CSV with the expected headers", () => {
+      const csv = service.generateTemplate();
+      const firstLine = csv.split("\n")[0];
+
+      expect(firstLine).toBe("code,name,price,currency,is_stock,allow_negative_inventory,is_enabled");
+    });
+
+    it("does not include category_code or pricelist_code", () => {
+      const csv = service.generateTemplate();
+
+      expect(csv).not.toContain("category_code");
+      expect(csv).not.toContain("pricelist_code");
     });
   });
 });

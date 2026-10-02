@@ -51,9 +51,10 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
   const apiCall = useApiCall();
   useTooltips();
 
-  // Determine context for conditional rendering
-  const isFromPricelistPage = !selectedCategory && selectedPricelistId;
-  const isFromCategoryPage = selectedCategory && !selectedPricelistId;
+  // Determine context for conditional rendering.
+  // Pricelist page always passes handleAddItem; category page passes selectedCategory.
+  const isFromPricelistPage = !!handleAddItem || (!selectedCategory && !!selectedPricelistId);
+  const isFromCategoryPage = !isFromPricelistPage && !!selectedCategory;
 
   useEffect(() => {
     async function fetchPricelists() {
@@ -192,7 +193,14 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         </div>
       )}
       <ModalHeader closeButton>
-        <ModalTitle>Add Item</ModalTitle>
+        <ModalTitle>
+          Add Item
+          {isFromCategoryPage && selectedCategory && (
+            <span className="ms-2 badge bg-primary fw-normal" style={{ fontSize: "0.75rem" }}>
+              <i className="bi bi-grid me-1"></i>{selectedCategory.name}
+            </span>
+          )}
+        </ModalTitle>
       </ModalHeader>
       <ModalBody>
         <ErrorDisplay
@@ -220,8 +228,9 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
         />
         <form onSubmit={handleItemSubmit} className="row g-3">
           <div className="form-group">
-            <label>Item Name <span className="text-danger">*</span></label>
+            <label htmlFor="new-item-name">Item Name <span className="text-danger">*</span></label>
             <input
+              id="new-item-name"
               type="text"
               className="form-control"
               value={itemName}
@@ -230,8 +239,9 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
             />
           </div>
           <div className="form-group">
-            <label>Item Code <span className="text-danger">*</span></label>
+            <label htmlFor="new-item-code">Item Code <span className="text-danger">*</span></label>
             <input
+              id="new-item-code"
               type="text"
               className="form-control"
               value={itemCode}
@@ -243,8 +253,9 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           {/* Category selection - only show when adding from pricelist page */}
           {isFromPricelistPage && (
             <div className="form-group">
-              <label>Category <span className="text-danger">*</span></label>
+              <label htmlFor="new-item-category">Category <span className="text-danger">*</span></label>
               <select
+                id="new-item-category"
                 className="form-control"
                 value={selectedCategoryId}
                 onChange={(e) => setSelectedCategoryId(e.target.value)}
@@ -262,8 +273,9 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
 
           {!selectedPricelistId && (
             <div className="form-group">
-              <label>Pricelist <span className="text-danger">*</span></label>
+              <label htmlFor="new-item-pricelist">Pricelist <span className="text-danger">*</span></label>
               <select
+                id="new-item-pricelist"
                 className="form-control"
                 value={pricelistId}
                 onChange={(e) => setPricelistId(e.target.value)}
@@ -292,8 +304,9 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           )}
 
           <div className="form-group">
-            <label>Item Price <span className="text-danger">*</span></label>
+            <label htmlFor="new-item-price">Item Price <span className="text-danger">*</span></label>
             <input
+              id="new-item-price"
               type="number"
               step="0.01"
               min="0"

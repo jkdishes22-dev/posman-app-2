@@ -27,6 +27,7 @@ interface PrinterSettings {
     print_after_create_bill: boolean;
     printer_name: string;
     auto_print_copy_mode: "customer" | "business" | "both";
+    allow_print_toggle: boolean;
 }
 
 interface BillTag {
@@ -159,6 +160,7 @@ export default function AdminSettingsPage() {
         print_after_create_bill: false,
         printer_name: "",
         auto_print_copy_mode: "both",
+        allow_print_toggle: false,
     });
     const [printers, setPrinters] = useState<PrinterInfo[]>([]);
     const [printerSaving, setPrinterSaving] = useState(false);
@@ -1319,6 +1321,14 @@ export default function AdminSettingsPage() {
                                         Default behavior is <strong>both copies</strong> when not explicitly configured.
                                     </Form.Text>
                                 </Form.Group>
+                                <Form.Check
+                                    type="switch"
+                                    id="allow-print-toggle-switch"
+                                    label="Allow billers to toggle printing per session"
+                                    checked={printerSettings.allow_print_toggle}
+                                    onChange={(e) => setPrinterSettings((s) => ({ ...s, allow_print_toggle: e.target.checked }))}
+                                    className="mb-3"
+                                />
                                 <Form.Group className="mb-3">
                                     <Form.Label className="fw-medium small mb-1">Printer</Form.Label>
                                     <Form.Control

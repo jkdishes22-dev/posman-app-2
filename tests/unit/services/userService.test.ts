@@ -194,13 +194,8 @@ describe("UserService", () => {
       ]);
 
       const spQb = mockStationPricelistRepo.createQueryBuilder();
-      spQb.getMany.mockResolvedValue([
-        {
-          station: { id: 2 },
-          pricelist: { id: 9, name: "Menu A" },
-          status: "active",
-          is_default: true,
-        },
+      spQb.getRawMany.mockResolvedValue([
+        { stationId: 2, pricelistId: 9, pricelistName: "Menu A" },
       ]);
 
       const result = await service.getUserWithRolesAndStations(42);

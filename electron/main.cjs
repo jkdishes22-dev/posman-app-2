@@ -11,6 +11,7 @@ const os = require("os");
 const crypto = require("crypto");
 
 const { verifyWithDerivedKey, deriveActivationHmacKey } = require("./activation-code.cjs");
+const { getAsyncLocalStoragePolyfillSource } = require("./async-local-storage-polyfill.cjs");
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 const isProduction = !isDev;
@@ -712,6 +713,11 @@ function startNextServer() {
                 `    }`,
                 `  })();`,
                 `})();`,
+                // AsyncLocalStorage.snapshot() (static and instance) was added after Node 16.
+                // Next.js 15's request-context plumbing calls it unconditionally, so without this
+                // the standalone server crashes on startup on Electron 22's Node 16 (Windows 7 legacy
+                // build) with "AsyncLocalStorage.snapshot is not a function".
+                getAsyncLocalStoragePolyfillSource(),
                 `import(_url).catch(function(e){var m='[ESM-LOADER] import failed: '+(e&&e.stack?e.stack:String(e))+'\\n';process.stdout.write(m);process.stderr.write(m);process.exit(1);});`,
             ].join("\n"));
             logToFile(`ESM loader written to: ${loaderPath}`);
@@ -964,10 +970,10 @@ function createWindow() {
     }
 
     const windowOptions = {
-        width: 1400,
-        height: 900,
+        width: 1280,
+        height: 800,
         minWidth: 1024,
-        minHeight: 768,
+        minHeight: 700,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -985,8 +991,9 @@ function createWindow() {
 
     mainWindow = new BrowserWindow(windowOptions);
 
-    // Show window when ready
+    // Show window when ready — maximize so it fills the screen on any size monitor
     mainWindow.once("ready-to-show", () => {
+        mainWindow.maximize();
         mainWindow.show();
         if (isDev) {
             mainWindow.webContents.openDevTools();

@@ -1,6 +1,6 @@
 import { StationPricelist } from "@backend/entities/StationPricelist";
 import { Pricelist, PriceListStatus } from "@entities/Pricelist";
-import { PricelistItem } from "@entities/PricelistItem";
+import { Currency, PricelistItem } from "@entities/PricelistItem";
 import { DataSource, Repository } from "typeorm";
 import logger from "@backend/utils/logger";
 import { cache } from "@backend/utils/cache";
@@ -87,13 +87,13 @@ export class PricelistService {
     }
   }
 
-  async fetchPricelistItems(pricelistId: string, search?: string): Promise<any[]> {
+  async fetchPricelistItems(pricelistId: string, search?: string, forceRefresh = false): Promise<any[]> {
     const normalizedSearch = search?.trim() ?? "";
     const isSearching = normalizedSearch.length > 0;
     const cacheKey = `pricelist_items_${pricelistId}`;
 
-    // Only use cache for unfiltered requests; search queries bypass cache
-    if (!isSearching) {
+    // Only use cache for unfiltered requests; search queries and explicit forceRefresh bypass cache
+    if (!isSearching && !forceRefresh) {
       const cached = cache.get<any[]>(cacheKey);
       if (cached !== null) {
         return cached;
@@ -122,7 +122,8 @@ export class PricelistService {
           "category.name AS category_name",
           "pricelist.name AS pricelist_name",
         ])
-        .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) });
+        .where("pi.pricelist_id = :pricelistId", { pricelistId: Number(pricelistId) })
+        .andWhere("pi.is_enabled = :enabled", { enabled: true });
 
       if (isSearching) {
         query.andWhere("(item.name LIKE :q OR item.code LIKE :q)", { q: `%${normalizedSearch}%` });
@@ -367,30 +368,96 @@ export class PricelistService {
     return result;
   }
 
-  async addItemToPricelist(pricelistId: number, itemId: number, price: number): Promise<void> {
-    const existing = await this.pricelistItemRepository.findOne({
-      where: { pricelist: { id: pricelistId }, item: { id: itemId } },
-    });
+  async addItemToPricelist(pricelistId: number, itemId: number, price: number, userId?: number): Promise<void> {
+    const existing = await this.pricelistItemRepository
+      .createQueryBuilder("pi")
+      .where("pi.pricelist_id = :pricelistId", { pricelistId })
+      .andWhere("pi.item_id = :itemId", { itemId })
+      .andWhere("pi.is_enabled = :enabled", { enabled: true })
+      .getOne();
     if (existing) {
+      cache.invalidateMany([`pricelist_items_${pricelistId}`, "items", "items_all_with_details_raw"]);
       throw new Error("Item is already in this pricelist");
     }
     const pricelistItem = this.pricelistItemRepository.create({
       pricelist: { id: pricelistId } as any,
       item: { id: itemId } as any,
       price,
+      currency: Currency.KES,
       is_enabled: true,
+      ...(userId ? { created_by: userId } : {}),
     });
     await this.pricelistItemRepository.save(pricelistItem);
-    cache.invalidateMany([`pricelist_items_${pricelistId}`, "items"]);
+    cache.invalidateMany([`pricelist_items_${pricelistId}`, "items", "items_all_with_details_raw"]);
   }
 
-  async removeItemFromPricelist(pricelistId: number, itemId: number): Promise<void> {
-    const result = await this.pricelistItemRepository
+  async deletePricelist(pricelistId: number): Promise<void> {
+    const pricelist = await this.pricelistRepository.findOne({ where: { id: pricelistId } });
+    if (!pricelist) {
+      throw Object.assign(new Error("Pricelist not found"), { statusCode: 404 });
+    }
+    if (pricelist.is_default) {
+      throw Object.assign(new Error("Cannot delete the default pricelist"), { statusCode: 400 });
+    }
+
+    // Remove all pricelist_item records — items themselves are not deleted
+    await this.pricelistItemRepository
       .createQueryBuilder()
       .delete()
       .from(PricelistItem)
       .where("pricelist_id = :pricelistId", { pricelistId })
+      .execute();
+
+    // Remove all station_pricelist links
+    await this.stationPricelistRepository
+      .createQueryBuilder()
+      .delete()
+      .from(StationPricelist)
+      .where("pricelist_id = :pricelistId", { pricelistId })
+      .execute();
+
+    await this.pricelistRepository.delete(pricelistId);
+
+    cache.invalidateMany([
+      "pricelists",
+      `pricelist_${pricelistId}`,
+      `pricelist_items_${pricelistId}`,
+      "pricelists_by_station",
+      "available_pricelists",
+      `stations_using_pricelist_${pricelistId}`,
+      "items_",
+    ]);
+  }
+
+  async updatePricelist(pricelistId: number, data: { name: string; code?: string | null; description?: string | null }): Promise<void> {
+    const pricelist = await this.pricelistRepository.findOne({ where: { id: pricelistId } });
+    if (!pricelist) {
+      throw Object.assign(new Error("Pricelist not found"), { statusCode: 404 });
+    }
+
+    await this.pricelistRepository.update(pricelistId, {
+      name: data.name,
+      code: data.code ?? null,
+      description: data.description ?? null,
+    });
+
+    cache.invalidateMany([
+      "pricelists",
+      `pricelist_${pricelistId}`,
+      "pricelists_by_station",
+      "available_pricelists",
+    ]);
+  }
+
+  async removeItemFromPricelist(pricelistId: number, itemId: number): Promise<void> {
+    // Soft-disable all active rows — preserves pricelist_item_audit FK references
+    const result = await this.pricelistItemRepository
+      .createQueryBuilder()
+      .update(PricelistItem)
+      .set({ is_enabled: false })
+      .where("pricelist_id = :pricelistId", { pricelistId })
       .andWhere("item_id = :itemId", { itemId })
+      .andWhere("is_enabled = :enabled", { enabled: true })
       .execute();
 
     if (result.affected === 0) {
@@ -398,6 +465,6 @@ export class PricelistService {
     }
 
     // Invalidate cache
-    cache.invalidateMany([`pricelist_items_${pricelistId}`, "items"]);
+    cache.invalidateMany([`pricelist_items_${pricelistId}`, "items", "items_all_with_details_raw"]);
   }
 }

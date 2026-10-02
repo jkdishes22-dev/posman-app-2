@@ -701,56 +701,60 @@ const MySales = () => {
                     </div>
                   </div>
                   <div className="col-md-4 d-flex align-items-end">
-                    <div className="btn-group btn-group-sm w-100 flex-wrap" role="group" aria-label="Filter actions">
-                      <button
-                        type="button"
-                        className={`btn btn-outline-success${statusFilter === "open" ? " active" : ""}`}
-                        onClick={() => handleStatusFilterChange("open")}
-                        style={{ fontSize: "0.8rem" }}
-                        title="Pending + Submitted + Reopened"
-                      >
-                        Open
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-outline-primary${statusFilter === "pending" ? " active" : ""}`}
-                        onClick={() => handleStatusFilterChange("pending")}
-                        style={{ fontSize: "0.8rem" }}
-                      >
-                        Pending
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-outline-primary${statusFilter === "submitted" ? " active" : ""}`}
-                        onClick={() => handleStatusFilterChange("submitted")}
-                        style={{ fontSize: "0.8rem" }}
-                      >
-                        Submitted
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-outline-primary${statusFilter === "reopened" ? " active" : ""}`}
-                        onClick={() => handleStatusFilterChange("reopened")}
-                        style={{ fontSize: "0.8rem" }}
-                      >
-                        Reopened
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-outline-primary${statusFilter === "closed" ? " active" : ""}`}
-                        onClick={() => handleStatusFilterChange("closed")}
-                        style={{ fontSize: "0.8rem" }}
-                      >
-                        Closed
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-outline-primary${statusFilter === "voided" ? " active" : ""}`}
-                        onClick={() => handleStatusFilterChange("voided")}
-                        style={{ fontSize: "0.8rem" }}
-                      >
-                        Voided
-                      </button>
+                    <div className="w-100" role="group" aria-label="Filter by status">
+                      <div className="btn-group btn-group-sm w-100 mb-1">
+                        <button
+                          type="button"
+                          className={`btn btn-outline-success${statusFilter === "open" ? " active" : ""}`}
+                          onClick={() => handleStatusFilterChange("open")}
+                          style={{ fontSize: "0.8rem" }}
+                          title="Pending + Submitted + Reopened"
+                        >
+                          Open
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn btn-outline-primary${statusFilter === "pending" ? " active" : ""}`}
+                          onClick={() => handleStatusFilterChange("pending")}
+                          style={{ fontSize: "0.8rem" }}
+                        >
+                          Pending
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn btn-outline-primary${statusFilter === "submitted" ? " active" : ""}`}
+                          onClick={() => handleStatusFilterChange("submitted")}
+                          style={{ fontSize: "0.8rem" }}
+                        >
+                          Submitted
+                        </button>
+                      </div>
+                      <div className="btn-group btn-group-sm w-100">
+                        <button
+                          type="button"
+                          className={`btn btn-outline-primary${statusFilter === "reopened" ? " active" : ""}`}
+                          onClick={() => handleStatusFilterChange("reopened")}
+                          style={{ fontSize: "0.8rem" }}
+                        >
+                          Reopened
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn btn-outline-primary${statusFilter === "closed" ? " active" : ""}`}
+                          onClick={() => handleStatusFilterChange("closed")}
+                          style={{ fontSize: "0.8rem" }}
+                        >
+                          Closed
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn btn-outline-primary${statusFilter === "voided" ? " active" : ""}`}
+                          onClick={() => handleStatusFilterChange("voided")}
+                          style={{ fontSize: "0.8rem" }}
+                        >
+                          Voided
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

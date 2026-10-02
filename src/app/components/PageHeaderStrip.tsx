@@ -23,7 +23,7 @@ export default function PageHeaderStrip({
 
   return (
     <div
-      className={`page-header-strip bg-primary text-white p-3 mb-4 position-relative ${className ?? ""}`.trim()}
+      className={`page-header-strip bg-primary text-white p-2 mb-3 position-relative ${className ?? ""}`.trim()}
       style={{ zIndex: 1050 }}
     >
       <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -47,20 +47,8 @@ export default function PageHeaderStrip({
               <ul className="dropdown-menu dropdown-menu-end" style={{ zIndex: 1060 }}>
                 <li>
                   <a className="dropdown-item" href="/profile">
-                    <i className="bi bi-gear me-2"></i>
-                    Settings
-                  </a>
-                </li>
-                <li>
-                  <a className="dropdown-item" href="/profile/account">
-                    <i className="bi bi-person me-2"></i>
-                    Account
-                  </a>
-                </li>
-                <li>
-                  <a className="dropdown-item" href="/profile/preferences">
-                    <i className="bi bi-sliders me-2"></i>
-                    Preferences
+                    <i className="bi bi-person-gear me-2"></i>
+                    Profile &amp; Settings
                   </a>
                 </li>
                 <li><hr className="dropdown-divider" /></li>

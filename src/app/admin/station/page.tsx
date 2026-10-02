@@ -1006,6 +1006,7 @@ export default function StationPage() {
                       <i className="bi bi-info-circle me-1"></i>
                       <small>
                         Only users with <span className="badge bg-primary text-white ms-1 me-1">sales</span>,
+                        <span className="badge bg-success text-white ms-1 me-1">cashier</span>,
                         <span className="badge bg-warning text-dark ms-1 me-1">supervisor</span>, or
                         <span className="badge bg-danger text-white ms-1 me-1">admin</span> roles who are not locked can be added to stations
                       </small>
@@ -1045,7 +1046,8 @@ export default function StationPage() {
                     <i className="bi bi-person-x text-muted" style={{ fontSize: "2rem" }}></i>
                     <p className="text-muted mt-2 mb-0">No available users to add</p>
                     <small className="text-muted">
-                      Only users with <span className="badge bg-primary text-white ms-1 me-1">waiter</span>,
+                      Only users with <span className="badge bg-primary text-white ms-1 me-1">sales</span>,
+                      <span className="badge bg-success text-white ms-1 me-1">cashier</span>,
                       <span className="badge bg-warning text-dark ms-1 me-1">supervisor</span>, or
                       <span className="badge bg-danger text-white ms-1 me-1">admin</span> roles who are not locked can be added to stations
                     </small>

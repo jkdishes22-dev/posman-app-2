@@ -886,37 +886,41 @@ const CashierBillsPage = () => {
                     </div>
                   </div>
                   <div className="col-12 col-md-6 col-lg-3 d-flex align-items-end">
-                    <div className="btn-group w-100 flex-wrap" role="group" aria-label="Filter actions">
-                      <button
-                        className={`btn btn-sm ${filters.status === "submitted" ? "btn-primary" : "btn-outline-primary"}`}
-                        onClick={() => handleFilterChange("status", "submitted")}
-                      >
-                        Submitted
-                      </button>
-                      <button
-                        className={`btn btn-sm ${filters.status === "closed" ? "btn-primary" : "btn-outline-primary"}`}
-                        onClick={() => handleFilterChange("status", "closed")}
-                      >
-                        Closed
-                      </button>
-                      <button
-                        className={`btn btn-sm ${filters.status === "voided" ? "btn-primary" : "btn-outline-primary"}`}
-                        onClick={() => handleFilterChange("status", "voided")}
-                      >
-                        Voided
-                      </button>
-                      <button
-                        className={`btn btn-sm ${filters.status === "reopened" ? "btn-primary" : "btn-outline-primary"}`}
-                        onClick={() => handleFilterChange("status", "reopened")}
-                      >
-                        Reopened
-                      </button>
-                      <button
-                        className={`btn btn-sm ${filters.status === "all" ? "btn-primary" : "btn-outline-primary"}`}
-                        onClick={() => handleFilterChange("status", "all")}
-                      >
-                        All
-                      </button>
+                    <div className="w-100" role="group" aria-label="Filter by status">
+                      <div className="btn-group btn-group-sm w-100 mb-1">
+                        <button
+                          className={`btn ${filters.status === "submitted" ? "btn-primary" : "btn-outline-primary"}`}
+                          onClick={() => handleFilterChange("status", "submitted")}
+                        >
+                          Submitted
+                        </button>
+                        <button
+                          className={`btn ${filters.status === "closed" ? "btn-primary" : "btn-outline-primary"}`}
+                          onClick={() => handleFilterChange("status", "closed")}
+                        >
+                          Closed
+                        </button>
+                        <button
+                          className={`btn ${filters.status === "voided" ? "btn-primary" : "btn-outline-primary"}`}
+                          onClick={() => handleFilterChange("status", "voided")}
+                        >
+                          Voided
+                        </button>
+                      </div>
+                      <div className="btn-group btn-group-sm w-100">
+                        <button
+                          className={`btn ${filters.status === "reopened" ? "btn-primary" : "btn-outline-primary"}`}
+                          onClick={() => handleFilterChange("status", "reopened")}
+                        >
+                          Reopened
+                        </button>
+                        <button
+                          className={`btn ${filters.status === "all" ? "btn-primary" : "btn-outline-primary"}`}
+                          onClick={() => handleFilterChange("status", "all")}
+                        >
+                          All
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1049,7 +1053,7 @@ const CashierBillsPage = () => {
                         disabled={selectedBills.filter((id) => {
                           const bill = bills.find((b) => b.id === id);
                           if (!bill || bill.status !== "pending") return false;
-                          if (userRole === "supervisor" || userRole === "admin" || userRole === "cashier") return true;
+                          if (userRole === "supervisor" || userRole === "admin" || userRole === "cashier" || userRole === "sales") return true;
                           return currentUserId && bill.user?.id === currentUserId;
                         }).length === 0}
                         title="Submit selected pending bills"
@@ -1164,7 +1168,7 @@ const CashierBillsPage = () => {
                             </td>
                             <td>
                               {/* Role-based actions */}
-                              {userRole === "cashier" ? (
+                              {userRole === "cashier" || userRole === "sales" ? (
                                 bill.status === "submitted" ? (
                                   <button
                                     className="btn btn-sm btn-primary"
@@ -1495,15 +1499,15 @@ const CashierBillsPage = () => {
                         <i className="bi bi-clock me-1"></i>
                         <strong>Bill is pending</strong>
                         <div className="small mt-1">
-                          {userRole === "supervisor" || userRole === "admin" || userRole === "cashier"
+                          {userRole === "supervisor" || userRole === "admin" || userRole === "cashier" || userRole === "sales"
                             ? "This bill is pending payment. Submit it to record payment."
                             : currentUserId && selectedBill.user?.id === currentUserId
                             ? "This bill is pending payment. Submit it to record payment."
                             : "This bill is waiting to be submitted."}
                         </div>
-                        {/* Supervisors/admins/cashiers can submit any pending bill; sales submit their own */}
-                        {(userRole === "supervisor" || userRole === "admin" || userRole === "cashier" ||
-                          ((userRole === "sales" || userRole === "user" || userRole === "waitress") && currentUserId && selectedBill.user?.id === currentUserId)) && (
+                        {/* Supervisors/admins/cashiers/sales can submit any pending bill; other roles submit their own */}
+                        {(userRole === "supervisor" || userRole === "admin" || userRole === "cashier" || userRole === "sales" ||
+                          ((userRole === "user" || userRole === "waitress") && currentUserId && selectedBill.user?.id === currentUserId)) && (
                           <div className="mt-2">
                             <Button
                               variant="success"
