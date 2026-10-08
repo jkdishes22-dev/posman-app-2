@@ -126,9 +126,7 @@ const THERMAL_RECEIPT_CSS = `
     text-align: center;
   }
   .receipt-pre-payment {
-    font-size: 12px;
     font-weight: 800;
-    max-width: 37ch;
   }
   @media print {
     .receipt-container {
@@ -140,7 +138,7 @@ const THERMAL_RECEIPT_CSS = `
     }
     .receipt-brand-logo { display: none !important; }
     .receipt-pre { font-size: 11px !important; font-weight: 600 !important; color: #000000 !important; }
-    .receipt-pre-payment { font-size: 12px !important; font-weight: 800 !important; max-width: 37ch !important; }
+    .receipt-pre-payment { font-weight: 800 !important; }
   }
 `;
 
@@ -224,35 +222,29 @@ const ReceiptContent = ({
         ].join("\n");
 
     const paymentInfo = showTotals && showPaymentMode ? extractReceiptPayment(bill) : null;
-    // Payment section uses 37-char width so the slightly larger 12px font fits within 72mm printable area.
-    const payLV = (label: string, value: string) => {
-        const total = 37;
-        const truncLabel = label.slice(0, total - 2);
-        const truncValue = value.slice(0, total - truncLabel.length - 1);
-        const spaces = total - truncLabel.length - truncValue.length;
-        return truncLabel + " ".repeat(Math.max(0, spaces)) + truncValue;
-    };
     const paymentLines = paymentInfo
         ? [
-              payLV("Payment:", paymentInfo.label),
+              lineLabelValue("Payment:", paymentInfo.label),
               ...(paymentInfo.cashAmount != null && paymentInfo.cashAmount > 0
-                  ? [payLV("Cash:", `${currency} ${paymentInfo.cashAmount.toFixed(2)}`.trim())]
+                  ? [lineLabelValue("Cash:", `${currency} ${paymentInfo.cashAmount.toFixed(2)}`.trim())]
                   : []),
               ...(paymentInfo.mpesaAmount != null && paymentInfo.mpesaAmount > 0
-                  ? [payLV("M-Pesa:", `${currency} ${paymentInfo.mpesaAmount.toFixed(2)}`.trim())]
+                  ? [lineLabelValue("M-Pesa:", `${currency} ${paymentInfo.mpesaAmount.toFixed(2)}`.trim())]
                   : []),
               ...(paymentInfo.mpesaRef
-                  ? [payLV("Ref:", paymentInfo.mpesaRef)]
+                  ? [lineLabelValue("Ref:", paymentInfo.mpesaRef)]
                   : []),
           ].join("\n")
         : null;
 
-    const footerMid = (b.footerLines ?? []).filter(Boolean).map((line) => centerTextLine(line));
-    const footerPre = ["", ...footerMid, ...(footerMid.length ? [""] : [])].concat([
+    const footerMpesaLines = (b.footerLines ?? []).filter(Boolean);
+    const footerMpesaPre = footerMpesaLines.map((line) => centerTextLine(line)).join("\n");
+    const footerThankyouPre = [
+        "",
         centerTextLine("********************************"),
         centerTextLine("Thank you for dining with us!"),
         centerTextLine("********************************"),
-    ]).join("\n");
+    ].join("\n");
 
     const before =
         spacerBeforeMm > 0 ? (
@@ -298,7 +290,13 @@ const ReceiptContent = ({
                         <pre className="receipt-pre receipt-pre-payment">{paymentLines}</pre>
                     </>
                 ) : null}
-                <pre className="receipt-pre receipt-footer-pre">{footerPre}</pre>
+                {footerMpesaLines.length > 0 ? (
+                    <>
+                        <hr className="receipt-hr" />
+                        <pre className="receipt-pre receipt-pre-payment" style={{ textAlign: "center" }}>{footerMpesaPre}</pre>
+                    </>
+                ) : null}
+                <pre className="receipt-pre receipt-footer-pre">{footerThankyouPre}</pre>
             </div>
             {after}
         </>
