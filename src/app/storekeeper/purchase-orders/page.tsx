@@ -25,6 +25,7 @@ import CollapsibleFilterSectionCard from "../../components/CollapsibleFilterSect
 import PageHeaderStrip from "../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import { AuthError } from "../../types/types";
+import AppSelect from "../../components/AppSelect";
 
 interface SuppliableCatalogItem {
     id: number;
@@ -553,17 +554,13 @@ function PurchaseOrdersContent() {
                                     </Form.Select>
                                 </Col>
                                 <Col md={2}>
-                                    <Form.Select
-                                        value={supplierFilter}
-                                        onChange={(e) => setSupplierFilter(e.target.value)}
-                                    >
-                                        <option value="all">All Suppliers</option>
-                                        {suppliers.map((supplier) => (
-                                            <option key={supplier.id} value={supplier.id.toString()}>
-                                                {supplier.name}
-                                            </option>
-                                        ))}
-                                    </Form.Select>
+                                    <AppSelect
+                                        options={suppliers.map((s) => ({ value: s.id.toString(), label: s.name }))}
+                                        value={supplierFilter === "all" ? "" : supplierFilter}
+                                        onChange={(v) => setSupplierFilter(v || "all")}
+                                        placeholder="All Suppliers"
+                                        isClearable
+                                    />
                                 </Col>
                                 <Col md={2}>
                                     <FilterDatePicker
@@ -836,21 +833,13 @@ function PurchaseOrdersContent() {
                                                                 Other sellable items are typically fulfilled through <strong>production</strong>, not purchase orders.
                                                             </HelpPopover>
                                                         </div>
-                                                        <Form.Select
+                                                        <AppSelect
+                                                            options={suppliableCatalog.map((opt) => ({ value: String(opt.id), label: `${opt.name} (${opt.code})` }))}
                                                             value={item.item_id}
-                                                            onChange={(e) => handleItemSelect(index, e.target.value)}
-                                                            required
-                                                            disabled={suppliableCatalogLoading}
-                                                        >
-                                                            <option value="">
-                                                                {suppliableCatalogLoading ? "Loading items…" : "Select item…"}
-                                                            </option>
-                                                            {suppliableCatalog.map((opt) => (
-                                                                <option key={opt.id} value={String(opt.id)}>
-                                                                    {opt.name} ({opt.code})
-                                                                </option>
-                                                            ))}
-                                                        </Form.Select>
+                                                            onChange={(v) => handleItemSelect(index, v)}
+                                                            placeholder={suppliableCatalogLoading ? "Loading items…" : "Select item…"}
+                                                            isDisabled={suppliableCatalogLoading}
+                                                        />
                                                         {(() => {
                                                             const cfg = suppliableCatalog.find((o) => String(o.id) === item.item_id);
                                                             if (!cfg?.purchaseUnitLabel) return null;

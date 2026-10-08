@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Station } from "../types/types";
+import AppSelect from "./AppSelect";
 
 interface StationFilterProps {
     selectedStationId: number | null;
@@ -47,18 +48,13 @@ const StationFilter: React.FC<StationFilterProps> = ({
                     Filter by Station
                 </label>
             )}
-            <select
-                className="form-select form-select-lg"
-                value={selectedStationId || ""}
-                onChange={(e) => handleChange(e.target.value)}
-            >
-                <option value="">Select a station to filter</option>
-                {availableStations.map((station) => (
-                    <option key={station.id} value={station.id}>
-                        {station.name}
-                    </option>
-                ))}
-            </select>
+            <AppSelect
+                options={availableStations.map((s) => ({ value: String(s.id), label: s.name }))}
+                value={selectedStationId ? String(selectedStationId) : ""}
+                onChange={(v) => handleChange(v)}
+                placeholder="Select a station to filter"
+                isClearable
+            />
         </div>
     );
 };

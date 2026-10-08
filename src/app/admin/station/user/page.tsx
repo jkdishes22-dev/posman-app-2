@@ -10,6 +10,7 @@ import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useTooltips } from "../../../hooks/useTooltips";
+import AppSelect from "../../../components/AppSelect";
 
 function StationUsersPage() {
   useTooltips();
@@ -587,41 +588,27 @@ function StationUsersPage() {
           <Modal.Body>
             <Form.Group className="mb-3">
               <Form.Label>Select User</Form.Label>
-              <Form.Select
+              <AppSelect
+                options={users.map((user: User) => ({ value: String(user.id), label: `${user.firstName} ${user.lastName}` }))}
                 value={modalSelectedUserId}
-                onChange={(e) => handleModalUserChange(e.target.value)}
-              >
-                <option value="">Choose user</option>
-                {users.map((user: User) => (
-                  <option key={user.id} value={user.id}>
-                    {user.firstName} {user.lastName}
-                  </option>
-                ))}
-              </Form.Select>
+                onChange={handleModalUserChange}
+                placeholder="Choose user"
+              />
             </Form.Group>
 
             <Form.Group>
               <Form.Label>Select Station</Form.Label>
-              <Form.Select
+              <AppSelect
+                options={stations
+                  .filter((station: any) => !modalUserStations.some(
+                    (us: any) => (us.station?.id || us.station_id) === station.id && us.status === "active"
+                  ))
+                  .map((station: any) => ({ value: String(station.id), label: station.name }))}
                 value={modalSelectedStationId}
-                onChange={(e) => setModalSelectedStationId(e.target.value)}
-                disabled={!modalSelectedUserId}
-              >
-                <option value="">Choose station</option>
-                {stations
-                  .filter((station: any) => {
-                    return !modalUserStations.some(
-                      (us: any) =>
-                        (us.station?.id || us.station_id) === station.id &&
-                        us.status === "active"
-                    );
-                  })
-                  .map((station: any) => (
-                    <option key={station.id} value={station.id}>
-                      {station.name}
-                    </option>
-                  ))}
-              </Form.Select>
+                onChange={setModalSelectedStationId}
+                placeholder="Choose station"
+                isDisabled={!modalSelectedUserId}
+              />
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>

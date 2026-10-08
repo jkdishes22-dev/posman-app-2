@@ -11,6 +11,7 @@ import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterS
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
+import AppSelect from "../../../components/AppSelect";
 
 interface InvoicesPendingBillsReportItem {
   date: string;
@@ -131,7 +132,16 @@ export default function InvoicesPendingBillsReportPage() {
                     />
                   </div>
                   <div className="col-md-2"><Form.Label>Period</Form.Label><Form.Select value={period} onChange={(e) => setPeriod(e.target.value as "day" | "week" | "month" | "year")}><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option><option value="year">Year</option></Form.Select></div>
-                  <div className="col-md-4"><Form.Label>Item</Form.Label><Form.Select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}><option value="">All Items</option>{items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ""}</option>)}</Form.Select></div>
+                  <div className="col-md-4">
+                    <Form.Label>Item</Form.Label>
+                    <AppSelect
+                      options={items.map((item) => ({ value: item.id.toString(), label: `${item.name}${item.code ? ` (${item.code})` : ""}` }))}
+                      value={selectedItemId}
+                      onChange={setSelectedItemId}
+                      placeholder="All Items"
+                      isClearable
+                    />
+                  </div>
                   <div className="col-md-2"><Button type="button" variant="primary" onClick={fetchReport} disabled={loading || loadingFilters} className="w-100"><i className="bi bi-search me-1"></i>{loading ? "Loading..." : "Generate Report"}</Button></div>
                 </div>
                 </Form>

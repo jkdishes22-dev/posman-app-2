@@ -26,6 +26,7 @@ import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { AuthError } from "../../../types/types";
 import { useTooltips } from "../../../hooks/useTooltips";
+import AppSelect from "../../../components/AppSelect";
 
 interface InventoryTransaction {
     id: number;
@@ -317,20 +318,13 @@ export default function InventoryTransactionsPage() {
                             <Col md={3}>
                                 <Form.Group>
                                     <Form.Label>Filter by Item</Form.Label>
-                                    <Form.Select
+                                    <AppSelect
+                                        options={inventoryItems.map((item) => ({ value: String(item.id), label: `${item.name} (${item.code})` }))}
                                         value={itemIdFilter}
-                                        onChange={(e) => {
-                                            setItemIdFilter(e.target.value);
-                                            setPage(1);
-                                        }}
-                                    >
-                                        <option value="">All Items</option>
-                                        {inventoryItems.map((item) => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.name} ({item.code})
-                                            </option>
-                                        ))}
-                                    </Form.Select>
+                                        onChange={(v) => { setItemIdFilter(v); setPage(1); }}
+                                        placeholder="All Items"
+                                        isClearable
+                                    />
                                 </Form.Group>
                             </Col>
                             <Col md={2}>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 import { useApiCall } from "src/app/utils/apiUtils";
+import AppSelect from "src/app/components/AppSelect";
 
 interface Category {
   id: number;
@@ -105,17 +106,25 @@ export default function AddItemModal({ show, onHide, onAdded }: AddItemModalProp
         </Form.Group>
         <Form.Group className="mb-3" controlId="add-item-category">
           <Form.Label className="fw-semibold small">Category</Form.Label>
-          <Form.Select size="sm" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">— No category —</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Form.Select>
+          <AppSelect
+            id="add-item-category"
+            size="sm"
+            options={categories.map((c) => ({ value: String(c.id), label: c.name }))}
+            value={categoryId}
+            onChange={setCategoryId}
+            placeholder="— No category —"
+          />
         </Form.Group>
         <Form.Group className="mb-2" controlId="add-item-pricelist">
           <Form.Label className="fw-semibold small">Pricelist</Form.Label>
-          <Form.Select size="sm" value={pricelistId} onChange={(e) => { setPricelistId(e.target.value); setError(null); }}>
-            <option value="">— No pricelist —</option>
-            {pricelists.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </Form.Select>
+          <AppSelect
+            id="add-item-pricelist"
+            size="sm"
+            options={pricelists.map((p) => ({ value: String(p.id), label: p.name }))}
+            value={pricelistId}
+            onChange={(v) => { setPricelistId(v); setError(null); }}
+            placeholder="— No pricelist —"
+          />
         </Form.Group>
         {pricelistId && (
           <Form.Group className="mb-3" controlId="add-item-price">

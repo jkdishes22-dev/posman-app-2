@@ -7,6 +7,7 @@ import ErrorDisplay from "src/app/components/ErrorDisplay";
 import CollapsibleFilterSectionCard from "src/app/components/CollapsibleFilterSectionCard";
 import { useApiCall } from "src/app/utils/apiUtils";
 import { useTooltips } from "src/app/hooks/useTooltips";
+import AppSelect from "src/app/components/AppSelect";
 import AssignCategoryModal from "./components/assign-category-modal";
 import LinkPricelistModal from "./components/link-pricelist-modal";
 import EditItemModal from "./components/edit-item-modal";
@@ -250,29 +251,25 @@ export default function ItemsPage() {
           <div className="row g-2 align-items-end py-2 px-1">
             <div className="col-sm-5">
               <label className="form-label fw-semibold small mb-1">Category</label>
-              <select
-                className="form-select form-select-sm"
-                value={filterCategoryId}
-                onChange={(e) => handleFilterCategoryChange(e.target.value)}
-              >
-                <option value="">All categories</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+              <AppSelect
+                size="sm"
+                options={categories.map((c) => ({ value: String(c.id), label: c.name }))}
+                value={filterCategoryId === "" ? "" : String(filterCategoryId)}
+                onChange={handleFilterCategoryChange}
+                placeholder="All categories"
+                isClearable
+              />
             </div>
             <div className="col-sm-5">
               <label className="form-label fw-semibold small mb-1">Pricelist</label>
-              <select
-                className="form-select form-select-sm"
-                value={filterPricelistId}
-                onChange={(e) => handleFilterPricelistChange(e.target.value)}
-              >
-                <option value="">All pricelists</option>
-                {pricelists.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+              <AppSelect
+                size="sm"
+                options={pricelists.map((p) => ({ value: String(p.id), label: p.name }))}
+                value={filterPricelistId === "" ? "" : String(filterPricelistId)}
+                onChange={handleFilterPricelistChange}
+                placeholder="All pricelists"
+                isClearable
+              />
             </div>
             {hasActiveFilters && (
               <div className="col-sm-2">

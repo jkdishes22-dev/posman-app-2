@@ -10,6 +10,7 @@ import ErrorDisplay from "../../components/ErrorDisplay";
 import CollapsibleFilterSectionCard from "../../components/CollapsibleFilterSectionCard";
 import PageHeaderStrip from "../../components/PageHeaderStrip";
 import { useApiCall } from "../../utils/apiUtils";
+import AppSelect from "../../components/AppSelect";
 import type { ApiErrorResponse } from "../../utils/errorUtils";
 
 type PaymentTypeFilter = "" | "CASH" | "MPESA";
@@ -225,30 +226,25 @@ export default function BillPaymentsReportView({
               {businessShifts.length > 0 && (
                 <div className="col-md-2">
                   <Form.Label>Shift</Form.Label>
-                  <Form.Select value={selectedShiftId} onChange={(e) => setSelectedShiftId(e.target.value)}>
-                    <option value="">All shifts</option>
-                    {businessShifts.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} ({s.start_time}–{s.end_time})
-                      </option>
-                    ))}
-                  </Form.Select>
+                  <AppSelect
+                    options={businessShifts.map((s) => ({ value: s.id, label: `${s.name} (${s.start_time}–${s.end_time})` }))}
+                    value={selectedShiftId}
+                    onChange={setSelectedShiftId}
+                    placeholder="All shifts"
+                    isClearable
+                  />
                 </div>
               )}
               <div className="col-md-2">
                 <Form.Label>Sales User</Form.Label>
-                <Form.Select
+                <AppSelect
+                  options={users.map((user) => ({ value: String(user.id), label: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username }))}
                   value={filters.userId}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, userId: e.target.value }))}
-                  disabled={loadingFilters}
-                >
-                  <option value="">All Users</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={String(user.id)}>
-                      {`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username}
-                    </option>
-                  ))}
-                </Form.Select>
+                  onChange={(v) => setFilters((prev) => ({ ...prev, userId: v }))}
+                  placeholder="All Users"
+                  isDisabled={loadingFilters}
+                  isClearable
+                />
               </div>
               <div className="col-md-12 d-grid d-md-flex justify-content-md-end">
                 <Button type="button" variant="primary" onClick={fetchReport} disabled={loading || loadingFilters}>

@@ -1150,3 +1150,18 @@ html, body {
         max-height: min(60vh, 500px);
     }
 }
+
+/* AppSelect (react-select Bootstrap integration) */
+.app-select__menu {
+    z-index: 1055;
+}
+
+.app-select__control {
+    min-height: unset;
+    cursor: default;
+}
+
+.app-select__control .form-select-sm {
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+}

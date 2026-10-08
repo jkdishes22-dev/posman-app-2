@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 import { useApiCall } from "src/app/utils/apiUtils";
+import AppSelect from "src/app/components/AppSelect";
 
 interface Pricelist {
   id: number;
@@ -118,18 +119,13 @@ export default function LinkPricelistModal({
           <>
             <Form.Group className="mb-3">
               <Form.Label className="fw-semibold small">Pricelist</Form.Label>
-              <Form.Select
-                value={selectedPricelistId}
-                onChange={(e) => { setSelectedPricelistId(e.target.value); setError(null); }}
+              <AppSelect
                 size="sm"
-              >
-                <option value="">Select pricelist…</option>
-                {pricelists.map((pl) => (
-                  <option key={pl.id} value={pl.id}>
-                    {pl.name}
-                  </option>
-                ))}
-              </Form.Select>
+                options={pricelists.map((pl) => ({ value: String(pl.id), label: pl.name }))}
+                value={selectedPricelistId}
+                onChange={(v) => { setSelectedPricelistId(v); setError(null); }}
+                placeholder="Select pricelist…"
+              />
             </Form.Group>
             <Form.Group>
               <Form.Label className="fw-semibold small">Price (KES)</Form.Label>

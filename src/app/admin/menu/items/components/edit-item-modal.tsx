@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 import { useApiCall } from "src/app/utils/apiUtils";
+import AppSelect from "src/app/components/AppSelect";
 
 export interface ItemPricelist {
   id: number;
@@ -174,12 +175,14 @@ export default function EditItemModal({ show, item, onHide, onUpdated }: EditIte
 
         <Form.Group className="mb-3" controlId="edit-item-category">
           <Form.Label className="fw-semibold small">Category</Form.Label>
-          <Form.Select size="sm" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">— No category —</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </Form.Select>
+          <AppSelect
+            id="edit-item-category"
+            size="sm"
+            options={categories.map((c) => ({ value: String(c.id), label: c.name }))}
+            value={categoryId}
+            onChange={setCategoryId}
+            placeholder="— No category —"
+          />
         </Form.Group>
 
         <hr className="my-2" />

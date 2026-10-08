@@ -9,6 +9,7 @@ import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useTooltips } from "../../../hooks/useTooltips";
+import AppSelect from "../../../components/AppSelect";
 
 const DEFAULT_PAGE_SIZE = parseInt(process.env.NEXT_PUBLIC_PAGE_SIZE || "10", 10);
 const DEFAULT_REFRESH_INTERVAL_SECONDS = parseInt(process.env.NEXT_PUBLIC_REFRESH_INTERVAL_SECONDS || "300", 10);
@@ -1045,19 +1046,13 @@ function UsersPage() {
                 <form>
                   <div className="form-group">
                     <label htmlFor="roleSelect">Select Role</label>
-                    <select
-                      className="form-control"
+                    <AppSelect
                       id="roleSelect"
+                      options={roles.map((role) => ({ value: String(role.id), label: role.name }))}
                       value={selectedRoleId}
-                      onChange={(e) => setSelectedRoleId(e.target.value)}
-                    >
-                      <option value="">Select a role</option>
-                      {roles.map((role) => (
-                        <option key={role.id} value={role.id}>
-                          {role.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setSelectedRoleId}
+                      placeholder="Select a role"
+                    />
                   </div>
                 </form>
               </div>
@@ -1258,19 +1253,13 @@ function UsersPage() {
                 <form>
                   <div className="form-group">
                     <label htmlFor="stationSelect">Select Station</label>
-                    <select
-                      className="form-control"
+                    <AppSelect
                       id="stationSelect"
+                      options={availableStations.map((s) => ({ value: String(s.id), label: s.name }))}
                       value={selectedStationId}
-                      onChange={(e) => setSelectedStationId(e.target.value)}
-                    >
-                      <option value="">Select a station</option>
-                      {availableStations.map((station) => (
-                        <option key={station.id} value={station.id}>
-                          {station.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setSelectedStationId}
+                      placeholder="Select a station"
+                    />
                   </div>
                 </form>
               </div>

@@ -11,6 +11,7 @@ import RoleAwareLayout from "../../shared/RoleAwareLayout";
 import PageHeaderStrip from "../../components/PageHeaderStrip";
 import CollapsibleFilterSectionCard from "../../components/CollapsibleFilterSectionCard";
 import { useApiCall } from "../../utils/apiUtils";
+import AppSelect from "../../components/AppSelect";
 import ErrorDisplay from "../../components/ErrorDisplay";
 import Pagination from "../../components/Pagination";
 import { useAuth } from "../../contexts/AuthContext";
@@ -413,18 +414,13 @@ const SupervisorBillsPage: React.FC = () => {
                                     </div>
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <label className="form-label">Select sales user</label>
-                                        <select
-                                            className="form-select"
+                                        <AppSelect
+                                            options={staffUsers.map((u) => ({ value: String(u.id), label: `${u.firstName} ${u.lastName}` }))}
                                             value={staffUserId}
-                                            onChange={(e) => setStaffUserId(e.target.value)}
-                                        >
-                                            <option value="">All</option>
-                                            {staffUsers.map((u) => (
-                                                <option key={u.id} value={u.id}>
-                                                    {u.firstName} {u.lastName}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            onChange={setStaffUserId}
+                                            placeholder="All"
+                                            isClearable
+                                        />
                                     </div>
                                     <div className="col-12 col-md-6 col-lg-2">
                                         <FilterDatePicker
@@ -576,30 +572,24 @@ const SupervisorBillsPage: React.FC = () => {
                     </div>
                     <div className="col-12 col-md-3">
                         <label className="form-label">Salesperson</label>
-                        <select
-                            className="form-select"
+                        <AppSelect
+                            options={previewSalespersons.map((p) => ({ value: String(p.id), label: `${p.firstName} ${p.lastName}` }))}
                             value={previewStaffId}
-                            onChange={(e) => setPreviewStaffId(e.target.value)}
-                        >
-                            <option value="">All</option>
-                            {previewSalespersons.map(p => (
-                                <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
-                            ))}
-                        </select>
+                            onChange={setPreviewStaffId}
+                            placeholder="All"
+                            isClearable
+                        />
                     </div>
                     <div className="col-12 col-md-3">
                         <label className="form-label">Shift</label>
-                        <select
-                            className="form-select"
+                        <AppSelect
+                            options={businessShifts.map((s) => ({ value: s.id, label: `${s.name} (${s.start_time}–${s.end_time})` }))}
                             value={previewShiftId}
-                            onChange={(e) => setPreviewShiftId(e.target.value)}
-                            disabled={businessShifts.length === 0}
-                        >
-                            <option value="">{businessShifts.length === 0 ? "No shifts configured" : "All day"}</option>
-                            {businessShifts.map(s => (
-                                <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
-                            ))}
-                        </select>
+                            onChange={setPreviewShiftId}
+                            placeholder={businessShifts.length === 0 ? "No shifts configured" : "All day"}
+                            isDisabled={businessShifts.length === 0}
+                            isClearable
+                        />
                     </div>
                 </div>
                 <div className="mb-3">

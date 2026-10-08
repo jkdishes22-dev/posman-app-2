@@ -14,6 +14,7 @@ import LinkItemModal from "./link-item-modal";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { useTooltips } from "../../../hooks/useTooltips";
+import AppSelect from "../../../components/AppSelect";
 
 export default function PricelistPage() {
   useTooltips();
@@ -521,19 +522,15 @@ export default function PricelistPage() {
                         <i className="bi bi-building me-1 text-primary"></i>
                         Station
                       </Form.Label>
-                      <Form.Select
-                        value={selectedStationId || ""}
-                        onChange={(e) => setSelectedStationId(e.target.value ? Number(e.target.value) : null)}
+                      <AppSelect
                         size="sm"
                         className="w-100"
-                      >
-                        <option value="">All Stations</option>
-                        {stations.map((station) => (
-                          <option key={station.id} value={station.id}>
-                            {station.name}
-                          </option>
-                        ))}
-                      </Form.Select>
+                        options={stations.map((s) => ({ value: String(s.id), label: s.name }))}
+                        value={selectedStationId ? String(selectedStationId) : ""}
+                        onChange={(v) => setSelectedStationId(v ? Number(v) : null)}
+                        placeholder="All Stations"
+                        isClearable
+                      />
                     </div>
                     <div className="col-12 col-sm-6 col-xl-4">
                       <Form.Label className="fw-semibold small mb-1 d-block">
