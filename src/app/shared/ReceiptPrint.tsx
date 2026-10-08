@@ -125,6 +125,11 @@ const THERMAL_RECEIPT_CSS = `
     margin-top: 10px;
     text-align: center;
   }
+  .receipt-pre-payment {
+    font-size: 12px;
+    font-weight: 800;
+    max-width: 37ch;
+  }
   @media print {
     .receipt-container {
       max-width: 100% !important;
@@ -135,6 +140,7 @@ const THERMAL_RECEIPT_CSS = `
     }
     .receipt-brand-logo { display: none !important; }
     .receipt-pre { font-size: 11px !important; font-weight: 600 !important; color: #000000 !important; }
+    .receipt-pre-payment { font-size: 12px !important; font-weight: 800 !important; max-width: 37ch !important; }
   }
 `;
 
@@ -218,17 +224,25 @@ const ReceiptContent = ({
         ].join("\n");
 
     const paymentInfo = showTotals && showPaymentMode ? extractReceiptPayment(bill) : null;
+    // Payment section uses 37-char width so the slightly larger 12px font fits within 72mm printable area.
+    const payLV = (label: string, value: string) => {
+        const total = 37;
+        const truncLabel = label.slice(0, total - 2);
+        const truncValue = value.slice(0, total - truncLabel.length - 1);
+        const spaces = total - truncLabel.length - truncValue.length;
+        return truncLabel + " ".repeat(Math.max(0, spaces)) + truncValue;
+    };
     const paymentLines = paymentInfo
         ? [
-              lineLabelValue("Payment:", paymentInfo.label),
+              payLV("Payment:", paymentInfo.label),
               ...(paymentInfo.cashAmount != null && paymentInfo.cashAmount > 0
-                  ? [lineLabelValue("Cash:", `${currency} ${paymentInfo.cashAmount.toFixed(2)}`.trim())]
+                  ? [payLV("Cash:", `${currency} ${paymentInfo.cashAmount.toFixed(2)}`.trim())]
                   : []),
               ...(paymentInfo.mpesaAmount != null && paymentInfo.mpesaAmount > 0
-                  ? [lineLabelValue("M-Pesa:", `${currency} ${paymentInfo.mpesaAmount.toFixed(2)}`.trim())]
+                  ? [payLV("M-Pesa:", `${currency} ${paymentInfo.mpesaAmount.toFixed(2)}`.trim())]
                   : []),
               ...(paymentInfo.mpesaRef
-                  ? [lineLabelValue("Ref:", paymentInfo.mpesaRef)]
+                  ? [payLV("Ref:", paymentInfo.mpesaRef)]
                   : []),
           ].join("\n")
         : null;
@@ -281,7 +295,7 @@ const ReceiptContent = ({
                 {paymentLines ? (
                     <>
                         <hr className="receipt-hr" />
-                        <pre className="receipt-pre">{paymentLines}</pre>
+                        <pre className="receipt-pre receipt-pre-payment">{paymentLines}</pre>
                     </>
                 ) : null}
                 <pre className="receipt-pre receipt-footer-pre">{footerPre}</pre>
