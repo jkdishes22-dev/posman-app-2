@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Accordion } from "react-bootstrap";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
+import PageHeaderStrip from "src/app/components/PageHeaderStrip";
 import { withSecureRoute } from "../../../components/withSecureRoute";
 import { useApiCall } from "../../../utils/apiUtils";
 
@@ -330,12 +331,15 @@ function ModuleSettingsContent() {
     return (
         <RoleAwareLayout>
             <div className="container-fluid px-0">
-                <div className="mb-4">
-                    <h4 className="fw-semibold mb-1">Module Settings</h4>
-                    <p className="text-muted mb-0">
-                        Toggle which menus are visible for each role. This is a display preference only and does not affect permissions or access control.
+                <PageHeaderStrip>
+                    <h1 className="h4 mb-0 fw-bold">
+                        <i className="bi bi-toggles me-2"></i>
+                        Module Settings
+                    </h1>
+                    <p className="mb-0 mt-1 small text-white-50">
+                        Toggle which menus are visible for each role. Does not affect permissions or access control.
                     </p>
-                </div>
+                </PageHeaderStrip>
 
                 {error && (
                     <div className="alert alert-danger py-2">
