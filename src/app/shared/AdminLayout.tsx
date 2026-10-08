@@ -444,7 +444,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, authError }) => {
       {/* Main Content */}
       <div className="flex-grow-1 d-flex flex-column">
         {/* Page Content */}
-        <main className="flex-grow-1 p-3" style={{ overflowY: "auto" }}>
+        <main className="flex-grow-1 p-2" style={{ overflowY: "auto" }}>
           {authError && (
             <div className="alert alert-danger" role="alert">
               <i className="bi bi-exclamation-triangle me-2"></i>

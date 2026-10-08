@@ -18,7 +18,7 @@ export default function CollapsibleFilterSectionCard({
   title = "Filters",
   iconClassName = "bi bi-funnel",
   defaultExpanded = true,
-  className = "shadow-sm mb-4 border-0",
+  className = "shadow-sm mb-3 border-0",
   headerClassName = "bg-light fw-bold py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2",
   bodyClassName,
   headerActions,

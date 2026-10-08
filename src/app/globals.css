@@ -1151,6 +1151,93 @@ html, body {
     }
 }
 
+/* ============================================
+   14-inch / short-viewport compact mode
+   Kicks in at ≤820px viewport height, which covers
+   1366×768 POS screens (768px minus browser chrome).
+   Goal: remove wasted whitespace so more content
+   fits without scrolling. Touch targets (buttons,
+   form controls) are NOT reduced — only structural
+   chrome (card headers/bodies, table cells, gaps).
+   ============================================ */
+@media (max-height: 820px) {
+    /* Shrink the blue page header bottom gap */
+    .page-header-strip {
+        margin-bottom: 0.4rem !important;
+    }
+
+    /* Compact card chrome */
+    .card-header {
+        padding-top: 0.35rem !important;
+        padding-bottom: 0.35rem !important;
+        padding-left: 0.65rem !important;
+        padding-right: 0.65rem !important;
+        font-size: 0.875rem;
+    }
+
+    .card-body {
+        padding: 0.6rem !important;
+    }
+
+    /* Compact table rows — keeps data readable, saves ~8px per row */
+    .table > :not(caption) > * > * {
+        padding-top: 0.28rem !important;
+        padding-bottom: 0.28rem !important;
+        padding-left: 0.4rem !important;
+        padding-right: 0.4rem !important;
+        font-size: 0.82rem;
+    }
+
+    /* Keep table headings crisp */
+    .table thead th {
+        font-size: 0.78rem;
+        letter-spacing: 0.3px;
+    }
+
+    /* Smaller badges — they sit inside table cells */
+    .badge {
+        padding: 0.22rem 0.42rem !important;
+        font-size: 0.72em !important;
+        border-radius: 8px;
+    }
+
+    /* Compact alert bars */
+    .alert {
+        padding: 0.45rem 0.7rem !important;
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Compact pagination */
+    .pagination .page-link {
+        padding: 0.3rem 0.55rem !important;
+        font-size: 0.82rem;
+    }
+
+    /* Reduce top h-headings in cards */
+    .card h5, .card .h5 { font-size: 0.95rem; }
+    .card h6, .card .h6 { font-size: 0.875rem; }
+
+    /* Tighten the filter card gap to page content */
+    .shadow-sm.mb-3.border-0,
+    .shadow-sm.mb-4.border-0 {
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Compact modal body — modals can still scroll if needed */
+    .modal-header {
+        padding: 0.65rem 0.9rem !important;
+    }
+
+    .modal-body {
+        padding: 0.75rem 0.9rem !important;
+    }
+
+    .modal-footer {
+        padding: 0.5rem 0.9rem !important;
+    }
+}
+
 /* AppSelect (react-select Bootstrap integration) */
 .app-select__menu {
     z-index: 1055;

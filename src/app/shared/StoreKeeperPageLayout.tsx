@@ -298,7 +298,7 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
       {/* Main Content */}
       <div className="flex-grow-1 d-flex flex-column">
         {/* Page Content */}
-        <main className="flex-grow-1 p-4" style={{ overflowY: "auto" }}>
+        <main className="flex-grow-1 p-2" style={{ overflowY: "auto" }}>
           {authError && (
             <div className="alert alert-danger" role="alert">
               <i className="bi bi-exclamation-triangle me-2"></i>
