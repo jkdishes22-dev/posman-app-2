@@ -17,6 +17,7 @@ import ErrorDisplay from "../../../components/ErrorDisplay";
 import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import BillActions from "../../../components/BillActions";
+import AppSelect from "../../../components/AppSelect";
 import SubmitBillModal from "../../my-sales/submit-bill";
 import SubmitBillVirtualKeyboard from "../../../components/SubmitBillVirtualKeyboard";
 
@@ -575,9 +576,6 @@ const CashierBillsPage = () => {
       }
     }
   };
-  const handleWaitressChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    handleFilterChange("selectedWaitress", event.target.value);
-  };
   const handleCheckboxChange = (billId: number) => {
     if (selectedBills.length === bills.length) {
       setSelectedBills([billId]);
@@ -595,6 +593,21 @@ const CashierBillsPage = () => {
     setSelectedBill(bill);
     setSelectedBills([bill.id]);
   };
+
+  const handleRowClick = (bill: Bill, e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("button, input")) return;
+    if ((userRole === "cashier" || userRole === "sales") && bill.status === "submitted") {
+      handleProcessClick(bill);
+    } else if ((userRole === "cashier" || userRole === "sales") && bill.status === "pending") {
+      setSelectedBill(bill);
+      setSelectedBills([bill.id]);
+      setShowSubmitModal(true);
+    } else {
+      setSelectedBill(bill);
+      setSelectedBills([bill.id]);
+    }
+  };
+
   const handleConfirmCloseBill = async () => {
     if (!selectedBill) return;
     const billAmount = selectedBill.total;
@@ -869,19 +882,14 @@ const CashierBillsPage = () => {
                         Select sales user
                       </label>
                       <div>
-                        <select
+                        <AppSelect
                           id="waitress"
-                          className="form-control"
+                          options={Array.isArray(waitresses) ? waitresses.map((w) => ({ value: String(w.id), label: `${w.firstName} ${w.lastName}` })) : []}
                           value={filters.selectedWaitress}
-                          onChange={handleWaitressChange}
-                        >
-                          <option value="">Select sales user</option>
-                          {Array.isArray(waitresses) && waitresses.map((waitress) => (
-                            <option key={waitress.id} value={waitress.id}>
-                              {waitress.firstName} {waitress.lastName}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(v) => handleFilterChange("selectedWaitress", v)}
+                          placeholder="Select sales user"
+                          isClearable
+                        />
                       </div>
                     </div>
                   </div>
@@ -1096,12 +1104,14 @@ const CashierBillsPage = () => {
                         {bills.map((bill) => (
                           <tr
                             key={bill.id}
+                            onClick={(e) => handleRowClick(bill, e)}
                             style={{
                               backgroundColor:
                                 bill.id === selectedBill?.id
                                   ? "#d3d3d3"
                                   : "transparent",
                               transition: "background-color 0.3s ease",
+                              cursor: "pointer",
                             }}
                           >
                             <td>
@@ -1886,30 +1896,24 @@ const CashierBillsPage = () => {
             </div>
             <div className="col-12 col-md-4">
               <label className="form-label fw-semibold">Salesperson</label>
-              <select
-                className="form-select"
+              <AppSelect
+                options={previewSalespersons.map((p) => ({ value: String(p.id), label: `${p.firstName} ${p.lastName}` }))}
                 value={previewWaitressId}
-                onChange={e => setPreviewWaitressId(e.target.value)}
-              >
-                <option value="">All</option>
-                {previewSalespersons.map(p => (
-                  <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
-                ))}
-              </select>
+                onChange={setPreviewWaitressId}
+                placeholder="All"
+                isClearable
+              />
             </div>
             <div className="col-12 col-md-4">
               <label className="form-label fw-semibold">Shift</label>
-              <select
-                className="form-select"
+              <AppSelect
+                options={businessShifts.map((s) => ({ value: s.id, label: `${s.name} (${s.start_time}–${s.end_time})` }))}
                 value={previewShiftId}
-                onChange={e => setPreviewShiftId(e.target.value)}
-                disabled={businessShifts.length === 0}
-              >
-                <option value="">{businessShifts.length === 0 ? "No shifts configured" : "All day"}</option>
-                {businessShifts.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
-                ))}
-              </select>
+                onChange={setPreviewShiftId}
+                placeholder={businessShifts.length === 0 ? "No shifts configured" : "All day"}
+                isDisabled={businessShifts.length === 0}
+                isClearable
+              />
             </div>
           </div>
           <div className="mb-3">
@@ -2131,18 +2135,12 @@ const CashierBillsPage = () => {
 
               <Form.Group>
                 <Form.Label className="fw-semibold mb-1">Reason *</Form.Label>
-                <Form.Select
+                <AppSelect
+                  options={reopenReasons.map((r) => ({ value: r.value, label: r.label }))}
                   value={reopenReason}
-                  onChange={(e) => setReopenReason(e.target.value)}
-                  required
-                >
-                  <option value="">Select a reason…</option>
-                  {reopenReasons.map((reason) => (
-                    <option key={reason.value} value={reason.value}>
-                      {reason.label}
-                    </option>
-                  ))}
-                </Form.Select>
+                  onChange={setReopenReason}
+                  placeholder="Select a reason…"
+                />
                 {reopenReason && (
                   <Form.Text className="text-muted" style={{ fontSize: "0.72rem" }}>
                     {reopenReasons.find(r => r.value === reopenReason)?.description}

@@ -12,6 +12,7 @@ import { ApiErrorResponse } from "src/app/utils/errorUtils";
 import ErrorDisplay from "src/app/components/ErrorDisplay";
 import CollapsibleFilterSectionCard from "src/app/components/CollapsibleFilterSectionCard";
 import RoleAwareLayout from "src/app/shared/RoleAwareLayout";
+import PageHeaderStrip from "src/app/components/PageHeaderStrip";
 
 interface ChangeRequest {
   id: number;
@@ -258,14 +259,13 @@ const SupervisorChangeRequestsPage = () => {
           }}
         />
 
-        {/* Header */}
-        <div className="bg-warning text-dark p-3 mb-4">
+        <PageHeaderStrip>
           <h1 className="h4 mb-0 fw-bold">
             <i className="bi bi-exclamation-triangle me-2"></i>
             Bill Change Requests Management
           </h1>
-          <p className="mb-0">Review and approve/reject pending void and quantity change requests from sales team</p>
-        </div>
+          <p className="mb-0 mt-1 small text-white-50">Review and approve/reject pending void and quantity change requests from sales team</p>
+        </PageHeaderStrip>
 
         {/* Filtering Section */}
         <div className="row mb-4">

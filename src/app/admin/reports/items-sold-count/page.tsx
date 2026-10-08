@@ -10,6 +10,7 @@ import ErrorDisplay from "../../../components/ErrorDisplay";
 import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterSectionCard";
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
+import AppSelect from "../../../components/AppSelect";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import { printReceiptWithTimestamp } from "../../../shared/printUtils";
 import ItemsSoldCountThermalPrint from "./ItemsSoldCountThermalPrint";
@@ -225,17 +226,36 @@ export default function ItemsSoldCountReportPage() {
                     />
                   </div>
                   <div className="col-md-2"><Form.Label>Period</Form.Label><Form.Select value={period} onChange={(e) => setPeriod(e.target.value as "day" | "week" | "month" | "year")}><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option><option value="year">Year</option></Form.Select></div>
-                  <div className="col-md-2"><Form.Label>Item</Form.Label><Form.Select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}><option value="">All Items</option>{items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ""}</option>)}</Form.Select></div>
-                  <div className="col-md-2"><Form.Label>Sales User</Form.Label><Form.Select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)}><option value="">All Users</option>{users.map((user) => <option key={user.id} value={user.id.toString()}>{user.firstName} {user.lastName}</option>)}</Form.Select></div>
+                  <div className="col-md-2">
+                    <Form.Label>Item</Form.Label>
+                    <AppSelect
+                      options={items.map((item) => ({ value: item.id.toString(), label: `${item.name}${item.code ? ` (${item.code})` : ""}` }))}
+                      value={selectedItemId}
+                      onChange={setSelectedItemId}
+                      placeholder="All Items"
+                      isClearable
+                    />
+                  </div>
+                  <div className="col-md-2">
+                    <Form.Label>Sales User</Form.Label>
+                    <AppSelect
+                      options={users.map((user) => ({ value: user.id.toString(), label: `${user.firstName} ${user.lastName}` }))}
+                      value={selectedUserId}
+                      onChange={setSelectedUserId}
+                      placeholder="All Users"
+                      isClearable
+                    />
+                  </div>
                   {businessShifts.length > 0 && (
                     <div className="col-md-2">
                       <Form.Label>Shift</Form.Label>
-                      <Form.Select value={selectedShiftId} onChange={(e) => setSelectedShiftId(e.target.value)}>
-                        <option value="">All shifts</option>
-                        {businessShifts.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name} ({s.start_time}–{s.end_time})</option>
-                        ))}
-                      </Form.Select>
+                      <AppSelect
+                        options={businessShifts.map((s) => ({ value: s.id, label: `${s.name} (${s.start_time}–${s.end_time})` }))}
+                        value={selectedShiftId}
+                        onChange={setSelectedShiftId}
+                        placeholder="All shifts"
+                        isClearable
+                      />
                     </div>
                   )}
                   <div className="col-md-2 d-flex gap-2">

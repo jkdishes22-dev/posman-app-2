@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
+import AppSelect from "../../../components/AppSelect";
 
 export default function NewUser({ onClose, onSave, error }) {
   const [firstName, setFirstName] = useState("");
@@ -163,19 +164,13 @@ export default function NewUser({ onClose, onSave, error }) {
                   Role
                 </label>
                 <div className="col-sm-8">
-                  <select
-                    className="form-control"
+                  <AppSelect
                     id="role"
+                    options={roles.map((role) => ({ value: String(role.id), label: role.name }))}
                     value={selectedRole}
-                    onChange={(e) => setSelectedRole(e.target.value)}
-                  >
-                    <option value="">Select a role</option>
-                    {roles.map((role) => (
-                      <option key={role.id} value={role.id}>
-                        {role.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedRole}
+                    placeholder="Select a role"
+                  />
                 </div>
               </div>
             </form>

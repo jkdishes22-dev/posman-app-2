@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Form, Alert, Spinner } from "react-bootstrap";
+import AppSelect from "./AppSelect";
 import { useStation } from "../contexts/StationContext";
 import { useAuth } from "../contexts/AuthContext";
 import { Station } from "../types/types";
@@ -37,8 +38,8 @@ const StationSelector: React.FC<StationSelectorProps> = ({
         role.name === "admin" || role.name === "supervisor"
     ) || false;
 
-    const handleStationChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
-        const stationId = parseInt(event.target.value);
+    const handleStationChange = async (value: string) => {
+        const stationId = parseInt(value);
         if (!stationId) {
             await setCurrentStation(null);
             return;
@@ -96,20 +97,15 @@ const StationSelector: React.FC<StationSelectorProps> = ({
     return (
         <div className={className}>
             <Form.Group>
-                <Form.Select
-                    value={currentStation?.id || ""}
-                    onChange={handleStationChange}
-                    size={size}
-                    disabled={disabled || isChanging}
+                <AppSelect
+                    size={size === "sm" ? "sm" : undefined}
                     className="border-2"
-                >
-                    <option value="">Choose a station...</option>
-                    {availableStations.map((station: Station) => (
-                        <option key={station.id} value={station.id}>
-                            {station.name}
-                        </option>
-                    ))}
-                </Form.Select>
+                    options={availableStations.map((s: Station) => ({ value: String(s.id), label: s.name }))}
+                    value={currentStation ? String(currentStation.id) : ""}
+                    onChange={handleStationChange}
+                    placeholder="Choose a station..."
+                    isDisabled={disabled || isChanging}
+                />
             </Form.Group>
         </div>
     );

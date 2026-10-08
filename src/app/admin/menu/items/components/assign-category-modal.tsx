@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 import { useApiCall } from "src/app/utils/apiUtils";
+import AppSelect from "src/app/components/AppSelect";
 
 interface Category {
   id: number;
@@ -60,17 +61,12 @@ const AssignCategoryModal: React.FC<AssignCategoryModalProps> = ({
         </p>
         <Form.Group>
           <Form.Label className="fw-semibold">Category</Form.Label>
-          <Form.Select
+          <AppSelect
+            options={categories.map((cat) => ({ value: String(cat.id), label: cat.name }))}
             value={selectedCategoryId}
-            onChange={(e) => setSelectedCategoryId(e.target.value)}
-          >
-            <option value="">— No category —</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </Form.Select>
+            onChange={setSelectedCategoryId}
+            placeholder="— No category —"
+          />
           <Form.Text className="text-muted">
             Choose a category or leave blank to remove from all categories.
           </Form.Text>

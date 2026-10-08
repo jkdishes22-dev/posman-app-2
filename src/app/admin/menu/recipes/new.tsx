@@ -4,6 +4,7 @@ import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
 import ErrorDisplay from "../../../components/ErrorDisplay";
 import HelpPopover from "../../../components/HelpPopover";
+import AppSelect from "../../../components/AppSelect";
 
 function AddSubItemModal({
   isModalOpen,
@@ -181,25 +182,19 @@ function AddSubItemModal({
                 </div>
               </div>
             ) : (
-              <Form.Control
-                as="select"
+              <AppSelect
+                options={items.map((item: any) => ({ value: String(item.id), label: `${item.name}${item.code ? ` (${item.code})` : ""}` }))}
                 value={subItemId}
-                onChange={(e) => setSubItemId(e.target.value)}
-                disabled={!selectedPricelistId || items.length === 0}
-              >
-                <option value="">
-                  {!selectedPricelistId
+                onChange={setSubItemId}
+                placeholder={
+                  !selectedPricelistId
                     ? "No pricelist linked to selected composite item"
                     : items.length === 0
                     ? "No eligible sellable items in this pricelist"
-                    : "Select Ingredient Item"}
-                </option>
-                {items.map((item: any) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} {item.code ? `(${item.code})` : ""}
-                  </option>
-                ))}
-              </Form.Control>
+                    : "Select Ingredient Item"
+                }
+                isDisabled={!selectedPricelistId || items.length === 0}
+              />
             )}
           </Form.Group>
 

@@ -125,6 +125,9 @@ const THERMAL_RECEIPT_CSS = `
     margin-top: 10px;
     text-align: center;
   }
+  .receipt-pre-payment {
+    font-weight: 800;
+  }
   @media print {
     .receipt-container {
       max-width: 100% !important;
@@ -135,6 +138,7 @@ const THERMAL_RECEIPT_CSS = `
     }
     .receipt-brand-logo { display: none !important; }
     .receipt-pre { font-size: 11px !important; font-weight: 600 !important; color: #000000 !important; }
+    .receipt-pre-payment { font-weight: 800 !important; }
   }
 `;
 
@@ -233,12 +237,14 @@ const ReceiptContent = ({
           ].join("\n")
         : null;
 
-    const footerMid = (b.footerLines ?? []).filter(Boolean).map((line) => centerTextLine(line));
-    const footerPre = ["", ...footerMid, ...(footerMid.length ? [""] : [])].concat([
+    const footerMpesaLines = (b.footerLines ?? []).filter(Boolean);
+    const footerMpesaPre = footerMpesaLines.map((line) => centerTextLine(line)).join("\n");
+    const footerThankyouPre = [
+        "",
         centerTextLine("********************************"),
         centerTextLine("Thank you for dining with us!"),
         centerTextLine("********************************"),
-    ]).join("\n");
+    ].join("\n");
 
     const before =
         spacerBeforeMm > 0 ? (
@@ -281,10 +287,16 @@ const ReceiptContent = ({
                 {paymentLines ? (
                     <>
                         <hr className="receipt-hr" />
-                        <pre className="receipt-pre">{paymentLines}</pre>
+                        <pre className="receipt-pre receipt-pre-payment">{paymentLines}</pre>
                     </>
                 ) : null}
-                <pre className="receipt-pre receipt-footer-pre">{footerPre}</pre>
+                {footerMpesaLines.length > 0 ? (
+                    <>
+                        <hr className="receipt-hr" />
+                        <pre className="receipt-pre receipt-pre-payment" style={{ textAlign: "center" }}>{footerMpesaPre}</pre>
+                    </>
+                ) : null}
+                <pre className="receipt-pre receipt-footer-pre">{footerThankyouPre}</pre>
             </div>
             {after}
         </>

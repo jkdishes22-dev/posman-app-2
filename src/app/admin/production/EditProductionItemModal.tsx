@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Modal, Button, Form, Spinner, Alert } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import AppSelect from "../../components/AppSelect";
 import FilterDatePicker from "../../shared/FilterDatePicker";
 import { todayEAT } from "../../shared/eatDate";
 import { format } from "date-fns";
@@ -121,18 +122,12 @@ export default function EditProductionItemModal({ show, onHide, onSaved, product
                                 <Spinner animation="border" size="sm" className="me-1" />Loading items…
                             </div>
                         ) : (
-                            <Form.Select
+                            <AppSelect
+                                options={options.map((o) => ({ value: String(o.id), label: `${o.name}${o.code ? ` (${o.code})` : ""} — Available: ${o.available}` }))}
                                 value={selectedId}
-                                onChange={(e) => setSelectedId(e.target.value)}
-                                required
-                            >
-                                <option value="">Select item</option>
-                                {options.map((o) => (
-                                    <option key={o.id} value={String(o.id)}>
-                                        {o.name}{o.code ? ` (${o.code})` : ""} — Available: {o.available}
-                                    </option>
-                                ))}
-                            </Form.Select>
+                                onChange={setSelectedId}
+                                placeholder="Select item"
+                            />
                         )}
                     </Form.Group>
 

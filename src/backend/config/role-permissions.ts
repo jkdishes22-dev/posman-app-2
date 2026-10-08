@@ -136,6 +136,8 @@ export const ROLE_PERMISSIONS = {
         "can_add_expense",
         "can_edit_expense",
         // Additional supervisor permissions
+        "can_view_user",
+        "can_edit_user",
         "can_edit_station",
         "can_edit_user_station",
         "can_add_user_station",

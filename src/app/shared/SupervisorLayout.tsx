@@ -123,6 +123,12 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             path: "/supervisor/station",
         },
         {
+            id: "users",
+            label: "Users",
+            icon: "bi-people",
+            path: "/supervisor/users",
+        },
+        {
             id: "production",
             label: "Production",
             icon: "bi-box-seam",
@@ -267,18 +273,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
     ];
 
     const toggleMenu = (menuId: string) => {
-        const menuItem = menuItems.find(item => item.id === menuId);
-
-        if (menuItem?.submenu) {
-            const hasActiveSubItem = menuItem.submenu.some(
-                subItem => activeItem === subItem.id
-            );
-
-            if (hasActiveSubItem && expandedMenus.includes(menuId)) {
-                return;
-            }
-        }
-
         setExpandedMenus((prev) => {
             if (prev.includes(menuId)) {
                 return prev.filter((id) => id !== menuId);
@@ -436,7 +430,7 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
             {/* Main Content */}
             <div className="flex-grow-1 d-flex flex-column min-w-0 overflow-hidden">
                 {/* Page Content */}
-                <main className="flex-grow-1 p-3 min-w-0" style={{ overflowY: "auto" }}>
+                <main className="flex-grow-1 p-2 min-w-0" style={{ overflowY: "auto" }}>
                     {authError && (
                         <div className="alert alert-danger" role="alert">
                             <i className="bi bi-exclamation-triangle me-2"></i>

@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Form, Button, Spinner, Alert, InputGroup } from "react-bootstrap";
 import { useApiCall } from "../../utils/apiUtils";
 import ErrorDisplay from "../../components/ErrorDisplay";
+import AppSelect from "../../components/AppSelect";
 import HelpPopover from "../../components/HelpPopover";
 import { ApiErrorResponse } from "../../utils/errorUtils";
 import {
@@ -196,18 +197,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <Spinner animation="border" size="sm" className="me-1" />Loading productions…
               </div>
             ) : (
-              <Form.Select
+              <AppSelect
+                options={productions.map((p) => ({ value: String(p.id), label: p.name }))}
                 value={selectedProductionId}
-                onChange={(e) => setSelectedProductionId(e.target.value)}
-                required={!fixedProductionId}
-              >
-                <option value="">
-                  {productions.length === 0 ? "No open productions — create one from the Production list" : "Select a production run"}
-                </option>
-                {productions.map((p) => (
-                  <option key={p.id} value={String(p.id)}>{p.name}</option>
-                ))}
-              </Form.Select>
+                onChange={setSelectedProductionId}
+                placeholder={productions.length === 0 ? "No open productions — create one from the Production list" : "Select a production run"}
+              />
             )}
           </Form.Group>
         )}
@@ -234,21 +229,12 @@ const handleSubmit = async (e: React.FormEvent) => {
               <span className="ms-2 text-muted">Loading items…</span>
             </div>
           ) : (
-            <Form.Select
+            <AppSelect
+              options={options.map((item) => ({ value: String(item.id), label: `${item.name}${item.code ? ` (${item.code})` : ""} — Available: ${item.available}` }))}
               value={selectedId}
-              onChange={(e) => setSelectedId(e.target.value)}
-              required
-            >
-              <option value="">
-                {options.length === 0 ? "No eligible items to issue" : "Select item (non-group sellable)"}
-              </option>
-              {options.map((item) => (
-                <option key={item.id} value={String(item.id)}>
-                  {item.name}
-                  {item.code ? ` (${item.code})` : ""} — Available: {item.available}
-                </option>
-              ))}
-            </Form.Select>
+              onChange={setSelectedId}
+              placeholder={options.length === 0 ? "No eligible items to issue" : "Select item (non-group sellable)"}
+            />
           )}
         </Form.Group>
 

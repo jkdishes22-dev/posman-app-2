@@ -571,6 +571,13 @@ const LoginForm = () => {
                 >
                   ABC
                 </button>
+                <button
+                  type="button"
+                  className={`btn ${keyboardMode === "symbols" ? "btn-primary" : "btn-outline-secondary"}`}
+                  onClick={() => setKeyboardMode("symbols")}
+                >
+                  !@#
+                </button>
               </div>
               <SubmitBillVirtualKeyboard
                 mode={keyboardMode}

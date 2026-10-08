@@ -10,6 +10,7 @@ import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterS
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
+import AppSelect from "../../../components/AppSelect";
 
 interface ProductionSalesReconciliationReportItem {
   itemId: number;
@@ -276,26 +277,14 @@ export default function ProductionSalesReconciliationReportPage() {
                   <div className="col-md-4">
                     <Form.Group>
                       <Form.Label>Item</Form.Label>
-                      {loadingFilters ? (
-                        <Form.Select disabled>
-                          <option>Loading items...</option>
-                        </Form.Select>
-                      ) : (
-                        <Form.Select
-                          value={selectedItemId}
-                          onChange={(e) => setSelectedItemId(e.target.value)}
-                          disabled={loadingFilters}
-                        >
-                          <option value="">All Items</option>
-                          {items.length > 0 ? (
-                            items.map((item) => (
-                              <option key={item.id} value={item.id.toString()}>
-                                {item.name} {item.code ? `(${item.code})` : ""}
-                              </option>
-                            ))
-                          ) : null}
-                        </Form.Select>
-                      )}
+                      <AppSelect
+                        options={items.map((item) => ({ value: item.id.toString(), label: `${item.name}${item.code ? ` (${item.code})` : ""}` }))}
+                        value={selectedItemId}
+                        onChange={setSelectedItemId}
+                        placeholder={loadingFilters ? "Loading items..." : "All Items"}
+                        isDisabled={loadingFilters}
+                        isClearable
+                      />
                     </Form.Group>
                   </div>
                   <div className="col-md-2">

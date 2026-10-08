@@ -3,6 +3,7 @@ import { Button, Modal, Form, Alert } from "react-bootstrap";
 import { useApiCall } from "../utils/apiUtils";
 import { ApiErrorResponse } from "../utils/errorUtils";
 import { Bill } from "../types/types";
+import AppSelect from "./AppSelect";
 import EnhancedResubmitModal from "./EnhancedResubmitModal";
 
 interface ReopenReason {
@@ -244,18 +245,13 @@ export default function ReopeningInterface({
 
                             <Form.Group className="mb-3">
                                 <Form.Label>Reason for reopening *</Form.Label>
-                                <Form.Select
+                                    <AppSelect
+                                    options={reopenReasons.map((r) => ({ value: r.id, label: r.name }))}
                                     value={selectedReason}
-                                    onChange={(e) => setSelectedReason(e.target.value)}
-                                    disabled={isReopening}
-                                >
-                                    <option value="">Select a reason...</option>
-                                    {reopenReasons.map((reason) => (
-                                        <option key={reason.id} value={reason.id}>
-                                            {reason.name}
-                                        </option>
-                                    ))}
-                                </Form.Select>
+                                    onChange={setSelectedReason}
+                                    placeholder="Select a reason..."
+                                    isDisabled={isReopening}
+                                />
                                 {selectedReason && (
                                     <Form.Text className="text-muted">
                                         {reopenReasons.find(r => r.id === selectedReason)?.description}

@@ -11,6 +11,7 @@ import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterS
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
+import AppSelect from "../../../components/AppSelect";
 
 interface ProductionStockRevenueReportItem {
   date: string;
@@ -156,10 +157,13 @@ export default function ProductionStockRevenueReportPage() {
                   </Col>
                   <Col md={3}>
                     <Form.Label>Item</Form.Label>
-                    <Form.Select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}>
-                      <option value="">All Items</option>
-                      {items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ""}</option>)}
-                    </Form.Select>
+                    <AppSelect
+                      options={items.map((item) => ({ value: item.id.toString(), label: `${item.name}${item.code ? ` (${item.code})` : ""}` }))}
+                      value={selectedItemId}
+                      onChange={setSelectedItemId}
+                      placeholder="All Items"
+                      isClearable
+                    />
                   </Col>
                   <Col md={3} className="d-flex flex-wrap gap-2 align-items-end justify-content-md-end">
                     <Button type="button" variant="primary" size="sm" onClick={fetchReport} disabled={loading || loadingFilters}>

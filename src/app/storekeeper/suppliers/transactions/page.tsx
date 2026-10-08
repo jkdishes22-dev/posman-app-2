@@ -23,6 +23,7 @@ import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterS
 import { todayEAT } from "../../../shared/eatDate";
 import FilterDatePicker from "../../../shared/FilterDatePicker";
 import { ymdToDateEat } from "../../../shared/filterDateUtils";
+import AppSelect from "../../../components/AppSelect";
 
 interface SupplierOption {
   id: number;
@@ -201,18 +202,14 @@ function SupplierTransactionsContent() {
               <Row className="g-3 align-items-end">
                 <Col md={3}>
                   <Form.Label>Supplier</Form.Label>
-                  <Form.Select
+                  <AppSelect
+                    options={suppliers.map((s) => ({ value: String(s.id), label: s.name }))}
                     value={filterSupplierId}
-                    onChange={(e) => setFilterSupplierId(e.target.value)}
-                    disabled={loadingSuppliers}
-                  >
-                    <option value="">All suppliers</option>
-                    {suppliers.map((s) => (
-                      <option key={s.id} value={String(s.id)}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </Form.Select>
+                    onChange={setFilterSupplierId}
+                    placeholder="All suppliers"
+                    isDisabled={loadingSuppliers}
+                    isClearable
+                  />
                 </Col>
                 <Col md={2}>
                   <Form.Label>Type</Form.Label>

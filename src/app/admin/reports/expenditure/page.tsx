@@ -11,6 +11,7 @@ import CollapsibleFilterSectionCard from "../../../components/CollapsibleFilterS
 import PageHeaderStrip from "../../../components/PageHeaderStrip";
 import { useApiCall } from "../../../utils/apiUtils";
 import { ApiErrorResponse } from "../../../utils/errorUtils";
+import AppSelect from "../../../components/AppSelect";
 
 interface ExpenditureReportItem {
   date: string;
@@ -152,8 +153,26 @@ export default function ExpenditureReportPage() {
                     />
                   </Col>
                   <Col md={2}><Form.Label>Period</Form.Label><Form.Select value={period} onChange={(e) => setPeriod(e.target.value as "day" | "week" | "month" | "year")}><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option><option value="year">Year</option></Form.Select></Col>
-                  <Col md={2}><Form.Label>Item</Form.Label><Form.Select value={selectedItemId} onChange={(e) => setSelectedItemId(e.target.value)}><option value="">All Items</option>{items.map((item) => <option key={item.id} value={item.id.toString()}>{item.name} {item.code ? `(${item.code})` : ""}</option>)}</Form.Select></Col>
-                  <Col md={2}><Form.Label>Supplier</Form.Label><Form.Select value={selectedSupplierId} onChange={(e) => setSelectedSupplierId(e.target.value)}><option value="">All Suppliers</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id.toString()}>{supplier.name}</option>)}</Form.Select></Col>
+                  <Col md={2}>
+                    <Form.Label>Item</Form.Label>
+                    <AppSelect
+                      options={items.map((item) => ({ value: item.id.toString(), label: `${item.name}${item.code ? ` (${item.code})` : ""}` }))}
+                      value={selectedItemId}
+                      onChange={setSelectedItemId}
+                      placeholder="All Items"
+                      isClearable
+                    />
+                  </Col>
+                  <Col md={2}>
+                    <Form.Label>Supplier</Form.Label>
+                    <AppSelect
+                      options={suppliers.map((s) => ({ value: s.id.toString(), label: s.name }))}
+                      value={selectedSupplierId}
+                      onChange={setSelectedSupplierId}
+                      placeholder="All Suppliers"
+                      isClearable
+                    />
+                  </Col>
                   <Col md={2} className="d-flex flex-wrap gap-2 justify-content-md-end">
                     <Button type="button" variant="primary" size="sm" onClick={fetchReport} disabled={loading || loadingFilters}><i className="bi bi-search me-1"></i>{loading ? "Loading..." : "Generate"}</Button>
                     <Button type="button" variant="outline-secondary" size="sm" disabled={!reportFiltersDirty} onClick={clearReportFilters}><i className="bi bi-x-lg me-1" aria-hidden />Clear filters</Button>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Modal from "react-bootstrap/Modal";
 import Button from "react-bootstrap/Button";
 import { AuthError, Category } from "../../../../../types/types";
+import AppSelect from "../../../../../components/AppSelect";
 import {
   ModalBody,
   ModalFooter,
@@ -254,40 +255,26 @@ const NewItemModal: React.FC<NewItemModalProps> = ({
           {isFromPricelistPage && (
             <div className="form-group">
               <label htmlFor="new-item-category">Category <span className="text-danger">*</span></label>
-              <select
+              <AppSelect
                 id="new-item-category"
-                className="form-control"
+                options={Array.isArray(categories) ? categories.map((c: Category) => ({ value: String(c.id), label: c.name })) : []}
                 value={selectedCategoryId}
-                onChange={(e) => setSelectedCategoryId(e.target.value)}
-                required
-              >
-                <option value="">Select Category</option>
-                {Array.isArray(categories) && categories.map((category: Category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedCategoryId}
+                placeholder="Select Category"
+              />
             </div>
           )}
 
           {!selectedPricelistId && (
             <div className="form-group">
               <label htmlFor="new-item-pricelist">Pricelist <span className="text-danger">*</span></label>
-              <select
+              <AppSelect
                 id="new-item-pricelist"
-                className="form-control"
+                options={Array.isArray(pricelists) ? pricelists.map((p: any) => ({ value: String(p.id), label: p.name })) : []}
                 value={pricelistId}
-                onChange={(e) => setPricelistId(e.target.value)}
-                required
-              >
-                <option value="">Select Pricelist</option>
-                {Array.isArray(pricelists) && pricelists.map((pricelist: any) => (
-                  <option key={pricelist.id} value={pricelist.id}>
-                    {pricelist.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setPricelistId}
+                placeholder="Select Pricelist"
+              />
             </div>
           )}
           {selectedPricelistId && (
