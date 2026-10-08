@@ -2,7 +2,7 @@
 
 import React, { useState, type CSSProperties } from "react";
 
-export type SubmitBillKeyboardMode = "numeric" | "alpha";
+export type SubmitBillKeyboardMode = "numeric" | "alpha" | "symbols";
 
 interface SubmitBillVirtualKeyboardProps {
   mode: SubmitBillKeyboardMode;
@@ -15,6 +15,8 @@ interface SubmitBillVirtualKeyboardProps {
   numericHeading?: string;
   /** Overrides default alpha header */
   alphaHeading?: string;
+  /** Overrides default symbols header */
+  symbolsHeading?: string;
   /**
    * Alpha (QWERTY) layout density. `compact` = denser (e.g. tight layouts).
    * `comfortable` = larger gaps and keys; rows use CSS grid so keys don’t wrap.
@@ -35,6 +37,7 @@ export default function SubmitBillVirtualKeyboard({
   numericDecimal = true,
   numericHeading,
   alphaHeading,
+  symbolsHeading,
   alphaSpacing = "compact",
   defaultCapsLock = false,
 }: SubmitBillVirtualKeyboardProps) {
@@ -52,6 +55,12 @@ export default function SubmitBillVirtualKeyboard({
     ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
     ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
     ["z", "x", "c", "v", "b", "n", "m"],
+  ];
+
+  const symbolRows = [
+    ["!", "@", "#", "$", "%", "^", "&", "*", "(", ")"],
+    ["-", "_", "=", "+", "[", "]", "{", "}", ";", ":"],
+    ["'", "\"", ",", ".", "/", "?", "~", "`", "|", "\\"],
   ];
 
   const alphaTouchMin = comfortable ? 48 : 44;
@@ -86,13 +95,13 @@ export default function SubmitBillVirtualKeyboard({
       key={label}
       type="button"
       className={`btn btn-outline-secondary btn-sm touch-key ${
-        mode === "alpha" ? `w-100 ${comfortable ? "py-3" : "py-2"}` : "flex-grow-1 py-2"
+        mode !== "numeric" ? `w-100 ${comfortable ? "py-3" : "py-2"}` : "flex-grow-1 py-2"
       } ${className}`.trim()}
       style={{
-        minHeight: mode === "alpha" ? alphaTouchMin : 40,
-        minWidth: mode === "alpha" ? 0 : undefined,
+        minHeight: mode !== "numeric" ? alphaTouchMin : 40,
+        minWidth: mode !== "numeric" ? 0 : undefined,
         fontSize:
-          mode === "alpha" ? (comfortable ? "0.95rem" : alphaFontCompact) : "1rem",
+          mode !== "numeric" ? (comfortable ? "0.95rem" : alphaFontCompact) : "1rem",
       }}
       onMouseDown={(e) => e.preventDefault()}
       aria-label={ariaLabel ?? display}
@@ -110,6 +119,7 @@ export default function SubmitBillVirtualKeyboard({
     (numericDecimal ? "Amount keypad" : "Number keypad");
 
   const alphaTitle = alphaHeading ?? "Keyboard (M-Pesa code)";
+  const symbolsTitle = symbolsHeading ?? "Symbols";
 
   return (
     <div
@@ -117,10 +127,46 @@ export default function SubmitBillVirtualKeyboard({
     >
       <div className="small text-muted mb-2 fw-semibold">
         <i className="bi bi-keyboard me-1" aria-hidden />
-        {mode === "numeric" ? numericTitle : alphaTitle}
+        {mode === "numeric" ? numericTitle : mode === "symbols" ? symbolsTitle : alphaTitle}
       </div>
 
-      {mode === "numeric" ? (
+      {mode === "symbols" ? (
+        <>
+          {symbolRows.map((row, ri) => (
+            <div key={ri} style={alphaGridLetters(row.length)}>
+              {row.map((k) => keyBtn(k, k))}
+            </div>
+          ))}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              columnGap: alphaGapPx,
+              marginTop: alphaRowMbPx,
+            }}
+          >
+            <button
+              type="button"
+              className={`btn btn-outline-secondary btn-sm ${comfortable ? "py-3" : "py-2"}`}
+              style={{ minHeight: alphaTouchMin, minWidth: 0 }}
+              aria-label="Backspace"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onSpecialKey("Backspace")}
+            >
+              ⌫
+            </button>
+            <button
+              type="button"
+              className={`btn btn-outline-danger btn-sm ${comfortable ? "py-3" : "py-2"}`}
+              style={{ minHeight: alphaTouchMin, minWidth: 0 }}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onSpecialKey("Clear")}
+            >
+              Clear
+            </button>
+          </div>
+        </>
+      ) : mode === "numeric" ? (
         <>
           {numRowsTop.map((row, ri) => (
             <div key={ri} className="d-flex gap-1 mb-1">
