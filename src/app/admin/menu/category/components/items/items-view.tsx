@@ -476,6 +476,19 @@ const ViewItemsComponent: React.FC<ViewItemsProps> = ({
                   <React.Fragment key={item.id}>
                     <tr
                       className={highlightedItemId === item.id ? `table-warning ${styles.highlightedRow}` : ""}
+                      onClick={(e) => {
+                        if (!isBillingSection || !onItemPick) return;
+                        const isDisabled =
+                          !item.allowNegativeInventory &&
+                          itemInventory != null &&
+                          Object.prototype.hasOwnProperty.call(itemInventory, item.id) &&
+                          (itemInventory[item.id] || 0) === 0;
+                        if (isDisabled) return;
+                        const target = e.target as HTMLElement;
+                        if (target.closest("button")) return;
+                        onItemPick(item);
+                      }}
+                      style={isBillingSection && onItemPick ? { cursor: "pointer" } : undefined}
                     >
                       <td>
                         <div className="d-flex align-items-center">

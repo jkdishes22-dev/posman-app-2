@@ -593,6 +593,21 @@ const CashierBillsPage = () => {
     setSelectedBill(bill);
     setSelectedBills([bill.id]);
   };
+
+  const handleRowClick = (bill: Bill, e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("button, input")) return;
+    if ((userRole === "cashier" || userRole === "sales") && bill.status === "submitted") {
+      handleProcessClick(bill);
+    } else if ((userRole === "cashier" || userRole === "sales") && bill.status === "pending") {
+      setSelectedBill(bill);
+      setSelectedBills([bill.id]);
+      setShowSubmitModal(true);
+    } else {
+      setSelectedBill(bill);
+      setSelectedBills([bill.id]);
+    }
+  };
+
   const handleConfirmCloseBill = async () => {
     if (!selectedBill) return;
     const billAmount = selectedBill.total;
@@ -1089,12 +1104,14 @@ const CashierBillsPage = () => {
                         {bills.map((bill) => (
                           <tr
                             key={bill.id}
+                            onClick={(e) => handleRowClick(bill, e)}
                             style={{
                               backgroundColor:
                                 bill.id === selectedBill?.id
                                   ? "#d3d3d3"
                                   : "transparent",
                               transition: "background-color 0.3s ease",
+                              cursor: "pointer",
                             }}
                           >
                             <td>

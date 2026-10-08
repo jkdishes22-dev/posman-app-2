@@ -492,7 +492,11 @@ const SupervisorBillsPage: React.FC = () => {
                                                 </thead>
                                                 <tbody>
                                                     {paginatedBills.map((bill) => (
-                                                        <tr key={bill.id}>
+                                                        <tr
+                                                            key={bill.id}
+                                                            onClick={() => handleViewBill(bill.id)}
+                                                            style={{ cursor: "pointer" }}
+                                                        >
                                                             <td><strong>#{bill.id}</strong></td>
                                                             <td>{bill.user.firstName} {bill.user.lastName}</td>
                                                             <td className="d-none d-md-table-cell">{bill.station?.name || "N/A"}</td>
