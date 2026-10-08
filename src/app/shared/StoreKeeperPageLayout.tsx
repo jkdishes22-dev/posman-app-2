@@ -138,21 +138,6 @@ const StoreKeeperPageLayout: React.FC<StoreKeeperPageLayoutProps> = ({ children,
   };
 
   const toggleMenu = (menuId: string) => {
-    const menuItem = menuItems.find(item => item.id === menuId);
-
-    // Check if any sub-item is currently active
-    if (menuItem?.submenu) {
-      const hasActiveSubItem = menuItem.submenu.some(
-        subItem => activeItem === subItem.id
-      );
-
-      // Prevent collapse if a sub-item is active
-      if (hasActiveSubItem && expandedMenus.includes(menuId)) {
-        return; // Don't allow collapse
-      }
-    }
-
-    // Accordion: only one submenu open; opening another closes the rest
     setExpandedMenus((prev) => {
       if (prev.includes(menuId)) {
         return prev.filter((id) => id !== menuId);

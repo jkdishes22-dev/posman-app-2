@@ -267,18 +267,6 @@ const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({ children, authError
     ];
 
     const toggleMenu = (menuId: string) => {
-        const menuItem = menuItems.find(item => item.id === menuId);
-
-        if (menuItem?.submenu) {
-            const hasActiveSubItem = menuItem.submenu.some(
-                subItem => activeItem === subItem.id
-            );
-
-            if (hasActiveSubItem && expandedMenus.includes(menuId)) {
-                return;
-            }
-        }
-
         setExpandedMenus((prev) => {
             if (prev.includes(menuId)) {
                 return prev.filter((id) => id !== menuId);
